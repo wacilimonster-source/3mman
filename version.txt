@@ -1,0 +1,6 @@
+{
+  "versionCode": 34,
+  "versionName": "1.0",
+  "updateMessage": "修复作者收藏问题；播放页作者页签点击视频进入独立播放页",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.apk"
+}

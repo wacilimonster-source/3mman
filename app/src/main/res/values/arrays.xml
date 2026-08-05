@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <array name="search">
+        <item>视频</item>
+        <item>用户</item>
+        <item>Video ID</item>
+    </array>
+
+    <array name="sort_by">
+        <item>添加时间</item>
+        <item>标题</item>
+        <item>观看次数</item>
+        <item>影片时长</item>
+    </array>
+
+    <!-- 91porny 搜索筛选：发布时间（与网页 UI 完全一致，接口仅支持以下选项） -->
+    <array name="porny_time_filter">
+        <item>全部</item>
+        <item>1星期内</item>
+        <item>2星期内</item>
+        <item>1个月内</item>
+        <item>3个月内</item>
+        <item>半年内</item>
+        <item>1年内</item>
+    </array>
+
+    <!-- 91porny 搜索筛选：播放量 -->
+    <array name="porny_views_filter">
+        <item>全部</item>
+        <item>>1000</item>
+        <item>>5000</item>
+        <item>>1万</item>
+        <item>>5万</item>
+        <item>>10万</item>
+    </array>
+</resources>

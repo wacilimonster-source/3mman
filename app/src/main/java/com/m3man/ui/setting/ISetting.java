@@ -1,0 +1,84 @@
+package com.m3man.ui.setting;
+
+import com.qmuiteam.qmui.widget.grouplist.QMUICommonListItemView;
+
+/**
+ * @author flymegoc
+ * @date 2018/2/6
+ */
+
+public interface ISetting {
+
+    void test9MmanVideo(String baseUrl, QMUICommonListItemView qmuiCommonListItemView, String key);
+
+
+    void testPav(String baseUrl, QMUICommonListItemView qmuiCommonListItemView, String key);
+
+    void testAxgle(String baseUrl, QMUICommonListItemView qmuiCommonListItemView, String key);
+
+    void testPorny(String baseUrl, QMUICommonListItemView qmuiCommonListItemView, String key);
+
+    boolean isPornyEnabled();
+
+    void setPornyEnabled(boolean enabled);
+
+    String getPornyAddress();
+
+    void setPornyAddress(String address);
+
+    boolean isHaveUnFinishDownloadVideo();
+
+    boolean isHaveFinishDownloadVideoFile();
+
+    void moveOldDownloadVideoToNewDir(String newDirPath, QMUICommonListItemView qmuiCommonListItemView);
+
+    boolean isUserLogin();
+
+    void existLogin();
+
+    int getPlaybackEngine();
+
+    void setPlaybackEngine(int playbackEngine);
+
+    void setMman9VideoAddress(String mman9VideoAddress);
+
+
+    void setPavAddress(String pavAddress);
+
+    void setCustomDownloadVideoDirPath(String newDirPath);
+
+    String getCustomDownloadVideoDirPath();
+
+    boolean isForbiddenAutoReleaseMemory();
+
+    void setForbiddenAutoReleaseMemory(boolean forbiddenAutoReleaseMemory);
+
+    boolean isDownloadVideoNeedWifi();
+
+    void setDownloadVideoNeedWifi(boolean downloadVideoNeedWifi);
+
+    boolean isOpenSkipPage();
+
+    void setOpenSkipPage(boolean openSkipPage);
+
+    String getVideo9MmanAddress();
+
+
+    String getPavAddress();
+
+    boolean isShowUrlRedirectTipDialog();
+
+    void setShowUrlRedirectTipDialog(boolean showUrlRedirectTipDialog);
+
+    void setAxgleAddress(String address);
+
+    String getAxgleAddress();
+
+    void setKeDouWoAddress(String address);
+
+    String getKeDouWoAddress();
+
+    boolean isFixMainNavigation();
+
+    void setFixMainNavigation(boolean fixMainNavigation);
+}

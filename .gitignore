@@ -1,0 +1,17 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+*.jks
+generated-images/
+3mman_v*_debug.apk
+
+gradle-home/
+gradle.properties.bak
+test_dir/
+TestFile.java
+.workbuddy/

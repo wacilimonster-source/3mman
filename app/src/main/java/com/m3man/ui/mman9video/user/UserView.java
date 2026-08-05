@@ -1,0 +1,26 @@
+package com.m3man.ui.mman9video.user;
+
+import android.graphics.Bitmap;
+
+import com.m3man.data.model.User;
+import com.m3man.ui.BaseView;
+
+/**
+ * @author flymegoc
+ * @date 2017/12/10
+ */
+
+public interface UserView extends BaseView {
+
+    void loginSuccess(User user);
+
+    void loginError(String message);
+
+    void registerSuccess(User user);
+
+    void registerFailure(String message);
+
+    void loadCaptchaSuccess(Bitmap bitmap);
+
+    void loadCaptchaFailure(String errorMessage, int code);
+}
