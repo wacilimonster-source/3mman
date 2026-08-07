@@ -120,7 +120,7 @@ public class HlsDownloadService extends Service {
         File target = new File(mp4Path);
         String saveDir = target.getParent();
         String fileName = target.getName();
-        if (fileName != null && fileName.toLowerCase().endsWith(".mp4")) {
+        if (fileName != null && fileName.toLowerCase().endsWith(".mp4") && fileName.length() > 4) {
             fileName = fileName.substring(0, fileName.length() - 4);
         }
         downloader = new HlsDownloader(this);

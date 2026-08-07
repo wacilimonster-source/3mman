@@ -253,7 +253,7 @@ public class Parse91PornyVideo {
         }
         // 相对路径：以 / 或 ./ 或 ../ 开头，拼接 baseUrl 的域名部分
         String base = baseUrl.trim();
-        if (base.endsWith("/")) {
+        if (base.endsWith("/") && base.length() > 1) {
             base = base.substring(0, base.length() - 1);
         }
         if (trimmed.startsWith("/")) {

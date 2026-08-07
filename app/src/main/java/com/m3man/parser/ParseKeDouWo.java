@@ -82,8 +82,11 @@ public class ParseKeDouWo {
             String added = item.select(".added").first().text();
             String views = item.select(".views").first().text();
 
-            String substring = contentUrl.substring(contentUrl.indexOf("videos/") + 7);
-            String viewId = substring.substring(0, substring.indexOf("/"));
+            int videosIdx = contentUrl.indexOf("videos/");
+            int slashIdx = contentUrl.indexOf("/", videosIdx + 7);
+            String viewId = videosIdx >= 0 && slashIdx > videosIdx + 7
+                    ? contentUrl.substring(videosIdx + 7, slashIdx)
+                    : "";
 
             keDouModel.setTitle(title);
             keDouModel.setImgUrl(imgUrl);

@@ -338,18 +338,32 @@ public class ParseV9MmanVideo {
         videoResult.setVideoUrl(videoUrl);
         Logger.t(TAG).d("视频链接：" + videoUrl);
 
-        int endIndex = videoUrl.indexOf(".mp4");
-        int startIndex = videoUrl.substring(0, endIndex).lastIndexOf("/");
-        String videoId = videoUrl.substring(startIndex + 1, endIndex);
+        // M32：站点改版/视频下架/反爬时 videoUrl 可能为空，不再触发 substring 崩溃
+        String videoId = "";
+        if (!TextUtils.isEmpty(videoUrl)) {
+            int endIndex = videoUrl.indexOf(".mp4");
+            if (endIndex > 0) {
+                int startIndex = videoUrl.substring(0, endIndex).lastIndexOf("/");
+                videoId = videoUrl.substring(startIndex + 1, endIndex);
+            }
+        }
         videoResult.setVideoId(videoId);
         Logger.t(TAG).d("视频Id：" + videoId);
 
         //这里解析的作者id已经变了，非纯数字了
         //        Document doc = Jsoup.parse(html);
-        String ownerUrl = doc.select("a[href*=UID]").first().attr("href");
-        String ownerId = ownerUrl.substring(ownerUrl.indexOf("=") + 1, ownerUrl.length());
-        videoResult.setOwnerId(ownerId);
-        Logger.t(TAG).d("作者Id：" + ownerId);
+        Element ownerLink = doc.select("a[href*=UID]").first();
+        if (ownerLink != null) {
+            String ownerUrl = ownerLink.attr("href");
+            int eq = ownerUrl.indexOf("=");
+            if (eq >= 0 && eq + 1 <= ownerUrl.length()) {
+                String ownerId = ownerUrl.substring(eq + 1);
+                videoResult.setOwnerId(ownerId);
+                Logger.t(TAG).d("作者Id：" + ownerId);
+            }
+            videoResult.setOwnerName(ownerLink.text());
+            Logger.t(TAG).d("作者：" + ownerLink.text());
+        }
 
         Element addToFavLink = doc.getElementById("addToFavLink");
         if (addToFavLink != null) {
@@ -376,14 +390,11 @@ public class ParseV9MmanVideo {
             }
         }
 
-        String ownerName = doc.select("a[href*=UID]").first().text();
-        videoResult.setOwnerName(ownerName);
-        Logger.t(TAG).d("作者：" + ownerName);
-
-        //        String thumImg = doc.getElementById("vid").attr("poster");
-        String thumImg = doc.getElementById("player_one").attr("poster");
-        videoResult.setThumbImgUrl(thumImg);
-        Logger.t(TAG).d("缩略图：" + thumImg);
+        Element playerOne = doc.getElementById("player_one");
+        if (playerOne != null) {
+            videoResult.setThumbImgUrl(playerOne.attr("poster"));
+            Logger.t(TAG).d("缩略图：" + playerOne.attr("poster"));
+        }
 
         Elements elementsByClass = doc.getElementsByClass("videodetails-yakov");
 
@@ -739,7 +750,8 @@ public class ParseV9MmanVideo {
             videoComment.setCommentQuoteList(quoteList);
 
             String info = element.select("td").first().text();
-            String titleInfo = info.substring(0, info.indexOf("("));
+            int bracket = info.indexOf("(");
+            String titleInfo = bracket > 0 ? info.substring(0, bracket) : info;
             videoComment.setTitleInfo(titleInfo.replace(uName, ""));
             // Logger.t(TAG).d(titleInfo);
 
