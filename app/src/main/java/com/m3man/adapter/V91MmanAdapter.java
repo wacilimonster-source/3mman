@@ -26,6 +26,8 @@ public class V91MmanAdapter extends BaseQuickAdapter<V9MmanItem, BaseViewHolder>
 
     @Override
     protected void convert(BaseViewHolder helper, V9MmanItem item) {
+        // 注册左滑「删除」按钮的点击事件（否则 setOnItemChildClickListener 不生效）
+        helper.addOnClickListener(R.id.right_menu_delete);
         helper.setText(R.id.tv_91mman_item_title, item.getTitleWithDuration());
         helper.setText(R.id.tv_91mman_item_info, item.getInfo());
         ImageView simpleDraweeView = helper.getView(R.id.iv_91mman_item_img);

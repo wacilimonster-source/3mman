@@ -37,24 +37,31 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
 
     @Override
     public IBinder onBind(Intent intent) {
-        // TODO: Return the communication channel to the service.
-        throw null;
+        //M30：本Service不提供绑定通道，返回null即可（原实现为模板残留的 throw null）
+        return null;
     }
 
     @Override
     public void onCreate() {
         super.onCreate();
+        //确保渠道存在，避免进程被单独拉起时 startForeground 崩溃
+        NotificationChannelHelper.initChannel(this);
         DownloadManager.getImpl().addUpdater(this);
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-
+        //M24：Android 8+ 要求启动后立即进入前台，否则约1分钟后被系统停止导致下载中断
+        startForeground(Constants.VIDEO_DOWNLOAD_NOTIFICATION_ID, buildNotification("正在准备下载", 0, "", 0));
         return START_NOT_STICKY;
     }
 
     private void startNotification(String videoName, int progress, String fileSize, int speed) {
-        int id = Constants.VIDEO_DOWNLOAD_NOTIFICATION_ID;
+        startForeground(Constants.VIDEO_DOWNLOAD_NOTIFICATION_ID,
+                buildNotification(videoName, progress, fileSize, speed));
+    }
+
+    private Notification buildNotification(String videoName, int progress, String fileSize, int speed) {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NotificationChannelHelper.CHANNEL_ID_FOR_DOWNLOAD);
         builder.setContentTitle("正在下载");
         //只响铃震动一次
@@ -64,10 +71,14 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
         builder.setContentText(fileSize + "--" + speed + "KB/s");
         builder.setContentInfo(videoName);
         Intent intent = new Intent(this, DownloadActivity.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        //M31：API31+ 必须显式指定可变性
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            flags |= PendingIntent.FLAG_IMMUTABLE;
+        }
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 1, intent, flags);
         builder.setContentIntent(pendingIntent);
-        Notification notification = builder.build();
-        startForeground(id, notification);
+        return builder.build();
     }
 
     @Override
@@ -88,7 +99,8 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
     }
 
     private void updateNotification(BaseDownloadTask task, int soFarBytes, int totalBytes) {
-        int progress = (int) (((float) soFarBytes / totalBytes) * 100);
+        //totalBytes 在文件大小未知时为0，直接相除会得到NaN甚至异常，这里做保护
+        int progress = totalBytes > 0 ? (int) (((float) soFarBytes / totalBytes) * 100) : 0;
         String fileSize = Formatter.formatFileSize(DownloadVideoService.this, soFarBytes).replace("MB", "") + "/ " + Formatter.formatFileSize(DownloadVideoService.this, totalBytes);
         V9MmanItem v9MmanItem = dataManager.findV9MmanItemByDownloadId(task.getId());
         if (v9MmanItem != null) {

@@ -47,6 +47,7 @@ public class ProxyPresenter extends MvpBasePresenter<ProxyView> implements IProx
         if (RegexUtils.isIP(proxyIpAddress) && proxyPort < Constants.PROXY_MAX_PORT && proxyPort > 0) {
             dataManager.testProxy(proxyIpAddress, proxyPort)
                     .compose(RxSchedulersHelper.<Boolean>ioMainThread())
+                    .compose(provider.<Boolean>bindUntilEvent(Lifecycle.Event.ON_DESTROY))
                     .subscribe(new CallBackWrapper<Boolean>() {
                         @Override
                         public void onBegin(Disposable d) {

@@ -119,17 +119,17 @@ public class HostJsScope {
      * @return 设备IMSI
      */
     public static String getIMSI(WebView webView) {
-        if (ActivityCompat.checkSelfPermission(webView.getContext(), Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return ((TelephonyManager) webView.getContext().getSystemService(Context.TELEPHONY_SERVICE)).getSubscriberId();
+        Context context = webView.getContext();
+        // 未授权时直接返回空串，禁止调用受限 API（否则抛 SecurityException）
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+            return "";
         }
-        return "";
+        try {
+            TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+            return tm != null ? tm.getSubscriberId() : "";
+        } catch (SecurityException e) {
+            return "";
+        }
     }
 
     /**

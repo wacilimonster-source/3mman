@@ -24,34 +24,65 @@ import javax.inject.Singleton;
 @Singleton
 public class MyProxySelector extends ProxySelector {
     private static final String TAG = MyProxySelector.class.getSimpleName();
-    private List<Proxy> proxyList;
 
     /**
      * 显式“不走代理”标记（用于本地回环地址，如视频缓存代理、代理自身），避免代理回环。
      */
     private static final List<Proxy> DIRECT_NO_PROXY = Collections.singletonList(Proxy.NO_PROXY);
 
-    private boolean isTest = false;
-    private PreferencesHelper preferencesHelper;
+    /**
+     * M15：测试代理列表用 volatile 持有不可变快照，避免跨线程共享可变 ArrayList 造成撕裂。
+     */
+    private volatile List<Proxy> testProxyList;
+    private volatile boolean isTest = false;
+    private final PreferencesHelper preferencesHelper;
 
     @Inject
     public MyProxySelector(List<Proxy> proxyList, PreferencesHelper preferencesHelper) {
-        this.proxyList = proxyList;
+        //注入的 proxyList 仅作占位，实际选路每次构造不可变快照，避免并发修改
         this.preferencesHelper = preferencesHelper;
     }
 
     public void setTest(boolean test, String proxyHost, int port) {
-        isTest = test;
         if (test) {
+            if (TextUtils.isEmpty(proxyHost) || !isValidPort(port)) {
+                Logger.t(TAG).d("测试代理参数非法，忽略");
+                clearTest();
+                return;
+            }
             Logger.t(TAG).d("开始代理测试了");
-            Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, port));
-            proxyList.clear();
-            proxyList.add(proxy);
+            testProxyList = Collections.singletonList(
+                    new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, port)));
+            isTest = true;
+        } else {
+            clearTest();
         }
+    }
+
+    /**
+     * M15：清理测试态。测试崩溃/被杀后若不清理，所有请求（含检查更新）都会被强制导向未验证代理。
+     */
+    public void clearTest() {
+        isTest = false;
+        testProxyList = null;
+    }
+
+    /**
+     * 端口合法性校验（M14：原代码只判 &gt;0，未判上界）
+     *
+     * @param port 端口
+     * @return 是否合法
+     */
+    public static boolean isValidPort(int port) {
+        return port > 0 && port <= 65535;
     }
 
     @Override
     public List<Proxy> select(URI uri) {
+        //M14：ProxySelector 契约要求 uri 为 null 时抛 IllegalArgumentException，且不得返回 null
+        if (uri == null) {
+            throw new IllegalArgumentException("uri must not be null");
+        }
         String host = uri.getHost();
         // 本地回环地址（视频缓存代理 127.0.0.1:PORT、以及代理自身 127.0.0.1:7897）不走代理，
         // 否则会产生代理回环，导致本地视频缓存与代理请求全部失败。
@@ -66,28 +97,29 @@ public class MyProxySelector extends ProxySelector {
 
         if (isTest) {
             // 代理连通性测试：对所有外部地址返回测试代理
-            Logger.t(TAG).d("本次为代理测试了");
-            return proxyList;
+            List<Proxy> snapshot = testProxyList;
+            if (snapshot != null) {
+                Logger.t(TAG).d("本次为代理测试了");
+                return snapshot;
+            }
         }
 
         if (!isOpenProxy) {
-            Logger.t(TAG).d("select(URI uri)-----------------------------::::" + uri.toString());
             Logger.t(TAG).d("未有任何代理或测试，直连");
-            return null;
+            //M14：不得返回 null，否则部分 HttpURLConnection 栈会 NPE
+            return DIRECT_NO_PROXY;
         }
 
         // 正式代理：所有外部地址都通过 Http 代理中转（视频列表、播放、下载 CDN 统一走代理）
-        Logger.t(TAG).d("select(URI uri)-----------------------------::::是相等的，可以启用了");
         String proxyHost = preferencesHelper.getProxyIpAddress();
         int port = preferencesHelper.getProxyPort();
-        if (TextUtils.isEmpty(proxyHost) || port <= 0) {
-            Logger.t(TAG).d("代理地址为空，直连");
-            return null;
+        if (TextUtils.isEmpty(proxyHost) || !isValidPort(port)) {
+            Logger.t(TAG).d("代理地址为空或端口非法，直连");
+            return DIRECT_NO_PROXY;
         }
-        Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, port));
-        proxyList.clear();
-        proxyList.add(proxy);
-        return proxyList;
+        //每次构造不可变快照，避免共享列表被并发清空/写入
+        return Collections.singletonList(
+                new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, port)));
     }
 
     @Override

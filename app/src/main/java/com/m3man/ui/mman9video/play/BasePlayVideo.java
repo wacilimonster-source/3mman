@@ -66,6 +66,9 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
 
     private final String TAG = BasePlayVideo.class.getSimpleName();
 
+    /** R1：收藏相关裸订阅统一回收，避免销毁后回调操作已释放的UI */
+    private final io.reactivex.disposables.CompositeDisposable mDisposables = new io.reactivex.disposables.CompositeDisposable();
+
     @BindView(R.id.floatingToolbar)
     FloatingToolbar floatingToolbar;
     @BindView(R.id.fab)
@@ -210,6 +213,11 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     public abstract void initPlayerView();
 
     public void initData() {
+        // C9：入参零校验，避免 v9MmanItem 或 viewKey 为 null 时直接 NPE
+        if (v9MmanItem == null || TextUtils.isEmpty(v9MmanItem.getViewKey())) {
+            Logger.t(TAG).e("initData: v9MmanItem 为空或 viewKey 缺失，无法初始化播放页");
+            return;
+        }
         boolean isPornySource = PlayVideoPresenter.isPornySource(v9MmanItem);
         V9MmanItem tmp = presenter.findV9MmanItemByViewKey(v9MmanItem.getViewKey());
         //登录之后，第一次需要刷新获取uid,否则无法使用收藏功能
@@ -289,7 +297,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         final String authorName = v9MmanItem.getVideoResult().getOwnerName();
         final String source = PlayVideoPresenter.isPornySource(v9MmanItem)
                 ? AuthorFavorite.SOURCE_PORNY : AuthorFavorite.SOURCE_MMAN9;
-        Observable.just(1)
+        mDisposables.add(Observable.just(1)
                 .map(integer -> {
                     // 实时查库判断收藏态，避免异步刷新完成前点击导致的重复收藏 / 漏删
                     boolean currentlyFav = presenter.isAuthorFavorited(authorKey, source);
@@ -307,7 +315,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
                     updateFavoriteIcon();
                     showMessage(isAuthorFavorited ? "已收藏作者" : "已取消收藏作者",
                             isAuthorFavorited ? TastyToast.SUCCESS : TastyToast.DEFAULT);
-                }, throwable -> showMessage("操作失败，请重试", TastyToast.ERROR));
+                }, throwable -> showMessage("操作失败，请重试", TastyToast.ERROR)));
     }
 
     private void refreshAuthorFavoriteState() {
@@ -318,14 +326,14 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         final String authorKey = v9MmanItem.getVideoResult().getOwnerId();
         final String source = PlayVideoPresenter.isPornySource(v9MmanItem)
                 ? AuthorFavorite.SOURCE_PORNY : AuthorFavorite.SOURCE_MMAN9;
-        Observable.just(1)
+        mDisposables.add(Observable.just(1)
                 .map(integer -> presenter.isAuthorFavorited(authorKey, source))
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(fav -> {
                     isAuthorFavorited = fav;
                     updateFavoriteIcon();
-                }, throwable -> Logger.t(TAG).e(throwable, "读取作者收藏态失败"));
+                }, throwable -> Logger.t(TAG).e(throwable, "读取作者收藏态失败")));
     }
 
     private void updateFavoriteIcon() {
@@ -544,7 +552,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         // 91porny 无账号体系，走本地收藏
         if (PlayVideoPresenter.isPornySource(v9MmanItem)) {
             favoriteDialog.show();
-            io.reactivex.Observable.just(1)
+            mDisposables.add(io.reactivex.Observable.just(1)
                     .map(integer -> presenter.addLocalFavorite(v9MmanItem))
                     .subscribeOn(io.reactivex.schedulers.Schedulers.io())
                     .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
@@ -554,7 +562,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
                     }, throwable -> {
                         dismissDialog();
                         showMessage("收藏失败", TastyToast.ERROR);
-                    });
+                    }));
             return;
         }
         VideoResult videoResult = v9MmanItem.getVideoResult();
@@ -621,5 +629,14 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
 
     public void setV9MmanItems(V9MmanItem v9MmanItems) {
         this.v9MmanItem = v9MmanItems;
+    }
+
+    @Override
+    protected void onDestroy() {
+        // R1：释放收藏相关的裸订阅，避免页面销毁后异步回调操作已销毁的 UI
+        if (mDisposables != null && !mDisposables.isDisposed()) {
+            mDisposables.clear();
+        }
+        super.onDestroy();
     }
 }

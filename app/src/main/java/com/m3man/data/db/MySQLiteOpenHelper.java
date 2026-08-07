@@ -32,18 +32,25 @@ public class MySQLiteOpenHelper extends DaoMaster.OpenHelper {
 
     @Override
     public void onUpgrade(Database db, int oldVersion, int newVersion) {
-        MigrationHelper.migrate(db, new MigrationHelper.ReCreateAllTableListener() {
+        // D2：迁移整体包在事务中，避免「drop 旧表后、回填完成前被杀」导致的数据永久损毁
+        db.beginTransaction();
+        try {
+            MigrationHelper.migrate(db, new MigrationHelper.ReCreateAllTableListener() {
 
-            @Override
-            public void onCreateAllTables(Database db, boolean ifNotExists) {
-                DaoMaster.createAllTables(db, ifNotExists);
-            }
+                @Override
+                public void onCreateAllTables(Database db, boolean ifNotExists) {
+                    DaoMaster.createAllTables(db, ifNotExists);
+                }
 
-            @Override
-            public void onDropAllTables(Database db, boolean ifExists) {
-                DaoMaster.dropAllTables(db, ifExists);
-            }
-        }, V9MmanItemDao.class, VideoResultDao.class, CategoryDao.class, AuthorFavoriteDao.class, AutoCompleteEntityDao.class);
+                @Override
+                public void onDropAllTables(Database db, boolean ifExists) {
+                    DaoMaster.dropAllTables(db, ifExists);
+                }
+            }, V9MmanItemDao.class, VideoResultDao.class, CategoryDao.class, AuthorFavoriteDao.class, AutoCompleteEntityDao.class);
+            db.setTransactionSuccessful();
+        } finally {
+            db.endTransaction();
+        }
     }
 }
 

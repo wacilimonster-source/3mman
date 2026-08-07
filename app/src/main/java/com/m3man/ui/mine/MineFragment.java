@@ -87,6 +87,11 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
     private int scrollYPosition = 0;
     private QMUICommonListItemView openProxyItemWithSwitch;
 
+    /**
+     * 恢复滚动位置的延迟任务，需要在onDestroyView中移除，避免Fragment销毁后回调造成内存泄漏/空指针
+     */
+    private Runnable restoreScrollRunnable;
+
     @Inject
     protected MinePresenter minePresenter;
 
@@ -129,16 +134,21 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
                 scrollYPosition = y;
             }
         });
-        observableScrollView.postDelayed(new Runnable() {
+        restoreScrollRunnable = new Runnable() {
             @Override
             public void run() {
-                int scrollYPosition = presenter.getSettingScrollViewScrollPosition();
-                if (scrollYPosition > 0) {
+                //Fragment可能已经销毁，做安全校验
+                if (!isAdded() || observableScrollView == null || presenter == null) {
+                    return;
+                }
+                int savedScrollY = presenter.getSettingScrollViewScrollPosition();
+                if (savedScrollY > 0) {
                     presenter.setSettingScrollViewScrollPosition(0);
-                    observableScrollView.scrollTo(0, scrollYPosition);
+                    observableScrollView.scrollTo(0, savedScrollY);
                 }
             }
-        }, 200);
+        };
+        observableScrollView.postDelayed(restoreScrollRunnable, 200);
         initMineSection();
         handlerMargin();
     }
@@ -286,6 +296,10 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
     }
 
     public void updateProxySetUI(String proxyStr, int proxyPort) {
+        //视图可能还未创建（Activity提前调用），做空校验
+        if (openProxyItemWithSwitch == null || presenter == null) {
+            return;
+        }
         if (!TextUtils.isEmpty(proxyStr) && proxyPort > 0) {
             openProxyItemWithSwitch.setDetailText(proxyStr + " : " + proxyPort);
         }
@@ -350,7 +364,15 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        unbinder.unbind();
+        //移除未执行的延迟任务，防止内存泄漏
+        if (observableScrollView != null && restoreScrollRunnable != null) {
+            observableScrollView.removeCallbacks(restoreScrollRunnable);
+        }
+        restoreScrollRunnable = null;
+        if (unbinder != null) {
+            unbinder.unbind();
+            unbinder = null;
+        }
     }
 
     @Override

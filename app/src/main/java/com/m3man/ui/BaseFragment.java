@@ -43,6 +43,14 @@ public abstract class BaseFragment extends DaggerFragment {
     }
 
     @Override
+    public void onDetach() {
+        super.onDetach();
+        // L2：分离时清空 activity/context 引用，避免持有已销毁 Activity 导致泄漏
+        context = null;
+        activity = null;
+    }
+
+    @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (savedInstanceState != null) {

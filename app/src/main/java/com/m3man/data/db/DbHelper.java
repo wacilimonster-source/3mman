@@ -57,4 +57,10 @@ public interface DbHelper {
     void deleteAuthorFavorite(AuthorFavorite authorFavorite);
 
     boolean isAuthorFavorited(String authorKey, String source);
+
+    // ---- 自动补全（地址 / 用户名）建议 ----
+
+    List<String> getAutoCompleteNames(int type);
+
+    void saveAutoComplete(String name, int type);
 }

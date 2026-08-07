@@ -2,5 +2,9 @@
     package="com.flymegoc.exolibrary">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+    <!--
+        M21：原声明了 WRITE_SETTINGS 特殊权限，但本模块仅在 ExoVideoView 中
+        通过 Settings.System.getInt 只读取屏幕亮度，不写任何系统设置。
+        该权限属应用商店合规高危项，已移除。
+    -->
 </manifest>

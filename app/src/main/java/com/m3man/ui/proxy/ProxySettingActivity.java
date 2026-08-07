@@ -168,6 +168,25 @@ public class ProxySettingActivity extends MvpActivity<ProxyView, ProxyPresenter>
         return super.onOptionsItemSelected(item);
     }
 
+    /**
+     * M14：安全解析端口。原实现只判 isDigitsOnly，"999999999999" 会让 Integer.parseInt 抛
+     * NumberFormatException 直接崩溃；同时也未校验 65535 上界。
+     *
+     * @param portStr 端口字符串
+     * @return 合法端口，非法时返回 -1
+     */
+    private int parsePort(String portStr) {
+        if (TextUtils.isEmpty(portStr) || !TextUtils.isDigitsOnly(portStr)) {
+            return -1;
+        }
+        try {
+            int port = Integer.parseInt(portStr);
+            return (port > 0 && port <= 65535) ? port : -1;
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
     private void doSettingProxy() {
         if (!isTestSuccess) {
             showMessage("未有成功测试的代理，无法设置", TastyToast.INFO);
@@ -176,11 +195,11 @@ public class ProxySettingActivity extends MvpActivity<ProxyView, ProxyPresenter>
         presenter.exitTest();
         String proxyIpAddress = etDialogProxySettingIpAddress.getIpAddressStr();
         String proxyPortStr = etDialogProxySettingPort.getText().toString().trim();
-        if (TextUtils.isEmpty(proxyPortStr) || !TextUtils.isDigitsOnly(proxyPortStr)) {
-            showMessage("无法设置，代理端口错误，请检查", TastyToast.INFO);
+        int proxyPort = parsePort(proxyPortStr);
+        if (proxyPort < 0) {
+            showMessage("无法设置，代理端口错误，请检查（有效范围 1-65535）", TastyToast.INFO);
             return;
         }
-        int proxyPort = Integer.parseInt(proxyPortStr);
         //设置开启代理并存储地址和端口号
         presenter.setOpenHttpProxy(true);
         presenter.setProxyIpAddress(proxyIpAddress);
@@ -201,11 +220,11 @@ public class ProxySettingActivity extends MvpActivity<ProxyView, ProxyPresenter>
                 isTestSuccess = false;
                 String proxyIpAddress = etDialogProxySettingIpAddress.getIpAddressStr();
                 String portStr = etDialogProxySettingPort.getText().toString().trim();
-                if (TextUtils.isEmpty(portStr) || TextUtils.isEmpty(proxyIpAddress) || !TextUtils.isDigitsOnly(portStr)) {
-                    showMessage("端口号或IP地址不正确", TastyToast.WARNING);
+                int proxyPort = parsePort(portStr);
+                if (TextUtils.isEmpty(proxyIpAddress) || proxyPort < 0) {
+                    showMessage("端口号或IP地址不正确（端口有效范围 1-65535）", TastyToast.WARNING);
                     return;
                 }
-                int proxyPort = Integer.parseInt(portStr);
                 presenter.testProxy(proxyIpAddress, proxyPort);
                 QMUIKeyboardHelper.hideKeyboard(v);
                 break;

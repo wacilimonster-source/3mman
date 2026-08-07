@@ -13,6 +13,7 @@ import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.FileProvider;
+import android.text.TextUtils;
 import android.text.format.Formatter;
 import android.widget.RemoteViews;
 
@@ -27,7 +28,11 @@ import com.m3man.constants.Constants;
 import com.m3man.data.model.UpdateVersion;
 import com.m3man.utils.NotificationChannelHelper;
 
+import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.security.MessageDigest;
 
 /**
  * 升级下载apk服务
@@ -91,7 +96,15 @@ public class UpdateDownloadService extends Service {
                 return START_NOT_STICKY;
             }
         }
-        path = Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + Environment.DIRECTORY_DOWNLOADS + "/3mman_" + updateVersion.getVersionName() + ".apk";
+        // S1：下载到应用私有目录（getExternalFilesDir），避免落到公共 /sdcard/Download 被第三方替换（TOCTOU）
+        File dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+        if (dir == null) {
+            dir = getFilesDir();
+        }
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+        path = dir.getAbsolutePath() + "/3mman_" + updateVersion.getVersionName() + ".apk";
         if (BuildConfig.DEBUG) {
             File file = new File(path);
             file.delete();
@@ -113,6 +126,14 @@ public class UpdateDownloadService extends Service {
             @Override
             protected void completed(BaseDownloadTask task) {
                 isPause = false;
+                // S1：安装前校验完整性（version.txt 提供了 sha256 才校验），失败则拒绝安装
+                String expected = updateVersion != null ? updateVersion.getSha256() : null;
+                if (!TextUtils.isEmpty(expected) && !verifySha256(new File(path), expected)) {
+                    TastyToast.makeText(UpdateDownloadService.this,
+                            "安装包校验失败，可能已被篡改", TastyToast.LENGTH_LONG, TastyToast.ERROR);
+                    stopForeground(true);
+                    return;
+                }
                 installApk(path);
                 stopForeground(true);
             }
@@ -184,6 +205,33 @@ public class UpdateDownloadService extends Service {
         startActivity(intent);
     }
 
+    /**
+     * S1：计算文件 SHA-256 并与期望值比对（不区分大小写）。异常时返回 false。
+     */
+    private static boolean verifySha256(File file, String expectedHex) {
+        if (file == null || !file.exists()) {
+            return false;
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            try (InputStream in = new BufferedInputStream(new FileInputStream(file))) {
+                byte[] buf = new byte[8192];
+                int len;
+                while ((len = in.read(buf)) != -1) {
+                    digest.update(buf, 0, len);
+                }
+            }
+            byte[] hash = digest.digest();
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString().equalsIgnoreCase(expectedHex);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private void startNotification(int action, int progress, String fileSize, int speed) {
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NotificationChannelHelper.CHANNEL_ID_FOR_UPDATE);
@@ -206,12 +254,14 @@ public class UpdateDownloadService extends Service {
 
         Intent pauseStartIntent = new Intent(this, UpdateDownloadService.class);
         pauseStartIntent.putExtra(KEY_ACTION, action);
-        PendingIntent pauseStartPendingIntent = PendingIntent.getService(this, action, pauseStartIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent pauseStartPendingIntent = PendingIntent.getService(this, action, pauseStartIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         remoteViews.setOnClickPendingIntent(R.id.bt_download_apk_pause, pauseStartPendingIntent);
 
         Intent cancelIntent = new Intent(this, UpdateDownloadService.class);
         cancelIntent.putExtra(KEY_ACTION, ACTION_CANCEL);
-        PendingIntent cancelPendingIntent = PendingIntent.getService(this, ACTION_CANCEL, cancelIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent cancelPendingIntent = PendingIntent.getService(this, ACTION_CANCEL, cancelIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         remoteViews.setOnClickPendingIntent(R.id.bt_download_apk_cancel, cancelPendingIntent);
 
         builder.setContent(remoteViews);

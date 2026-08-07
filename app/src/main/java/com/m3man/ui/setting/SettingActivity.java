@@ -22,6 +22,7 @@ import com.sdsmdg.tastytoast.TastyToast;
 import com.m3man.R;
 import com.m3man.constants.Constants;
 import com.m3man.data.network.Api;
+import com.m3man.data.db.entity.AutoCompleteEntity;
 import com.m3man.data.prefs.AppPreferencesHelper;
 import com.m3man.ui.MvpActivity;
 import com.m3man.ui.google.GoogleRecaptchaVerifyActivity;
@@ -31,6 +32,8 @@ import com.m3man.utils.PlaybackEngine;
 import com.m3man.utils.SDCardUtils;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 import javax.inject.Inject;
 
@@ -410,8 +413,19 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
                 default:
             }
         }
-        final String[] address = {"http://", "https://", "http://www.", "https://www."};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, R.layout.item_auto_complete_textview, address);
+        // M3：将历史保存过的地址与协议前缀合并为自动补全建议
+        final String[] addressPrefix = {"http://", "https://", "http://www.", "https://www."};
+        List<String> suggestions = new ArrayList<>();
+        suggestions.addAll(Arrays.asList(addressPrefix));
+        List<String> savedAddresses = presenter.getAutoCompleteNames(AutoCompleteEntity.TYPE_ADDRESS);
+        if (savedAddresses != null) {
+            for (String s : savedAddresses) {
+                if (!suggestions.contains(s)) {
+                    suggestions.add(s);
+                }
+            }
+        }
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, R.layout.item_auto_complete_textview, suggestions);
         autoCompleteTextView.setAdapter(adapter);
 
         okAppCompatButton.setOnClickListener(new View.OnClickListener() {
@@ -540,6 +554,8 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
                 break;
             default:
         }
+        // M3：保存地址的同时持久化到自动补全表，供下次输入建议
+        presenter.saveAutoComplete(address, AutoCompleteEntity.TYPE_ADDRESS);
         qmuiCommonListItemView.setDetailText(address);
         showMessage("设置成功", TastyToast.INFO);
         testBaseUrl = "";

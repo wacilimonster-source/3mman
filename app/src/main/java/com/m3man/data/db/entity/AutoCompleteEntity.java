@@ -15,6 +15,9 @@ import java.util.Date;
  */
 @Entity
 public class AutoCompleteEntity {
+    /** M3：地址自动补全建议的类型标签（与用户名等区分） */
+    public static final int TYPE_ADDRESS = 1;
+
     @Id
     private Long id;
     @Index(unique = true)

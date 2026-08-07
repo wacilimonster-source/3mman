@@ -41,8 +41,8 @@ public class V9MmanItem implements Serializable {
     private String source;
     /** 持久化的来源标记（如 91porny），本地收藏后重启也能识别来源 */
     private String sourceName;
-    /** 是否本地收藏（分分钟视频的本地收藏标记） */
-    private boolean isLocalFavorite;
+    /** 是否本地收藏（分分钟视频的本地收藏标记）；用 Boolean 而非 boolean，避免升级迁移时 NOT NULL 无默认值导致整表被清空（D1） */
+    private Boolean isLocalFavorite;
     private long videoResultId;
     @ToOne(joinProperty = "videoResultId")
     private VideoResult videoResult;
@@ -66,8 +66,8 @@ public class V9MmanItem implements Serializable {
     private transient V9MmanItemDao myDao;
 
 
-    @Generated(hash = 107066625)
-    public V9MmanItem(Long id, String viewKey, String title, String imgUrl, String duration, String info, String sourceName, boolean isLocalFavorite, long videoResultId, int downloadId, int progress, long speed,
+    @Generated(hash = 1325910129)
+    public V9MmanItem(Long id, String viewKey, String title, String imgUrl, String duration, String info, String sourceName, Boolean isLocalFavorite, long videoResultId, int downloadId, int progress, long speed,
             int soFarBytes, int totalFarBytes, int status, Date addDownloadDate, Date finishedDownloadDate, Date viewHistoryDate) {
         this.id = id;
         this.viewKey = viewKey;
@@ -108,21 +108,40 @@ public class V9MmanItem implements Serializable {
 
         V9MmanItem that = (V9MmanItem) o;
 
-        return id.equals(that.id);
+        //M4：网络解析出来的对象尚未入库，id为null，直接equals会NPE。
+        //此时退化为按viewKey判等（viewKey是业务唯一键，且已建立索引）。
+        if (id != null && that.id != null) {
+            return id.equals(that.id);
+        }
+        if (viewKey != null) {
+            return viewKey.equals(that.viewKey);
+        }
+        return that.viewKey == null && that.id == null && id == null;
     }
 
     @Override
     public int hashCode() {
-        return id.hashCode();
+        //M4：优先用业务唯一键viewKey，保证对象入库前后hash稳定，同时避免id为null时NPE
+        if (viewKey != null) {
+            return viewKey.hashCode();
+        }
+        return id != null ? id.hashCode() : 0;
     }
 
     public String getDownLoadPath(String customDownloadVideoDirPath) {
-        //先读取自定义目录
+        // 规范化目录：保证尾部有分隔符，避免拼接错位写到用户所选目录之外（C7）
+        String dir;
         if (!TextUtils.isEmpty(customDownloadVideoDirPath)) {
-            return customDownloadVideoDirPath + getTitle() + getViewKey() + ".mp4";
+            dir = customDownloadVideoDirPath;
+        } else {
+            dir = SDCardUtils.DOWNLOAD_VIDEO_PATH;
         }
-
-        return SDCardUtils.DOWNLOAD_VIDEO_PATH + getTitle() + getViewKey() + ".mp4";
+        if (!dir.endsWith("/")) {
+            dir = dir + "/";
+        }
+        // 清洗标题中的非法字符与路径分隔符，防止目录穿越 / 写入异常位置（C8）
+        String safeTitle = SDCardUtils.sanitizeFileName(getTitle());
+        return dir + safeTitle + "_" + getViewKey() + ".mp4";
     }
 
     public Date getAddDownloadDate() {
@@ -218,12 +237,27 @@ public class V9MmanItem implements Serializable {
         this.sourceName = sourceName;
     }
 
-    public boolean getIsLocalFavorite() {
+    /**
+     * D1：该列升级后对历史行为 NULL，getter/setter 必须用包装类型，
+     * 否则 greenDAO 生成的读写代码会在拆箱时抛 NPE。
+     *
+     * @return 可能为 null
+     */
+    public Boolean getIsLocalFavorite() {
         return this.isLocalFavorite;
     }
 
-    public void setIsLocalFavorite(boolean isLocalFavorite) {
+    public void setIsLocalFavorite(Boolean isLocalFavorite) {
         this.isLocalFavorite = isLocalFavorite;
+    }
+
+    /**
+     * 业务侧安全判断：null 视为未收藏
+     *
+     * @return 是否本地收藏
+     */
+    public boolean isLocalFavorite() {
+        return Boolean.TRUE.equals(this.isLocalFavorite);
     }
 
     public int getDownloadId() {

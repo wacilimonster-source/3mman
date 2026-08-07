@@ -215,7 +215,9 @@ public class AppApiHelper implements ApiHelper {
                 .map(s -> new Gson().fromJson(s, VideoCommentResult.class))
                 .map(videoCommentResult -> {
                     String msg = "评论错误，未知错误";
-                    if (videoCommentResult.getA().size() == 0) {
+                    //M16：接口返回空/错误页时 gson 会产出 null 或 a 为 null，需先判空避免 NPE
+                    if (videoCommentResult == null || videoCommentResult.getA() == null
+                            || videoCommentResult.getA().isEmpty()) {
                         throw new MessageException("评论错误，未知错误");
                     } else if (videoCommentResult.getA().get(0).getData() == VideoCommentResult.COMMENT_SUCCESS) {
                         msg = "留言已经提交，审核后通过";
@@ -276,7 +278,14 @@ public class AppApiHelper implements ApiHelper {
         return v9MmanServiceApi.favoriteVideo(uId,videoId,ownnerId,HeaderUtils.getIndexHeader(addressHelper))
                 .map(s -> {
                     Logger.t(TAG).d("favoriteStr: " + s);
-                    int code = Integer.parseInt(s);
+                    int code;
+                    try {
+                        code = Integer.parseInt(s == null ? "" : s.trim());
+                    } catch (NumberFormatException e) {
+                        // 错误页 / CDN 异常会把非数字串（如 HTML、空串）塞进响应，直接拆包会崩
+                        Logger.t(TAG).e("favoriteVideo parse fail, resp=" + s);
+                        throw new FavoriteException("收藏失败，服务器返回异常");
+                    }
                     String msg;
                     switch (code) {
                         case FavoriteJsonResult.FAVORITE_SUCCESS:
@@ -392,13 +401,33 @@ public class AppApiHelper implements ApiHelper {
     @Override
     public Observable<UpdateVersion> checkUpdate() {
         return gitHubServiceApi.checkUpdate(CHECK_UPDATE_URL)
-                .map(s -> gson.fromJson(s, UpdateVersion.class));
+                .map(s -> {
+                    // M10：version.txt 为空 / 被 CDN 错误页替换时，gson 会返回 null，
+                    // 直接解引用会 NPE；此处提前拦截并抛出明确异常走 onError。
+                    if (TextUtils.isEmpty(s)) {
+                        throw new MessageException("检查更新失败：返回内容为空");
+                    }
+                    UpdateVersion version = gson.fromJson(s, UpdateVersion.class);
+                    if (version == null) {
+                        throw new MessageException("检查更新失败：返回内容解析失败");
+                    }
+                    return version;
+                });
     }
 
     @Override
     public Observable<Notice> checkNewNotice() {
         return gitHubServiceApi.checkNewNotice(CHECK_NEW_NOTICE_URL)
-                .map(s -> gson.fromJson(s, Notice.class));
+                .map(s -> {
+                    if (TextUtils.isEmpty(s)) {
+                        throw new MessageException("检查公告失败：返回内容为空");
+                    }
+                    Notice notice = gson.fromJson(s, Notice.class);
+                    if (notice == null) {
+                        throw new MessageException("检查公告失败：返回内容解析失败");
+                    }
+                    return notice;
+                });
     }
 
     @Override
@@ -500,7 +529,10 @@ public class AppApiHelper implements ApiHelper {
                 .map(s -> {
                     List<V9MmanItem> list = ParseV9MmanVideo.parseIndex(s);
                     return list.size() != 0;
-                });
+                })
+                //M15：无论成功/失败/被取消，都必须退出测试态，
+                //否则残留的测试代理会劫持后续所有请求（含检查更新）
+                .doFinally(myProxySelector::clearTest);
     }
 
     @Override
@@ -521,7 +553,12 @@ public class AppApiHelper implements ApiHelper {
     public Observable<Boolean> testPavAddress(String url) {
         return pavServiceApi.pigAvVideoList(addressHelper.getPavAddress())
                 .map(s -> {
+                    // M16：解析失败 / 错误页时 baseResult 或 data 可能为 null，避免 NPE
                     BaseResult<PxgavResultWithBlockId> baseResult = ParsePxgav.videoList(s, false);
+                    if (baseResult == null || baseResult.getData() == null
+                            || baseResult.getData().getPxgavModelList() == null) {
+                        return false;
+                    }
                     return baseResult.getData().getPxgavModelList().size() != 0;
                 });
     }
@@ -544,24 +581,34 @@ public class AppApiHelper implements ApiHelper {
     @Override
     public Observable<AxgleResponse> axgleVideos(int page, String o, String t, String type, String c, int limit) {
         return axgleServiceApi.videos(page, o, t, type, c, limit).map(s -> {
+            // M16：空响应 / 错误页时 gson 返回 null，直接解引用 getResponse() 会 NPE
+            if (TextUtils.isEmpty(s)) {
+                return null;
+            }
             Axgle axgle = gson.fromJson(s, Axgle.class);
-            return axgle.getResponse();
+            return axgle == null ? null : axgle.getResponse();
         });
     }
 
     @Override
     public Observable<AxgleResponse> searchAxgleVideo(String keyWord, int page) {
         return axgleServiceApi.search(keyWord, page).map(s -> {
+            if (TextUtils.isEmpty(s)) {
+                return null;
+            }
             Axgle axgle = gson.fromJson(s, Axgle.class);
-            return axgle.getResponse();
+            return axgle == null ? null : axgle.getResponse();
         });
     }
 
     @Override
     public Observable<AxgleResponse> searchAxgleJavVideo(String keyWord, int page) {
         return axgleServiceApi.searchJav(keyWord, page).map(s -> {
+            if (TextUtils.isEmpty(s)) {
+                return null;
+            }
             Axgle axgle = gson.fromJson(s, Axgle.class);
-            return axgle.getResponse();
+            return axgle == null ? null : axgle.getResponse();
         });
     }
 

@@ -46,6 +46,9 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
     private V91MmanAdapter mAdapter;
     private LoadViewHelper helper;
 
+    /** R4：列表加载 / 删除的裸订阅统一回收（onResume 会反复订阅，必须释放） */
+    private final io.reactivex.disposables.CompositeDisposable mDisposables = new io.reactivex.disposables.CompositeDisposable();
+
     @Inject
     protected FavoritePresenter favoritePresenter;
 
@@ -109,7 +112,7 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
     private void loadData() {
         helper.showLoading();
         LoadHelperUtils.setLoadingText(helper.getLoadIng(), R.id.tv_loading_text, "加载中...");
-        Observable.just(1)
+        mDisposables.add(Observable.just(1)
                 .map(integer -> presenter.loadLocalFavoriteItems())
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
@@ -125,7 +128,7 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
                 }, throwable -> {
                     helper.showError();
                     LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, "加载失败，点击重试");
-                });
+                }));
     }
 
     private void confirmDelete(final V9MmanItem item) {
@@ -141,7 +144,7 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
     }
 
     private void doDelete(final V9MmanItem item) {
-        Observable.just(1)
+        mDisposables.add(Observable.just(1)
                 .map(integer -> presenter.deleteLocalFavorite(item))
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
@@ -152,7 +155,7 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
                     } else {
                         showMessage("取消收藏失败", com.sdsmdg.tastytoast.TastyToast.ERROR);
                     }
-                }, throwable -> showMessage("取消收藏失败", com.sdsmdg.tastytoast.TastyToast.ERROR));
+                }, throwable -> showMessage("取消收藏失败", com.sdsmdg.tastytoast.TastyToast.ERROR)));
     }
 
     @NonNull
@@ -219,5 +222,14 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
     @Override
     public void showMessage(String msg, int type) {
         super.showMessage(msg, type);
+    }
+
+    @Override
+    protected void onDestroy() {
+        // R4：释放裸订阅
+        if (mDisposables != null && !mDisposables.isDisposed()) {
+            mDisposables.clear();
+        }
+        super.onDestroy();
     }
 }

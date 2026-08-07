@@ -710,4 +710,14 @@ public class AppDataManager implements DataManager {
     public boolean isAuthorFavorited(String authorKey, String source) {
         return mDbHelper.isAuthorFavorited(authorKey, source);
     }
+
+    @Override
+    public List<String> getAutoCompleteNames(int type) {
+        return mDbHelper.getAutoCompleteNames(type);
+    }
+
+    @Override
+    public void saveAutoComplete(String name, int type) {
+        mDbHelper.saveAutoComplete(name, type);
+    }
 }

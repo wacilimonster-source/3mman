@@ -8,6 +8,8 @@ import com.orhanobut.logger.Logger;
 import com.qmuiteam.qmui.widget.grouplist.QMUICommonListItemView;
 import com.trello.rxlifecycle2.LifecycleProvider;
 import com.m3man.data.DataManager;
+import com.m3man.data.db.entity.AutoCompleteEntity;
+import java.util.List;
 import com.m3man.data.network.Api;
 import com.m3man.rxjava.CallBackWrapper;
 import com.m3man.rxjava.RxSchedulersHelper;
@@ -43,6 +45,17 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
     public SettingPresenter(LifecycleProvider<Lifecycle.Event> provider, DataManager dataManager) {
         super(provider);
         this.dataManager = dataManager;
+    }
+
+    // M3：自动补全（地址）建议的读写，委托给 DataManager / DbHelper
+    @Override
+    public List<String> getAutoCompleteNames(int type) {
+        return dataManager.getAutoCompleteNames(type);
+    }
+
+    @Override
+    public void saveAutoComplete(String name, int type) {
+        dataManager.saveAutoComplete(name, type);
     }
 
     @Override
@@ -235,7 +248,11 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
         }
         File file = new File(SDCardUtils.DOWNLOAD_VIDEO_PATH);
         //检查是否有MP4文件
-        for (File file1 : file.listFiles()) {
+        File[] children = file.listFiles();
+        if (children == null) {
+            return false;
+        }
+        for (File file1 : children) {
             if (file1.getName().endsWith(".mp4")) {
                 return true;
             }

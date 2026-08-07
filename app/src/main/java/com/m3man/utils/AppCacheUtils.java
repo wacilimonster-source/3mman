@@ -93,12 +93,7 @@ public class AppCacheUtils {
     }
 
     private static long getGlidecacheFileSizeNum(Context context) {
-        long fileSize = 0;
-        File file = getGlideDiskCacheDir(context);
-        for (File childFile : file.listFiles()) {
-            fileSize += childFile.length();
-        }
-        return fileSize;
+        return getDirSize(getGlideDiskCacheDir(context));
     }
 
     /**
@@ -113,12 +108,7 @@ public class AppCacheUtils {
     }
 
     private static long getRxcacheFileSizeNum(Context context) {
-        long fileSize = 0;
-        File file = getRxCacheDir(context);
-        for (File childFile : file.listFiles()) {
-            fileSize += childFile.length();
-        }
-        return fileSize;
+        return getDirSize(getRxCacheDir(context));
     }
 
     /**
@@ -133,10 +123,30 @@ public class AppCacheUtils {
     }
 
     private static long getVideoCacheFileSizeNum(Context context) {
+        return getDirSize(getVideoCacheDir(context));
+    }
+
+    /**
+     * 递归统计目录占用大小。
+     * M28：原实现只统计一层，Glide/RxCache 实际使用多级子目录，导致缓存大小严重偏小。
+     *
+     * @param file 目录或文件
+     * @return 字节数
+     */
+    private static long getDirSize(File file) {
+        if (file == null || !file.exists()) {
+            return 0;
+        }
+        if (file.isFile()) {
+            return file.length();
+        }
+        File[] children = file.listFiles();
+        if (children == null) {
+            return 0;
+        }
         long fileSize = 0;
-        File file = getVideoCacheDir(context);
-        for (File childFile : file.listFiles()) {
-            fileSize += childFile.length();
+        for (File childFile : children) {
+            fileSize += getDirSize(childFile);
         }
         return fileSize;
     }
@@ -147,8 +157,8 @@ public class AppCacheUtils {
     }
 
     public static boolean cleanRxCache(Context context) {
-
-        File fileDir = getVideoCacheDir(context);
+        //M28：原实现误清视频缓存目录，导致RxCache永远清不掉
+        File fileDir = getRxCacheDir(context);
         return deleteDirFile(fileDir);
     }
 
@@ -158,8 +168,17 @@ public class AppCacheUtils {
         return deleteDirFile(fileDir);
     }
 
+    public static boolean cleanGlideCache(Context context) {
+        File fileDir = getGlideDiskCacheDir(context);
+        return deleteDirFile(fileDir);
+    }
+
     public static boolean cleanAllCache(Context context) {
-        return cleanRxCache(context) && cleanVideoCache(context);
+        //注意：不要用 && 短路，否则前一个失败会导致后面的目录根本不清理
+        boolean rx = cleanRxCache(context);
+        boolean video = cleanVideoCache(context);
+        boolean glide = cleanGlideCache(context);
+        return rx && video && glide;
     }
 
     public static boolean cleanCacheFile(File fileDir) {
@@ -167,49 +186,63 @@ public class AppCacheUtils {
     }
 
     public static boolean cleanAllCacheFile(File[] fileDirs) {
+        if (fileDirs == null) {
+            return false;
+        }
         boolean result = true;
         for (File file : fileDirs) {
-            result = deleteDirFile(file);
+            //M28：原实现每轮直接覆盖result，最终只反映最后一个目录的结果
+            result &= deleteDirFile(file);
         }
         return result;
     }
 
     /**
-     * 仅删除目录下的文件
+     * 清空目录内容（保留目录本身），递归处理子目录。
+     * M28：原实现只删一层普通文件，Glide/RxCache 的多级子目录清不掉。
      *
      * @param fileDir 目录
      * @return boolean
      */
     private static boolean deleteDirFile(File fileDir) {
-        boolean result = true;
-        if (!fileDir.isDirectory()) {
+        if (fileDir == null || !fileDir.isDirectory()) {
             return false;
         }
-        for (File childFile : fileDir.listFiles()) {
-            if (childFile.isFile()) {
-                result = childFile.delete();
+        File[] children = fileDir.listFiles();
+        if (children == null) {
+            return false;
+        }
+        boolean result = true;
+        for (File childFile : children) {
+            if (childFile.isDirectory()) {
+                result &= deleteDir(childFile);
+            } else {
+                result &= childFile.delete();
             }
         }
         return result;
     }
 
     /**
-     * 递归删除目录下所有文件
+     * 递归删除目录及其所有内容
      *
      * @param dir 目录
      * @return boolean
      */
     private static boolean deleteDir(File dir) {
-        if (dir != null && dir.isDirectory()) {
-            String[] children = dir.list();
-            for (String aChildren : children) {
-                boolean success = deleteDir(new File(dir, aChildren));
-                if (!success) {
-                    return false;
+        if (dir == null) {
+            return false;
+        }
+        if (dir.isDirectory()) {
+            File[] children = dir.listFiles();
+            //目录不可读时listFiles返回null，需判空
+            if (children != null) {
+                for (File child : children) {
+                    if (!deleteDir(child)) {
+                        return false;
+                    }
                 }
             }
-        } else if (dir == null) {
-            return false;
         }
         return dir.delete();
     }

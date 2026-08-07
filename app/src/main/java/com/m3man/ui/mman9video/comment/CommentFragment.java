@@ -27,6 +27,7 @@ import com.m3man.adapter.VideoCommentAdapter;
 import com.m3man.constants.Keys;
 import com.m3man.constants.KeysActivityRequestResultCode;
 import com.m3man.data.db.entity.V9MmanItem;
+import com.m3man.data.db.entity.VideoResult;
 import com.m3man.data.model.VideoComment;
 import com.m3man.ui.MvpFragment;
 import com.m3man.ui.mman9video.user.UserLoginActivity;
@@ -96,11 +97,12 @@ public class CommentFragment extends MvpFragment<CommentView, CommentPresenter> 
             @Override
             public void onLoadMoreRequested() {
                 //加载评论
-                if (v9MmanItem.getVideoResultId() == 0) {
+                String videoId = getSafeVideoId();
+                if (videoId == null || presenter == null) {
                     videoCommentAdapter.loadMoreFail();
                     return;
                 }
-                presenter.loadVideoComment(v9MmanItem.getVideoResult().getVideoId(), v9MmanItem.getViewKey(), false);
+                presenter.loadVideoComment(videoId, v9MmanItem.getViewKey(), false);
             }
         }, recyclerViewVideoComment);
         videoCommentAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
@@ -135,8 +137,13 @@ public class CommentFragment extends MvpFragment<CommentView, CommentPresenter> 
     protected void onLazyLoadOnce() {
         super.onLazyLoadOnce();
         if (delayLoadComment && presenter != null) {
+            String videoId = getSafeVideoId();
+            if (videoId == null) {
+                //视频还未解析成功，保持延迟标记，等待解析完成后再加载
+                return;
+            }
             delayLoadComment = false;
-            presenter.loadVideoComment(v9MmanItem.getVideoResult().getVideoId(), v9MmanItem.getViewKey(), true);
+            presenter.loadVideoComment(videoId, v9MmanItem.getViewKey(), true);
         }
     }
 
@@ -174,6 +181,38 @@ public class CommentFragment extends MvpFragment<CommentView, CommentPresenter> 
     }
 
     /**
+     * 安全获取当前视频的videoId。
+     * 视频尚未解析、item为空、关联对象已被删除等情况均返回null，避免空指针崩溃。
+     *
+     * @return videoId，不可用时返回null
+     */
+    private String getSafeVideoId() {
+        return getSafeVideoId(v9MmanItem);
+    }
+
+    /**
+     * 安全获取指定item的videoId
+     *
+     * @param item 视频item
+     * @return videoId，不可用时返回null
+     */
+    private String getSafeVideoId(V9MmanItem item) {
+        if (item == null || item.getVideoResultId() == 0) {
+            return null;
+        }
+        try {
+            VideoResult videoResult = item.getVideoResult();
+            if (videoResult == null || TextUtils.isEmpty(videoResult.getVideoId())) {
+                return null;
+            }
+            return videoResult.getVideoId();
+        } catch (Exception e) {
+            Logger.t(TAG).e(e, "获取视频信息失败");
+            return null;
+        }
+    }
+
+    /**
      * 评论视频或者回复评论
      *
      * @param comment 留言内容
@@ -190,11 +229,11 @@ public class CommentFragment extends MvpFragment<CommentView, CommentPresenter> 
             goToLogin(KeysActivityRequestResultCode.LOGIN_ACTION_FOR_GET_UID);
             return;
         }
-        if (v9MmanItem.getVideoResultId() == 0) {
+        String vid = getSafeVideoId();
+        if (vid == null) {
             showMessage("视频地址还未解析成功，无法评论", TastyToast.INFO);
             return;
         }
-        String vid = v9MmanItem.getVideoResult().getVideoId();
         String uid = String.valueOf(presenter.getLoginUserId());
         if (isComment) {
             commentVideoDialog.show();
@@ -276,12 +315,12 @@ public class CommentFragment extends MvpFragment<CommentView, CommentPresenter> 
     }
 
     private void reFreshData(V9MmanItem v9MmanItem) {
-        if (v9MmanItem.getVideoResultId() == 0) {
+        String videoId = getSafeVideoId(v9MmanItem);
+        if (videoId == null || presenter == null) {
             return;
         }
         //刷新
         commentSwipeRefreshLayout.setRefreshing(true);
-        String videoId = v9MmanItem.getVideoResult().getVideoId();
         presenter.loadVideoComment(videoId, v9MmanItem.getViewKey(), true);
     }
 
@@ -329,7 +368,12 @@ public class CommentFragment extends MvpFragment<CommentView, CommentPresenter> 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        unbinder.unbind();
+        //避免Activity销毁时Dialog未关闭导致的WindowLeaked
+        dismissDialog();
+        if (unbinder != null) {
+            unbinder.unbind();
+            unbinder = null;
+        }
     }
 
     public void loadVideoComment(String videoId, String viewKey, boolean pullToRefresh) {
@@ -342,11 +386,11 @@ public class CommentFragment extends MvpFragment<CommentView, CommentPresenter> 
 
     @Override
     public void onRefresh() {
-        if (v9MmanItem.getVideoResultId() == 0) {
+        String videoId = getSafeVideoId();
+        if (videoId == null || presenter == null) {
             commentSwipeRefreshLayout.setRefreshing(false);
             return;
         }
-        String videoId = v9MmanItem.getVideoResult().getVideoId();
         presenter.loadVideoComment(videoId, v9MmanItem.getViewKey(), true);
     }
 }

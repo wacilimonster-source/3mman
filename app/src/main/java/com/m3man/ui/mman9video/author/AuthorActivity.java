@@ -63,6 +63,9 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
     private String authorName;
     private boolean isFavorited;
 
+    /** R2：收藏相关裸订阅统一回收 */
+    private final io.reactivex.disposables.CompositeDisposable mDisposables = new io.reactivex.disposables.CompositeDisposable();
+
     @Inject
     protected AuthorPresenter authorPresenter;
 
@@ -79,6 +82,8 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
         }
         if (TextUtils.isEmpty(uid)) {
             showMessage("用户信息错误，无法获取数据", TastyToast.ERROR);
+            //C12：参数缺失时必须结束页面，否则界面处于未初始化状态，后续回调会空指针崩溃
+            finish();
             return;
         }
         authorName = getIntent().getStringExtra(Keys.KEY_INTENT_AUTHOR_NAME);
@@ -103,14 +108,14 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
             }
         });
         // 初始收藏态需要从数据库读取（IO 线程）
-        Observable.just(1)
+        mDisposables.add(Observable.just(1)
                 .map(integer -> presenter.isAuthorFavorited(uid, source))
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(fav -> {
                     isFavorited = fav;
                     updateFavoriteMenu();
-                }, throwable -> Logger.t("AuthorActivity").e(throwable, "读取作者收藏态失败"));
+                }, throwable -> Logger.t("AuthorActivity").e(throwable, "读取作者收藏态失败")));
     }
 
     private void updateFavoriteMenu() {
@@ -121,7 +126,7 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
     }
 
     private void toggleFavorite() {
-        Observable.just(1)
+        mDisposables.add(Observable.just(1)
                 .map(integer -> {
                     // 实时查库，避免收藏态未刷新完成时点击造成的重复 / 漏删
                     boolean currentlyFav = presenter.isAuthorFavorited(uid, source);
@@ -139,7 +144,7 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
                     updateFavoriteMenu();
                     showMessage(isFavorited ? "已收藏作者" : "已取消收藏作者",
                             isFavorited ? TastyToast.SUCCESS : TastyToast.DEFAULT);
-                }, throwable -> showMessage("操作失败，请重试", TastyToast.ERROR));
+                }, throwable -> showMessage("操作失败，请重试", TastyToast.ERROR)));
     }
 
     private boolean isPorny() {
@@ -242,12 +247,18 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
 
     @Override
     public void showLoading(boolean pullToRefresh) {
+        if (helper == null) {
+            return;
+        }
         helper.showLoading();
         LoadHelperUtils.setLoadingText(helper.getLoadIng(), R.id.tv_loading_text, "加载中，请稍候...");
     }
 
     @Override
     public void showContent() {
+        if (helper == null || mV91MmanAdapter == null) {
+            return;
+        }
         helper.showContent();
         if (mV91MmanAdapter.getData().size() == 0) {
             helper.showEmpty();
@@ -263,7 +274,19 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
     @Override
     public void showError(String message) {
         showMessage(message, TastyToast.ERROR);
+        if (helper == null) {
+            return;
+        }
         helper.showError();
         LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, "加载数据失败了，点击重试");
+    }
+
+    @Override
+    protected void onDestroy() {
+        // R2：释放收藏相关裸订阅
+        if (mDisposables != null && !mDisposables.isDisposed()) {
+            mDisposables.clear();
+        }
+        super.onDestroy();
     }
 }

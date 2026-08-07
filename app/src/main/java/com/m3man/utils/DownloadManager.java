@@ -13,6 +13,7 @@ import com.m3man.data.db.entity.V9MmanItem;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 
 /**
@@ -38,7 +39,11 @@ public class DownloadManager {
         return HolderClass.INSTANCE;
     }
 
-    private ArrayList<DownloadStatusUpdater> updaterList = new ArrayList<>();
+    /**
+     * M29：监听器会被 Service/Activity 在不同线程增删，同时下载回调线程在遍历。
+     * 普通 ArrayList 会 ConcurrentModificationException，改用写时复制容器。
+     */
+    private final CopyOnWriteArrayList<DownloadStatusUpdater> updaterList = new CopyOnWriteArrayList<>();
 
 
     public int startDownload(String url, final String path, boolean isDownloadNeedWifi, boolean isForceReDownload) {
@@ -168,15 +173,14 @@ public class DownloadManager {
     }
 
     private void complete(final BaseDownloadTask task) {
-        final List<DownloadStatusUpdater> updaterListCopy = (List<DownloadStatusUpdater>) updaterList.clone();
-        for (DownloadStatusUpdater downloadStatusUpdater : updaterListCopy) {
+        //CopyOnWriteArrayList 的迭代器本身是快照，无需再clone
+        for (DownloadStatusUpdater downloadStatusUpdater : updaterList) {
             downloadStatusUpdater.complete(task);
         }
     }
 
     private void update(final BaseDownloadTask task) {
-        final List<DownloadStatusUpdater> updaterListCopy = (List<DownloadStatusUpdater>) updaterList.clone();
-        for (DownloadStatusUpdater downloadStatusUpdater : updaterListCopy) {
+        for (DownloadStatusUpdater downloadStatusUpdater : updaterList) {
             downloadStatusUpdater.update(task);
         }
     }

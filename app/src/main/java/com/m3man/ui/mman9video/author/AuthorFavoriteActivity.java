@@ -44,6 +44,9 @@ public class AuthorFavoriteActivity extends BaseAppCompatActivity {
     private AuthorFavoriteAdapter mAdapter;
     private LoadViewHelper helper;
 
+    /** R3：列表加载 / 删除的裸订阅统一回收（onResume 会反复订阅，必须释放） */
+    private final io.reactivex.disposables.CompositeDisposable mDisposables = new io.reactivex.disposables.CompositeDisposable();
+
     @Inject
     protected DataManager dataManager;
 
@@ -108,7 +111,7 @@ public class AuthorFavoriteActivity extends BaseAppCompatActivity {
     private void loadData() {
         helper.showLoading();
         LoadHelperUtils.setLoadingText(helper.getLoadIng(), R.id.tv_loading_text, "加载中...");
-        Observable.just(1)
+        mDisposables.add(Observable.just(1)
                 .map(integer -> dataManager.loadAuthorFavorites())
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
@@ -124,7 +127,7 @@ public class AuthorFavoriteActivity extends BaseAppCompatActivity {
                 }, throwable -> {
                     helper.showError();
                     LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, "加载失败，点击重试");
-                });
+                }));
     }
 
     private void confirmDelete(final AuthorFavorite item) {
@@ -140,7 +143,7 @@ public class AuthorFavoriteActivity extends BaseAppCompatActivity {
     }
 
     private void doDelete(final AuthorFavorite item) {
-        Observable.just(1)
+        mDisposables.add(Observable.just(1)
                 .map(integer -> {
                     dataManager.deleteAuthorFavorite(item);
                     return true;
@@ -150,11 +153,20 @@ public class AuthorFavoriteActivity extends BaseAppCompatActivity {
                 .subscribe(aBoolean -> {
                     showMessage("已取消收藏", com.sdsmdg.tastytoast.TastyToast.SUCCESS);
                     loadData();
-                }, throwable -> showMessage("取消收藏失败", com.sdsmdg.tastytoast.TastyToast.ERROR));
+                }, throwable -> showMessage("取消收藏失败", com.sdsmdg.tastytoast.TastyToast.ERROR)));
     }
 
     @Override
     public void showMessage(String msg, int type) {
         super.showMessage(msg, type);
+    }
+
+    @Override
+    protected void onDestroy() {
+        // R3：释放裸订阅
+        if (mDisposables != null && !mDisposables.isDisposed()) {
+            mDisposables.clear();
+        }
+        super.onDestroy();
     }
 }

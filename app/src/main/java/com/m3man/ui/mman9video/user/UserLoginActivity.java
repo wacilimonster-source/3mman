@@ -71,6 +71,8 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
     private CaptchaOcr captchaOcr;
     private Bitmap currentCaptchaBitmap;
     private volatile boolean ocrInitializing = false;
+    /** C13：OCR 相关订阅必须在 onDestroy 释放 native 资源之前取消 */
+    private final io.reactivex.disposables.CompositeDisposable mOcrDisposables = new io.reactivex.disposables.CompositeDisposable();
 
 
     @Inject
@@ -213,6 +215,9 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
 
     @Override
     protected void onDestroy() {
+        //C13：必须先取消 OCR 订阅，再释放 native 引擎与 bitmap。
+        //否则识别任务仍在 IO 线程持有已 recycle 的句柄/位图，会在 native 层崩溃。
+        mOcrDisposables.clear();
         if (captchaOcr != null) {
             captchaOcr.recycle();
             captchaOcr = null;
@@ -290,44 +295,72 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
             return;
         }
         ocrInitializing = true;
-        Observable.fromCallable(() -> {
-            captchaOcr = new CaptchaOcr(UserLoginActivity.this);
-            return captchaOcr.initEngine();
+        mOcrDisposables.add(Observable.fromCallable(() -> {
+            CaptchaOcr ocr = new CaptchaOcr(UserLoginActivity.this);
+            boolean ready = ocr.initEngine();
+            //初始化完成后再赋值给成员，避免半初始化对象被其它线程看到
+            captchaOcr = ocr;
+            return ready;
         })
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(ready -> {
                     ocrInitializing = false;
-                    if (ready && currentCaptchaBitmap != null) {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    if (ready && currentCaptchaBitmap != null && !currentCaptchaBitmap.isRecycled()) {
                         recognizeCaptcha(currentCaptchaBitmap);
                     } else if (!ready) {
                         showMessage("验证码识别引擎初始化失败，请手动输入", TastyToast.INFO);
                     }
                 }, e -> {
                     ocrInitializing = false;
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
                     showMessage("验证码识别引擎初始化失败，请手动输入", TastyToast.INFO);
-                });
+                }));
     }
 
     /**
      * 对已加载的验证码图片进行 OCR 识别并回填到输入框。
      */
     private void recognizeCaptcha(final Bitmap bitmap) {
-        if (captchaOcr == null || !captchaOcr.isReady()) {
+        if (bitmap == null || bitmap.isRecycled()) {
+            return;
+        }
+        //持有局部引用，避免识别期间成员被 onDestroy 置空导致 NPE
+        final CaptchaOcr ocr = captchaOcr;
+        if (ocr == null || !ocr.isReady()) {
             prepareCaptchaOcr();
             return;
         }
-        Observable.fromCallable(() -> captchaOcr.recognize(bitmap))
+        mOcrDisposables.add(Observable.fromCallable(() -> {
+            //C13：进入 native 前再校验一次，避免使用已释放的引擎/位图
+            if (bitmap.isRecycled() || !ocr.isReady()) {
+                return "";
+            }
+            return ocr.recognize(bitmap);
+        })
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(result -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
                     if (!TextUtils.isEmpty(result)) {
                         etCaptcha.setText(result);
                         etCaptcha.setSelection(result.length());
                     } else {
                         showMessage("验证码识别失败，请手动输入", TastyToast.INFO);
                     }
-                }, e -> showMessage("验证码识别失败，请手动输入", TastyToast.ERROR));
+                }, e -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    showMessage("验证码识别失败，请手动输入", TastyToast.ERROR);
+                }));
     }
 
     @Override

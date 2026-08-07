@@ -6,6 +6,7 @@ import android.text.TextUtils;
 
 import com.franmontiel.persistentcookiejar.PersistentCookieJar;
 import com.orhanobut.logger.Logger;
+import com.m3man.BuildConfig;
 import com.m3man.cookie.RulerCookie;
 import com.m3man.cookie.SetCookieCache;
 import com.m3man.cookie.SharedPrefsCookiePersistor;
@@ -79,7 +80,8 @@ public class ApiServiceModule {
                 Logger.t("OkHttp").d(message);
             }
         });
-        logging.setLevel(HttpLoggingInterceptor.Level.HEADERS);
+        // M13：release 包不打印请求/响应头（含 Cookie），避免敏感信息泄露；仅 debug 包输出 BODY
+        logging.setLevel(BuildConfig.DEBUG ? HttpLoggingInterceptor.Level.BODY : HttpLoggingInterceptor.Level.NONE);
         return logging;
     }
 
@@ -97,7 +99,6 @@ public class ApiServiceModule {
         builder.addInterceptor(httpLoggingInterceptor);
         builder.cookieJar(rulerCookie);
         builder.proxySelector(myProxySelector);
-       // builder.sslSocketFactory(new TLSSocketFactory(),TLSSocketFactory.DEFAULT_TRUST_MANAGERS);
         //动态baseUrl
         RetrofitUrlManager.getInstance().putDomain(Api.GITHUB_DOMAIN_NAME, Api.APP_GITHUB_DOMAIN);
         RetrofitUrlManager.getInstance().putDomain(Api.XICI_DAILI_DOMAIN_NAME, Api.APP_PROXY_XICI_DAILI_DOMAIN);

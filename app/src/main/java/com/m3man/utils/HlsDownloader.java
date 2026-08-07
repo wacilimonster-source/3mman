@@ -146,12 +146,23 @@ public class HlsDownloader {
             } catch (Exception e) {
                 e.printStackTrace();
                 notifyError(listener, "下载失败: " + e.getMessage());
+            } finally {
+                // M26：任务结束（成功 / 失败 / 取消）后关闭线程池，避免 4 个工作线程永久泄漏
+                executor.shutdown();
             }
         });
     }
 
     public void cancel() {
         cancelled = true;
+    }
+
+    /** M26：关闭内部线程池，避免 4 个工作线程永久泄漏（下载器为单次使用） */
+    public void shutdown() {
+        try {
+            executor.shutdown();
+        } catch (Exception ignored) {
+        }
     }
 
     // ---------- 私有方法 ----------

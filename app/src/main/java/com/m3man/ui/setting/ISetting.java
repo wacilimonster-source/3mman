@@ -2,6 +2,8 @@ package com.m3man.ui.setting;
 
 import com.qmuiteam.qmui.widget.grouplist.QMUICommonListItemView;
 
+import java.util.List;
+
 /**
  * @author flymegoc
  * @date 2018/2/6
@@ -81,4 +83,8 @@ public interface ISetting {
     boolean isFixMainNavigation();
 
     void setFixMainNavigation(boolean fixMainNavigation);
+
+    List<String> getAutoCompleteNames(int type);
+
+    void saveAutoComplete(String name, int type);
 }

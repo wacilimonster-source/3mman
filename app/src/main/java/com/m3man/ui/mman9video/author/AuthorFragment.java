@@ -145,6 +145,11 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
     }
 
     private void loadAuthorVideos(boolean pullToRefresh) {
+        // 防御：视频未解析完成时 getVideoResult() 可能为 null，先判空再访问
+        if (!canLoadAuthorVideos()) {
+            showError("数据错误，无法加载作者视频");
+            return;
+        }
         String ownerId = v9MmanItem.getVideoResult().getOwnerId();
         if (isPornySource()) {
             // 91porny 作者：ownerId 即作者名，走 /author/{name}

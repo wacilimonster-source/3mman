@@ -13,6 +13,7 @@ import com.m3man.data.network.okhttp.MyProxySelector;
 import com.m3man.di.component.DaggerAppComponent;
 import com.m3man.eventbus.LowMemoryEvent;
 import com.m3man.utils.AppLogger;
+import com.m3man.utils.NotificationChannelHelper;
 
 import org.greenrobot.eventbus.EventBus;
 
@@ -55,6 +56,9 @@ public class MyApplication extends DaggerApplication {
         initLeakCanary();
         initLoadingHelper();
         initFileDownload();
+        //C4：通知渠道必须在进程启动时创建，否则Service被系统单独拉起时
+        //startForeground会因渠道不存在抛"Bad notification for startForeground"
+        NotificationChannelHelper.initChannel(this);
         if (!BuildConfig.DEBUG) {
             //初始化bug收集
           //  Bugsnag.init(this);

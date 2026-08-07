@@ -6,6 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 
 import com.m3man.R;
+import com.m3man.utils.GlideApp;
 
 import cn.jzvd.JZVideoPlayer;
 import cn.jzvd.JZVideoPlayerStandard;
@@ -31,7 +32,8 @@ public class JiaoZiVideoPlayerActivity extends BasePlayVideo {
         //自动播放
         jzVideoPlayerStandard.startButton.performClick();
         if (!TextUtils.isEmpty(thumImgUrl)) {
-            jzVideoPlayerStandard.thumbImageView.setImageURI(Uri.parse(thumImgUrl));
+            // M27：thumbImageView.setImageURI 不支持网络图，改用 Glide 加载（与 ExoMediaPlayerActivity 一致）
+            GlideApp.with(this).load(Uri.parse(thumImgUrl)).into(jzVideoPlayerStandard.thumbImageView);
         }
     }
 

@@ -11,8 +11,10 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.content.FileProvider;
 import android.text.TextUtils;
 
+import com.m3man.BuildConfig;
 import com.m3man.R;
 import com.m3man.utils.HlsDownloader;
 import com.m3man.utils.SDCardUtils;
@@ -70,13 +72,22 @@ public class HlsDownloadService extends Service {
         } else if (ACTION_CANCEL.equals(action)) {
             if (downloader != null) {
                 downloader.cancel();
+                downloader.shutdown();
+                downloader = null;
             }
+            stopForeground(true);
             stopSelf();
         }
         return START_NOT_STICKY;
     }
 
     private void startDownload(String url, String saveDir, String fileName) {
+        // M25：若已有下载在跑，先取消并释放旧下载器，避免孤儿线程 / 进度串台
+        if (downloader != null) {
+            downloader.cancel();
+            downloader.shutdown();
+            downloader = null;
+        }
         downloader = new HlsDownloader(this);
         downloader.download(url, saveDir, fileName, new HlsDownloader.HlsDownloadListener() {
             @Override
@@ -88,6 +99,7 @@ public class HlsDownloadService extends Service {
             public void onSuccess(File mp4File) {
                 showCompletedNotification(mp4File);
                 stopForeground(true);
+                releaseDownloader();
                 stopSelf();
             }
 
@@ -95,9 +107,18 @@ public class HlsDownloadService extends Service {
             public void onError(String message) {
                 showErrorNotification(message);
                 stopForeground(true);
+                releaseDownloader();
                 stopSelf();
             }
         });
+    }
+
+    // M25/M26：释放下载器并关闭其线程池，防止 4 个工作线程泄漏
+    private void releaseDownloader() {
+        if (downloader != null) {
+            downloader.shutdown();
+            downloader = null;
+        }
     }
 
     private void updateProgress(int done, int total) {
@@ -112,7 +133,8 @@ public class HlsDownloadService extends Service {
 
     private Notification buildProgressNotification(int percent, int total) {
         Intent cancelIntent = new Intent(this, HlsDownloadService.class).setAction(ACTION_CANCEL);
-        PendingIntent cancelPi = PendingIntent.getService(this, 0, cancelIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent cancelPi = PendingIntent.getService(this, 0, cancelIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle(notifyTitle)
@@ -126,9 +148,19 @@ public class HlsDownloadService extends Service {
 
     private void showCompletedNotification(File mp4File) {
         Intent openIntent = new Intent(Intent.ACTION_VIEW);
-        openIntent.setDataAndType(Uri.fromFile(mp4File), "video/*");
+        Uri uri;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            // Android 7+ 禁止在 Intent 中暴露 file://，必须使用 FileProvider
+            uri = FileProvider.getUriForFile(getApplicationContext(),
+                    BuildConfig.APPLICATION_ID + ".fileprovider", mp4File);
+            openIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } else {
+            uri = Uri.fromFile(mp4File);
+        }
+        openIntent.setDataAndType(uri, "video/*");
         openIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        PendingIntent contentPi = PendingIntent.getActivity(this, 0, openIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent contentPi = PendingIntent.getActivity(this, 0, openIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle(notifyTitle)

@@ -77,7 +77,7 @@ tasks.withType(JavaCompile) {
 }
 
 greendao {
-    schemaVersion 8//数据库版本号（v8: 迁移补齐 AutoCompleteEntity 表，避免升级清空搜索联想词）
+    schemaVersion 9//数据库版本号（v9: V9MmanItem.isLocalFavorite 改为可空 + 迁移事务化，避免升级清空本地收藏/下载/历史）
 }
 
 /*
