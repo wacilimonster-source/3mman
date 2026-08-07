@@ -12,20 +12,28 @@ import android.os.Build;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.FileProvider;
+import android.support.v4.content.LocalBroadcastManager;
 import android.text.TextUtils;
 
+import com.liulishuo.filedownloader.model.FileDownloadStatus;
 import com.m3man.BuildConfig;
+import com.m3man.MyApplication;
 import com.m3man.R;
+import com.m3man.data.DataManager;
+import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.utils.HlsDownloader;
 import com.m3man.utils.SDCardUtils;
 
 import java.io.File;
+import java.util.Date;
 
 /**
  * 91porny HLS 视频后台下载服务（前台服务）。
  *
  * 在通知栏常驻并实时显示下载进度，不阻塞视频播放。
- * 下载完成后通知可点击打开文件/下载目录。
+ * 下载完成后把记录写入 V9MmanItem（status=completed, downloadId=伪id），
+ * 使「我的下载」页面（LoadFinishedData 查询 Status=completed & DownloadId!=0）能正常展示，
+ * 并通过 LocalBroadcast 通知「我的下载」页面实时刷新（HLS 不走 FileDownloader 回调链）。
  */
 public class HlsDownloadService extends Service {
 
@@ -34,6 +42,13 @@ public class HlsDownloadService extends Service {
     public static final String EXTRA_VIDEO_URL = "extra_video_url";
     public static final String EXTRA_TITLE = "extra_title";
     public static final String EXTRA_FILE_NAME = "extra_file_name";
+    public static final String EXTRA_VIEW_KEY = "extra_view_key";
+    public static final String EXTRA_SAVE_PATH = "extra_save_path";
+
+    /** 下载进度/完成广播：让「我的下载」页面实时刷新 */
+    public static final String ACTION_HLS_PROGRESS = "com.m3man.service.action.HLS_PROGRESS";
+    public static final String ACTION_HLS_DONE = "com.m3man.service.action.HLS_DONE";
+    public static final String EXTRA_PROGRESS = "extra_progress";
 
     private static final int NOTIFICATION_ID = 10086;
     private static final String CHANNEL_ID = "hls_download";
@@ -43,6 +58,9 @@ public class HlsDownloadService extends Service {
     private int lastProgress = -1;
     private String notifyTitle = "";
     private String targetMp4Path = "";
+    private String viewKey = "";
+    private String savePath = "";
+    private int pseudoDownloadId = 0;
 
     @Override
     public void onCreate() {
@@ -61,56 +79,132 @@ public class HlsDownloadService extends Service {
             String url = intent.getStringExtra(EXTRA_VIDEO_URL);
             String title = intent.getStringExtra(EXTRA_TITLE);
             String fileName = intent.getStringExtra(EXTRA_FILE_NAME);
+            viewKey = intent.getStringExtra(EXTRA_VIEW_KEY);
+            savePath = intent.getStringExtra(EXTRA_SAVE_PATH);
             if (TextUtils.isEmpty(url)) {
                 stopSelf();
                 return START_NOT_STICKY;
             }
             notifyTitle = TextUtils.isEmpty(title) ? "视频下载" : title;
-            targetMp4Path = SDCardUtils.DOWNLOAD_VIDEO_PATH + fileName + ".mp4";
+            // 优先使用调用方算好的完整路径（与「我的下载」播放路径一致），否则回退旧 fileName 逻辑
+            if (TextUtils.isEmpty(savePath)) {
+                targetMp4Path = SDCardUtils.DOWNLOAD_VIDEO_PATH + fileName + ".mp4";
+            } else {
+                targetMp4Path = savePath;
+            }
+            // 稳定的伪 downloadId，使「我的下载」查询（DownloadId!=0）能命中本记录
+            pseudoDownloadId = Math.abs(url.hashCode());
             startForeground(NOTIFICATION_ID, buildProgressNotification(0, 1));
-            startDownload(url, SDCardUtils.DOWNLOAD_VIDEO_PATH, fileName);
+            startDownload(url, targetMp4Path);
         } else if (ACTION_CANCEL.equals(action)) {
             if (downloader != null) {
                 downloader.cancel();
                 downloader.shutdown();
                 downloader = null;
             }
+            // 复位 DB 记录，使其从「正在下载」列表移除
+            resetRecord();
             stopForeground(true);
             stopSelf();
         }
         return START_NOT_STICKY;
     }
 
-    private void startDownload(String url, String saveDir, String fileName) {
+    private void startDownload(String url, String mp4Path) {
         // M25：若已有下载在跑，先取消并释放旧下载器，避免孤儿线程 / 进度串台
         if (downloader != null) {
             downloader.cancel();
             downloader.shutdown();
             downloader = null;
         }
+        File target = new File(mp4Path);
+        String saveDir = target.getParent();
+        String fileName = target.getName();
+        if (fileName != null && fileName.toLowerCase().endsWith(".mp4")) {
+            fileName = fileName.substring(0, fileName.length() - 4);
+        }
         downloader = new HlsDownloader(this);
         downloader.download(url, saveDir, fileName, new HlsDownloader.HlsDownloadListener() {
             @Override
             public void onProgress(int done, int total) {
-                updateProgress(done, total);
+                handleProgress(done, total);
             }
 
             @Override
             public void onSuccess(File mp4File) {
-                showCompletedNotification(mp4File);
-                stopForeground(true);
-                releaseDownloader();
-                stopSelf();
+                handleSuccess(mp4File);
             }
 
             @Override
             public void onError(String message) {
-                showErrorNotification(message);
-                stopForeground(true);
-                releaseDownloader();
-                stopSelf();
+                handleError(message);
             }
         });
+    }
+
+    private DataManager getDataManager() {
+        return MyApplication.getInstance().getDataManager();
+    }
+
+    private V9MmanItem findItem() {
+        if (TextUtils.isEmpty(viewKey)) {
+            return null;
+        }
+        return getDataManager().findV9MmanItemByViewKey(viewKey);
+    }
+
+    private void handleProgress(int done, int total) {
+        updateProgress(done, total);
+        int percent = total <= 0 ? 0 : (int) (done * 100L / total);
+        V9MmanItem item = findItem();
+        if (item != null) {
+            item.setProgress(percent);
+            item.setStatus(FileDownloadStatus.progress);
+            item.setSoFarBytes(done);
+            item.setTotalFarBytes(total);
+            getDataManager().updateV9MmanItem(item);
+        }
+        Intent i = new Intent(ACTION_HLS_PROGRESS);
+        i.putExtra(EXTRA_VIEW_KEY, viewKey);
+        i.putExtra(EXTRA_PROGRESS, percent);
+        LocalBroadcastManager.getInstance(this).sendBroadcast(i);
+    }
+
+    private void handleSuccess(File mp4File) {
+        V9MmanItem item = findItem();
+        if (item != null) {
+            item.setStatus(FileDownloadStatus.completed);
+            item.setProgress(100);
+            item.setFinishedDownloadDate(new Date());
+            item.setSoFarBytes((int) mp4File.length());
+            item.setTotalFarBytes((int) mp4File.length());
+            item.setDownloadId(pseudoDownloadId);
+            getDataManager().updateV9MmanItem(item);
+        }
+        Intent i = new Intent(ACTION_HLS_DONE);
+        i.putExtra(EXTRA_VIEW_KEY, viewKey);
+        LocalBroadcastManager.getInstance(this).sendBroadcast(i);
+        showCompletedNotification(mp4File);
+        stopForeground(true);
+        releaseDownloader();
+        stopSelf();
+    }
+
+    private void handleError(String message) {
+        resetRecord();
+        showErrorNotification(message);
+        stopForeground(true);
+        releaseDownloader();
+        stopSelf();
+    }
+
+    private void resetRecord() {
+        V9MmanItem item = findItem();
+        if (item != null) {
+            // downloadId 置 0 使「我的下载」两列表（DownloadId!=0）均排除该记录
+            item.setDownloadId(0);
+            getDataManager().updateV9MmanItem(item);
+        }
     }
 
     // M25/M26：释放下载器并关闭其线程池，防止 4 个工作线程泄漏

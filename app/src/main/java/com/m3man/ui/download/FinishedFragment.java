@@ -2,8 +2,10 @@ package com.m3man.ui.download;
 
 
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
@@ -29,6 +31,12 @@ import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.service.DownloadVideoService;
 import com.m3man.ui.MvpFragment;
 import com.m3man.utils.DownloadManager;
+import com.m3man.service.HlsDownloadService;
+import com.m3man.ui.mman9video.play.PlayVideoPresenter;
+
+import android.content.BroadcastReceiver;
+import android.support.v4.content.LocalBroadcastManager;
+import android.text.TextUtils;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -54,6 +62,18 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
     private DownloadVideoAdapter mDownloadAdapter;
     private boolean isFocusRefresh = false;
 
+    private BroadcastReceiver hlsReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent == null || intent.getAction() == null) {
+                return;
+            }
+            if (HlsDownloadService.ACTION_HLS_DONE.equals(intent.getAction())) {
+                presenter.loadFinishedData();
+            }
+        }
+    };
+
     @Inject
     protected DownloadPresenter downloadPresenter;
 
@@ -66,6 +86,10 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         DownloadManager.getImpl().addUpdater(this);
+        // 注册 HLS 下载完成广播，让「下载完成」列表实时刷新
+        IntentFilter hlsFilter = new IntentFilter();
+        hlsFilter.addAction(HlsDownloadService.ACTION_HLS_DONE);
+        LocalBroadcastManager.getInstance(getContext()).registerReceiver(hlsReceiver, hlsFilter);
     }
 
     @NonNull
@@ -177,6 +201,14 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
         builder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
+                if (PlayVideoPresenter.isPornySource(v9MmanItem)) {
+                    // HLS（分分钟）重新下载走专用通道
+                    v9MmanItem.setDownloadId(0);
+                    v9MmanItem.setSoFarBytes(0);
+                    presenter.updateV9MmanItem(v9MmanItem);
+                    startHlsReDownload(v9MmanItem);
+                    return;
+                }
                 v9MmanItem.setDownloadId(0);
                 v9MmanItem.setSoFarBytes(0);
                 presenter.updateV9MmanItem(v9MmanItem);
@@ -187,6 +219,24 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
             }
         });
         builder.show();
+    }
+
+    private void startHlsReDownload(V9MmanItem item) {
+        if (item.getVideoResult() == null || TextUtils.isEmpty(item.getVideoResult().getVideoUrl())) {
+            showMessage("未解析到视频地址，无法重新下载", TastyToast.INFO);
+            return;
+        }
+        String customDir = presenter.getCustomDownloadVideoDirPath();
+        String savePath = item.getDownLoadPath(customDir);
+        Intent serviceIntent = new Intent(getContext(), HlsDownloadService.class);
+        serviceIntent.setAction(HlsDownloadService.ACTION_START);
+        serviceIntent.putExtra(HlsDownloadService.EXTRA_VIDEO_URL, item.getVideoResult().getVideoUrl());
+        serviceIntent.putExtra(HlsDownloadService.EXTRA_TITLE, item.getTitle());
+        serviceIntent.putExtra(HlsDownloadService.EXTRA_FILE_NAME, item.getTitle());
+        serviceIntent.putExtra(HlsDownloadService.EXTRA_VIEW_KEY, item.getViewKey());
+        serviceIntent.putExtra(HlsDownloadService.EXTRA_SAVE_PATH, savePath);
+        getContext().startService(serviceIntent);
+        showMessage("已加入后台下载", TastyToast.SUCCESS);
     }
 
     @Override
@@ -213,6 +263,7 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
     public void onDestroy() {
         super.onDestroy();
         DownloadManager.getImpl().removeUpdater(this);
+        LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(hlsReceiver);
     }
 
     @Override

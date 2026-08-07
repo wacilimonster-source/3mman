@@ -28,6 +28,9 @@ import com.jaeger.library.StatusBarUtil;
 import com.orhanobut.logger.Logger;
 import com.sdsmdg.tastytoast.TastyToast;
 import com.m3man.R;
+import com.m3man.MyApplication;
+import com.liulishuo.filedownloader.model.FileDownloadStatus;
+import android.support.v4.content.LocalBroadcastManager;
 import com.m3man.adapter.PlayFragmentAdapter;
 import com.m3man.constants.Keys;
 import com.m3man.constants.KeysActivityRequestResultCode;
@@ -528,11 +531,29 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
             showMessage("还未成功解析视频链接，不能下载！", TastyToast.INFO);
             return;
         }
+        // 路径必须与「我的下载」播放路径严格一致：统一用 getDownLoadPath(customDir)
+        String customDir = MyApplication.getInstance().getDataManager().getCustomDownloadVideoDirPath();
+        final String savePath = v9MmanItem.getDownLoadPath(customDir);
+        // 落「下载中」记录，使其出现在「我的下载」列表（伪 downloadId 避免与 FileDownloader 真实 id 冲突）
+        int pseudoId = Math.abs(videoUrl.hashCode());
+        v9MmanItem.setDownloadId(pseudoId);
+        v9MmanItem.setStatus(FileDownloadStatus.progress);
+        if (v9MmanItem.getAddDownloadDate() == null) {
+            v9MmanItem.setAddDownloadDate(new Date());
+        }
+        MyApplication.getInstance().getDataManager().updateV9MmanItem(v9MmanItem);
+        // 通知「正在下载」页刷新
+        Intent progressIntent = new Intent(HlsDownloadService.ACTION_HLS_PROGRESS);
+        progressIntent.putExtra(HlsDownloadService.EXTRA_VIEW_KEY, v9MmanItem.getViewKey());
+        LocalBroadcastManager.getInstance(this).sendBroadcast(progressIntent);
+
         Intent serviceIntent = new Intent(this, HlsDownloadService.class);
         serviceIntent.setAction(HlsDownloadService.ACTION_START);
         serviceIntent.putExtra(HlsDownloadService.EXTRA_VIDEO_URL, videoUrl);
         serviceIntent.putExtra(HlsDownloadService.EXTRA_TITLE, v9MmanItem.getTitle());
         serviceIntent.putExtra(HlsDownloadService.EXTRA_FILE_NAME, sanitizeFileName(v9MmanItem.getTitle()));
+        serviceIntent.putExtra(HlsDownloadService.EXTRA_VIEW_KEY, v9MmanItem.getViewKey());
+        serviceIntent.putExtra(HlsDownloadService.EXTRA_SAVE_PATH, savePath);
         startService(serviceIntent);
         showMessage("已加入后台下载，进度请看通知栏", TastyToast.SUCCESS);
     }

@@ -87,7 +87,7 @@ public class AppDbHelper implements DbHelper {
     }
 
     @Override
-    public void updateV9MmanItem(V9MmanItem v9MmanItem) {
+    public synchronized void updateV9MmanItem(V9MmanItem v9MmanItem) {
         mDaoSession.getV9MmanItemDao().update(v9MmanItem);
     }
 

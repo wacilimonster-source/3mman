@@ -1,7 +1,9 @@
 package com.m3man.ui.download;
 
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -27,6 +29,11 @@ import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.service.DownloadVideoService;
 import com.m3man.ui.MvpFragment;
 import com.m3man.utils.DownloadManager;
+import com.m3man.service.HlsDownloadService;
+import com.m3man.ui.mman9video.play.PlayVideoPresenter;
+
+import android.content.BroadcastReceiver;
+import android.support.v4.content.LocalBroadcastManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,6 +57,23 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
     Unbinder unbinder;
     private DownloadVideoAdapter mDownloadAdapter;
     private ArrayList<V9MmanItem> mV9MmanItemList;
+
+    private BroadcastReceiver hlsReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent == null || intent.getAction() == null) {
+                return;
+            }
+            if (HlsDownloadService.ACTION_HLS_PROGRESS.equals(intent.getAction())) {
+                String vk = intent.getStringExtra(HlsDownloadService.EXTRA_VIEW_KEY);
+                int p = intent.getIntExtra(HlsDownloadService.EXTRA_PROGRESS, 0);
+                updateHlsItemProgress(vk, p);
+            } else if (HlsDownloadService.ACTION_HLS_DONE.equals(intent.getAction())) {
+                // HLS 下载完成会从「正在下载」列表移出
+                presenter.loadDownloadingData();
+            }
+        }
+    };
 
     @Inject
     protected DownloadPresenter downloadPresenter;
@@ -86,6 +110,10 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
         super.onCreate(savedInstanceState);
         DownloadManager.getImpl().addUpdater(this);
         FileDownloader.getImpl().addServiceConnectListener(fileDownloadConnectListener);
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(HlsDownloadService.ACTION_HLS_PROGRESS);
+        filter.addAction(HlsDownloadService.ACTION_HLS_DONE);
+        LocalBroadcastManager.getInstance(getContext()).registerReceiver(hlsReceiver, filter);
     }
 
     @NonNull
@@ -122,6 +150,16 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
                     return;
                 }
                 Logger.t(TAG).d("当前状态：" + v9MmanItem.getStatus());
+                // HLS（分分钟）下载走独立通道，删除/取消需分流处理
+                if (PlayVideoPresenter.isPornySource(v9MmanItem)) {
+                    if (view.getId() == R.id.right_menu_delete || view.getId() == R.id.iv_download_control) {
+                        SwipeItemLayout swipeItemLayout = (SwipeItemLayout) view.getParent();
+                        swipeItemLayout.close();
+                        cancelHlsDownload(v9MmanItem);
+                        presenter.loadDownloadingData();
+                    }
+                    return;
+                }
                 if (view.getId() == R.id.right_menu_delete) {
                     SwipeItemLayout swipeItemLayout = (SwipeItemLayout) view.getParent();
                     swipeItemLayout.close();
@@ -236,6 +274,30 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
         super.onDestroy();
         FileDownloader.getImpl().removeServiceConnectListener(fileDownloadConnectListener);
         DownloadManager.getImpl().removeUpdater(this);
+        LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(hlsReceiver);
+    }
+
+    private void cancelHlsDownload(V9MmanItem item) {
+        Intent cancel = new Intent(getContext(), HlsDownloadService.class).setAction(HlsDownloadService.ACTION_CANCEL);
+        getContext().startService(cancel);
+        if (item != null) {
+            item.setDownloadId(0);
+            presenter.updateV9MmanItem(item);
+        }
+    }
+
+    private void updateHlsItemProgress(String viewKey, int progress) {
+        if (mV9MmanItemList == null || viewKey == null) {
+            return;
+        }
+        for (int i = 0; i < mV9MmanItemList.size(); i++) {
+            V9MmanItem it = mV9MmanItemList.get(i);
+            if (it != null && viewKey.equals(it.getViewKey())) {
+                it.setProgress(progress);
+                mDownloadAdapter.notifyItemChanged(i);
+                break;
+            }
+        }
     }
 
     @Override
