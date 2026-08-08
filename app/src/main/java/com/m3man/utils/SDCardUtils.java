@@ -1,7 +1,12 @@
 package com.m3man.utils;
 
+import android.content.Context;
 import android.os.Environment;
 import android.text.TextUtils;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 /**
  * @author flymegoc
@@ -40,5 +45,39 @@ public class SDCardUtils {
             sanitized = sanitized.substring(0, 120).trim();
         }
         return sanitized;
+    }
+
+    /**
+     * M40：真实写入能力探测。尝试在下载目录建目录并写入/删除一个临时文件，
+     * 用于判断存储是否真的可写。比运行时权限检测更可靠，可跨 Android 版本/厂商一致，
+     * 避免旧版 AndPermission 在 Android 11+ 上对 READ/WRITE_EXTERNAL_STORAGE 的误判。
+     */
+    public static boolean isDownloadDirWritable(Context context) {
+        File dir = new File(DOWNLOAD_VIDEO_PATH);
+        if (!dir.exists() && !dir.mkdirs()) {
+            File parent = new File(ROOT_FOLDER);
+            if (!parent.exists() && !parent.mkdirs()) {
+                return false;
+            }
+            if (!dir.mkdirs()) {
+                return false;
+            }
+        }
+        File test = new File(dir, ".write_test_" + System.currentTimeMillis() + ".tmp");
+        FileOutputStream os = null;
+        try {
+            os = new FileOutputStream(test);
+            os.write(1);
+            return test.delete();
+        } catch (IOException e) {
+            return false;
+        } finally {
+            if (os != null) {
+                try {
+                    os.close();
+                } catch (IOException ignored) {
+                }
+            }
+        }
     }
 }

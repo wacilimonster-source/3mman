@@ -50,6 +50,11 @@ import com.m3man.ui.setting.SettingActivity;
 import com.m3man.utils.ApkVersionUtils;
 import com.m3man.utils.FragmentUtils;
 import com.m3man.utils.NotificationChannelHelper;
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import android.support.v4.content.ContextCompat;
+
 import com.m3man.utils.SDCardUtils;
 import com.m3man.utils.Tags;
 import com.yanzhenjie.permission.AndPermission;
@@ -85,7 +90,26 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
     private Fragment mCurrentFragment;
     private int permisionCode = 300;
     private int permisionReqCode = 400;
-    private String[] permission = PermissionConstants.getPermissions(PermissionConstants.STORAGE);
+    private String[] permission = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+            ? new String[]{Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_IMAGES}
+            : PermissionConstants.getPermissions(PermissionConstants.STORAGE);
+
+    /**
+     * M40：用“真实写入能力”判断存储是否可用，避免旧版 AndPermission 在 Android 11+
+     * 上对 READ/WRITE_EXTERNAL_STORAGE 的误判（targetSdk=28 走 legacy 存储，能写即可）。
+     */
+    private boolean hasStorageAccess() {
+        if (SDCardUtils.isDownloadDirWritable(this)) {
+            return true;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO)
+                    == PackageManager.PERMISSION_GRANTED;
+        }
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
     private Main9MmanVideoFragment mMain9MmanVideoFragment;
     private MainPxgavFragment mMainPxgavFragment;
     private MainAxgleFragment mainAxgleFragment;
@@ -380,7 +404,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
      * 申请权限并创建下载目录
      */
     private void makeDirAndCheckPermission() {
-        if (!AndPermission.hasPermission(MainActivity.this, permission)) {
+        if (!hasStorageAccess()) {
             AndPermission.with(this)
                     .requestCode(permisionCode)
                     .permission(permission)
@@ -404,7 +428,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
             // 和onActivityResult()的requestCode一样，用来区分多个不同的请求。
             if (requestCode == permisionCode) {
                 // TODO ...
-                if (AndPermission.hasPermission(MainActivity.this, grantedPermissions)) {
+                if (hasStorageAccess()) {
                     if (!file.exists()) {
                         if (!file.mkdirs()) {
                             showMessage("创建下载目录失败了", TastyToast.ERROR);
@@ -421,7 +445,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
             // 权限申请失败回调。
             if (requestCode == permisionCode) {
                 // TODO ...
-                if (!AndPermission.hasPermission(MainActivity.this, deniedPermissions)) {
+                if (!hasStorageAccess()) {
                     // 是否有不再提示并拒绝的权限。
                     if (AndPermission.hasAlwaysDeniedPermission(MainActivity.this, deniedPermissions)) {
                         // 第一种：用AndPermission默认的提示语。
@@ -439,7 +463,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == permisionReqCode) {
-            if (!AndPermission.hasPermission(MainActivity.this, permission)) {
+            if (!hasStorageAccess()) {
                 showMessage("你拒绝了读写存储卡权限，这将影响下载视频等功能！", TastyToast.WARNING);
             }
         }

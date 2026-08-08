@@ -230,9 +230,40 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
 
     @Override
     public void deleteDownloadingTask(V9MmanItem v9MmanItem) {
-        FileDownloader.getImpl().clear(v9MmanItem.getDownloadId(), v9MmanItem.getDownLoadPath(getCustomDownloadVideoDirPath()));
+        String path = v9MmanItem.getDownLoadPath(getCustomDownloadVideoDirPath());
+        // 1) 尽量通过 FileDownloader 暂停并清除（需服务已连接）
+        try {
+            if (FileDownloader.getImpl().isServiceConnected()) {
+                FileDownloader.getImpl().pause(v9MmanItem.getDownloadId());
+                FileDownloader.getImpl().clear(v9MmanItem.getDownloadId(), path);
+            }
+        } catch (Exception ignored) {
+        }
+        // 2) 兜底：直接删除目标文件及其临时文件（不依赖下载服务，确保“正在下载”也能删除）
+        deleteFileWithTemp(path);
         v9MmanItem.setDownloadId(0);
         dataManager.updateV9MmanItem(v9MmanItem);
+    }
+
+    /**
+     * M40：直接删除下载文件及其 FileDownloader 临时文件（.fddownload / .fddownload.soload）。
+     */
+    private void deleteFileWithTemp(String path) {
+        if (path == null) {
+            return;
+        }
+        File f = new File(path);
+        if (f.exists()) {
+            f.delete();
+        }
+        File tmp = new File(path + ".fddownload");
+        if (tmp.exists()) {
+            tmp.delete();
+        }
+        File soload = new File(path + ".fddownload.soload");
+        if (soload.exists()) {
+            soload.delete();
+        }
     }
 
     @Override

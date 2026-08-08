@@ -102,6 +102,8 @@ public class HlsDownloadService extends Service {
                 downloader.shutdown();
                 downloader = null;
             }
+            // M40：清理下载过程中产生的临时分片（getCacheDir 下的 hls_* 目录）
+            cleanupHlsTemp();
             // 复位 DB 记录，使其从「正在下载」列表移除
             resetRecord();
             stopForeground(true);
@@ -191,11 +193,43 @@ public class HlsDownloadService extends Service {
     }
 
     private void handleError(String message) {
+        // M40：若最终 mp4 已生成且非空，视为成功（避免“能播放却提示下载失败”）
+        File mp4 = new File(targetMp4Path);
+        if (mp4.exists() && mp4.length() > 0) {
+            handleSuccess(mp4);
+            return;
+        }
         resetRecord();
         showErrorNotification(message);
         stopForeground(true);
         releaseDownloader();
         stopSelf();
+    }
+
+    /** M40：取消 HLS 下载时清理 getCacheDir 下的 hls_* 临时分片目录 */
+    private void cleanupHlsTemp() {
+        try {
+            File cache = getCacheDir();
+            File[] files = cache.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    if (f.isDirectory() && f.getName().startsWith("hls_")) {
+                        deleteRecursively(f);
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private static void deleteRecursively(File dir) {
+        File[] files = dir.listFiles();
+        if (files != null) {
+            for (File f : files) {
+                f.delete();
+            }
+        }
+        dir.delete();
     }
 
     private void resetRecord() {

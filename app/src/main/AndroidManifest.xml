@@ -37,7 +37,8 @@
         android:theme="@style/AppTheme"
         tools:ignore="GoogleAppIndexingWarning"
         tools:replace="android:allowBackup"
-        tools:targetApi="n">
+        tools:targetApi="n"
+        android:requestLegacyExternalStorage="true">
         <activity
             android:name=".ui.main.MainActivity"
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode|keyboard|layoutDirection"

@@ -10,6 +10,7 @@ import com.m3man.MyApplication;
 import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.V9MmanItem;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -121,6 +122,27 @@ public class DownloadManager {
         @Override
         protected void error(BaseDownloadTask task, Throwable e) {
             Logger.t(TAG).d("error:" + "--status:" + task.getStatus() + "--:soFarBytes：" + task.getSmallFileSoFarBytes() + "--:totalBytes：" + task.getSmallFileTotalBytes());
+            // M40：部分机型/系统下文件已完整下载却误报 error（如末尾 sync/重命名失败）。
+            // 若目标文件已存在且字节数足够，则按“完成”处理，避免“能播放却提示下载失败”。
+            try {
+                File f = new File(task.getPath());
+                long total = task.getSmallFileTotalBytes();
+                long soFar = task.getSmallFileSoFarBytes();
+                if (f.exists() && f.length() > 0 && (total <= 0 || soFar >= total)) {
+                    V9MmanItem item = dataManager.findV9MmanItemByDownloadId(task.getId());
+                    if (item != null) {
+                        item.setStatus(FileDownloadStatus.completed);
+                        item.setProgress(100);
+                        item.setSoFarBytes((int) f.length());
+                        item.setTotalFarBytes((int) f.length());
+                        item.setFinishedDownloadDate(new Date());
+                        dataManager.updateV9MmanItem(item);
+                    }
+                    complete(task);
+                    return;
+                }
+            } catch (Exception ignored) {
+            }
             saveDownloadInfo(task);
         }
 
