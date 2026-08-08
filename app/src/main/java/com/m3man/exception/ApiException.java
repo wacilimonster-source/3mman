@@ -137,7 +137,9 @@ public class ApiException extends Exception {
             return ex;
         } else {
             ex = new ApiException(e, Error.UNKNOWN);
-            ex.message = "未知错误：" + e.getMessage();
+            ex.message = "未知错误：" + e.getClass().getSimpleName() + " - " + e.getMessage();
+            // M34：把原始堆栈打到 logcat，便于从 "未知错误" 反查具体行号
+            Logger.t(TAG).e(e, "未知错误原始堆栈");
             return ex;
         }
     }

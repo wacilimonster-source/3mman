@@ -243,10 +243,18 @@ public class ParseV9MmanVideo {
             V9MmanItem v9MmanItem = new V9MmanItem();
             String contentUrl = element.select("a").first().attr("href");
             //Logger.d(contentUrl);
-            contentUrl = contentUrl.substring(0, contentUrl.indexOf("&"));
+            // M34：href 可能为空或不含 &，直接 substring(0, indexOf("&")) 会在空串上抛
+            // StringIndexOutOfBoundsException（begin 0, end -1, length 0）
+            if (!TextUtils.isEmpty(contentUrl) && contentUrl.contains("&")) {
+                contentUrl = contentUrl.substring(0, contentUrl.indexOf("&"));
+            }
             //Logger.d(contentUrl);
 
-            String viewKey = contentUrl.substring(contentUrl.indexOf("=") + 1);
+            String viewKey = "";
+            int eqIdx = contentUrl.indexOf("=");
+            if (eqIdx >= 0) {
+                viewKey = contentUrl.substring(eqIdx + 1);
+            }
             v9MmanItem.setViewKey(viewKey);
             //Logger.d(viewKey);
 
