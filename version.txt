@@ -1,6 +1,6 @@
 {
-  "versionCode": 40,
-  "versionName": "1.0.6",
-  "updateMessage": "本次更新内容：\n1. 修复首页底部“视频”标签点击无响应/切换不过去的问题：即使对应源地址未配置，视频标签也能正常切换（并提示去设置）\n2. 修复“作者其他视频点击播放提示解析失败”的体验：视频信息不完整时给出明确提示；解析失败页支持点击重试\n3. 保留 v1.0.5 的转换中状态、HLS缓存复用、底部页码栏、新Logo等全部功能",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.6.apk"
+  "versionCode": 41,
+  "versionName": "1.0.7",
+  "updateMessage": "本次更新内容：\n1. 修复“我的收藏/分分钟收藏”列表只有半截封面图的问题：列表项高度自适应，完整显示封面、标题、时长与详情信息\n2. 保留 v1.0.6 及之前全部功能",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.7.apk"
 }
