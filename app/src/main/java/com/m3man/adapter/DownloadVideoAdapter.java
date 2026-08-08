@@ -12,6 +12,7 @@ import com.liulishuo.filedownloader.FileDownloader;
 import com.liulishuo.filedownloader.model.FileDownloadStatus;
 import com.m3man.R;
 import com.m3man.data.db.entity.V9MmanItem;
+import com.m3man.ui.mman9video.play.PlayVideoPresenter;
 import com.m3man.utils.GlideApp;
 
 import java.util.List;
@@ -45,7 +46,12 @@ public class DownloadVideoAdapter extends BaseQuickAdapter<V9MmanItem, BaseViewH
             if (FileDownloader.getImpl().isServiceConnected()) {
                 helper.setImageResource(R.id.iv_download_control, R.drawable.pause_download);
                 if (item.getStatus() == FileDownloadStatus.progress) {
-                    helper.setText(R.id.tv_download_speed, item.getSpeed() + " KB/s");
+                    // M43：分分钟(HLS)分片下载到 100% 后进入合并/转码阶段，明确提示“转换中”
+                    if (PlayVideoPresenter.isPornySource(item) && item.getProgress() >= 100) {
+                        helper.setText(R.id.tv_download_speed, "转换中");
+                    } else {
+                        helper.setText(R.id.tv_download_speed, item.getSpeed() + " KB/s");
+                    }
                 } else if (item.getStatus() == FileDownloadStatus.paused) {
                     helper.setText(R.id.tv_download_speed, "暂停中");
                     helper.setImageResource(R.id.iv_download_control, R.drawable.start_download);

@@ -1,6 +1,6 @@
 {
-  "versionCode": 38,
-  "versionName": "1.0.4",
-  "updateMessage": "本次更新内容：\n1. 修复分分钟(HLS)下载到 100% 后不进「下载完成」列表的问题：完成判定与记录保留加固，转码失败也保留记录可重试\n2. 「我的收藏」改为本地收藏（无需登录，与分分钟一致），支持在设置页切换；本地收藏模式下分分钟收藏与我的收藏合并展示\n3. 分分钟搜索优化：搜索框默认收起、从详情页返回不再自动弹出输入法\n4. 分分钟搜索结果支持页码跳转（工具栏“跳页”）\n5. 保留 v1.0.2/v1.0.3 的存储权限、下载错误、删除等修复",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.4.apk"
+  "versionCode": 39,
+  "versionName": "1.0.5",
+  "updateMessage": "本次更新内容：\n1. 分分钟(HLS)下载列表新增“转换中”状态（100% 后进入合并转码）\n2. 分分钟下载优先复用播放缓存：视频播放过的 ts 分片直接从本地拷贝，避免重复下载\n3. 分分钟搜索底部页码栏：参考视频分类交互，直接在底部展示页码可点击跳转\n4. App Logo 重新设计（3秒男主题）\n5. 视频分类下载卡住的诊断与缓解（播放过的视频会走缓存复用；建议检查站点地址/网络）",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.5.apk"
 }

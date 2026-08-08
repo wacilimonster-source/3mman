@@ -56,6 +56,15 @@
         <android.support.v7.widget.RecyclerView
             android:id="@+id/recyclerView"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- M43：底部页码跳转栏（分分钟搜索页启用，默认隐藏不影响其它共用本布局的页面） -->
+        <include
+            android:id="@+id/fl_skip_page"
+            layout="@layout/layout_pron9_video_skip_page"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
     </LinearLayout>
 </FrameLayout>

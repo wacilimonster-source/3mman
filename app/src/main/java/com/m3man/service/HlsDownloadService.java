@@ -21,6 +21,7 @@ import com.m3man.MyApplication;
 import com.m3man.R;
 import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.V9MmanItem;
+import com.m3man.utils.AppCacheUtils;
 import com.m3man.utils.HlsDownloader;
 import com.m3man.utils.SDCardUtils;
 
@@ -126,7 +127,8 @@ public class HlsDownloadService extends Service {
             fileName = fileName.substring(0, fileName.length() - 4);
         }
         downloader = new HlsDownloader(this);
-        downloader.download(url, saveDir, fileName, new HlsDownloader.HlsDownloadListener() {
+        // M43：传入播放缓存目录，若该视频播放过（分片已缓存）则直接复用，避免重复下载
+        downloader.download(url, saveDir, fileName, AppCacheUtils.getVideoCacheDir(this), new HlsDownloader.HlsDownloadListener() {
             @Override
             public void onProgress(int done, int total) {
                 handleProgress(done, total);

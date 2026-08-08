@@ -19,7 +19,9 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
@@ -68,12 +70,15 @@ public class HlsDownloader {
     /**
      * 开始下载 m3u8 并转为 mp4。
      *
-     * @param m3u8Url   m3u8 索引地址
-     * @param saveDir   保存目录（如 SDCardUtils.DOWNLOAD_VIDEO_PATH）
-     * @param fileName  输出文件名（不带扩展名，最终为 fileName.mp4）
+     * @param m3u8Url      m3u8 索引地址
+     * @param saveDir      保存目录（如 SDCardUtils.DOWNLOAD_VIDEO_PATH）
+     * @param fileName     输出文件名（不带扩展名，最终为 fileName.mp4）
+     * @param videoCacheDir 播放缓存目录（AppCacheUtils.getVideoCacheDir），可传 null；
+     *                      若所有 ts 分片都已缓存（播放过），则直接复制缓存，避免重新下载
+     * @param listener     回调
      */
     public void download(final String m3u8Url, final String saveDir, final String fileName,
-                         final HlsDownloadListener listener) {
+                         final File videoCacheDir, final HlsDownloadListener listener) {
         executor.execute(() -> {
             File merged = null;
             try {
@@ -100,12 +105,14 @@ public class HlsDownloader {
                     fullUrls.add(resolveSegmentUrl(baseDir, seg));
                 }
 
-                // 3. 下载所有分片
+                // 3. 下载所有分片（M43：优先复用播放缓存——仅当全部分片都已缓存时使用，避免半缓存错位）
                 File tempDir = new File(context.getCacheDir(), "hls_" + System.currentTimeMillis());
                 if (!tempDir.exists() && !tempDir.mkdirs()) {
                     notifyError(listener, "创建临时目录失败");
                     return;
                 }
+                Map<String, File> cacheHits = collectCacheHits(fullUrls, videoCacheDir);
+                boolean useCache = cacheHits != null && cacheHits.size() == fullUrls.size();
                 List<File> tsFiles = new ArrayList<>(fullUrls.size());
                 int ok = 0;
                 for (int i = 0; i < fullUrls.size(); i++) {
@@ -114,7 +121,12 @@ public class HlsDownloader {
                         return;
                     }
                     File tsFile = new File(tempDir, String.format("seg_%05d.ts", i));
-                    if (downloadToFile(fullUrls.get(i), tsFile)) {
+                    if (useCache && cacheHits.containsKey(fullUrls.get(i))) {
+                        if (copyFile(cacheHits.get(fullUrls.get(i)), tsFile)) {
+                            tsFiles.add(tsFile);
+                            ok++;
+                        }
+                    } else if (downloadToFile(fullUrls.get(i), tsFile)) {
                         tsFiles.add(tsFile);
                         ok++;
                     }
@@ -196,6 +208,43 @@ public class HlsDownloader {
             }
         }
         return false;
+    }
+
+    /**
+     * M43：收集已在播放缓存中的分片（videocache 缓存文件名由 VideoCacheFileNameGenerator 生成）。
+     * 返回 null 表示 videoCacheDir 不可用；仅当全部分片都命中时才应使用缓存。
+     */
+    private Map<String, File> collectCacheHits(List<String> fullUrls, File videoCacheDir) {
+        if (videoCacheDir == null || !videoCacheDir.exists()) {
+            return null;
+        }
+        Map<String, File> hits = new HashMap<>();
+        VideoCacheFileNameGenerator generator = new VideoCacheFileNameGenerator();
+        for (String url : fullUrls) {
+            File cached = new File(videoCacheDir, generator.generate(url));
+            if (cached.exists() && cached.length() > 0) {
+                hits.put(url, cached);
+            }
+        }
+        return hits;
+    }
+
+    private static boolean copyFile(File from, File to) {
+        try {
+            InputStream in = new BufferedInputStream(new FileInputStream(from));
+            OutputStream out = new BufferedOutputStream(new FileOutputStream(to));
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) != -1) {
+                out.write(buf, 0, n);
+            }
+            out.flush();
+            out.close();
+            in.close();
+            return to.length() > 0;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private boolean tryDownloadToFile(String urlStr, File file) {

@@ -6,18 +6,20 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
-import android.text.InputType;
 import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.helper.loadviewhelper.help.OnLoadViewListener;
 import com.helper.loadviewhelper.load.LoadViewHelper;
 import com.sdsmdg.tastytoast.TastyToast;
 import com.m3man.R;
+import com.m3man.adapter.SkipPageAdapter;
 import com.m3man.adapter.V91MmanAdapter;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.ui.MvpActivity;
@@ -26,6 +28,7 @@ import com.m3man.utils.PlaybackEngine;
 
 import org.angmarch.views.NiceSpinner;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -56,9 +59,17 @@ public class SearchPornyActivity extends MvpActivity<SearchView, SearchPornyPres
     NiceSpinner niceSpinnerSortBy;
     @BindView(R.id.recyclerView)
     RecyclerView recyclerView;
+    // M43：底部页码跳转栏（参考视频分类交互）
+    @BindView(R.id.fl_skip_page)
+    FrameLayout skipPageLayout;
+    @BindView(R.id.recyclerView_skip_page)
+    RecyclerView skipPageRecyclerView;
+    @BindView(R.id.ll_skip_page_loading)
+    LinearLayout skipLoadingLayout;
     private String searchId;
     private V91MmanAdapter mV91MmanAdapter;
     private LoadViewHelper helper;
+    private SkipPageAdapter skipPageAdapter;
 
     /** 排序：默认 / 最新 / 最热 */
     private String currentSort = "";
@@ -124,6 +135,49 @@ public class SearchPornyActivity extends MvpActivity<SearchView, SearchPornyPres
                 triggerSearch(false);
             }
         });
+
+        // M43：底部页码跳转栏（参考视频分类的翻页交互，直接展示在底部）
+        initSkipPageBar();
+    }
+
+    private void initSkipPageBar() {
+        skipPageLayout.setVisibility(View.VISIBLE);
+        skipPageRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        skipPageAdapter = new SkipPageAdapter(R.layout.item_skip_page);
+        skipPageRecyclerView.setAdapter(skipPageAdapter);
+        skipPageAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
+            @Override
+            public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
+                Integer target = (Integer) adapter.getItem(position);
+                if (target == null || TextUtils.isEmpty(searchId)) {
+                    return;
+                }
+                if (target == presenter.getCurrentPage()) {
+                    return;
+                }
+                skipLoadingLayout.setVisibility(View.VISIBLE);
+                presenter.jumpToPage(target, searchId, currentSort, currentTime, currentViews);
+            }
+        });
+    }
+
+    /** M43：刷新底部页码栏（数据/总页数/当前页变化时调用） */
+    private void updateSkipBar() {
+        if (skipPageAdapter == null) {
+            return;
+        }
+        int total = presenter.getTotalPage();
+        if (total <= 0) {
+            return;
+        }
+        List<Integer> pages = new ArrayList<>(total);
+        for (int i = 1; i <= total; i++) {
+            pages.add(i);
+        }
+        skipPageAdapter.setNewData(pages);
+        skipPageAdapter.setCurrentPage(presenter.getCurrentPage());
+        skipLoadingLayout.setVisibility(View.GONE);
+        skipPageRecyclerView.smoothScrollToPosition(Math.max(presenter.getCurrentPage() - 1, 0));
     }
 
     private void setListener() {
@@ -167,56 +221,11 @@ public class SearchPornyActivity extends MvpActivity<SearchView, SearchPornyPres
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.action_porny_filter) {
+        if (item.getItemId() == R.id.action_porny_filter) {
             showFilterDialog();
-            return true;
-        } else if (id == R.id.action_porny_jump_page) {
-            showJumpPageDialog();
             return true;
         }
         return super.onOptionsItemSelected(item);
-    }
-
-    /**
-     * M42：分页跳转——输入目标页码，跳转到该页搜索结果（替换当前列表）。
-     */
-    private void showJumpPageDialog() {
-        if (TextUtils.isEmpty(searchId)) {
-            showMessage("请先搜索后再跳页", TastyToast.INFO);
-            return;
-        }
-        final int totalPage = Math.max(presenter.getTotalPage(), 1);
-        final EditText editText = new EditText(this);
-        editText.setInputType(InputType.TYPE_CLASS_NUMBER);
-        editText.setHint("输入页码（1-" + totalPage + "）");
-        new AlertDialog.Builder(this)
-                .setTitle("跳转到指定页")
-                .setView(editText)
-                .setPositiveButton("跳转", (dialog, which) -> {
-                    String text = editText.getText().toString().trim();
-                    if (TextUtils.isEmpty(text)) {
-                        showMessage("请输入页码", TastyToast.INFO);
-                        return;
-                    }
-                    try {
-                        int target = Integer.parseInt(text);
-                        if (target < 1) {
-                            showMessage("页码必须大于 0", TastyToast.INFO);
-                            return;
-                        }
-                        int knownTotal = presenter.getTotalPage();
-                        if (knownTotal > 0 && target > knownTotal) {
-                            showMessage("页码超出范围（1-" + knownTotal + "）", TastyToast.INFO);
-                            return;
-                        }
-                        presenter.jumpToPage(target, searchId, currentSort, currentTime, currentViews);
-                    } catch (NumberFormatException e) {
-                        showMessage("页码格式不正确", TastyToast.INFO);
-                    }
-                })
-                .setNegativeButton("取消", null)
-                .show();
     }
 
     private void showFilterDialog() {
@@ -311,12 +320,14 @@ public class SearchPornyActivity extends MvpActivity<SearchView, SearchPornyPres
     @Override
     public void setMoreData(List<V9MmanItem> v9MmanItemList) {
         mV91MmanAdapter.addData(v9MmanItemList);
+        updateSkipBar();
     }
 
     @Override
     public void setData(List<V9MmanItem> data) {
         mV91MmanAdapter.setNewData(data);
         recyclerView.smoothScrollToPosition(0);
+        updateSkipBar();
     }
 
     @Override

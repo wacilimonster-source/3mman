@@ -28,6 +28,8 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
     private static final String TAG = SearchPornyPresenter.class.getSimpleName();
     private LifecycleProvider<Lifecycle.Event> provider;
     private int page = 1;
+    /** M43：当前展示页（onSuccess 后记录，供底部页码栏高亮/定位） */
+    private int currentPageShown = 1;
     private Integer totalPage;
     private DataManager dataManager;
 
@@ -75,6 +77,11 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
         return totalPage == null ? 0 : totalPage;
     }
 
+    /** M43：当前展示页（供底部页码栏高亮当前页）。 */
+    public int getCurrentPage() {
+        return currentPageShown;
+    }
+
     private void doSearch(final int currentPage, String searchId, String sort, String time, String views, final boolean jumpMode) {
         dataManager.searchPornyVideos(searchId, currentPage, normalizeFilter(sort), normalizeFilter(time), normalizeFilter(views))
                 .map(new Function<BaseResult<List<V9MmanItem>>, List<V9MmanItem>>() {
@@ -118,6 +125,7 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
                                     view.showContent();
                                     return;
                                 }
+                                currentPageShown = currentPage;
                                 if (currentPage == 1 || jumpMode) {
                                     // 首页/跳页：替换整个列表
                                     view.loadMoreDataComplete();

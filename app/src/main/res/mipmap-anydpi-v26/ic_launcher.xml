@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- M43：3秒男主题 Logo——background 用新 logo 图（替代旧 vector+color），foreground 透明（v26+ 圆形遮罩由 launcher 控制） -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/ic_launcher_background"/>
-    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+    <background android:drawable="@drawable/ic_launcher_adaptive_bg"/>
+    <foreground android:drawable="@android:color/transparent"/>
 </adaptive-icon>
