@@ -219,6 +219,9 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         // C9：入参零校验，避免 v9MmanItem 或 viewKey 为 null 时直接 NPE
         if (v9MmanItem == null || TextUtils.isEmpty(v9MmanItem.getViewKey())) {
             Logger.t(TAG).e("initData: v9MmanItem 为空或 viewKey 缺失，无法初始化播放页");
+            // M44：作者视频等场景 viewKey 可能缺失，给出明确提示而非静默无反应
+            showMessage("视频信息不完整，无法播放，请返回重试", TastyToast.ERROR);
+            helper.showError();
             return;
         }
         boolean isPornySource = PlayVideoPresenter.isPornySource(v9MmanItem);

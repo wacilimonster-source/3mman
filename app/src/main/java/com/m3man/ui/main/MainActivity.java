@@ -303,15 +303,18 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
             default:
         }
         selectIndex = position;
+        // M44：同步底部导航选中态，避免 fragment 切换失败后导航状态漂移导致点击无响应
+        if (bottomNavigationBar != null
+                && bottomNavigationBar.getCurrentSelectedPosition() != position) {
+            bottomNavigationBar.selectTab(position);
+        }
     }
 
     private void handlerFirstTabClickToShow(String tag, int itemId, boolean isInnerReplace) {
         switch (tag) {
             case Tags.TAG_PRON_9_VIDEO:
-                if (presenter.haveNotSetV9pronAddress()) {
-                    showNeedSetAddressDialog();
-                    return;
-                }
+                // M44：地址未设置时不再 return 拦截（否则视频 tab 点击完全无响应），
+                // 仍切换到对应 fragment（其加载失败有错误页/重试），保证 tab 点击总有反馈
                 if (mMain9MmanVideoFragment == null) {
                     mMain9MmanVideoFragment = Main9MmanVideoFragment.getInstance();
                 }
@@ -319,12 +322,11 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                 firstTabShow = Tags.TAG_PRON_9_VIDEO;
                 presenter.setMainFirstTabShow(Tags.TAG_PRON_9_VIDEO);
                 mMainPxgavFragment = null;
+                if (presenter.haveNotSetV9pronAddress()) {
+                    showMessage("请先在设置中配置视频地址", TastyToast.INFO);
+                }
                 break;
             case Tags.TAG_PXGAV_VIDEO:
-                if (presenter.haveNotSetPavAddress()) {
-                    showNeedSetAddressDialog();
-                    return;
-                }
                 if (mMainPxgavFragment == null) {
                     mMainPxgavFragment = MainPxgavFragment.getInstance();
                 }
@@ -332,32 +334,38 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                 firstTabShow = Tags.TAG_PXGAV_VIDEO;
                 presenter.setMainFirstTabShow(Tags.TAG_PXGAV_VIDEO);
                 mMain9MmanVideoFragment = null;
+                if (presenter.haveNotSetPavAddress()) {
+                    showMessage("请先在设置中配置 P*gav 地址", TastyToast.INFO);
+                }
                 break;
             case Tags.TAG_AXGLE_VIDEO:
-                if (presenter.haveNotSetAxgleAddress()) {
-                    showNeedSetAddressDialog();
-                    return;
-                }
                 if (mainAxgleFragment == null) {
                     mainAxgleFragment = MainAxgleFragment.getInstance();
                 }
                 mCurrentFragment = FragmentUtils.switchContent(fragmentManager, mCurrentFragment, mainAxgleFragment, contentFrameLayout.getId(), itemId, isInnerReplace);
                 firstTabShow = Tags.TAG_AXGLE_VIDEO;
                 presenter.setMainFirstTabShow(Tags.TAG_AXGLE_VIDEO);
+                if (presenter.haveNotSetAxgleAddress()) {
+                    showMessage("请先在设置中配置 A*gle 地址", TastyToast.INFO);
+                }
                 break;
             case Tags.TAG_KE_DOU_WO_VIDEO:
-                if (presenter.haveNotSetKeDouWoAddress()) {
-                    showNeedSetAddressDialog();
-                    return;
-                }
                 if (mMainKeDouFragment == null) {
                     mMainKeDouFragment = MainKeDouFragment.getInstance();
                 }
                 mCurrentFragment = FragmentUtils.switchContent(fragmentManager, mCurrentFragment, mMainKeDouFragment, contentFrameLayout.getId(), itemId, isInnerReplace);
                 firstTabShow = Tags.TAG_KE_DOU_WO_VIDEO;
                 presenter.setMainFirstTabShow(Tags.TAG_KE_DOU_WO_VIDEO);
+                if (presenter.haveNotSetKeDouWoAddress()) {
+                    showMessage("请先在设置中配置 KeDouWo 地址", TastyToast.INFO);
+                }
                 break;
             default:
+                // M44：firstTabShow 异常/未知时回退默认视频分类，保证视频 tab 点击始终有响应
+                presenter.setMainFirstTabShow(Tags.TAG_PRON_9_VIDEO);
+                firstTabShow = Tags.TAG_PRON_9_VIDEO;
+                handlerFirstTabClickToShow(Tags.TAG_PRON_9_VIDEO, itemId, isInnerReplace);
+                break;
         }
     }
 
