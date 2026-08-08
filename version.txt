@@ -1,6 +1,6 @@
 {
-  "versionCode": 35,
-  "versionName": "1.0.1",
-  "updateMessage": "本次更新内容：\n1. 分分钟视频下载接入「我的下载」，下载进度与已完成列表实时可见\n2. 修复视频分类页播放/下载时的闪退与「未知错误」提示\n3. 加固网页解析逻辑，修复搜索页可能崩溃的问题\n4. 修复代码审查发现的多项稳定性问题",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.1.apk"
+  "versionCode": 36,
+  "versionName": "1.0.2",
+  "updateMessage": "本次更新内容：\n1. 修复在 Android 11+ 上误报“未授予存储权限”的问题（改用真实写入能力检测，并适配 READ_MEDIA_* 权限）\n2. 修复“文件已下载完成可播放却提示下载失败”的误报\n3. 修复“正在下载的任务无法删除”的问题（增加文件级兜底删除与 HLS 临时分片清理）\n4. 适配 Android 13+ 媒体权限，降低 OEM 系统上的权限误判",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.2.apk"
 }
