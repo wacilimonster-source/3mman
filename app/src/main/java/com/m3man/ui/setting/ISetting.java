@@ -24,6 +24,10 @@ public interface ISetting {
 
     void setPornyEnabled(boolean enabled);
 
+    boolean isLocalFavoriteMode();
+
+    void setLocalFavoriteMode(boolean localFavoriteMode);
+
     String getPornyAddress();
 
     void setPornyAddress(String address);

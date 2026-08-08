@@ -222,6 +222,11 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
         return true;
     }
 
+    /** M42：是否本地收藏模式（true=本地收藏，与分分钟合并展示；false=服务器收藏） */
+    public boolean isLocalFavoriteMode() {
+        return dataManager.isLocalFavoriteMode();
+    }
+
     /**
      * 收藏作者（本地）。authorKey 对 91porny 即作者名、对视频源即作者 uid；
      * authorName 用于收藏列表展示。需在 IO 线程调用。

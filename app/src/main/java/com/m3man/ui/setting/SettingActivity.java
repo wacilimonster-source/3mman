@@ -279,6 +279,19 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
             }
         });
 
+        // M42：收藏方式——本地收藏（无需登录，与分分钟一致） / 服务器收藏
+        boolean isLocalFavoriteMode = presenter.isLocalFavoriteMode();
+        QMUICommonListItemView localFavoriteItemWithSwitch = qmuiGroupListView.createItemView("本地收藏（无需登录）");
+        localFavoriteItemWithSwitch.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_SWITCH);
+        localFavoriteItemWithSwitch.getSwitch().setChecked(isLocalFavoriteMode);
+        localFavoriteItemWithSwitch.getSwitch().setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                presenter.setLocalFavoriteMode(isChecked);
+                showMessage(isChecked ? "已切换为本地收藏（与分分钟合并展示）" : "已切换为服务器收藏", TastyToast.INFO);
+            }
+        });
+
 
         sec.addItemView(itemWithSwitch, null);
         sec.addItemView(itemWithSwitchForbidden, this);
@@ -286,6 +299,7 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         sec.addItemView(showUrlRedirectTipDialogItemWithSwitch, null);
         sec.addItemView(fixMainNavigationItemWithSwitch, null);
         sec.addItemView(pornyEnabledItemWithSwitch, null);
+        sec.addItemView(localFavoriteItemWithSwitch, null);
         sec.addItemView(verifyGoogleRecaptcha(), this);
         sec.addTo(qmuiGroupListView);
     }

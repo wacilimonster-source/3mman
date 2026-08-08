@@ -1,6 +1,6 @@
 {
-  "versionCode": 37,
-  "versionName": "1.0.3",
-  "updateMessage": "本次更新内容：\n1. 再次修复“下载完成可播放却提示下载错误”：当服务器 Content-Length 与实际字节数不一致时，按文件真实大小判断完成（不再依赖 soFar=total）\n2. 下载列表展示时自动纠错：历史遗留的“下载错误”记录若文件已完整，自动修正为已完成\n3. 防止下载服务重连时用残留的错误状态覆盖已完成记录\n4. 保留 v1.0.2 的存储权限适配与正在下载任务删除修复",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.3.apk"
+  "versionCode": 38,
+  "versionName": "1.0.4",
+  "updateMessage": "本次更新内容：\n1. 修复分分钟(HLS)下载到 100% 后不进「下载完成」列表的问题：完成判定与记录保留加固，转码失败也保留记录可重试\n2. 「我的收藏」改为本地收藏（无需登录，与分分钟一致），支持在设置页切换；本地收藏模式下分分钟收藏与我的收藏合并展示\n3. 分分钟搜索优化：搜索框默认收起、从详情页返回不再自动弹出输入法\n4. 分分钟搜索结果支持页码跳转（工具栏“跳页”）\n5. 保留 v1.0.2/v1.0.3 的存储权限、下载错误、删除等修复",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.4.apk"
 }

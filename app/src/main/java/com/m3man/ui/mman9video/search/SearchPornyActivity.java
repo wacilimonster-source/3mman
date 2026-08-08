@@ -6,10 +6,12 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
+import android.text.InputType;
 import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.EditText;
 
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.helper.loadviewhelper.help.OnLoadViewListener;
@@ -77,10 +79,19 @@ public class SearchPornyActivity extends MvpActivity<SearchView, SearchPornyPres
         setListener();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // M42：从视频详情页返回时收起搜索框并清除焦点，避免输入法自动弹出
+        searchView.onActionViewCollapsed();
+        searchView.clearFocus();
+    }
+
     private void init() {
         initToolBar(toolbar);
         searchView.setQueryHint("搜索 分分钟 视频");
-        searchView.onActionViewExpanded();
+        // M42：搜索框默认收起（点击放大镜才展开），避免进入页面/从详情页返回时自动弹出输入法
+        searchView.setIconified(true);
 
         // 91porny 仅单一搜索模式，隐藏类型/排序下拉（改用工具栏筛选弹窗）
         niceSpinnerSearch.setVisibility(View.GONE);
@@ -156,11 +167,56 @@ public class SearchPornyActivity extends MvpActivity<SearchView, SearchPornyPres
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.action_porny_filter) {
+        int id = item.getItemId();
+        if (id == R.id.action_porny_filter) {
             showFilterDialog();
+            return true;
+        } else if (id == R.id.action_porny_jump_page) {
+            showJumpPageDialog();
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    /**
+     * M42：分页跳转——输入目标页码，跳转到该页搜索结果（替换当前列表）。
+     */
+    private void showJumpPageDialog() {
+        if (TextUtils.isEmpty(searchId)) {
+            showMessage("请先搜索后再跳页", TastyToast.INFO);
+            return;
+        }
+        final int totalPage = Math.max(presenter.getTotalPage(), 1);
+        final EditText editText = new EditText(this);
+        editText.setInputType(InputType.TYPE_CLASS_NUMBER);
+        editText.setHint("输入页码（1-" + totalPage + "）");
+        new AlertDialog.Builder(this)
+                .setTitle("跳转到指定页")
+                .setView(editText)
+                .setPositiveButton("跳转", (dialog, which) -> {
+                    String text = editText.getText().toString().trim();
+                    if (TextUtils.isEmpty(text)) {
+                        showMessage("请输入页码", TastyToast.INFO);
+                        return;
+                    }
+                    try {
+                        int target = Integer.parseInt(text);
+                        if (target < 1) {
+                            showMessage("页码必须大于 0", TastyToast.INFO);
+                            return;
+                        }
+                        int knownTotal = presenter.getTotalPage();
+                        if (knownTotal > 0 && target > knownTotal) {
+                            showMessage("页码超出范围（1-" + knownTotal + "）", TastyToast.INFO);
+                            return;
+                        }
+                        presenter.jumpToPage(target, searchId, currentSort, currentTime, currentViews);
+                    } catch (NumberFormatException e) {
+                        showMessage("页码格式不正确", TastyToast.INFO);
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
     }
 
     private void showFilterDialog() {

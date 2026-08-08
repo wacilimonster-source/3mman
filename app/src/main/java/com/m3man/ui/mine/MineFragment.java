@@ -238,8 +238,13 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
         QMUICommonListItemView favoriteItemWithChevron = mineList.createItemView(myFavoriteStr);
         favoriteItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
 
-        QMUICommonListItemView pornyFavoriteItemWithChevron = mineList.createItemView(getString(R.string.porny_local_favorite));
-        pornyFavoriteItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
+        // M42：本地收藏模式下分分钟收藏与“我的收藏”合并展示，隐藏独立入口
+        boolean localFavoriteMode = presenter.isLocalFavoriteMode();
+        QMUICommonListItemView pornyFavoriteItemWithChevron = null;
+        if (!localFavoriteMode) {
+            pornyFavoriteItemWithChevron = mineList.createItemView(getString(R.string.porny_local_favorite));
+            pornyFavoriteItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
+        }
 
         QMUICommonListItemView authorFavoriteItemWithChevron = mineList.createItemView(getString(R.string.author_favorite));
         authorFavoriteItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
@@ -252,10 +257,12 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
 
         mineList.setSeparatorStyle(QMUIGroupListView.SEPARATOR_STYLE_NORMAL);
 
-        QMUIGroupListView.newSection(context)
-                .addItemView(favoriteItemWithChevron, this)
-                .addItemView(pornyFavoriteItemWithChevron, this)
-                .addItemView(authorFavoriteItemWithChevron, this)
+        QMUIGroupListView.Section mineSection = QMUIGroupListView.newSection(context);
+        mineSection.addItemView(favoriteItemWithChevron, this);
+        if (pornyFavoriteItemWithChevron != null) {
+            mineSection.addItemView(pornyFavoriteItemWithChevron, this);
+        }
+        mineSection.addItemView(authorFavoriteItemWithChevron, this)
                 .addItemView(downloadItemWithChevron, this)
                 .addItemView(viewHistoryItemWithChevron, this)
                 .addItemView(openNightModeItemWithSwitch, null)
@@ -396,7 +403,8 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
         }
 
         if (content.equals(myFavoriteStr)) {
-            if (!presenter.isUserLogin()) {
+            // M42：本地收藏模式无需登录直接进入（与分分钟合并展示）
+            if (!presenter.isLocalFavoriteMode() && !presenter.isUserLogin()) {
                 Intent intent = new Intent(context, UserLoginActivity.class);
                 intent.putExtra(Keys.KEY_INTENT_LOGIN_FOR_ACTION, KeysActivityRequestResultCode.LOGIN_ACTION_FOR_LOOK_MY_FAVORITE);
                 startActivityForResultWithAnimation(intent, Constants.USER_LOGIN_REQUEST_CODE);

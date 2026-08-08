@@ -94,7 +94,7 @@ public class HlsDownloadService extends Service {
             }
             // 稳定的伪 downloadId，使「我的下载」查询（DownloadId!=0）能命中本记录
             pseudoDownloadId = Math.abs(url.hashCode());
-            startForeground(NOTIFICATION_ID, buildProgressNotification(0, 1));
+            startForeground(NOTIFICATION_ID, buildProgressNotification("下载中 0%", 0, 1));
             startDownload(url, targetMp4Path);
         } else if (ACTION_CANCEL.equals(action)) {
             if (downloader != null) {
@@ -155,9 +155,26 @@ public class HlsDownloadService extends Service {
         return getDataManager().findV9MmanItemByViewKey(viewKey);
     }
 
+    /**
+     * M41：优先按 viewKey 查找；查不到时按伪 downloadId 兜底
+     * （部分场景 viewKey 与 DB 不一致会导致 handleSuccess 找不到记录、无法进“下载完成”）。
+     */
+    private V9MmanItem findItemOrByDownloadId() {
+        V9MmanItem item = findItem();
+        if (item == null && pseudoDownloadId != 0) {
+            item = getDataManager().findV9MmanItemByDownloadId(pseudoDownloadId);
+        }
+        return item;
+    }
+
     private void handleProgress(int done, int total) {
-        updateProgress(done, total);
         int percent = total <= 0 ? 0 : (int) (done * 100L / total);
+        // M41：分片全部下载完成后进入合并/转码阶段，提示用户（避免误以为卡死）
+        if (total > 0 && done >= total) {
+            updateProgress("分片下载完成，正在转码", percent, total);
+        } else {
+            updateProgress("下载中 " + percent + "%", percent, total);
+        }
         V9MmanItem item = findItem();
         if (item != null) {
             item.setProgress(percent);
@@ -173,7 +190,7 @@ public class HlsDownloadService extends Service {
     }
 
     private void handleSuccess(File mp4File) {
-        V9MmanItem item = findItem();
+        V9MmanItem item = findItemOrByDownloadId();
         if (item != null) {
             item.setStatus(FileDownloadStatus.completed);
             item.setProgress(100);
@@ -199,7 +216,18 @@ public class HlsDownloadService extends Service {
             handleSuccess(mp4);
             return;
         }
-        resetRecord();
+        // M41：失败时保留记录（status=error、downloadId 不变），
+        // 使「正在下载」列表显示“下载错误”并可重试/删除；
+        // 不再 resetRecord 把 downloadId 置 0 导致记录从两个列表都消失。
+        V9MmanItem item = findItemOrByDownloadId();
+        if (item != null) {
+            item.setStatus(FileDownloadStatus.error);
+            item.setProgress(100);
+            item.setDownloadId(pseudoDownloadId);
+            getDataManager().updateV9MmanItem(item);
+        }
+        // 清理临时分片，避免残留
+        cleanupHlsTemp();
         showErrorNotification(message);
         stopForeground(true);
         releaseDownloader();
@@ -249,24 +277,23 @@ public class HlsDownloadService extends Service {
         }
     }
 
-    private void updateProgress(int done, int total) {
-        int percent = total <= 0 ? 0 : (int) (done * 100L / total);
+    private void updateProgress(String text, int percent, int total) {
         if (percent == lastProgress) {
             return;
         }
         lastProgress = percent;
-        Notification notification = buildProgressNotification(percent, total);
+        Notification notification = buildProgressNotification(text, percent, total);
         notificationManager.notify(NOTIFICATION_ID, notification);
     }
 
-    private Notification buildProgressNotification(int percent, int total) {
+    private Notification buildProgressNotification(String text, int percent, int total) {
         Intent cancelIntent = new Intent(this, HlsDownloadService.class).setAction(ACTION_CANCEL);
         PendingIntent cancelPi = PendingIntent.getService(this, 0, cancelIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle(notifyTitle)
-                .setContentText("下载中 " + percent + "%")
+                .setContentText(text)
                 .setProgress(100, percent, false)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)

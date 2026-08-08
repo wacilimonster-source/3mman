@@ -121,4 +121,9 @@ public interface PreferencesHelper {
     boolean isFixMainNavigation();
 
     void setFixMainNavigation(boolean fixMainNavigation);
+
+    /** M42：收藏方式——true=本地收藏（无需登录，与分分钟一致）；false=服务器收藏 */
+    void setLocalFavoriteMode(boolean localFavoriteMode);
+
+    boolean isLocalFavoriteMode();
 }

@@ -381,6 +381,11 @@ public class FavoritePresenter extends MvpBasePresenter<FavoriteView> implements
         return dataManager.loadLocalFavoriteItems();
     }
 
+    /** M42：是否本地收藏模式（true=本地收藏，与分分钟合并展示；false=服务器收藏） */
+    public boolean isLocalFavoriteMode() {
+        return dataManager.isLocalFavoriteMode();
+    }
+
     @Override
     public void setFavoriteNeedRefresh(boolean needRefresh) {
         dataManager.setFavoriteNeedRefresh(needRefresh);

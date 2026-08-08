@@ -58,14 +58,34 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
         if (pullToRefresh) {
             page = 1;
         }
-        dataManager.searchPornyVideos(searchId, page, normalizeFilter(sort), normalizeFilter(time), normalizeFilter(views))
+        doSearch(page, searchId, sort, time, views, false);
+    }
+
+    /** M42：分页跳转——跳转到指定页并用该页结果替换当前列表。 */
+    public void jumpToPage(int targetPage, String searchId, String sort, String time, String views) {
+        if (targetPage < 1) {
+            return;
+        }
+        page = targetPage;
+        doSearch(page, searchId, sort, time, views, true);
+    }
+
+    /** M42：当前关键词搜索结果总页数（供跳页对话框提示范围）。 */
+    public int getTotalPage() {
+        return totalPage == null ? 0 : totalPage;
+    }
+
+    private void doSearch(final int currentPage, String searchId, String sort, String time, String views, final boolean jumpMode) {
+        dataManager.searchPornyVideos(searchId, currentPage, normalizeFilter(sort), normalizeFilter(time), normalizeFilter(views))
                 .map(new Function<BaseResult<List<V9MmanItem>>, List<V9MmanItem>>() {
                     @Override
                     public List<V9MmanItem> apply(BaseResult<List<V9MmanItem>> baseResult) throws Exception {
                         if (baseResult.getCode() == BaseResult.ERROR_CODE) {
                             throw new MessageException(baseResult.getMessage());
                         }
-                        if (page == 1) {
+                        if (currentPage == 1) {
+                            totalPage = baseResult.getTotalPage();
+                        } else if (totalPage == null || totalPage <= 0) {
                             totalPage = baseResult.getTotalPage();
                         }
                         return baseResult.getData();
@@ -80,8 +100,8 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
                         ifViewAttached(new ViewAction<SearchView>() {
                             @Override
                             public void run(@NonNull SearchView view) {
-                                if (page == 1 && pullToRefresh) {
-                                    view.showLoading(pullToRefresh);
+                                if (currentPage == 1 || jumpMode) {
+                                    view.showLoading(true);
                                 }
                             }
                         });
@@ -98,17 +118,19 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
                                     view.showContent();
                                     return;
                                 }
-                                if (page == 1) {
+                                if (currentPage == 1 || jumpMode) {
+                                    // 首页/跳页：替换整个列表
+                                    view.loadMoreDataComplete();
                                     view.setData(v9MmanItems);
                                     view.showContent();
                                 } else {
                                     view.loadMoreDataComplete();
                                     view.setMoreData(v9MmanItems);
                                 }
-                                if (page == totalPage) {
+                                if (totalPage != null && currentPage >= totalPage) {
                                     view.noMoreData();
                                 } else {
-                                    page++;
+                                    page = currentPage + 1;
                                 }
                                 view.showContent();
                             }
@@ -120,7 +142,7 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
                         ifViewAttached(new ViewAction<SearchView>() {
                             @Override
                             public void run(@NonNull SearchView view) {
-                                if (page == 1) {
+                                if (currentPage == 1) {
                                     view.showError(msg);
                                 } else {
                                     view.loadMoreFailed();

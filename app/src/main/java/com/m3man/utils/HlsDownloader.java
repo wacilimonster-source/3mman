@@ -189,6 +189,16 @@ public class HlsDownloader {
     }
 
     private boolean downloadToFile(String urlStr, File file) {
+        // M41：网络抖动导致单个分片失败时重试 1 次，避免静默缺失分片产出损坏文件
+        for (int attempt = 0; attempt < 2; attempt++) {
+            if (tryDownloadToFile(urlStr, file)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean tryDownloadToFile(String urlStr, File file) {
         HttpURLConnection conn = null;
         try {
             conn = open(urlStr);

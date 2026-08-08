@@ -81,4 +81,9 @@ public class MinePresenter extends MvpBasePresenter<MineView> implements IMine {
     public boolean isFixMainNavigation() {
         return dataManager.isFixMainNavigation();
     }
+
+    @Override
+    public boolean isLocalFavoriteMode() {
+        return dataManager.isLocalFavoriteMode();
+    }
 }

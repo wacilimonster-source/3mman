@@ -35,6 +35,7 @@ import com.m3man.ui.mman9video.play.PlayVideoPresenter;
 
 import android.content.BroadcastReceiver;
 import android.support.v4.content.LocalBroadcastManager;
+import android.text.TextUtils;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -162,14 +163,22 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
                     return;
                 }
                 Logger.t(TAG).d("当前状态：" + v9MmanItem.getStatus());
-                // HLS（分分钟）下载走独立通道，删除/取消需分流处理
+                // HLS（分分钟）下载走独立通道，删除/取消/重试需分流处理
                 if (PlayVideoPresenter.isPornySource(v9MmanItem)) {
-                    if (view.getId() == R.id.right_menu_delete || view.getId() == R.id.iv_download_control) {
-                        SwipeItemLayout swipeItemLayout = (SwipeItemLayout) view.getParent();
-                        swipeItemLayout.close();
+                    SwipeItemLayout swipeItemLayout = (SwipeItemLayout) view.getParent();
+                    swipeItemLayout.close();
+                    if (view.getId() == R.id.right_menu_delete) {
                         cancelHlsDownload(v9MmanItem);
-                        presenter.loadDownloadingData();
+                    } else if (view.getId() == R.id.iv_download_control) {
+                        if (v9MmanItem.getStatus() == FileDownloadStatus.error) {
+                            // M41：失败记录点控制按钮 → 重新下载
+                            startHlsReDownload(v9MmanItem);
+                        } else {
+                            // 下载中：点控制按钮 → 取消
+                            cancelHlsDownload(v9MmanItem);
+                        }
                     }
+                    presenter.loadDownloadingData();
                     return;
                 }
                 if (view.getId() == R.id.right_menu_delete) {
@@ -296,6 +305,24 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
             item.setDownloadId(0);
             presenter.updateV9MmanItem(item);
         }
+    }
+
+    /** M41：失败的分分钟(HLS)记录重新下载（与「下载完成」页重新下载走同一通道） */
+    private void startHlsReDownload(V9MmanItem item) {
+        if (item == null || item.getVideoResult() == null || TextUtils.isEmpty(item.getVideoResult().getVideoUrl())) {
+            showMessage("未解析到视频地址，无法重新下载", TastyToast.INFO);
+            return;
+        }
+        String savePath = item.getDownLoadPath(presenter.getCustomDownloadVideoDirPath());
+        Intent serviceIntent = new Intent(getContext(), HlsDownloadService.class);
+        serviceIntent.setAction(HlsDownloadService.ACTION_START);
+        serviceIntent.putExtra(HlsDownloadService.EXTRA_VIDEO_URL, item.getVideoResult().getVideoUrl());
+        serviceIntent.putExtra(HlsDownloadService.EXTRA_TITLE, item.getTitle());
+        serviceIntent.putExtra(HlsDownloadService.EXTRA_FILE_NAME, item.getTitle());
+        serviceIntent.putExtra(HlsDownloadService.EXTRA_VIEW_KEY, item.getViewKey());
+        serviceIntent.putExtra(HlsDownloadService.EXTRA_SAVE_PATH, savePath);
+        getContext().startService(serviceIntent);
+        showMessage("已加入后台下载", TastyToast.SUCCESS);
     }
 
     private void updateHlsItemProgress(String viewKey, int progress) {

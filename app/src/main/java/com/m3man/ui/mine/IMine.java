@@ -26,4 +26,7 @@ public interface IMine {
     int getSettingScrollViewScrollPosition();
 
     boolean isFixMainNavigation();
+
+    /** M42：是否本地收藏模式 */
+    boolean isLocalFavoriteMode();
 }

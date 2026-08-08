@@ -52,6 +52,7 @@ public class AppPreferencesHelper implements PreferencesHelper {
     private final static String KEY_SP_CUSTOM_DOWNLOAD_VIDEO_DIR_PATH = "key_sp_custom_download_video_dir_path";
     private final static String KEY_SP_SHOW_URL_REDIRECT_TIP_DIALOG = "key_sp_show_url_redirect_tip_dialog";
     private final static String KEY_SP_FIX_MAIN_NAVIGATION = "key_sp_fix_main_navigation";
+    private final static String KEY_SP_LOCAL_FAVORITE_MODE = "key_sp_local_favorite_mode";
 
     private final SharedPreferences mPrefs;
 
@@ -356,5 +357,16 @@ public class AppPreferencesHelper implements PreferencesHelper {
     @Override
     public void setFixMainNavigation(boolean fixMainNavigation) {
         mPrefs.edit().putBoolean(KEY_SP_FIX_MAIN_NAVIGATION, fixMainNavigation).apply();
+    }
+
+    @Override
+    public void setLocalFavoriteMode(boolean localFavoriteMode) {
+        mPrefs.edit().putBoolean(KEY_SP_LOCAL_FAVORITE_MODE, localFavoriteMode).apply();
+    }
+
+    @Override
+    public boolean isLocalFavoriteMode() {
+        // 默认本地收藏（无需登录，与分分钟一致）
+        return mPrefs.getBoolean(KEY_SP_LOCAL_FAVORITE_MODE, true);
     }
 }

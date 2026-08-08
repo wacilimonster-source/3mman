@@ -450,6 +450,16 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
     }
 
     @Override
+    public boolean isLocalFavoriteMode() {
+        return dataManager.isLocalFavoriteMode();
+    }
+
+    @Override
+    public void setLocalFavoriteMode(boolean localFavoriteMode) {
+        dataManager.setLocalFavoriteMode(localFavoriteMode);
+    }
+
+    @Override
     public String getPornyAddress() {
         return dataManager.getPornyAddress();
     }

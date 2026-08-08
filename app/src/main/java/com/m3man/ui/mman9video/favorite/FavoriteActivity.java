@@ -32,6 +32,11 @@ import javax.inject.Inject;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
+import io.reactivex.Observable;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.schedulers.Schedulers;
+
 /**
  * @author flymegoc
  */
@@ -49,6 +54,10 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
     private LoadViewHelper helper;
     private AlertDialog deleteAlertDialog;
 
+    /** M42：true=本地收藏模式（与分分钟合并展示，无需登录）；false=服务器收藏 */
+    private boolean localMode = false;
+    private final CompositeDisposable mDisposables = new CompositeDisposable();
+
     @Inject
     protected FavoritePresenter favoritePresenter;
 
@@ -58,6 +67,7 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
         setContentView(R.layout.activity_favorite);
         ButterKnife.bind(this);
         deleteAlertDialog = DialogUtils.initLoadingDialog(this, "删除中，请稍后...");
+        localMode = presenter.isLocalFavoriteMode();
         initToolBar(toolbar);
         toolbar.setContentInsetStartWithNavigation(0);
 
@@ -86,7 +96,15 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
                 swipeItemLayout.close();
                 if (view.getId() == R.id.right_menu_delete) {
                     V9MmanItem v9MmanItem = (V9MmanItem) adapter.getItem(position);
-                    if (v9MmanItem == null || v9MmanItem.getVideoResult() == null) {
+                    if (v9MmanItem == null) {
+                        return;
+                    }
+                    if (localMode) {
+                        // M42：本地收藏模式直接删除本地标记
+                        deleteLocalFavorite(v9MmanItem);
+                        return;
+                    }
+                    if (v9MmanItem.getVideoResult() == null) {
                         showMessage("信息错误，无法删除", TastyToast.WARNING);
                         return;
                     }
@@ -95,22 +113,33 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
             }
         });
 
-        mUnLimit91Adapter.setOnLoadMoreListener(new BaseQuickAdapter.RequestLoadMoreListener() {
-            @Override
-            public void onLoadMoreRequested() {
-                presenter.loadRemoteFavoriteData(false);
-            }
-        }, recyclerView);
+        // M42：本地收藏模式无远程分页，不启用“加载更多”
+        if (!localMode) {
+            mUnLimit91Adapter.setOnLoadMoreListener(new BaseQuickAdapter.RequestLoadMoreListener() {
+                @Override
+                public void onLoadMoreRequested() {
+                    presenter.loadRemoteFavoriteData(false);
+                }
+            }, recyclerView);
+        }
 
         helper = new LoadViewHelper(recyclerView);
         helper.setListener(new OnLoadViewListener() {
             @Override
             public void onRetryClick() {
-                presenter.loadRemoteFavoriteData(false);
+                if (localMode) {
+                    loadLocalFavoriteData();
+                } else {
+                    presenter.loadRemoteFavoriteData(false);
+                }
             }
         });
-        boolean needRefresh = presenter.isFavoriteNeedRefresh();
-        presenter.loadRemoteFavoriteData(needRefresh);
+        if (localMode) {
+            loadLocalFavoriteData();
+        } else {
+            boolean needRefresh = presenter.isFavoriteNeedRefresh();
+            presenter.loadRemoteFavoriteData(needRefresh);
+        }
     }
 
     @NonNull
@@ -245,6 +274,57 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
 
     @Override
     public void onRefresh() {
-        presenter.loadRemoteFavoriteData(true);
+        if (localMode) {
+            loadLocalFavoriteData();
+        } else {
+            presenter.loadRemoteFavoriteData(true);
+        }
+    }
+
+    /** M42：本地收藏模式加载（全部来源本地收藏，含分分钟，合并展示） */
+    private void loadLocalFavoriteData() {
+        helper.showLoading();
+        LoadHelperUtils.setLoadingText(helper.getLoadIng(), R.id.tv_loading_text, "加载中...");
+        mDisposables.add(Observable.just(1)
+                .map(integer -> presenter.loadLocalFavoriteItems())
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(items -> {
+                    if (items == null || items.isEmpty()) {
+                        helper.showEmpty();
+                        LoadHelperUtils.setEmptyText(helper.getLoadEmpty(), R.id.tv_empty_info, "还没有本地收藏，去收藏喜欢的视频吧");
+                        mUnLimit91Adapter.setNewData(new ArrayList<>());
+                    } else {
+                        helper.showContent();
+                        mUnLimit91Adapter.setNewData(items);
+                    }
+                }, throwable -> {
+                    helper.showError();
+                    LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, "加载失败，点击重试");
+                }));
+    }
+
+    /** M42：本地收藏模式删除（仅取消本地收藏标记） */
+    private void deleteLocalFavorite(final V9MmanItem item) {
+        mDisposables.add(Observable.just(1)
+                .map(integer -> presenter.deleteLocalFavorite(item))
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(aBoolean -> {
+                    if (aBoolean) {
+                        showMessage("已取消收藏", TastyToast.SUCCESS);
+                        loadLocalFavoriteData();
+                    } else {
+                        showMessage("取消收藏失败", TastyToast.ERROR);
+                    }
+                }, throwable -> showMessage("取消收藏失败", TastyToast.ERROR)));
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (mDisposables != null && !mDisposables.isDisposed()) {
+            mDisposables.clear();
+        }
+        super.onDestroy();
     }
 }

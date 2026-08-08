@@ -556,6 +556,16 @@ public class AppDataManager implements DataManager {
     }
 
     @Override
+    public void setLocalFavoriteMode(boolean localFavoriteMode) {
+        mPreferencesHelper.setLocalFavoriteMode(localFavoriteMode);
+    }
+
+    @Override
+    public boolean isLocalFavoriteMode() {
+        return mPreferencesHelper.isLocalFavoriteMode();
+    }
+
+    @Override
     public Observable<Boolean> testPornyAddress(String url) {
         return mApiHelper.testPornyAddress(url);
     }

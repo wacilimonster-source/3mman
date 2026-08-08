@@ -570,8 +570,8 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
             showMessage("还未成功解析视频链接，不能收藏！", TastyToast.INFO);
             return;
         }
-        // 91porny 无账号体系，走本地收藏
-        if (PlayVideoPresenter.isPornySource(v9MmanItem)) {
+        // 91porny 无账号体系，走本地收藏；M42：本地收藏模式下所有源都走本地收藏（无需登录）
+        if (PlayVideoPresenter.isPornySource(v9MmanItem) || presenter.isLocalFavoriteMode()) {
             favoriteDialog.show();
             mDisposables.add(io.reactivex.Observable.just(1)
                     .map(integer -> presenter.addLocalFavorite(v9MmanItem))
