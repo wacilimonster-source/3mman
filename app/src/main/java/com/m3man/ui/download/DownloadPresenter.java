@@ -19,11 +19,13 @@ import com.m3man.rxjava.CallBackWrapper;
 import com.m3man.rxjava.RxSchedulersHelper;
 import com.m3man.utils.AppCacheUtils;
 import com.m3man.utils.DownloadManager;
+import com.m3man.utils.SDCardUtils;
 import com.m3man.utils.VideoCacheFileNameGenerator;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 
 import javax.inject.Inject;
@@ -161,6 +163,28 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                     @Override
                     public void subscribe(ObservableEmitter<List<V9MmanItem>> emitter) throws Exception {
                         List<V9MmanItem> v9MmanItems = dataManager.loadDownloadingData();
+                        // M41：展示时兜底纠错——error 记录若文件实际已完整，则自动修正为已完成并移出“正在下载”，
+                        // 覆盖历史遗留/异常路径导致的“能播放却提示下载错误”。
+                        if (v9MmanItems != null && !v9MmanItems.isEmpty()) {
+                            String customDir = getCustomDownloadVideoDirPath();
+                            Iterator<V9MmanItem> it = v9MmanItems.iterator();
+                            while (it.hasNext()) {
+                                V9MmanItem item = it.next();
+                                if (item == null || item.getStatus() != FileDownloadStatus.error) {
+                                    continue;
+                                }
+                                File f = new File(item.getDownLoadPath(customDir));
+                                if (SDCardUtils.isDownloadFileComplete(f, item.getTotalFarBytes())) {
+                                    item.setStatus(FileDownloadStatus.completed);
+                                    item.setProgress(100);
+                                    item.setSoFarBytes((int) f.length());
+                                    item.setTotalFarBytes((int) f.length());
+                                    item.setFinishedDownloadDate(new Date());
+                                    dataManager.updateV9MmanItem(item);
+                                    it.remove();
+                                }
+                            }
+                        }
                         emitter.onNext(v9MmanItems);
                         emitter.onComplete();
                     }

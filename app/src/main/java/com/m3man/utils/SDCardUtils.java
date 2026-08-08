@@ -80,4 +80,23 @@ public class SDCardUtils {
             }
         }
     }
+
+    /**
+     * M41：判断文件是否“已完整、可视为下载完成”。
+     *
+     * 兼容部分 CDN 的 Content-Length 与实际字节数不一致（通常偏差 ≤5%）导致的
+     * “文件已完整可播放、下载器却报 error”的情况：
+     * - 总量已知：文件实际大小达到声明的 95% 以上即视为完成（避免因 soFar < total 误判失败）；
+     * - 总量未知：要求文件非空且 ≥100KB，避免把错误页/极小残留判为完成。
+     */
+    public static boolean isDownloadFileComplete(File f, long totalBytes) {
+        if (f == null || !f.exists() || f.length() <= 0) {
+            return false;
+        }
+        long len = f.length();
+        if (totalBytes <= 0) {
+            return len >= 100 * 1024;
+        }
+        return len >= totalBytes || len >= totalBytes * 95 / 100;
+    }
 }

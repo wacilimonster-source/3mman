@@ -29,12 +29,14 @@ import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.service.DownloadVideoService;
 import com.m3man.ui.MvpFragment;
 import com.m3man.utils.DownloadManager;
+import com.m3man.utils.SDCardUtils;
 import com.m3man.service.HlsDownloadService;
 import com.m3man.ui.mman9video.play.PlayVideoPresenter;
 
 import android.content.BroadcastReceiver;
 import android.support.v4.content.LocalBroadcastManager;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -89,9 +91,19 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
             Logger.t(TAG).d("连接上下载服务");
             List<V9MmanItem> v9MmanItems = presenter.loadDownloadingDatas();
             for (V9MmanItem v9MmanItem : v9MmanItems) {
-                int status = FileDownloader.getImpl().getStatus(v9MmanItem.getVideoResult().getVideoUrl(), v9MmanItem.getDownLoadPath(presenter.getCustomDownloadVideoDirPath()));
+                if (v9MmanItem == null || v9MmanItem.getVideoResult() == null) {
+                    continue;
+                }
+                String path = v9MmanItem.getDownLoadPath(presenter.getCustomDownloadVideoDirPath());
+                int status = FileDownloader.getImpl().getStatus(v9MmanItem.getVideoResult().getVideoUrl(), path);
                 Logger.t(TAG).d("fix status:::" + status);
                 if (status != v9MmanItem.getStatus()) {
+                    // M41：若该条已按“完成”处理（文件实际已完整，无论因自动纠错还是正常完成），
+                    // 不要被 FileDownloader 残留的 error/旧状态回写覆盖，否则会重新显示“下载错误”。
+                    if (v9MmanItem.getStatus() == FileDownloadStatus.completed
+                            || SDCardUtils.isDownloadFileComplete(new File(path), v9MmanItem.getTotalFarBytes())) {
+                        continue;
+                    }
                     v9MmanItem.setStatus(status);
                     presenter.updateV9MmanItem(v9MmanItem);
                 }

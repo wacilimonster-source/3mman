@@ -1,6 +1,6 @@
 {
-  "versionCode": 36,
-  "versionName": "1.0.2",
-  "updateMessage": "本次更新内容：\n1. 修复在 Android 11+ 上误报“未授予存储权限”的问题（改用真实写入能力检测，并适配 READ_MEDIA_* 权限）\n2. 修复“文件已下载完成可播放却提示下载失败”的误报\n3. 修复“正在下载的任务无法删除”的问题（增加文件级兜底删除与 HLS 临时分片清理）\n4. 适配 Android 13+ 媒体权限，降低 OEM 系统上的权限误判",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.2.apk"
+  "versionCode": 37,
+  "versionName": "1.0.3",
+  "updateMessage": "本次更新内容：\n1. 再次修复“下载完成可播放却提示下载错误”：当服务器 Content-Length 与实际字节数不一致时，按文件真实大小判断完成（不再依赖 soFar=total）\n2. 下载列表展示时自动纠错：历史遗留的“下载错误”记录若文件已完整，自动修正为已完成\n3. 防止下载服务重连时用残留的错误状态覆盖已完成记录\n4. 保留 v1.0.2 的存储权限适配与正在下载任务删除修复",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.3.apk"
 }

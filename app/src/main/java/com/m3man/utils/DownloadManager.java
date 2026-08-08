@@ -122,13 +122,13 @@ public class DownloadManager {
         @Override
         protected void error(BaseDownloadTask task, Throwable e) {
             Logger.t(TAG).d("error:" + "--status:" + task.getStatus() + "--:soFarBytes：" + task.getSmallFileSoFarBytes() + "--:totalBytes：" + task.getSmallFileTotalBytes());
-            // M40：部分机型/系统下文件已完整下载却误报 error（如末尾 sync/重命名失败）。
-            // 若目标文件已存在且字节数足够，则按“完成”处理，避免“能播放却提示下载失败”。
+            // M40/M41：部分机型/系统下文件已完整下载却误报 error（如末尾 sync/重命名失败、
+            // 或 CDN Content-Length 与实际字节数不一致导致 soFar < total）。
+            // 若目标文件真实大小已达标，则按“完成”处理，避免“能播放却提示下载失败”。
             try {
                 File f = new File(task.getPath());
                 long total = task.getSmallFileTotalBytes();
-                long soFar = task.getSmallFileSoFarBytes();
-                if (f.exists() && f.length() > 0 && (total <= 0 || soFar >= total)) {
+                if (SDCardUtils.isDownloadFileComplete(f, total)) {
                     V9MmanItem item = dataManager.findV9MmanItemByDownloadId(task.getId());
                     if (item != null) {
                         item.setStatus(FileDownloadStatus.completed);
