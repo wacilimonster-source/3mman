@@ -6,7 +6,6 @@ import android.support.v7.app.AppCompatDelegate;
 
 import com.helper.loadviewhelper.load.LoadViewHelper;
 import com.liulishuo.filedownloader.FileDownloader;
-import com.squareup.leakcanary.LeakCanary;
 import com.tencent.bugly.crashreport.CrashReport;
 import com.m3man.data.DataManager;
 import com.m3man.data.network.okhttp.MyProxySelector;
@@ -53,7 +52,6 @@ public class MyApplication extends DaggerApplication {
         ProxySelector.setDefault(myProxySelector);
         initNightMode();
         AppLogger.initLogger();
-        initLeakCanary();
         initLoadingHelper();
         initFileDownload();
         //C4：通知渠道必须在进程启动时创建，否则Service被系统单独拉起时
@@ -94,19 +92,6 @@ public class MyApplication extends DaggerApplication {
                 .setLoadEmpty(R.layout.empty_view)
                 .setLoadError(R.layout.error_view)
                 .setLoadIng(R.layout.loading_view);
-    }
-
-    /**
-     * 初始化内存分析工具
-     */
-    private void initLeakCanary() {
-        if (LeakCanary.isInAnalyzerProcess(this)) {
-            // This process is dedicated to LeakCanary for heap analysis.
-            // You should not init your app in this process.
-            return;
-        }
-        LeakCanary.install(this);
-        // Normal app init code...
     }
 
     @Override
