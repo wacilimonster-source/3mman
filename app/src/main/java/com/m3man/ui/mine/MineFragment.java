@@ -203,7 +203,8 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
                 presenter.setSettingScrollViewScrollPosition(scrollYPosition);
                 AppCompatDelegate.setDefaultNightMode(isChecked ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
                 Intent intent = new Intent(context, MainActivity.class);
-                intent.putExtra(Keys.KEY_SELECT_INDEX, 4);
+                // 夜间模式切换后重建主界面，回到「我的」这个 Tab（底部导航第 4 个，下标 3）
+                intent.putExtra(Keys.KEY_SELECT_INDEX, 3);
                 startActivity(intent);
                 activity.finish();
                 activity.overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);

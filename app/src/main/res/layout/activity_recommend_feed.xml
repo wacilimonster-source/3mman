@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black">
+
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/recyclerView_recommend"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:overScrollMode="never" />
+
+    <ProgressBar
+        android:id="@+id/pb_recommend_loading"
+        android:layout_width="46dp"
+        android:layout_height="46dp"
+        android:layout_gravity="center" />
+
+    <LinearLayout
+        android:id="@+id/ll_recommend_empty"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tv_recommend_empty"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/reco_empty"
+            android:textColor="#FFFFFFFF"
+            android:textSize="15sp" />
+
+        <Button
+            android:id="@+id/btn_recommend_retry"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/reco_retry" />
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/iv_recommend_back"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="top|start"
+        android:layout_marginLeft="6dp"
+        android:layout_marginStart="6dp"
+        android:layout_marginTop="6dp"
+        android:contentDescription="@string/reco_back"
+        android:padding="8dp"
+        android:src="@drawable/ic_arrow_back_white_32dp" />
+
+    <ImageView
+        android:id="@+id/iv_recommend_tune"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="top|end"
+        android:layout_marginEnd="6dp"
+        android:layout_marginRight="6dp"
+        android:layout_marginTop="6dp"
+        android:contentDescription="@string/reco_tune"
+        android:padding="10dp"
+        android:src="@drawable/ic_tune_white_24dp" />
+</FrameLayout>

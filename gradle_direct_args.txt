@@ -1,0 +1,10 @@
+-Dorg.gradle.vfs.watch=false
+-Dorg.gradle.caching=false
+-Dorg.gradle.unsafe.watch-fs=false
+-cp
+
+org.gradle.launcher.GradleMain
+-p
+G:/game/新建文件夹/3mman
+assembleDebug
+--no-daemon

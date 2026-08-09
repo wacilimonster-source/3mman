@@ -170,13 +170,12 @@ public class ParseV9MmanVideo {
 
             String contentUrl = a.attr("href");
 
-            String rawViewKey = contentUrl.substring(contentUrl.indexOf("?") + 1);
-            // 列表页会把同一视频同时放进「主列表」和「推荐/更多」两个区块，二者链接
-            // 仅在尾部追踪参数(&page= / &c= )上不同。归一化 viewKey（取第一个 & 之前的部分）
-            // 后按它去重，可精确消除 App 把两个区块拍平后产生的重复条目，而不会误伤
-            // 「恰巧同名同图」的不同视频。
-            int amp = rawViewKey.indexOf("&");
-            String viewKey = (amp > 0) ? rawViewKey.substring(0, amp) : rawViewKey;
+            // 稳健抽取 viewkey 参数值。站点不同页面（分类 / 作者 / 收藏）的视频链接结构不一：
+            // 作者页 href 形如 uvideos.php?UID=xxx&viewkey=ABC&type=public，旧的
+            // 「取 ? 之后第一个 & 之前」会把 UID=xxx 误当成 viewKey，导致播放作者其他视频时
+            // 「解析链接失败」。这里始终只认 viewkey= 参数本身，并以 viewkey=<value> 形式
+            // 存储（loadMman9VideoUrl 内部会按 & 切分并当作 key=value 解析，必须带前缀）。
+            String viewKey = extractViewKey(contentUrl);
             v9MmanItem.setViewKey(viewKey);
 
             // 相同视频（归一化 viewKey 一致）只保留第一条；viewKey 解析异常（为空）时
@@ -223,6 +222,40 @@ public class ParseV9MmanVideo {
         return v9MmanItemList;
     }
 
+
+    /**
+     * 从视频链接里稳健抽出 viewkey 参数值，并以 {@code viewkey=<value>} 形式返回。
+     * <p>
+     * 原因：{@link #loadMman9VideoUrl} 内部对 viewKey 做 {@code split("&")} 再按
+     * {@code key=value} 解析，因此存储的 viewKey 必须带 {@code viewkey=} 前缀。
+     * 直接取「? 之后第一个 & 之前」在作者页（href 形如
+     * {@code uvideos.php?UID=xxx&viewkey=ABC&type=public}）会把 {@code UID=xxx}
+     * 误当成 viewKey，导致播放作者其他视频时「解析链接失败」。这里始终只认
+     * {@code viewkey=} 参数本身，与分类页行为完全一致。
+     *
+     * @param href 视频链接
+     * @return 形如 {@code viewkey=ABC} 的字符串；解析不出时退化为旧逻辑兜底，绝不抛异常
+     */
+    private static String extractViewKey(String href) {
+        if (TextUtils.isEmpty(href)) {
+            return "";
+        }
+        int vk = href.indexOf("viewkey=");
+        if (vk >= 0) {
+            int start = vk + "viewkey=".length();
+            int end = href.indexOf("&", start);
+            String value = (end > 0) ? href.substring(start, end) : href.substring(start);
+            if (!TextUtils.isEmpty(value)) {
+                return "viewkey=" + value;
+            }
+        }
+        // 兜底：保持旧行为（取 ? 之后第一段），避免结构异常的链接直接崩掉
+        int q = href.indexOf("?");
+        String raw = (q >= 0) ? href.substring(q + 1) : href;
+        int amp = raw.indexOf("&");
+        String fallback = (amp > 0) ? raw.substring(0, amp) : raw;
+        return "viewkey=" + fallback;
+    }
 
     public static BaseResult<List<V9MmanItem>> parseSearchVideos(String html) {
         int totalPage = 1;
@@ -566,11 +599,8 @@ public class ParseV9MmanVideo {
 
             String contentUrl = a.attr("href");
 
-            String rawViewKey = contentUrl.substring(contentUrl.indexOf("?") + 1);
-            // 与列表解析一致：归一化 viewKey（去掉 ? 之后第一个 & 及其以后）后再去重，
-            // 避免收藏页「主列表 + 推荐」两个区块把同一视频重复展示
-            int amp = rawViewKey.indexOf("&");
-            String viewKey = (amp > 0) ? rawViewKey.substring(0, amp) : rawViewKey;
+            // 与列表解析一致：稳健抽取 viewkey 参数（见 extractViewKey 注释）
+            String viewKey = extractViewKey(contentUrl);
             v9MmanItem.setViewKey(viewKey);
 
             if (!seenViewKeys.add(viewKey)) {

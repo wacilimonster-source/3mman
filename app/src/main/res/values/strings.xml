@@ -100,4 +100,69 @@
     <string name="porny_filter_all">全部</string>
     <string name="porny_local_favorite">分分钟收藏</string>
     <string name="author_favorite">作者收藏</string>
+
+    <!-- 推荐流 -->
+    <string name="title_recommend">推荐</string>
+    <string name="title_update">更新</string>
+    <string name="reco_cover">封面</string>
+    <string name="reco_parse_failed">解析失败，点击重试</string>
+    <string name="reco_like">赞</string>
+    <string name="reco_favorite">收藏</string>
+    <string name="reco_dislike">不喜欢</string>
+    <string name="reco_detail">详情</string>
+    <string name="reco_empty">暂时没有推荐内容</string>
+    <string name="reco_retry">重试</string>
+    <string name="reco_back">返回</string>
+    <string name="reco_tune">调参</string>
+    <string name="reco_loading_more">正在加载更多…</string>
+    <string name="reco_no_more">没有更多了</string>
+    <string name="reco_liked">已赞</string>
+    <string name="reco_unliked">已取消赞</string>
+    <string name="reco_favorited">已收藏</string>
+    <string name="reco_unfavorited">已取消收藏</string>
+    <string name="reco_disliked">已减少此类推荐</string>
+    <string name="reco_undisliked">已恢复此类推荐</string>
+    <string name="reco_download">下载</string>
+    <string name="reco_download_parsing">正在获取下载地址…</string>
+    <string name="reco_download_started">已加入下载队列</string>
+    <string name="reco_download_failed">下载失败</string>
+
+    <!-- 推荐算法调参 -->
+    <string name="reco_settings_title">推荐算法调参</string>
+    <string name="reco_param_like_boost">点赞加权</string>
+    <string name="reco_param_dislike_penalty">不喜欢降权</string>
+    <string name="reco_param_favorite_boost">收藏加权</string>
+    <string name="reco_param_exploration">探索比例</string>
+    <string name="reco_param_recency">新鲜度权重</string>
+    <string name="reco_param_decay_days">兴趣衰减(天)</string>
+    <string name="reco_param_prefetch">预加载数量</string>
+    <string name="reco_param_author_ratio">作者召回占比</string>
+    <string name="reco_param_tag_coef">标签权重系数</string>
+    <string name="reco_param_category_coef">分类权重系数</string>
+    <string name="reco_param_author_coef">作者权重系数</string>
+    <string name="reco_param_finish_boost">看完加权</string>
+    <string name="reco_param_skip_penalty">划走降权</string>
+    <string name="reco_param_dislike_filter">不喜欢直接过滤</string>
+    <string name="reco_param_reset">恢复默认</string>
+    <string name="reco_param_clear_memory">清空兴趣记忆</string>
+    <string name="reco_param_saved">参数已保存</string>
+    <string name="reco_param_reset_done">已恢复默认参数</string>
+    <string name="reco_param_memory_cleared">已清空兴趣记忆</string>
+    <string name="reco_profile_summary">已学习 %1$d 个标签 / %2$d 个作者 / %3$d 条行为</string>
+    <string name="reco_param_max_age_years">最长发布年限(年)</string>
+    <string name="reco_param_advanced">高级设置</string>
+    <string name="reco_param_advanced_hint">权重系数等进阶参数，一般不用改</string>
+    <string name="reco_param_basic">常用设置</string>
+    <string name="reco_param_minus">减小</string>
+    <string name="reco_param_plus">增大</string>
+
+    <!-- 兴趣记忆明细 -->
+    <string name="reco_records">查看学习记录</string>
+    <string name="reco_records_title">兴趣记忆明细</string>
+    <string name="reco_records_tab_tag">标签</string>
+    <string name="reco_records_tab_author">作者</string>
+    <string name="reco_records_tab_category">分类</string>
+    <string name="reco_records_tab_action">行为</string>
+    <string name="reco_records_empty">暂无记录</string>
+    <string name="reco_records_close">关闭</string>
 </resources>

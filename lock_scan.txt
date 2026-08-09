@@ -1,0 +1,10 @@
+﻿=== G:\game\新建文件夹\3mman\gradle-home\caches\journal-1\journal-1.lock ===
+  存在, 大小=17, 只读=False, 属性=Archive
+  无法打开: 使用“4”个参数调用“Open”时发生异常:“对路径“G:\game\新建文件夹\3mman\gradle-home\caches\journal-1\journal-1.lock”的访问被拒绝。”
+=== G:\game\新建文件夹\3mman\.gradle\7.6.4\executionHistory\executionHistory.lock ===
+  存在, 大小=17, 只读=False, 属性=Archive
+  无法打开: 使用“4”个参数调用“Open”时发生异常:“对路径“G:\game\新建文件夹\3mman\.gradle\7.6.4\executionHistory\executionHistory.lock”的访问被拒绝。”
+=== 当前用户 ===
+wacil
+=== gradle-home\caches 目录属性 ===
+属性=Directory

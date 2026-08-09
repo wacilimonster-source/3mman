@@ -91,6 +91,15 @@ def main():
 
     staged = git(['ls-files', '--stage'], use_index=idx).stdout
 
+    # 3.5) 旧版内置 OCR 训练数据不再打包，从树中移除（避免被重新打包进 APK）
+    OLD_ASSET = "app/src/main/assets/tessdata/eng.traineddata"
+    removed_old = 0
+    if any(OLD_ASSET == l.split('\t')[-1].strip() for l in staged.splitlines() if '\t' in l):
+        rm = git(['update-index', '--force-remove', OLD_ASSET], use_index=idx)
+        assert rm.returncode == 0, "force-remove old asset failed: %s" % rm.stderr.decode('utf-8', 'replace')
+        removed_old += 1
+        print("removed old asset", OLD_ASSET)
+
     # 3) 覆盖 version.txt / build.gradle / extra files
     for path, sha in shas.items():
         assert path in staged, "树中不存在该路径: %s" % path
@@ -109,7 +118,8 @@ def main():
 
     after = git(['ls-files', '--stage'], use_index=idx).stdout.count('\n')
     print("index entries after:", after)
-    assert after == before - len(old_apks) + 1, "条目数变化异常"
+    # 净变化 = -旧APK -旧资源 +新APK +额外文件(--files)
+    assert after == before - len(old_apks) - removed_old + 1 + len(extra_files), "条目数变化异常"
     staged2 = git(['ls-files', '--stage'], use_index=idx).stdout
     for sha in shas.values():
         assert sha in staged2, "missing staged blob"

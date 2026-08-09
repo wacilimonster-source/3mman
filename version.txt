@@ -1,7 +1,7 @@
 {
-  "versionCode": 44,
-  "versionName": "1.0.10",
-  "updateMessage": "压缩安装包体积：移除内置 OCR 训练数据改为首次需要时按需下载；发版改用混淆 release 构建并收窄 CPU 架构到 armeabi-v7a。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.10.apk",
-  "sha256": "b891a722b630753300408231836e8543fcb762c662e8c924ff9c336b21c4494a"
+  "versionCode": 45,
+  "versionName": "1.0.11",
+  "updateMessage": "推荐视频功能升级：进度条可拖动、新增下载、调参改为步进器并收起高级设置、可查看学习到的标签/作者/行为记录；推荐覆盖最近10年内视频（不唯最新）；修复作者其他视频解析失败与播放画面和标题错位。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.11.apk",
+  "sha256": "a52aee8f7739ae2482b4591f639302d4a2b0dd5fc0be7e94e66e8dea780b2700"
 }

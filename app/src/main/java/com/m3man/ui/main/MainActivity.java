@@ -43,9 +43,11 @@ import com.m3man.ui.kedouwo.MainKeDouFragment;
 import com.m3man.ui.mine.MineFragment;
 import com.m3man.ui.mman9video.Main9MmanVideoFragment;
 import com.m3man.ui.mman9video.search.SearchActivity;
+import com.m3man.ui.update.UpdateActivity;
 import com.m3man.ui.mman9video.search.SearchPornyActivity;
 import com.m3man.ui.mman9video.user.UserLoginActivity;
 import com.m3man.ui.pxgav.MainPxgavFragment;
+import com.m3man.ui.recommend.RecommendFeedActivity;
 import com.m3man.ui.setting.SettingActivity;
 import com.m3man.utils.ApkVersionUtils;
 import com.m3man.utils.FragmentUtils;
@@ -244,8 +246,9 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                 .show();
     }
 
-    private void initBottomNavigationBar(@IntRange(from = 0, to = 2) int position) {
+    private void initBottomNavigationBar(@IntRange(from = 0, to = 3) int position) {
         bottomNavigationBar.addItem(new BottomNavigationItem(ResourceUtil.getDrawable(this, R.drawable.ic_video_library_black_24dp), R.string.title_video));
+        bottomNavigationBar.addItem(new BottomNavigationItem(ResourceUtil.getDrawable(this, R.drawable.ic_recommend_black_24dp), R.string.title_recommend));
         bottomNavigationBar.addItem(new BottomNavigationItem(ResourceUtil.getDrawable(this, R.drawable.ic_search_black_24dp), R.string.title_porny));
         bottomNavigationBar.addItem(new BottomNavigationItem(ResourceUtil.getDrawable(this, R.drawable.ic_menu_black_24dp), R.string.title_me));
 
@@ -277,13 +280,19 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         contentFrameLayout.setLayoutParams(layoutParams);
     }
 
-    private void doOnTabSelected(@IntRange(from = 0, to = 2) int position) {
+    private void doOnTabSelected(@IntRange(from = 0, to = 3) int position) {
         switch (position) {
             case 0:
                 handlerFirstTabClickToShow(firstTabShow, position, false);
                 showFloatingActionButton(fabSearch);
                 break;
             case 1:
+                // 推荐流（抖音式上下滑），独立全屏页
+                Intent recommendIntent = new Intent(context, RecommendFeedActivity.class);
+                startActivityWithAnimation(recommendIntent);
+                hideFloatingActionButton(fabSearch);
+                break;
+            case 2:
                 // 91porny 第二视频源（首版仅搜索接入）
                 if (!presenter.isPornyEnabled()) {
                     showMessage("请在设置中启用 91porny 源", TastyToast.INFO);
@@ -293,7 +302,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                 startActivityWithAnimation(pornyIntent);
                 hideFloatingActionButton(fabSearch);
                 break;
-            case 2:
+            case 3:
                 if (mMineFragment == null) {
                     mMineFragment = MineFragment.getInstance();
                 }
@@ -541,10 +550,9 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         builder.setMessage(updateVersion.getUpdateMessage());
         builder.addAction("立即更新", (dialog, index) -> {
             dialog.dismiss();
-            showMessage("开始下载", TastyToast.INFO);
-            Intent intent = new Intent(MainActivity.this, UpdateDownloadService.class);
+            Intent intent = new Intent(MainActivity.this, UpdateActivity.class);
             intent.putExtra("updateVersion", updateVersion);
-            startService(intent);
+            startActivityWithAnimation(intent);
         });
         builder.addAction("稍后更新", (dialog, index) -> dialog.dismiss());
         builder.addAction("该版本不再提示", (dialog, index) -> {
@@ -621,7 +629,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         try {
             Logger.t(TAG).d("start try to release memory ....");
             FragmentTransaction bt = fragmentManager.beginTransaction();
-            for (int i = 0; i < 2; i++) {
+            for (int i = 0; i < 4; i++) {
                 //只移除当前未选中的
                 if (i != selectIndex) {
                     String name = FragmentUtils.makeFragmentName(contentFrameLayout.getId(), i);
@@ -672,8 +680,10 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
             case 0:
                 mMainPxgavFragment = null;
                 mMain9MmanVideoFragment = null;
+                mainAxgleFragment = null;
+                mMainKeDouFragment = null;
                 break;
-            case 1:
+            case 3:
                 mMineFragment = null;
                 break;
             default:

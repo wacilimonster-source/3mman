@@ -40,6 +40,7 @@ import com.m3man.ui.proxy.ProxySettingActivity;
 import com.m3man.ui.proxy.ProxySettingActivityModule;
 import com.m3man.ui.pxgav.playpxgav.PlayPxgavActivity;
 import com.m3man.ui.pxgav.playpxgav.PlayPxgavActivityModule;
+import com.m3man.ui.recommend.RecommendFeedActivity;
 import com.m3man.ui.setting.SettingActivity;
 import com.m3man.ui.setting.SettingActivityModule;
 
@@ -135,4 +136,8 @@ public abstract class ActivityBindingModule {
     @PerActivity
     @ContributesAndroidInjector(modules = GoogleRecaptchaVerifyActivityModule.class)
     abstract GoogleRecaptchaVerifyActivity googleRecaptchaVerifyActivity();
+
+    @PerActivity
+    @ContributesAndroidInjector
+    abstract RecommendFeedActivity recommendFeedActivity();
 }

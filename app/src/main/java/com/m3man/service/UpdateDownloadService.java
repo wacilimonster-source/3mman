@@ -199,10 +199,18 @@ public class UpdateDownloadService extends Service {
      */
     @RequiresApi(api = Build.VERSION_CODES.O)
     private void startInstallPermissionSettingActivity() {
-        //注意这个是8.0新API
-        Intent intent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(intent);
+        //注意这个是8.0新API，必须携带 package: 数据，否则 API 26+ 抛 ActivityNotFoundException
+        try {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
+            intent.setData(Uri.parse("package:" + getPackageName()));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        } catch (Throwable e) {
+            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            intent.setData(Uri.parse("package:" + getPackageName()));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        }
     }
 
     /**

@@ -1,0 +1,5 @@
+// Init script: redirect every project's buildDir to a fresh, writable location
+// so the build never touches the read-only existing app/build directory.
+allprojects {
+    buildDir = new File(rootDir.parentFile, "build-fresh/${project.name}")
+}

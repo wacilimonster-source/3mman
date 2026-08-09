@@ -35,13 +35,15 @@ GIT_REMOTE = "origin"
 GIT_BRANCH = "refs/heads/master"
 
 # ---------- 每版构建的临时目录（时间戳，全新） ----------
-STAMP = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+# 支持跨脚本共享同一时间戳（避免 01 复制与 03/04 重签/推送目录不一致）
+STAMP = os.environ.get("RECO_STAMP") or datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 _DRIVE = "C:/"                                          # Windows 接受正斜杠，避免 r"C:\" 语法坑
 WORK = os.path.join(_DRIVE, "p3mman_" + STAMP)         # 源码副本（构建目录）
 GHOME = os.path.join(_DRIVE, "gh3mman_" + STAMP)       # GRADLE_USER_HOME
 AHOME = os.path.join(_DRIVE, "ah3mman_" + STAMP)       # ANDROID_USER_HOME
-OUT = os.path.join(WORK, "app", "build", "outputs", "apk", "debug")
-LOG = os.path.join(_DRIVE, "build_" + STAMP + ".log")
+OUT = os.path.join(WORK, "app", "build", "outputs", "apk", "release")
+# 日志写到可写目录（C:/ 根目录直接写文件在 Windows 下会被拒绝）
+LOG = os.path.join(r"C:\gwork", "build_" + STAMP + ".log")
 
 # 构建出的 APK 名：3mman_v<versionName>.apk（与 build.gradle 的 outputFileName 一致）
 def apk_name(version_name):

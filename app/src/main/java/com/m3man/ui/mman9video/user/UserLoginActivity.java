@@ -1,5 +1,6 @@
 package com.m3man.ui.mman9video.user;
 
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.os.Bundle;
@@ -71,6 +72,8 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
     private CaptchaOcr captchaOcr;
     private Bitmap currentCaptchaBitmap;
     private volatile boolean ocrInitializing = false;
+    /** OCR 训练数据按需下载进度弹窗 */
+    private ProgressDialog ocrProgressDialog;
     /** C13：OCR 相关订阅必须在 onDestroy 释放 native 资源之前取消 */
     private final io.reactivex.disposables.CompositeDisposable mOcrDisposables = new io.reactivex.disposables.CompositeDisposable();
 
@@ -216,6 +219,7 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
     @Override
     protected void onDestroy() {
         //C13：必须先取消 OCR 订阅，再释放 native 引擎与 bitmap。
+        dismissOcrProgress();
         //否则识别任务仍在 IO 线程持有已 recycle 的句柄/位图，会在 native 层崩溃。
         mOcrDisposables.clear();
         if (captchaOcr != null) {
@@ -288,39 +292,74 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
     }
 
     /**
-     * 在子线程初始化 OCR 引擎；初始化完成后若已有验证码图片则立即识别。
+     * 准备 OCR 引擎：首次会按需下载训练数据(~22MB)，下载完成后初始化引擎；
+     * 下载/初始化失败则优雅降级为手动输入验证码，不影响登录流程。
      */
     private void prepareCaptchaOcr() {
         if (captchaOcr != null || ocrInitializing) {
             return;
         }
         ocrInitializing = true;
+        // 进度弹窗（首次会下载训练数据，后续直接使用缓存）
+        if (ocrProgressDialog == null) {
+            ocrProgressDialog = new ProgressDialog(this);
+            ocrProgressDialog.setCancelable(false);
+            ocrProgressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+            ocrProgressDialog.setMax(100);
+        }
+        ocrProgressDialog.setMessage("正在准备验证码识别组件…");
+        ocrProgressDialog.setProgress(0);
+        ocrProgressDialog.show();
+
         mOcrDisposables.add(Observable.fromCallable(() -> {
             CaptchaOcr ocr = new CaptchaOcr(UserLoginActivity.this);
-            boolean ready = ocr.initEngine();
+            final boolean[] result = {false};
+            // OCR 准备（含按需下载）在 IO 线程同步进行
+            ocr.prepare(new CaptchaOcr.PrepareCallback() {
+                @Override
+                public void onProgress(int percent) {
+                    // CaptchaOcr 已切回主线程回调，这里直接更新弹窗
+                    if (ocrProgressDialog != null && ocrProgressDialog.isShowing()) {
+                        ocrProgressDialog.setProgress(percent);
+                    }
+                }
+
+                @Override
+                public void onPrepared(boolean success) {
+                    result[0] = success;
+                }
+            });
             //初始化完成后再赋值给成员，避免半初始化对象被其它线程看到
             captchaOcr = ocr;
-            return ready;
+            return result[0];
         })
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(ready -> {
                     ocrInitializing = false;
+                    dismissOcrProgress();
                     if (isFinishing() || isDestroyed()) {
                         return;
                     }
                     if (ready && currentCaptchaBitmap != null && !currentCaptchaBitmap.isRecycled()) {
                         recognizeCaptcha(currentCaptchaBitmap);
                     } else if (!ready) {
-                        showMessage("验证码识别引擎初始化失败，请手动输入", TastyToast.INFO);
+                        showMessage("验证码识别组件准备失败，请手动输入验证码", TastyToast.INFO);
                     }
                 }, e -> {
                     ocrInitializing = false;
+                    dismissOcrProgress();
                     if (isFinishing() || isDestroyed()) {
                         return;
                     }
-                    showMessage("验证码识别引擎初始化失败，请手动输入", TastyToast.INFO);
+                    showMessage("验证码识别组件准备失败，请手动输入验证码", TastyToast.INFO);
                 }));
+    }
+
+    private void dismissOcrProgress() {
+        if (ocrProgressDialog != null && ocrProgressDialog.isShowing()) {
+            ocrProgressDialog.dismiss();
+        }
     }
 
     /**

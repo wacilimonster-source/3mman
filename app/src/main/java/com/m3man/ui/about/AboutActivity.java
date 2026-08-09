@@ -23,6 +23,7 @@ import com.m3man.R;
 import com.m3man.data.model.UpdateVersion;
 import com.m3man.service.UpdateDownloadService;
 import com.m3man.ui.MvpActivity;
+import com.m3man.ui.update.UpdateActivity;
 import com.m3man.utils.ApkVersionUtils;
 import com.m3man.utils.AppCacheUtils;
 import com.m3man.utils.DialogUtils;
@@ -219,10 +220,9 @@ public class AboutActivity extends MvpActivity<AboutView, AboutPresenter> implem
                     @Override
                     public void onClick(QMUIDialog dialog, int index) {
                         dialog.dismiss();
-                        showMessage("开始下载", TastyToast.INFO);
-                        Intent intent = new Intent(AboutActivity.this, UpdateDownloadService.class);
+                        Intent intent = new Intent(AboutActivity.this, UpdateActivity.class);
                         intent.putExtra("updateVersion", updateVersion);
-                        startService(intent);
+                        startActivityWithAnimation(intent);
                     }
                 })
                 .addAction("稍后更新", new QMUIDialogAction.ActionListener() {
