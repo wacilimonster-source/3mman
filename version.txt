@@ -1,6 +1,6 @@
 {
-  "versionCode": 41,
-  "versionName": "1.0.7",
-  "updateMessage": "本次更新内容：\n1. 修复“我的收藏/分分钟收藏”列表只有半截封面图的问题：列表项高度自适应，完整显示封面、标题、时长与详情信息\n2. 保留 v1.0.6 及之前全部功能",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.7.apk"
+  "versionCode": 42,
+  "versionName": "1.0.8",
+  "updateMessage": "移除调试用的 LeakCanary（桌面不再多出一个 leaks 图标）",
+  "apkDownloadUrl": "https://3mman-1259399939.cos.ap-guangzhou.myqcloud.com/3mman_v1.0.8.apk"
 }
