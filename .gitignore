@@ -15,3 +15,5 @@ gradle.properties.bak
 test_dir/
 TestFile.java
 .workbuddy/
+__pycache__/
+*.pyc
