@@ -1,7 +1,7 @@
 {
-  "versionCode": 43,
-  "versionName": "1.0.9",
-  "updateMessage": "修复更新安装流程：新增前台下载进度与成功/失败提示；修复 Android 8+ 安装未知应用权限未授权导致下载后不弹安装的问题；新增「推荐」沉浸式视频流入口。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.9.apk",
-  "sha256": "b3143b9ce164334d76b007d4b6ab8b7bda8a9febe7a5b018a71d2741ec5db870"
+  "versionCode": 44,
+  "versionName": "1.0.10",
+  "updateMessage": "压缩安装包体积：移除内置 OCR 训练数据改为首次需要时按需下载；发版改用混淆 release 构建并收窄 CPU 架构到 armeabi-v7a。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.10.apk",
+  "sha256": "b891a722b630753300408231836e8543fcb762c662e8c924ff9c336b21c4494a"
 }
