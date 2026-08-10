@@ -1,7 +1,7 @@
 {
-  "versionCode": 56,
-  "versionName": "1.0.22",
-  "updateMessage": "稳定性与崩溃修复：修复多处解析器空指针/越界崩溃、HLS 分片下载残缺导致的损坏视频、登录验证码页面死锁、退出登录状态未持久化等问题，提升播放与下载稳定性。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.22.apk",
-  "sha256": "17157593842f643b9f0151ee69778c080df9ef8e32269d2488ceb4828914dfce"
+  "versionCode": 57,
+  "versionName": "1.0.23",
+  "updateMessage": "推荐流播放崩溃修复：修复解析视频页面元数据时「添加时间/作者」标签顺序异常导致的 StringIndexOutOfBoundsException（误报「点击重试」），解析失败不再影响已提取的播放地址；提升推荐流播放稳定性。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.23.apk",
+  "sha256": "82996407db7f53a923e5479f88b2fa25991b14a9a0d7f52562980e5617ec1662"
 }
