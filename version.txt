@@ -1,7 +1,7 @@
 {
-  "versionCode": 61,
-  "versionName": "1.0.27",
-  "updateMessage": "下载「0% 无速度」修复：① FileDownloader 服务未连接时任务入队后无人调度（表现为「正在下载」status=0、0/0 字节、无速度），下载前/前台下载服务启动时显式确保服务已绑定，任务经救援机制自动启动；② 开启 App 代理时，下载改经本地 videocache 代理中转（FileDownloader 只连本地，远程走验证可用的代理链路）。推荐流下载补充完整诊断日志。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.27.apk",
-  "sha256": "31012fa33d37bdcf336d2abd4515fe5e1117222327a231e6c1123862f02f9947"
+  "versionCode": 64,
+  "versionName": "1.0.30",
+  "updateMessage": "下载「InvalidParameterException can't find its directory」根因修复：FileDownloader 的 FileDownloadUtils.getParent() 在路径以 / 结尾时返回 null，触发抛错。已统一去掉传给 FileDownloader 的 path 末尾斜杠，下载应能正常入队与执行。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.30.apk",
+  "sha256": "2104ad4ca7b5844d6085eecedb0e5dff42cc3495e6e345faf96b6d1fa1bdd702"
 }
