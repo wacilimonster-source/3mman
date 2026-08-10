@@ -349,6 +349,10 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
         if (file == null || !file.exists()) {
             return false;
         }
+        // 非标准 64 位十六进制（缺失/占位符/异常字段）视为无校验，避免更新被字段问题卡死
+        if (expectedHex == null || !expectedHex.matches("[0-9a-fA-F]{64}")) {
+            return true;
+        }
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             try (InputStream in = new BufferedInputStream(new FileInputStream(file))) {

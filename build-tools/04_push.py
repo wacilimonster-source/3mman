@@ -118,8 +118,9 @@ def main():
 
     after = git(['ls-files', '--stage'], use_index=idx).stdout.count('\n')
     print("index entries after:", after)
-    # 净变化 = -旧APK -旧资源 +新APK +额外文件(--files)
-    assert after == before - len(old_apks) - removed_old + 1 + len(extra_files), "条目数变化异常"
+    # 净变化 = -旧APK -旧资源 +新APK +树中原本不存在的额外文件(--files 覆盖已存在文件不算新增)
+    new_extra = len([p for p in extra_files if p not in staged])
+    assert after == before - len(old_apks) - removed_old + 1 + new_extra, "条目数变化异常"
     staged2 = git(['ls-files', '--stage'], use_index=idx).stdout
     for sha in shas.values():
         assert sha in staged2, "missing staged blob"

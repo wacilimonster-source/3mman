@@ -1,7 +1,7 @@
 {
-  "versionCode": 45,
-  "versionName": "1.0.11",
-  "updateMessage": "推荐视频功能升级：进度条可拖动、新增下载、调参改为步进器并收起高级设置、可查看学习到的标签/作者/行为记录；推荐覆盖最近10年内视频（不唯最新）；修复作者其他视频解析失败与播放画面和标题错位。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.11.apk",
-  "sha256": "a52aee8f7739ae2482b4591f639302d4a2b0dd5fc0be7e94e66e8dea780b2700"
+  "versionCode": 46,
+  "versionName": "1.0.12",
+  "updateMessage": "修复点击「立即更新」后 App 闪退的问题（更新页 Activity 未注册到依赖注入框架导致启动即崩溃）；更新下载完成后安装更稳健。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.12.apk",
+  "sha256": "70c9ded0fd56187c841da108a1f005a98ba0d8bd91dd0838e023fcab7905582e"
 }

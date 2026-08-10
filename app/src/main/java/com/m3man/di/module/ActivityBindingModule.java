@@ -43,6 +43,7 @@ import com.m3man.ui.pxgav.playpxgav.PlayPxgavActivityModule;
 import com.m3man.ui.recommend.RecommendFeedActivity;
 import com.m3man.ui.setting.SettingActivity;
 import com.m3man.ui.setting.SettingActivityModule;
+import com.m3man.ui.update.UpdateActivity;
 
 import dagger.Module;
 import dagger.android.ContributesAndroidInjector;
@@ -140,4 +141,8 @@ public abstract class ActivityBindingModule {
     @PerActivity
     @ContributesAndroidInjector
     abstract RecommendFeedActivity recommendFeedActivity();
+
+    @PerActivity
+    @ContributesAndroidInjector
+    abstract UpdateActivity updateActivity();
 }
