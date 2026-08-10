@@ -1,7 +1,7 @@
 {
-  "versionCode": 55,
-  "versionName": "1.0.21",
-  "updateMessage": "播放器增强：视频加载失败时显示真实原因（如地址过期 HTTP 403 / 无法连接），并提供「重试」按钮重新解析获取有效地址，解决部分视频一直转圈的问题。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.21.apk",
-  "sha256": "9a5c086954a1d9e706ac8d76c8641895647827ead03b414ac859647d31ed8a88"
+  "versionCode": 56,
+  "versionName": "1.0.22",
+  "updateMessage": "稳定性与崩溃修复：修复多处解析器空指针/越界崩溃、HLS 分片下载残缺导致的损坏视频、登录验证码页面死锁、退出登录状态未持久化等问题，提升播放与下载稳定性。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.22.apk",
+  "sha256": "17157593842f643b9f0151ee69778c080df9ef8e32269d2488ceb4828914dfce"
 }
