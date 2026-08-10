@@ -1,7 +1,7 @@
 {
-  "versionCode": 64,
-  "versionName": "1.0.30",
-  "updateMessage": "下载「InvalidParameterException can't find its directory」根因修复：FileDownloader 的 FileDownloadUtils.getParent() 在路径以 / 结尾时返回 null，触发抛错。已统一去掉传给 FileDownloader 的 path 末尾斜杠，下载应能正常入队与执行。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.30.apk",
-  "sha256": "2104ad4ca7b5844d6085eecedb0e5dff42cc3495e6e345faf96b6d1fa1bdd702"
+  "versionCode": 66,
+  "versionName": "1.0.32",
+  "updateMessage": "下载三项修复：① 3.5KB「假完成」根因——部分 CDN 对特定出口返回 2xx 但仅 ~3.5KB 错误页，isAlive 只看状态码误判可下载；增强探活校验 Content-Range 总长 ≥1MB，不足自动改走 91porny 备用源，下载完成发现文件 <100KB 也判定错误页并标记错误；回退 videocache 中转（对全量请求只返回约 4KB）。② 下载完成列表的「复制日志」按钮可点击（v1.0.24 只在正在下载列表实现）。③ 推荐流封面 ViewHolder 复用不残留旧图，修复播放时封面与标题错位。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.32.apk",
+  "sha256": "593bde1519bdc59ad254f97a10b428b862575e3effbd619395b32911c71cfcd3"
 }
