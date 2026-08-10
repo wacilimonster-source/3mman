@@ -1,7 +1,7 @@
 {
-  "versionCode": 47,
-  "versionName": "1.0.13",
-  "updateMessage": "推荐算法优化：标签词典全面重建（从58个词扩充到1861个真实语料词），修复主题词权重塌缩与噪声标签反超的问题；分词更精准，番号/演员等词正确识别；升级后自动重置旧的推荐学习记录。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.13.apk",
-  "sha256": "97518d0198339b2634baae84f759422b2fe64da4783eabf17a58cef3473385be"
+  "versionCode": 48,
+  "versionName": "1.0.14",
+  "updateMessage": "视频分类源站默认地址配置为 https://www.91porn.com/ ，新装或未设置过的用户开箱即用，无需手动填写。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.14.apk",
+  "sha256": "a3c66669eed388ae40a15dd38c5cf75bf33e957faefbd615fd034e8cf8d6019e"
 }
