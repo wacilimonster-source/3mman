@@ -1,7 +1,7 @@
 {
-  "versionCode": 57,
-  "versionName": "1.0.23",
-  "updateMessage": "推荐流播放崩溃修复：修复解析视频页面元数据时「添加时间/作者」标签顺序异常导致的 StringIndexOutOfBoundsException（误报「点击重试」），解析失败不再影响已提取的播放地址；提升推荐流播放稳定性。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.23.apk",
-  "sha256": "82996407db7f53a923e5479f88b2fa25991b14a9a0d7f52562980e5617ec1662"
+  "versionCode": 58,
+  "versionName": "1.0.24",
+  "updateMessage": "下载诊断：正在下载列表新增「复制日志」按钮，可一键复制该条的下载决策链路（reparse 结果、CDN 探活 isAlive、91porny 兜底命中/未命中、实际起下 host 与 Referer），便于排查「没速度/0%」问题。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.24.apk",
+  "sha256": "05423d12133eb098ebc8ac1371535d6762fd0298c4f8e76e4561d8d7dec70a1c"
 }
