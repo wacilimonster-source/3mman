@@ -1,7 +1,7 @@
 {
-  "versionCode": 54,
-  "versionName": "1.0.20",
-  "updateMessage": "播放详情页优化：将「+」扩展按钮上移，避免遮挡播放器右下角的全屏按钮，两者均可正常点击。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.20.apk",
-  "sha256": "38ad7c1d73ed2e8b1177a3bba17e981e964e11e3475c612205e38b47469a8cf8"
+  "versionCode": 55,
+  "versionName": "1.0.21",
+  "updateMessage": "播放器增强：视频加载失败时显示真实原因（如地址过期 HTTP 403 / 无法连接），并提供「重试」按钮重新解析获取有效地址，解决部分视频一直转圈的问题。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.21.apk",
+  "sha256": "9a5c086954a1d9e706ac8d76c8641895647827ead03b414ac859647d31ed8a88"
 }

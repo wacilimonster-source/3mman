@@ -16,13 +16,19 @@ import cn.jzvd.JZVideoPlayerStandard;
  */
 public class JiaoZiVideoPlayerActivity extends BasePlayVideo {
 
-    JZVideoPlayerStandard jzVideoPlayerStandard;
+    Mman9VideoPlayer jzVideoPlayerStandard;
 
     @Override
     public void initPlayerView() {
         videoPlayerContainer.removeAllViews();
         View view = LayoutInflater.from(this).inflate(R.layout.playback_engine_jiao_zi, videoPlayerContainer, true);
         jzVideoPlayerStandard = view.findViewById(R.id.videoplayer);
+        // 重试按钮改为「重新解析视频地址」拿新直链，而不是用旧的（很可能已过期的）地址重播
+        jzVideoPlayerStandard.setRetryAction(() -> {
+            if (v9MmanItem != null) {
+                playVideoPresenter.loadVideoUrl(v9MmanItem);
+            }
+        });
     }
 
     @Override
