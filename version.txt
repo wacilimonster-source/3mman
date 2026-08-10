@@ -1,7 +1,7 @@
 {
-  "versionCode": 60,
-  "versionName": "1.0.26",
-  "updateMessage": "下载「没速度/下载错误 0%」修复：原默认下载目录 /sdcard/3mman/video/ 在 Android 11+ scoped storage 下对 app 只读，FileDownloader 写入会抛 java.io.IOException: Operation not permitted。改为检测目录可写性，失败时自动 fallback 到 app 私有目录（Android/data/com.m3man/files/Movies），无需任何外部存储权限。同时识别 PornyFallbackResolver 解析 91porny 时的 Jsoup NPE 隐患。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.26.apk",
-  "sha256": "aac0e45779951fef6ed8dc84e9163fd711db4198cc8ee2530834c048c9ea13f2"
+  "versionCode": 61,
+  "versionName": "1.0.27",
+  "updateMessage": "下载「0% 无速度」修复：① FileDownloader 服务未连接时任务入队后无人调度（表现为「正在下载」status=0、0/0 字节、无速度），下载前/前台下载服务启动时显式确保服务已绑定，任务经救援机制自动启动；② 开启 App 代理时，下载改经本地 videocache 代理中转（FileDownloader 只连本地，远程走验证可用的代理链路）。推荐流下载补充完整诊断日志。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.27.apk",
+  "sha256": "31012fa33d37bdcf336d2abd4515fe5e1117222327a231e6c1123862f02f9947"
 }
