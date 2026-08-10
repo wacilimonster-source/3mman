@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#009688</color>
-    <color name="colorPrimaryDark">#00796B</color>
-    <color name="colorAccent">#00BCD4</color>
+    <!-- 主题色：依据 Logo 紫→品红渐变（主色取 Logo 中位深紫，强调色取右下品红） -->
+    <color name="colorPrimary">#6A1B9A</color>
+    <color name="colorPrimaryDark">#4A148C</color>
+    <color name="colorAccent">#C2185B</color>
     <color name="black">#000000</color>
     <color name="lightBlack">#272822</color>
     <color name="white">#FFFFFF</color>

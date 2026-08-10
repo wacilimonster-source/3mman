@@ -1,7 +1,7 @@
 {
-  "versionCode": 48,
-  "versionName": "1.0.14",
-  "updateMessage": "视频分类源站默认地址配置为 https://www.91porn.com/ ，新装或未设置过的用户开箱即用，无需手动填写。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.14.apk",
-  "sha256": "a3c66669eed388ae40a15dd38c5cf75bf33e957faefbd615fd034e8cf8d6019e"
+  "versionCode": 49,
+  "versionName": "1.0.15",
+  "updateMessage": "App 主题色依据 Logo 重构：主色从青绿色系换成与 Logo 一致的深紫+品红渐变色系（仅改三色值，25 处引用自动跟随；布局/控件/列表项不受影响）。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.15.apk",
+  "sha256": "129f3867810835a0cd121e3a79b53d1419208a4f55f1c5ce132c94f3bfad1e51"
 }
