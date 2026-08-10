@@ -100,9 +100,10 @@ def main():
         removed_old += 1
         print("removed old asset", OLD_ASSET)
 
-    # 3) 覆盖 version.txt / build.gradle / extra files
+    # 3) 覆盖 version.txt / build.gradle / extra files（新增文件同样用 --add --cacheinfo 加入树）
     for path, sha in shas.items():
-        assert path in staged, "树中不存在该路径: %s" % path
+        if path not in staged:
+            print("adding new file:", path)
         up = git(['update-index', '--add', '--cacheinfo', '100644,%s,%s' % (sha, path)], use_index=idx)
         assert up.returncode == 0, "cacheinfo failed %s: %s" % (path, up.stderr.decode('utf-8', 'replace'))
 

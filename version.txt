@@ -1,7 +1,7 @@
 {
-  "versionCode": 52,
-  "versionName": "1.0.18",
-  "updateMessage": "修复推荐页下载后「我的下载」里报下载错误的问题：推荐下载同样会在下载前自动刷新签名链接，避免预取的旧链接过期被 CDN 拒绝。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.18.apk",
-  "sha256": "a72d129131a8e40d52a48ba4c380081a451ce1ec7b31123118b97546c78e5104"
+  "versionCode": 53,
+  "versionName": "1.0.19",
+  "updateMessage": "下载兜底：当视频分类源（91porn）直链被 CDN 封锁或观看次数受限导致下载报错时，自动用标题在 91porny 备用源反查同一视频，改用分分钟源（HLS）下载，下载不再报错。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.19.apk",
+  "sha256": "22001ae89ee244f95367a5fbc27ce4d191bd57139c4ae1b295e96fcb8d276d30"
 }

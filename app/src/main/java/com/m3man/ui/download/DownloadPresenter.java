@@ -21,6 +21,7 @@ import com.m3man.rxjava.CallBackWrapper;
 import com.m3man.rxjava.RxSchedulersHelper;
 import com.m3man.utils.AppCacheUtils;
 import com.m3man.utils.DownloadManager;
+import com.m3man.utils.PornyFallbackResolver;
 import com.m3man.utils.SDCardUtils;
 import com.m3man.utils.VideoCacheFileNameGenerator;
 
@@ -36,6 +37,7 @@ import de.greenrobot.common.io.FileUtils;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
+import okhttp3.OkHttpClient;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Function;
@@ -52,12 +54,15 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
     private DataManager dataManager;
     private LifecycleProvider<Lifecycle.Event> provider;
     private Context context;
+    private OkHttpClient okHttpClient;
 
     @Inject
-    public DownloadPresenter(DataManager dataManager, LifecycleProvider<Lifecycle.Event> provider, @ApplicationContext Context context) {
+    public DownloadPresenter(DataManager dataManager, LifecycleProvider<Lifecycle.Event> provider,
+                             @ApplicationContext Context context, OkHttpClient okHttpClient) {
         this.dataManager = dataManager;
         this.provider = provider;
         this.context = context;
+        this.okHttpClient = okHttpClient;
     }
 
     @Override
@@ -163,7 +168,8 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                     public void onSuccess(VideoResult fresh) {
                         String freshUrl = fresh == null ? null : fresh.getVideoUrl();
                         if (TextUtils.isEmpty(freshUrl)) {
-                            startDownloadWithFallback(tmp, path, wifi, force, listener);
+                            // 观看次数超限等：直接尝试备用源
+                            tryPornyFallback(tmp, path, wifi, force, listener);
                             return;
                         }
                         // 写回 DB，保证「我的下载」等其它入口下次直接命中新鲜地址
@@ -173,7 +179,67 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                             dataManager.updateV9MmanItem(tmp);
                         } catch (Exception ignored) {
                         }
+                        // 直链 CDN 可能封锁当前网络（下载 error/0% 无速度）：先探活，被拒则走 91porny 备用源
+                        if (!PornyFallbackResolver.isAlive(okHttpClient, freshUrl)) {
+                            tryPornyFallback(tmp, path, wifi, force, listener);
+                            return;
+                        }
                         startDownloadInternal(tmp, freshUrl, path, wifi, force, listener);
+                    }
+
+                    @Override
+                    public void onError(String msg, int code) {
+                        tryPornyFallback(tmp, path, wifi, force, listener);
+                    }
+                });
+    }
+
+    /**
+     * 91mman 直链不可用（CDN 封锁 / 观看超限 / 解析失败）时：
+     * 用标题反查 91porny → 命中则改走 HLS 下载；未命中退回 DB 旧地址。
+     */
+    private void tryPornyFallback(final V9MmanItem tmp, final String path, final boolean wifi,
+                                  final boolean force, final DownloadListener listener) {
+        // 解析 91porny 是网络请求，放 IO 线程
+        io.reactivex.Observable
+                .create(new ObservableOnSubscribe<VideoResult>() {
+                    @Override
+                    public void subscribe(io.reactivex.ObservableEmitter<VideoResult> emitter) throws Exception {
+                        VideoResult pr = PornyFallbackResolver.resolve(dataManager, tmp.getTitle());
+                        if (pr == null) {
+                            emitter.onNext(null);
+                        } else {
+                            emitter.onNext(pr);
+                        }
+                        emitter.onComplete();
+                    }
+                })
+                .compose(RxSchedulersHelper.<VideoResult>ioMainThread())
+                .compose(provider.<VideoResult>bindUntilEvent(Lifecycle.Event.ON_DESTROY))
+                .subscribe(new CallBackWrapper<VideoResult>() {
+                    @Override
+                    public void onBegin(Disposable d) {
+                    }
+
+                    @Override
+                    public void onSuccess(VideoResult pornyResult) {
+                        if (pornyResult != null && !TextUtils.isEmpty(pornyResult.getVideoUrl())) {
+                            PornyFallbackResolver.applyPornyResult(dataManager, tmp, pornyResult);
+                            PornyFallbackResolver.enqueueHlsDownload(context, tmp, pornyResult.getVideoUrl(), path);
+                            if (listener != null) {
+                                listener.onSuccess("源站受限，已改用分分钟源下载");
+                            } else {
+                                ifViewAttached(new ViewAction<DownloadView>() {
+                                    @Override
+                                    public void run(@NonNull DownloadView view) {
+                                        view.showMessage("源站受限，已改用分分钟源下载", TastyToast.SUCCESS);
+                                    }
+                                });
+                            }
+                            return;
+                        }
+                        // 备用源未命中：退回旧地址尝试
+                        startDownloadWithFallback(tmp, path, wifi, force, listener);
                     }
 
                     @Override

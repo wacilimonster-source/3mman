@@ -30,6 +30,7 @@ import com.m3man.data.reco.RecoRepository;
 import com.m3man.data.reco.RecoStore;
 import com.m3man.parser.Parse91PornyVideo;
 import com.m3man.service.DownloadVideoService;
+import com.m3man.utils.PornyFallbackResolver;
 import com.m3man.ui.BaseAppCompatActivity;
 import com.m3man.utils.DownloadManager;
 import com.orhanobut.logger.Logger;
@@ -85,6 +86,9 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
 
     @Inject
     protected DataManager dataManager;
+
+    @Inject
+    protected okhttp3.OkHttpClient okHttpClient;
 
     private RecyclerView recyclerView;
     private ProgressBar globalLoading;
@@ -781,6 +785,20 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
                 }
             } catch (Exception e) {
                 Logger.t(TAG).d("recommend re-parse failed, fallback old url: " + e.getMessage());
+            }
+            // 直链 CDN 可能封锁当前网络（下载报错/0% 无速度）：探活被拒则改用 91porny 备用源
+            if (!PornyFallbackResolver.isAlive(okHttpClient, url)) {
+                try {
+                    VideoResult porny = PornyFallbackResolver.resolve(dataManager, target.getTitle());
+                    if (porny != null && !TextUtils.isEmpty(porny.getVideoUrl())) {
+                        PornyFallbackResolver.applyPornyResult(dataManager, target, porny);
+                        PornyFallbackResolver.enqueueHlsDownload(RecommendFeedActivity.this,
+                                target, porny.getVideoUrl(), path);
+                        return new DownloadResult(true, "源站受限，已改用分分钟源下载");
+                    }
+                } catch (Exception ignored) {
+                }
+                // 备用源未命中：仍用原直链尝试（可能探活误报）
             }
         }
         String referer = null;
