@@ -51,7 +51,8 @@ public class RecoTagDictionary {
     /** 无信息量的常见 ASCII 短词（丢弃，不进标签） */
     private static final java.util.Set<String> STOP_ASCII = new java.util.HashSet<>(java.util.Arrays.asList(
             "hd", "4k", "2k", "8k", "av", "sub", "tv", "dvd", "vip", "app",
-            "www", "com", "net", "org", "mp4", "m3u8", "720", "480", "360"));
+            "www", "com", "net", "org", "mp4", "m3u8", "720", "480", "360",
+            "1080p", "720p", "480p", "360p", "2160p"));
 
     private static volatile RecoTagDictionary sInstance;
 

@@ -115,9 +115,13 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
     @Override
     protected void onDestroy() {
         released = true;
-        try {
-            FileDownloader.getImpl().pauseAll();
-        } catch (Throwable ignore) {
+        // 只暂停本页发起的更新下载（downloadId>0 时才暂停），
+        // 不能用 pauseAll()——那会把用户正在下载的视频也一并暂停
+        if (downloadId > 0) {
+            try {
+                FileDownloader.getImpl().pause(downloadId);
+            } catch (Throwable ignore) {
+            }
         }
         super.onDestroy();
     }
@@ -222,19 +226,35 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
         pb.setProgress(100);
         tvPercent.setText("100%");
 
-        // 完整性校验（version.txt 提供 sha256 才校验）
-        String expected = updateVersion.getSha256();
-        if (!TextUtils.isEmpty(expected) && !verifySha256(new File(apkPath), expected)) {
-            onDownloadError("安装包校验失败，可能已被篡改，请重试");
+        // 完整性校验（version.txt 提供 sha256 才校验）；7MB 文件计算耗时，放后台线程避免主线程卡顿
+        final String expected = updateVersion.getSha256();
+        final File apkFile = new File(apkPath);
+        if (TextUtils.isEmpty(expected)) {
+            proceedInstall(apkFile);
             return;
         }
+        new Thread(() -> {
+            final boolean ok = verifySha256(apkFile, expected);
+            runOnUiThread(() -> {
+                if (released) {
+                    return;
+                }
+                if (!ok) {
+                    onDownloadError("安装包校验失败，可能已被篡改，请重试");
+                    return;
+                }
+                proceedInstall(apkFile);
+            });
+        }).start();
+    }
 
-        // 安装前再次确认权限（Android 8.0+）
+    /** 校验通过后：再次确认安装权限并拉起安装 */
+    private void proceedInstall(File apkFile) {
         if (needInstallPermission() && !canInstall()) {
             setState(State.NEED_PERMISSION);
             return;
         }
-        installApk(new File(apkPath));
+        installApk(apkFile);
     }
 
     private void onDownloadError(String msg) {

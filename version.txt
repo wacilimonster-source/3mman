@@ -1,7 +1,7 @@
 {
-  "versionCode": 49,
-  "versionName": "1.0.15",
-  "updateMessage": "App 主题色依据 Logo 重构：主色从青绿色系换成与 Logo 一致的深紫+品红渐变色系（仅改三色值，25 处引用自动跟随；布局/控件/列表项不受影响）。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.15.apk",
-  "sha256": "129f3867810835a0cd121e3a79b53d1419208a4f55f1c5ce132c94f3bfad1e51"
+  "versionCode": 50,
+  "versionName": "1.0.16",
+  "updateMessage": "主题色补全：修复「我的」页用户信息头部仍是旧青绿色的问题，改为与 Logo 一致的紫色渐变；夜间模式主题色同步更新。另修复更新页退出时会误暂停视频下载的 bug。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.16.apk",
+  "sha256": "db2cc090f5428723ce1e927f357d6d46356b4ba0f4531d9989e213b7ebeafe20"
 }
