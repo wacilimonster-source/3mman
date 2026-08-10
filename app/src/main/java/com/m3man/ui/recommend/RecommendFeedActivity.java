@@ -28,6 +28,7 @@ import com.m3man.data.reco.RecoEngine;
 import com.m3man.data.reco.RecoParams;
 import com.m3man.data.reco.RecoRepository;
 import com.m3man.data.reco.RecoStore;
+import com.m3man.parser.Parse91PornyVideo;
 import com.m3man.service.DownloadVideoService;
 import com.m3man.ui.BaseAppCompatActivity;
 import com.m3man.utils.DownloadManager;
@@ -766,6 +767,22 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
         if (target.getStatus() == FileDownloadStatus.progress && target.getDownloadId() != 0) {
             return new DownloadResult(false, "已经在下载了");
         }
+        // 91mman 视频分类源：直链带时效签名（st/f），预取/库里存的旧 URL 过期会被 CDN 拒绝
+        // （表现为「正在下载」里报下载错误）。下载前重新解析播放页拿新鲜签名 URL。
+        String url = videoResult.getVideoUrl();
+        if (!Parse91PornyVideo.SOURCE.equals(target.getSource())) {
+            try {
+                VideoResult fresh = dataManager.loadMman9VideoUrl(viewKey).blockingFirst();
+                if (fresh != null && !TextUtils.isEmpty(fresh.getVideoUrl())) {
+                    dataManager.saveVideoResult(fresh);
+                    target.setVideoResult(fresh);
+                    dataManager.updateV9MmanItem(target);
+                    url = fresh.getVideoUrl();
+                }
+            } catch (Exception e) {
+                Logger.t(TAG).d("recommend re-parse failed, fallback old url: " + e.getMessage());
+            }
+        }
         String referer = null;
         try {
             String addr = dataManager.getMman9VideoAddress();
@@ -774,7 +791,7 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
             }
         } catch (Exception ignored) {
         }
-        int id = DownloadManager.getImpl().startDownload(videoResult.getVideoUrl(), path,
+        int id = DownloadManager.getImpl().startDownload(url, path,
                 dataManager.isDownloadVideoNeedWifi(), false, referer);
         if (target.getAddDownloadDate() == null) {
             target.setAddDownloadDate(new Date());

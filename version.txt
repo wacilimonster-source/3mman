@@ -1,7 +1,7 @@
 {
-  "versionCode": 51,
-  "versionName": "1.0.17",
-  "updateMessage": "修复视频分类下载一直 0% 无速度的问题：下载前自动重新解析播放页获取新鲜签名链接（旧链接签名过期会被 CDN 拒绝），并给下载请求补上 Referer 和浏览器 UA（部分 CDN 校验请求头）。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.17.apk",
-  "sha256": "aba3426d54512e45f306e0152427cd355a4df27a26b667dcc89b95d421d17163"
+  "versionCode": 52,
+  "versionName": "1.0.18",
+  "updateMessage": "修复推荐页下载后「我的下载」里报下载错误的问题：推荐下载同样会在下载前自动刷新签名链接，避免预取的旧链接过期被 CDN 拒绝。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.18.apk",
+  "sha256": "a72d129131a8e40d52a48ba4c380081a451ce1ec7b31123118b97546c78e5104"
 }
