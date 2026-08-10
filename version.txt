@@ -1,7 +1,7 @@
 {
-  "versionCode": 50,
-  "versionName": "1.0.16",
-  "updateMessage": "主题色补全：修复「我的」页用户信息头部仍是旧青绿色的问题，改为与 Logo 一致的紫色渐变；夜间模式主题色同步更新。另修复更新页退出时会误暂停视频下载的 bug。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.16.apk",
-  "sha256": "db2cc090f5428723ce1e927f357d6d46356b4ba0f4531d9989e213b7ebeafe20"
+  "versionCode": 51,
+  "versionName": "1.0.17",
+  "updateMessage": "修复视频分类下载一直 0% 无速度的问题：下载前自动重新解析播放页获取新鲜签名链接（旧链接签名过期会被 CDN 拒绝），并给下载请求补上 Referer 和浏览器 UA（部分 CDN 校验请求头）。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.17.apk",
+  "sha256": "aba3426d54512e45f306e0152427cd355a4df27a26b667dcc89b95d421d17163"
 }

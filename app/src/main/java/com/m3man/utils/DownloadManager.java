@@ -1,5 +1,7 @@
 package com.m3man.utils;
 
+import android.text.TextUtils;
+
 import com.liulishuo.filedownloader.BaseDownloadTask;
 import com.liulishuo.filedownloader.FileDownloadListener;
 import com.liulishuo.filedownloader.FileDownloader;
@@ -25,6 +27,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 public class DownloadManager {
     private static final String TAG = DownloadManager.class.getSimpleName();
+    /** 下载请求浏览器 UA：部分站点 CDN 会拒绝非浏览器 UA（okhttp 默认 UA 可能被 403） */
+    private static final String DOWNLOAD_UA =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                    + "(KHTML, like Gecko) Chrome/68.0.3440.84 Safari/537.36";
 
     protected DataManager dataManager;
 
@@ -48,12 +54,26 @@ public class DownloadManager {
 
 
     public int startDownload(String url, final String path, boolean isDownloadNeedWifi, boolean isForceReDownload) {
+        return startDownload(url, path, isDownloadNeedWifi, isForceReDownload, null);
+    }
+
+    /**
+     * 下载任务（可选带 Referer）。
+     *
+     * @param referer 视频源站播放页地址；站点 CDN 校验 Referer 时必填（91porn 等），
+     *                GitHub raw 等公共下载不需要传 null
+     */
+    public int startDownload(String url, final String path, boolean isDownloadNeedWifi, boolean isForceReDownload, String referer) {
         Logger.t(TAG).d("url::" + url);
         Logger.t(TAG).d("path::" + path);
         Logger.t(TAG).d("isDownloadNeedWifi::" + isDownloadNeedWifi);
         Logger.t(TAG).d("isForceReDownload::" + isForceReDownload);
-        int id = FileDownloader.getImpl().create(url)
-                .setPath(path)
+        BaseDownloadTask task = FileDownloader.getImpl().create(url)
+                .addHeader("User-Agent", DOWNLOAD_UA);
+        if (!TextUtils.isEmpty(referer)) {
+            task.addHeader("Referer", referer);
+        }
+        int id = task.setPath(path)
                 .setListener(lis)
                 .setWifiRequired(isDownloadNeedWifi)
                 .setAutoRetryTimes(3)

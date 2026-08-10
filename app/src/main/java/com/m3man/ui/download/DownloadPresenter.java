@@ -3,6 +3,7 @@ package com.m3man.ui.download;
 import android.arch.lifecycle.Lifecycle;
 import android.content.Context;
 import android.support.annotation.NonNull;
+import android.text.TextUtils;
 
 import com.hannesdorfmann.mosby3.mvp.MvpBasePresenter;
 import com.liulishuo.filedownloader.FileDownloader;
@@ -15,6 +16,7 @@ import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.db.entity.VideoResult;
 import com.m3man.di.ApplicationContext;
+import com.m3man.parser.Parse91PornyVideo;
 import com.m3man.rxjava.CallBackWrapper;
 import com.m3man.rxjava.RxSchedulersHelper;
 import com.m3man.utils.AppCacheUtils;
@@ -137,14 +139,80 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         String path = v9MmanItem.getDownLoadPath(getCustomDownloadVideoDirPath());
         Logger.d(path);
         boolean isDownloadNeedWifi = dataManager.isDownloadVideoNeedWifi();
-        int id = DownloadManager.getImpl().startDownload(videoResult.getVideoUrl(), path, isDownloadNeedWifi, isForceReDownload);
+        // 91mman 视频分类源：直链带时效签名（st/f 参数），DB 里存的旧 URL 过期后 CDN 拒绝
+        // （表现为进度 0% 无速度）。下载前先重新解析播放页拿新鲜 URL；其它源（91porny 等）直接用。
+        if (!Parse91PornyVideo.SOURCE.equals(tmp.getSource())) {
+            reparseThenDownload(tmp, path, isDownloadNeedWifi, isForceReDownload, downloadListener);
+            return;
+        }
+        startDownloadInternal(tmp, videoResult.getVideoUrl(), path, isDownloadNeedWifi, isForceReDownload, downloadListener);
+    }
+
+    /** 下载前重新解析 91mman 播放页，拿到带新时效签名的直链再下载（失败则退回旧地址尝试） */
+    private void reparseThenDownload(final V9MmanItem tmp, final String path, final boolean wifi,
+                                     final boolean force, final DownloadListener listener) {
+        dataManager.loadMman9VideoUrl(tmp.getViewKey())
+                .compose(RxSchedulersHelper.<VideoResult>ioMainThread())
+                .compose(provider.<VideoResult>bindUntilEvent(Lifecycle.Event.ON_DESTROY))
+                .subscribe(new CallBackWrapper<VideoResult>() {
+                    @Override
+                    public void onBegin(Disposable d) {
+                    }
+
+                    @Override
+                    public void onSuccess(VideoResult fresh) {
+                        String freshUrl = fresh == null ? null : fresh.getVideoUrl();
+                        if (TextUtils.isEmpty(freshUrl)) {
+                            startDownloadWithFallback(tmp, path, wifi, force, listener);
+                            return;
+                        }
+                        // 写回 DB，保证「我的下载」等其它入口下次直接命中新鲜地址
+                        try {
+                            dataManager.saveVideoResult(fresh);
+                            tmp.setVideoResult(fresh);
+                            dataManager.updateV9MmanItem(tmp);
+                        } catch (Exception ignored) {
+                        }
+                        startDownloadInternal(tmp, freshUrl, path, wifi, force, listener);
+                    }
+
+                    @Override
+                    public void onError(String msg, int code) {
+                        startDownloadWithFallback(tmp, path, wifi, force, listener);
+                    }
+                });
+    }
+
+    /** 重新解析失败时退回 DB 旧地址尝试（可能恰好仍有效） */
+    private void startDownloadWithFallback(V9MmanItem tmp, String path, boolean wifi, boolean force, DownloadListener listener) {
+        VideoResult old = tmp.getVideoResult();
+        String oldUrl = old == null ? null : old.getVideoUrl();
+        if (TextUtils.isEmpty(oldUrl)) {
+            if (listener != null) {
+                listener.onError("解析视频地址失败，请稍后重试");
+            } else {
+                ifViewAttached(new ViewAction<DownloadView>() {
+                    @Override
+                    public void run(@NonNull DownloadView view) {
+                        view.showMessage("解析视频地址失败，请稍后重试", TastyToast.ERROR);
+                    }
+                });
+            }
+            return;
+        }
+        startDownloadInternal(tmp, oldUrl, path, wifi, force, listener);
+    }
+
+    /** 真正启动下载（带 Referer/UA 请求头） */
+    private void startDownloadInternal(V9MmanItem tmp, String url, String path, boolean wifi, boolean force, DownloadListener listener) {
+        int id = DownloadManager.getImpl().startDownload(url, path, wifi, force, buildReferer(tmp.getViewKey()));
         if (tmp.getAddDownloadDate() == null) {
             tmp.setAddDownloadDate(new Date());
         }
         tmp.setDownloadId(id);
         dataManager.updateV9MmanItem(tmp);
-        if (downloadListener != null) {
-            downloadListener.onSuccess("开始下载");
+        if (listener != null) {
+            listener.onSuccess("开始下载");
         } else {
             ifViewAttached(new ViewAction<DownloadView>() {
                 @Override
@@ -152,6 +220,19 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                     view.showMessage("开始下载", TastyToast.SUCCESS);
                 }
             });
+        }
+    }
+
+    /** 91mman 源下载 Referer：指向播放页，部分 CDN 校验该头 */
+    private String buildReferer(String viewKey) {
+        try {
+            String addr = dataManager.getMman9VideoAddress();
+            if (TextUtils.isEmpty(addr)) {
+                return null;
+            }
+            return addr + "view_video.php?viewkey=" + viewKey;
+        } catch (Exception e) {
+            return null;
         }
     }
 

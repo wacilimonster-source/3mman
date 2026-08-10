@@ -766,8 +766,16 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
         if (target.getStatus() == FileDownloadStatus.progress && target.getDownloadId() != 0) {
             return new DownloadResult(false, "已经在下载了");
         }
+        String referer = null;
+        try {
+            String addr = dataManager.getMman9VideoAddress();
+            if (!TextUtils.isEmpty(addr)) {
+                referer = addr + "view_video.php?viewkey=" + viewKey;
+            }
+        } catch (Exception ignored) {
+        }
         int id = DownloadManager.getImpl().startDownload(videoResult.getVideoUrl(), path,
-                dataManager.isDownloadVideoNeedWifi(), false);
+                dataManager.isDownloadVideoNeedWifi(), false, referer);
         if (target.getAddDownloadDate() == null) {
             target.setAddDownloadDate(new Date());
         }
