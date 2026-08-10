@@ -33,6 +33,11 @@ public class RecoEngine {
         // 启动时先做一次时间衰减
         store.getProfile().applyDecay(System.currentTimeMillis(), params.decayDays);
         store.markDirty();
+        // 词典版本升级（标签体系变更）时自动重置旧画像，避免上一代噪声标签残留污染新推荐
+        if (store.getDictVersion() != dictionary.getVersion()) {
+            store.reset();
+            store.setDictVersion(dictionary.getVersion());
+        }
     }
 
     public static RecoEngine get(Context context) {

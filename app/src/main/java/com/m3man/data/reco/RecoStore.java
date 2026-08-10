@@ -56,6 +56,8 @@ public class RecoStore {
 
     private boolean loaded = false;
     private boolean dirty = false;
+    /** 上次画像学习所用的词典版本；与当前词典不一致时 RecoEngine 会自动重置画像 */
+    private int dictVersion = 0;
 
     public RecoStore(Context context) {
         this.appContext = context == null ? null : context.getApplicationContext();
@@ -172,7 +174,21 @@ public class RecoStore {
         return seen.size();
     }
 
-    /** 清空推荐记忆（画像 + 交互 + 去重表） */
+    /** 上次画像学习所用的词典版本；与当前词典不一致时 RecoEngine 会自动重置画像 */
+    public synchronized int getDictVersion() {
+        ensureLoaded();
+        return dictVersion;
+    }
+
+    /** 记录画像当前对应的词典版本（仅在重置画像后调用） */
+    public synchronized void setDictVersion(int version) {
+        ensureLoaded();
+        dictVersion = version;
+        dirty = true;
+        save();
+    }
+
+    /** 清空推荐记忆（画像 + 交互 + 去重表；词典版本号保留，不属于用户数据） */
     public synchronized void reset() {
         ensureLoaded();
         profile.clear();
@@ -216,6 +232,7 @@ public class RecoStore {
     }
 
     private void parse(JSONObject root) {
+        dictVersion = root.optInt("dictVersion", 0);
         RecoProfile p = new RecoProfile();
         JSONObject prof = root.optJSONObject("profile");
         if (prof != null) {
@@ -315,6 +332,7 @@ public class RecoStore {
             }
             root.put("seen", arr);
             root.put("authorNames", new JSONObject(authorNames));
+            root.put("dictVersion", dictVersion);
             root.put("v", 1);
 
             fos = new FileOutputStream(tmp);

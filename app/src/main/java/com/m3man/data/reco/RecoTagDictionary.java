@@ -10,8 +10,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,10 +42,16 @@ public class RecoTagDictionary {
 
     public static final String ASSET_PATH = "reco/tag_dictionary.json";
 
-    /** 词典未命中（bigram）标签的兜底 df，取一个较小值使其 idf 偏高但不至于爆炸 */
-    private static final int FALLBACK_DF = 50;
+    /** 词典未命中（bigram）标签的兜底 df：取较大值压低噪声标签的 idf（噪声不应高于主题词） */
+    private static final int FALLBACK_DF = 500;
     private static final int DEFAULT_TOTAL_DOCS = 20000;
     private static final int MAX_TAGS_PER_TITLE = 12;
+    /** 未命中片段只有足够长（>=4 字）才切成相邻二元组，2~3 字碎片直接丢弃（多为连接词/无意义组合） */
+    private static final int MIN_BIGRAM_RUN = 4;
+    /** 无信息量的常见 ASCII 短词（丢弃，不进标签） */
+    private static final java.util.Set<String> STOP_ASCII = new java.util.HashSet<>(java.util.Arrays.asList(
+            "hd", "4k", "2k", "8k", "av", "sub", "tv", "dvd", "vip", "app",
+            "www", "com", "net", "org", "mp4", "m3u8", "720", "480", "360"));
 
     private static volatile RecoTagDictionary sInstance;
 
@@ -169,13 +175,19 @@ public class RecoTagDictionary {
 
     /**
      * 把标题切成标签集合（去重、有序、限量）。
+     * <p>
+     * 词典命中的词（含有效 ASCII 词）排在最前，未命中片段的 bigram 兜底排最后，
+     * 避免噪声标签占满名额。bigram 标签可用 {@link #isDictionaryWord(String)} 区分。
      */
     public List<String> tokenize(String title) {
         List<String> out = new ArrayList<>();
         if (TextUtils.isEmpty(title)) {
             return out;
         }
-        Set<String> seen = new LinkedHashSet<>();
+        List<String> dictTags = new ArrayList<>();
+        List<String> fallbackTags = new ArrayList<>();
+        Set<String> seenDict = new HashSet<>();
+        Set<String> seenFallback = new HashSet<>();
         String text = normalize(title);
         int n = text.length();
         int i = 0;
@@ -183,15 +195,18 @@ public class RecoTagDictionary {
         while (i < n) {
             char c = text.charAt(i);
             if (isSeparator(c)) {
-                flushPending(pending, seen);
+                flushPending(pending, seenFallback, fallbackTags);
                 i++;
                 continue;
             }
             if (isCjk(c)) {
                 int matchedLen = longestMatch(text, i);
                 if (matchedLen > 0) {
-                    flushPending(pending, seen);
-                    seen.add(text.substring(i, i + matchedLen));
+                    flushPending(pending, seenFallback, fallbackTags);
+                    String w = text.substring(i, i + matchedLen);
+                    if (seenDict.add(w)) {
+                        dictTags.add(w);
+                    }
                     i += matchedLen;
                 } else {
                     pending.append(c);
@@ -204,20 +219,26 @@ public class RecoTagDictionary {
                 while (j < n && isAsciiWord(text.charAt(j))) {
                     j++;
                 }
-                flushPending(pending, seen);
+                flushPending(pending, seenFallback, fallbackTags);
                 String word = text.substring(i, j);
-                if (word.length() >= 2) {
-                    seen.add(word);
+                if (isUsefulAsciiWord(word) && seenDict.add(word)) {
+                    dictTags.add(word);
                 }
                 i = j;
                 continue;
             }
-            flushPending(pending, seen);
+            flushPending(pending, seenFallback, fallbackTags);
             i++;
         }
-        flushPending(pending, seen);
+        flushPending(pending, seenFallback, fallbackTags);
 
-        for (String s : seen) {
+        for (String s : dictTags) {
+            out.add(s);
+            if (out.size() >= MAX_TAGS_PER_TITLE) {
+                return out;
+            }
+        }
+        for (String s : fallbackTags) {
             out.add(s);
             if (out.size() >= MAX_TAGS_PER_TITLE) {
                 break;
@@ -226,19 +247,26 @@ public class RecoTagDictionary {
         return out;
     }
 
-    /** 未命中词典的中文片段 → 相邻二元组兜底 */
-    private void flushPending(StringBuilder pending, Set<String> seen) {
+    /** 该标签是否为词典中的正式词（false = bigram 兜底噪声标签） */
+    public boolean isDictionaryWord(String tag) {
+        return !TextUtils.isEmpty(tag) && tagDf.containsKey(tag);
+    }
+
+    /** 未命中词典的中文片段 → 足够长才切相邻二元组兜底（短碎片丢弃） */
+    private void flushPending(StringBuilder pending, Set<String> seen, List<String> fallbackTags) {
         if (pending.length() == 0) {
             return;
         }
         String s = pending.toString();
         pending.setLength(0);
-        if (s.length() == 1) {
-            // 单字信息量太低，丢弃
+        if (s.length() < MIN_BIGRAM_RUN) {
             return;
         }
         for (int k = 0; k + 2 <= s.length(); k++) {
-            seen.add(s.substring(k, k + 2));
+            String bg = s.substring(k, k + 2);
+            if (seen.add(bg)) {
+                fallbackTags.add(bg);
+            }
         }
     }
 
@@ -272,10 +300,40 @@ public class RecoTagDictionary {
     }
 
     private static boolean isAsciiWord(char c) {
-        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
+        // '-' 纳入 ASCII 词，保证番号形态（如 PRED-130）整体保留
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-';
+    }
+
+    /** ASCII 词是否值得作为标签：过滤纯数字、无信息量短词，保留番号/演员名等长词 */
+    private static boolean isUsefulAsciiWord(String word) {
+        String lower = word.toLowerCase();
+        if (lower.matches("[0-9]+")) {
+            return false;
+        }
+        if (STOP_ASCII.contains(lower)) {
+            return false;
+        }
+        // 含数字的混合串（番号形态）保留；纯字母需 >= 4 位（2~3 位多为缩写噪声）
+        if (lower.matches(".*[0-9].*")) {
+            return lower.length() >= 4;
+        }
+        return lower.length() >= 4;
     }
 
     private static boolean isSeparator(char c) {
-        return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+        switch (c) {
+            case ' ': case '\t': case '\n': case '\r':
+            case ',': case '.': case '，': case '。': case '!': case '！': case '?': case '？':
+            case ';': case '；': case ':': case '：': case '、': case '·': case '•':
+            case '(': case ')': case '（': case '）': case '[': case ']': case '【': case '】':
+            case '{': case '}': case '<': case '>': case '《': case '》':
+            case '|': case '\\': case '/': case '_': case '=': case '+': case '*':
+            case '&': case '%': case '$': case '#': case '@': case '~': case '`': case '^':
+            case '\'': case '"': case '\u2018': case '\u2019': case '\u201C': case '\u201D':
+            case '\u300C': case '\u300D': case '\u300E': case '\u300F':
+                return true;
+            default:
+                return false;
+        }
     }
 }

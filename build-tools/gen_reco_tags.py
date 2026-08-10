@@ -70,6 +70,33 @@ SEED_TAGS = {
 CJK_RE = re.compile(r'[\u3400-\u9fff\uf900-\ufaff]+')
 ASCII_RE = re.compile(r'[A-Za-z0-9]{2,}')
 
+# 停用词：无主题区分度的词（分词结果里的整词才会被停用，不影响「无码/有码」这类主题词）
+STOP_WORDS = {
+    "超清", "高清", "中文字幕", "字幕", "中文", "国语", "粤语", "原版", "完整版", "完整",
+    "全集", "合集", "系列", "最新", "更新", "推荐", "首页", "免费", "在线", "观看", "播放",
+    "视频", "大片", "简介", "平台", "关注", "私信", "留言", "评论", "点赞", "下载", "破解",
+    "版本", "资源", "作品", "女主", "男主", "故事", "剧情", "内容", "介绍", "提取", "密码",
+    "里", "区", "吧", "啦", "呀", "呢", "啊", "哦", "嗯", "哈", "嘿",
+    "的", "了", "是", "在", "有", "和", "与", "及", "之", "这", "那",
+    "你", "我", "她", "他", "们", "么", "不", "没", "很", "真", "太", "最", "更", "还",
+    "就", "都", "也", "又", "再", "只", "才", "被", "把", "让", "给", "对", "从", "向",
+    "往", "于", "以", "为", "会", "能", "要", "想", "看", "说", "做", "来", "去",
+    # 语料里出现的高频虚词 / 切分碎片 / 无题材性通用词
+    "原创", "愿意", "趁着", "合作", "集合", "过往", "满身", "开干", "doi",
+    "内射筒", "内射过", "脸内", "爆王", "文字", "大骚", "骚", "湿",
+}
+
+
+def is_stop(w):
+    if w in STOP_WORDS:
+        return True
+    if re.fullmatch(r'\d{4}', w):   # 年份
+        return True
+    if re.fullmatch(r'\d+', w):     # 纯数字
+        return True
+    return False
+
+
 try:
     import jieba  # type: ignore
     jieba.setLogLevel(60)  # silence jieba's INFO logs
@@ -180,11 +207,23 @@ def build_df(titles, max_len, min_df, max_tags, use_jieba):
 
 
 def merge_and_emit(seed, df, total, min_df, max_tags, version, out_path):
-    merged = dict(seed)
+    merged = {}
     for w, c in df.items():
         if c < min_df:
             continue
-        merged[w] = max(merged.get(w, 0), c)
+        if is_stop(w):
+            continue
+        merged[w] = c
+
+    # 种子词只做兜底：语料统计过的用真实 df；语料没出现的，df 按语料规模重标定
+    # （cap 到 10% 文档数，避免 totalDocs 很小而种子 df 过大导致 idf 塌缩到下限）
+    floor = max(2, int(total * 0.10)) if total > 0 else 0
+    for w, c in seed.items():
+        if is_stop(w):
+            continue
+        if w in merged:
+            continue  # 语料已统计，用真实 df
+        merged[w] = min(c, floor) if floor > 0 else c
 
     items = sorted(merged.items(), key=lambda kv: kv[1], reverse=True)
     if max_tags and len(items) > max_tags:
@@ -218,7 +257,7 @@ def main(argv=None):
                                             '..', 'app', 'src', 'main', 'assets', 'reco',
                                             'tag_dictionary.json'),
                         help='输出路径，默认 build-tools/../app/src/main/assets/reco/tag_dictionary.json')
-    parser.add_argument('--min-df', type=int, default=2,
+    parser.add_argument('--min-df', type=int, default=3,
                         help='语料词进入词典的最小文档频率（种子词不受此限）')
     parser.add_argument('--max-tags', type=int, default=2000,
                         help='词典容量上限（按 df 降序截断），0 表示不限制')
