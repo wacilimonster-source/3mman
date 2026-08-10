@@ -1,7 +1,7 @@
 {
-  "versionCode": 59,
-  "versionName": "1.0.25",
-  "updateMessage": "推荐流对齐 v9porn 播放：增加 SocketTimeoutException 重试（最多 3 次×2 秒），覆盖代理/站点偶发超时；检测到站点每日观看上限（OUT_OF_WATCH_TIMES）时自动重置 watch_times cookie 并重试一次，解决「所有推荐播放都提示解析视频链接失败，点击重试」的问题。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.25.apk",
-  "sha256": "6c5452818b78b123c99ce8f09d898b272b658f28b16244eb607ee2521a9e36de"
+  "versionCode": 60,
+  "versionName": "1.0.26",
+  "updateMessage": "下载「没速度/下载错误 0%」修复：原默认下载目录 /sdcard/3mman/video/ 在 Android 11+ scoped storage 下对 app 只读，FileDownloader 写入会抛 java.io.IOException: Operation not permitted。改为检测目录可写性，失败时自动 fallback 到 app 私有目录（Android/data/com.m3man/files/Movies），无需任何外部存储权限。同时识别 PornyFallbackResolver 解析 91porny 时的 Jsoup NPE 隐患。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.26.apk",
+  "sha256": "aac0e45779951fef6ed8dc84e9163fd711db4198cc8ee2530834c048c9ea13f2"
 }
