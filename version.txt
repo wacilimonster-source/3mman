@@ -1,7 +1,7 @@
 {
-  "versionCode": 58,
-  "versionName": "1.0.24",
-  "updateMessage": "下载诊断：正在下载列表新增「复制日志」按钮，可一键复制该条的下载决策链路（reparse 结果、CDN 探活 isAlive、91porny 兜底命中/未命中、实际起下 host 与 Referer），便于排查「没速度/0%」问题。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.24.apk",
-  "sha256": "05423d12133eb098ebc8ac1371535d6762fd0298c4f8e76e4561d8d7dec70a1c"
+  "versionCode": 59,
+  "versionName": "1.0.25",
+  "updateMessage": "推荐流对齐 v9porn 播放：增加 SocketTimeoutException 重试（最多 3 次×2 秒），覆盖代理/站点偶发超时；检测到站点每日观看上限（OUT_OF_WATCH_TIMES）时自动重置 watch_times cookie 并重试一次，解决「所有推荐播放都提示解析视频链接失败，点击重试」的问题。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.25.apk",
+  "sha256": "6c5452818b78b123c99ce8f09d898b272b658f28b16244eb607ee2521a9e36de"
 }
