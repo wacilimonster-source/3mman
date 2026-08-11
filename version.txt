@@ -1,7 +1,7 @@
 {
-  "versionCode": 67,
-  "versionName": "1.0.34",
-  "updateMessage": "版本号修复 update：v1.0.33 下载兜底闭环（hex viewkey 直接 HLS + cdn77 错误页自动切备源 + HLS Referer 修复 + 文件名修复）正常版本号升版，检查更新可用。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.34.apk",
-  "sha256": "7d7b6b4acb55216f42582c639e26dbdf146082010aebed3741115e523ec60450"
+  "versionCode": 68,
+  "versionName": "1.0.35",
+  "updateMessage": "下载兜底闭环 + 路径修复：① hex viewkey 直接走 91porny HLS 源。② cdn77 错误页自动切 91porny 备源。③ HLS 兜底路径同样走 app 私有目录 fallback（之前漏了导致写到不可写目录报 error）。④ HLS 失败时「复制日志」可看具体原因。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.35.apk",
+  "sha256": "19a8f899e2b5c6b390732f8411231e8293146314e6ed99d6c1f7e9350fc69ac1"
 }
