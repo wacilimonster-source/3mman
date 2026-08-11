@@ -1,7 +1,7 @@
 {
   "versionCode": 66,
-  "versionName": "1.0.32",
-  "updateMessage": "下载三项修复：① 3.5KB「假完成」根因——部分 CDN 对特定出口返回 2xx 但仅 ~3.5KB 错误页，isAlive 只看状态码误判可下载；增强探活校验 Content-Range 总长 ≥1MB，不足自动改走 91porny 备用源，下载完成发现文件 <100KB 也判定错误页并标记错误；回退 videocache 中转（对全量请求只返回约 4KB）。② 下载完成列表的「复制日志」按钮可点击（v1.0.24 只在正在下载列表实现）。③ 推荐流封面 ViewHolder 复用不残留旧图，修复播放时封面与标题错位。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.32.apk",
-  "sha256": "593bde1519bdc59ad254f97a10b428b862575e3effbd619395b32911c71cfcd3"
+  "versionName": "1.0.33",
+  "updateMessage": "下载兜底闭环：① 20位hex viewkey（91porny 视频）下载直接走 91porny m3u8 HLS 源，绕开 cdn77 直链（部分出口对 cdn77 全量下载返回 3.5KB 错误页，isAlive 探活拦不住）。② CDN 错误页「假完成」检测到后自动切 91porny 备用源接管下载，不再死循环标记错误。③ HLS 兜底路径同样走 app 私有目录 fallback。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.33.apk",
+  "sha256": "3d7dfd3cff35dca462f5711ba29b2b50d4c9ebb0b67f68a961853ae9aa297c0a"
 }
