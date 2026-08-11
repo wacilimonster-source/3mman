@@ -1,7 +1,7 @@
 {
-  "versionCode": 66,
-  "versionName": "1.0.33",
-  "updateMessage": "下载兜底闭环：① 20位hex viewkey（91porny 视频）下载直接走 91porny m3u8 HLS 源，绕开 cdn77 直链（部分出口对 cdn77 全量下载返回 3.5KB 错误页，isAlive 探活拦不住）。② CDN 错误页「假完成」检测到后自动切 91porny 备用源接管下载，不再死循环标记错误。③ HLS 兜底路径同样走 app 私有目录 fallback。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.33.apk",
-  "sha256": "3d7dfd3cff35dca462f5711ba29b2b50d4c9ebb0b67f68a961853ae9aa297c0a"
+  "versionCode": 67,
+  "versionName": "1.0.34",
+  "updateMessage": "版本号修复 update：v1.0.33 下载兜底闭环（hex viewkey 直接 HLS + cdn77 错误页自动切备源 + HLS Referer 修复 + 文件名修复）正常版本号升版，检查更新可用。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.34.apk",
+  "sha256": "7d7b6b4acb55216f42582c639e26dbdf146082010aebed3741115e523ec60450"
 }
