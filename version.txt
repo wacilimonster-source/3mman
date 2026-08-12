@@ -1,7 +1,7 @@
 {
-  "versionCode": 68,
-  "versionName": "1.0.35",
-  "updateMessage": "下载兜底闭环 + 路径修复：① hex viewkey 直接走 91porny HLS 源。② cdn77 错误页自动切 91porny 备源。③ HLS 兜底路径同样走 app 私有目录 fallback（之前漏了导致写到不可写目录报 error）。④ HLS 失败时「复制日志」可看具体原因。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.35.apk",
-  "sha256": "19a8f899e2b5c6b390732f8411231e8293146314e6ed99d6c1f7e9350fc69ac1"
+  "versionCode": 69,
+  "versionName": "1.0.36",
+  "updateMessage": "① 推荐流改按真实发布时间排序，越新权重越高（recencyBias 1.0→3.0）。② 修复解析/播放/下载/代理/更新/登录等 30+ 处崩溃与稳定性问题。③ 下载兜底与私有目录 fallback 闭环（见上版 1.0.35）。建议更新。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.36.apk",
+  "sha256": "46ec056769ab0d6c0f5a30aedc1bd078657a89f4308a935c1271ad528384c29b"
 }
