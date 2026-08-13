@@ -1,7 +1,7 @@
 {
-  "versionCode": 72,
-  "versionName": "1.0.39",
-  "updateMessage": "① 底部导航全面修复：适配系统手势导航区（文字不再被遮挡、底部不再出现空白条），导航栏加高标签显示更完整。② 「推荐」「分分钟」改为内嵌标签页：点击后 Tab 固定选中并直接展示对应页面，不再跳独立页面，返回后选中态与内容始终一致、可随时再次点击进入。建议更新。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.39.apk",
-  "sha256": "39e0f1120290dafd5b33c973e197a67450711ae0edeac672ccce50eae5edb29c"
+  "versionCode": 73,
+  "versionName": "1.0.40",
+  "updateMessage": "① 修复夜间模式下输入框（登录/注册/评论等）文字看不见的问题（输入框主题强制浅色导致深色字落在深色背景）。② 修复视频详情页评论输入栏被系统底部导航遮挡的问题。③ 底部导航与「推荐」「分分钟」内嵌标签页的修复已在上一版生效，本次一并稳定。建议更新。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.40.apk",
+  "sha256": "0fba14364a6ed6448ecc3e435bbd82d02cc6f5fb7c440e76233d4d5304df4a3b"
 }
