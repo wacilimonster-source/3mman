@@ -1,7 +1,7 @@
 {
-  "versionCode": 73,
-  "versionName": "1.0.40",
-  "updateMessage": "① 修复夜间模式下输入框（登录/注册/评论等）文字看不见的问题（输入框主题强制浅色导致深色字落在深色背景）。② 修复视频详情页评论输入栏被系统底部导航遮挡的问题。③ 底部导航与「推荐」「分分钟」内嵌标签页的修复已在上一版生效，本次一并稳定。建议更新。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.40.apk",
-  "sha256": "0fba14364a6ed6448ecc3e435bbd82d02cc6f5fb7c440e76233d4d5304df4a3b"
+  "versionCode": 74,
+  "versionName": "1.0.41",
+  "updateMessage": "搜索页体验优化：① 分页器统一到列表底部，不再出现在顶部；② 滚动后再次搜索其他关键词，列表自动回到顶部；③ 搜索按钮（放大镜/提交）触发区域扩大，更易点中；④ 进入搜索页新增搜索引导与空结果提示文字，页面不再空荡。建议更新。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.41.apk",
+  "sha256": "80fcfd7833d25f8939865d32bcd051fd039341ce8754dbc5a241ca568118eb82"
 }
