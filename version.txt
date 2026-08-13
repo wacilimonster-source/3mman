@@ -1,7 +1,7 @@
 {
-  "versionCode": 74,
-  "versionName": "1.0.41",
-  "updateMessage": "搜索页体验优化：① 分页器统一到列表底部，不再出现在顶部；② 滚动后再次搜索其他关键词，列表自动回到顶部；③ 搜索按钮（放大镜/提交）触发区域扩大，更易点中；④ 进入搜索页新增搜索引导与空结果提示文字，页面不再空荡。建议更新。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.41.apk",
-  "sha256": "80fcfd7833d25f8939865d32bcd051fd039341ce8754dbc5a241ca568118eb82"
+  "versionCode": 75,
+  "versionName": "1.0.42",
+  "updateMessage": "① 分分钟搜索筛选（排序/发布时间/播放量）调整后本地保存，下次搜索自动套用上次设置，无需重新打开筛选弹窗；② 性能优化：列表图片加载复用统一过渡动画、全屏列表开启固定尺寸，降低滚动卡顿与 GC 压力。建议更新。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.42.apk",
+  "sha256": "c815a2749f90253d26f8dd9e4724904a245ef8b6470bb266850448ac5c10bbed"
 }
