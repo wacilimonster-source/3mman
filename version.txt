@@ -1,7 +1,7 @@
 {
-  "versionCode": 79,
-  "versionName": "1.0.46",
-  "updateMessage": "底部导航栏文字修正为 视频/推荐/搜索/我的（第3项原为「分分钟」，改为「搜索」）；删除视频分页悬浮在导航栏上的加号按钮（不再遮挡视频列表按钮），视频详情页的加号按钮保留。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.46.apk",
-  "sha256": "f10580b6c8715181903e09cf257d56a3fa3faead726d2ed94fe0d34cc1e4eb7c"
+  "versionCode": 80,
+  "versionName": "1.0.47",
+  "updateMessage": "推荐页：移除左上角返回按钮与右上角算法调参按钮，顶部区域释放给全屏播放，画面不再遮挡底部常驻导航栏；算法调参入口移至「我的 → 推荐算法调参」。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.47.apk",
+  "sha256": "5762c0d47a7bc8d56cbcf05fce04f241d4742e3fcc4b9982d161e99f45982f47"
 }
