@@ -1,7 +1,7 @@
 {
-  "versionCode": 70,
-  "versionName": "1.0.37",
-  "updateMessage": "① UI 全面优化：列表卡片圆角化、封面时长角标、加载骨架屏、空/错误态统一。② 深色模式支持「跟随系统/开启/关闭」三态，并修正夜模式配色。③ 底部导航选中态胶囊指示。④ 修复视频分类弹窗再次点击无法关闭。建议更新。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.37.apk",
-  "sha256": "222d49824b5e0a6086b5e43a9a2f5ce2caeb1592bae719a347d19e4e522d9bd3"
+  "versionCode": 71,
+  "versionName": "1.0.38",
+  "updateMessage": "① 修复列表缩略图拉伸变形：封面按图片真实比例自适应，固定小图改为居中裁切不变形。② 修复底部导航文字被系统手势导航区遮挡显示不全。③ 分分钟翻页统一到底部，与视频分类翻页交互一致。④ 修复搜索页返回后再点搜索 TabBar 无响应（需先点其它 Tab）。建议更新。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.38.apk",
+  "sha256": "aaf5cb3dc76f959c77c691a617609936d45f3687d3d1fcb3a1a2967be9bc03a9"
 }
