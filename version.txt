@@ -1,7 +1,7 @@
 {
-  "versionCode": 76,
-  "versionName": "1.0.43",
-  "updateMessage": "修复 v1.0.42 中缩略图被纵向压扁（比例失真）的问题：回退了与自适应高度缩略图冲突的列表固定尺寸优化。保留分分钟搜索筛选持久化与图片过渡动画复用。建议更新。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.43.apk",
-  "sha256": "428204e7021d76aa1c799c4548d86b3b843a0b308a80ff0626a529446109af1b"
+  "versionCode": 77,
+  "versionName": "1.0.44",
+  "updateMessage": "修复底部导航栏下方留出黑色/系统背景空白的问题：用外层容器统一吸收系统导航条 inset，让导航栏背景覆盖手势导航条区域。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.44.apk",
+  "sha256": "1a10785145b25d3749324a7f4cbfe3660300d6653fb6369f7d52c0b23722b286"
 }
