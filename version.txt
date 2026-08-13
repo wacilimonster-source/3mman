@@ -1,7 +1,7 @@
 {
-  "versionCode": 69,
-  "versionName": "1.0.36",
-  "updateMessage": "① 推荐流改按真实发布时间排序，越新权重越高（recencyBias 1.0→3.0）。② 修复解析/播放/下载/代理/更新/登录等 30+ 处崩溃与稳定性问题。③ 下载兜底与私有目录 fallback 闭环（见上版 1.0.35）。建议更新。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.36.apk",
-  "sha256": "46ec056769ab0d6c0f5a30aedc1bd078657a89f4308a935c1271ad528384c29b"
+  "versionCode": 70,
+  "versionName": "1.0.37",
+  "updateMessage": "① UI 全面优化：列表卡片圆角化、封面时长角标、加载骨架屏、空/错误态统一。② 深色模式支持「跟随系统/开启/关闭」三态，并修正夜模式配色。③ 底部导航选中态胶囊指示。④ 修复视频分类弹窗再次点击无法关闭。建议更新。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.37.apk",
+  "sha256": "222d49824b5e0a6086b5e43a9a2f5ce2caeb1592bae719a347d19e4e522d9bd3"
 }
