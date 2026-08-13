@@ -1,7 +1,7 @@
 {
-  "versionCode": 78,
-  "versionName": "1.0.45",
-  "updateMessage": "修复 v1.0.44 引入的底部额外留白：移除对导航栏容器的 padding 推高，仅保留窗口 navigationBarColor 同色衔接，导航栏按原高度完整显示、系统导航条区域与导航栏同色无缝衔接，不再制造额外空白。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.45.apk",
-  "sha256": "d571b3919a12d79c820d1d338462066635e9040678dfebdfe0ca93848e76b313"
+  "versionCode": 79,
+  "versionName": "1.0.46",
+  "updateMessage": "底部导航栏文字修正为 视频/推荐/搜索/我的（第3项原为「分分钟」，改为「搜索」）；删除视频分页悬浮在导航栏上的加号按钮（不再遮挡视频列表按钮），视频详情页的加号按钮保留。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.46.apk",
+  "sha256": "f10580b6c8715181903e09cf257d56a3fa3faead726d2ed94fe0d34cc1e4eb7c"
 }
