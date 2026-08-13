@@ -1,7 +1,7 @@
 {
-  "versionCode": 80,
-  "versionName": "1.0.47",
-  "updateMessage": "推荐页：移除左上角返回按钮与右上角算法调参按钮，顶部区域释放给全屏播放，画面不再遮挡底部常驻导航栏；算法调参入口移至「我的 → 推荐算法调参」。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.47.apk",
+  "versionCode": 81,
+  "versionName": "1.0.48",
+  "updateMessage": "我的下载：修复信息显示不全与未滑动时删除按钮露边；修复下载完成视频点击播放误报「文件不存在」（Android 11+ 下载目录重定向到私有目录导致路径不匹配）；删除改为可选「仅删除记录」或「连同本地文件删除」。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.48.apk",
   "sha256": "5762c0d47a7bc8d56cbcf05fce04f241d4742e3fcc4b9982d161e99f45982f47"
 }
