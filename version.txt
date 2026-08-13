@@ -1,7 +1,7 @@
 {
-  "versionCode": 75,
-  "versionName": "1.0.42",
-  "updateMessage": "① 分分钟搜索筛选（排序/发布时间/播放量）调整后本地保存，下次搜索自动套用上次设置，无需重新打开筛选弹窗；② 性能优化：列表图片加载复用统一过渡动画、全屏列表开启固定尺寸，降低滚动卡顿与 GC 压力。建议更新。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.42.apk",
-  "sha256": "c815a2749f90253d26f8dd9e4724904a245ef8b6470bb266850448ac5c10bbed"
+  "versionCode": 76,
+  "versionName": "1.0.43",
+  "updateMessage": "修复 v1.0.42 中缩略图被纵向压扁（比例失真）的问题：回退了与自适应高度缩略图冲突的列表固定尺寸优化。保留分分钟搜索筛选持久化与图片过渡动画复用。建议更新。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.43.apk",
+  "sha256": "428204e7021d76aa1c799c4548d86b3b843a0b308a80ff0626a529446109af1b"
 }
