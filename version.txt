@@ -1,7 +1,7 @@
 {
-  "versionCode": 71,
-  "versionName": "1.0.38",
-  "updateMessage": "① 修复列表缩略图拉伸变形：封面按图片真实比例自适应，固定小图改为居中裁切不变形。② 修复底部导航文字被系统手势导航区遮挡显示不全。③ 分分钟翻页统一到底部，与视频分类翻页交互一致。④ 修复搜索页返回后再点搜索 TabBar 无响应（需先点其它 Tab）。建议更新。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.38.apk",
-  "sha256": "aaf5cb3dc76f959c77c691a617609936d45f3687d3d1fcb3a1a2967be9bc03a9"
+  "versionCode": 72,
+  "versionName": "1.0.39",
+  "updateMessage": "① 底部导航全面修复：适配系统手势导航区（文字不再被遮挡、底部不再出现空白条），导航栏加高标签显示更完整。② 「推荐」「分分钟」改为内嵌标签页：点击后 Tab 固定选中并直接展示对应页面，不再跳独立页面，返回后选中态与内容始终一致、可随时再次点击进入。建议更新。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.39.apk",
+  "sha256": "39e0f1120290dafd5b33c973e197a67450711ae0edeac672ccce50eae5edb29c"
 }
