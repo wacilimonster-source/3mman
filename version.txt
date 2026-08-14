@@ -1,7 +1,7 @@
 {
-  "versionCode": 86,
-  "versionName": "1.0.53",
-  "updateMessage": "我的下载：修复下载卡片缩略图与文字展示不全；下载完成视频改为App内本地播放；修复推荐页视频下载报「还未解析成功视频地址」。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.53.apk",
-  "sha256": "e1b3ce9838a7bae0d3ead9e40a048cdfda34f50ded6ae774f98448be1cf1875e"
+  "versionCode": 87,
+  "versionName": "1.0.54",
+  "updateMessage": "修复视频分类下载误判「源站受限」（探活未带Referer导致直链被403拒绝）；分分钟备用源下载任务正确进入「我的下载」列表。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.54.apk",
+  "sha256": "4ada01b682f4e39d5a9ae8437c6901d1ed28eb9140a801271b2eb6d55a320e91"
 }
