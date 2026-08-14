@@ -1,7 +1,7 @@
 {
-  "versionCode": 85,
-  "versionName": "1.0.52",
-  "updateMessage": "推荐页视频播放器增加全屏按钮（点击进入横屏全屏播放）。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.52.apk",
-  "sha256": "3f4e610a02d864a0ebb7e8f2330e1f3f66531f21ef867bcddb2be32f04aed80a"
+  "versionCode": 86,
+  "versionName": "1.0.53",
+  "updateMessage": "我的下载：修复下载卡片缩略图与文字展示不全；下载完成视频改为App内本地播放；修复推荐页视频下载报「还未解析成功视频地址」。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.53.apk",
+  "sha256": "e1b3ce9838a7bae0d3ead9e40a048cdfda34f50ded6ae774f98448be1cf1875e"
 }
