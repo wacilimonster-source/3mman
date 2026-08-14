@@ -1,7 +1,7 @@
 {
-  "versionCode": 82,
-  "versionName": "1.0.49",
-  "updateMessage": "视频列表改为滚动到底部自动加载下一页（不再依赖跳页组件触发）；视频详情作者标签页同步支持滚动加载；跳页功能默认开启（设置页移除开关）；推荐页播放区域从导航栏上方开始，不再被底部导航栏遮挡。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.49.apk",
-  "sha256": "4542a685df47a7a808fb125fde16808adc6d7166b36623076844cb60eb31354d"
+  "versionCode": 83,
+  "versionName": "1.0.50",
+  "updateMessage": "视频分类列表与视频详情作者页改回分页组件（跳页栏）翻页，不再用滚动加载；作者页新增跳页栏；跳页功能默认开启（设置页无开关）；推荐页播放进度条/时间从导航栏上方开始，不再被遮挡。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.50.apk",
+  "sha256": "40372b3e84866ace0d490a3cf62f12634b6276d6dcdd9d1101cf9bc2dfeb308d"
 }
