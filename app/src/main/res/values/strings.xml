@@ -22,9 +22,13 @@
     <string name="about_me">关于</string>
     <string name="pl_login">请登录</string>
     <string name="no_data">暂无数据</string>
+    <string name="click_retry">点击重试</string>
+    <string name="load_error_click_retry">加载失败，请确认当前地址可访问</string>
     <string name="collect">收藏</string>
     <string name="download">下载</string>
     <string name="history_views">最近浏览</string>
+    <string name="search_history_title">搜索历史</string>
+    <string name="search_history_delete_confirm">确定删除搜索历史“%s”吗？</string>
     <string name="register">注册</string>
     <string name="exit_app">退出程序</string>
     <string name="share">分享</string>
@@ -56,6 +60,7 @@
 
     <string name="title_video">视频</string>
     <string name="title_porny">分分钟</string>
+    <string name="title_search">搜索</string>
     <string name="title_dashboard">草榴</string>
     <string name="title_forum">论坛</string>
     <string name="title_music">音乐</string>
@@ -100,6 +105,10 @@
     <string name="porny_filter_all">全部</string>
     <string name="porny_local_favorite">分分钟收藏</string>
     <string name="author_favorite">作者收藏</string>
+
+    <!-- 分分钟搜索页提示 -->
+    <string name="search_hint_default">搜索 分分钟 视频\n输入关键词，如：热门 / 最新 / 女优名\n（点击此处也可直接搜索）</string>
+    <string name="search_empty_result">没有找到相关的视频\n换个关键词试试</string>
 
     <!-- 推荐流 -->
     <string name="title_recommend">推荐</string>

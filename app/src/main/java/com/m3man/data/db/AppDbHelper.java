@@ -338,4 +338,58 @@ public class AppDbHelper implements DbHelper {
             // 写入失败不应影响设置保存
         }
     }
+
+    // ---- 搜索历史（复用 AutoCompleteEntity 表，type = TYPE_SEARCH_HISTORY） ----
+
+    @Override
+    public List<String> getSearchHistory(int type, int limit) {
+        List<String> names = new ArrayList<>();
+        try {
+            List<AutoCompleteEntity> list = mDaoSession.getAutoCompleteEntityDao().queryBuilder()
+                    .where(AutoCompleteEntityDao.Properties.Type.eq(type))
+                    .orderDesc(AutoCompleteEntityDao.Properties.UpdateDate)
+                    .limit(limit)
+                    .list();
+            for (AutoCompleteEntity e : list) {
+                if (!TextUtils.isEmpty(e.getName()) && !names.contains(e.getName())) {
+                    names.add(e.getName());
+                }
+            }
+        } catch (Exception e) {
+            // 查询异常不应影响 UI
+        }
+        return names;
+    }
+
+    @Override
+    public void clearSearchHistory(int type) {
+        try {
+            List<AutoCompleteEntity> list = mDaoSession.getAutoCompleteEntityDao().queryBuilder()
+                    .where(AutoCompleteEntityDao.Properties.Type.eq(type))
+                    .list();
+            if (list != null && !list.isEmpty()) {
+                mDaoSession.getAutoCompleteEntityDao().deleteInTx(list);
+            }
+        } catch (Exception e) {
+            // 删除失败不应影响 UI
+        }
+    }
+
+    @Override
+    public void deleteSearchHistory(String name, int type) {
+        if (TextUtils.isEmpty(name)) {
+            return;
+        }
+        try {
+            AutoCompleteEntity entity = mDaoSession.getAutoCompleteEntityDao().queryBuilder()
+                    .where(AutoCompleteEntityDao.Properties.Name.eq(name),
+                            AutoCompleteEntityDao.Properties.Type.eq(type))
+                    .unique();
+            if (entity != null) {
+                mDaoSession.getAutoCompleteEntityDao().delete(entity);
+            }
+        } catch (Exception e) {
+            // 删除失败不应影响 UI
+        }
+    }
 }

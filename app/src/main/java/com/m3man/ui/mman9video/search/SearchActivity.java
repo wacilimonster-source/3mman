@@ -7,6 +7,7 @@ import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.AdapterView;
 
 import com.chad.library.adapter.base.BaseQuickAdapter;
@@ -18,7 +19,9 @@ import com.sdsmdg.tastytoast.TastyToast;
 import com.m3man.R;
 import com.m3man.adapter.V91MmanAdapter;
 import com.m3man.data.db.entity.V9MmanItem;
+import com.m3man.data.DataManager;
 import com.m3man.ui.MvpActivity;
+import com.m3man.ui.search.SearchHistoryPanel;
 import com.m3man.utils.LoadHelperUtils;
 
 import org.angmarch.views.NiceSpinner;
@@ -54,9 +57,12 @@ public class SearchActivity extends MvpActivity<SearchView, SearchPresenter> imp
     private String sort = "addate";
     private V91MmanAdapter mV91MmanAdapter;
     private LoadViewHelper helper;
+    private SearchHistoryPanel searchHistoryPanel;
 
     @Inject
     protected SearchPresenter searchPresenter;
+    @Inject
+    protected DataManager dataManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,6 +71,21 @@ public class SearchActivity extends MvpActivity<SearchView, SearchPresenter> imp
         ButterKnife.bind(this);
         init();
         setListener();
+        // 搜索历史面板
+        searchHistoryPanel = new SearchHistoryPanel(findViewById(R.id.layout_search_history), dataManager,
+                new SearchHistoryPanel.OnHistoryItemClickListener() {
+                    @Override
+                    public void onHistoryItemClick(String keyword) {
+                        if (TextUtils.isEmpty(keyword)) {
+                            return;
+                        }
+                        searchId = keyword;
+                        searchView.setQuery(keyword, false);
+                        presenter.searchVideos(searchId, sort, true);
+                        searchHistoryPanel.hide();
+                    }
+                });
+        searchHistoryPanel.show();
         boolean isFirst = presenter.isFirstInSearchMman91Video();
         if (isFirst) {
             showTipDialog();
@@ -128,22 +149,33 @@ public class SearchActivity extends MvpActivity<SearchView, SearchPresenter> imp
         searchView.setOnQueryTextListener(new android.support.v7.widget.SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
+                if (!TextUtils.isEmpty(query)) {
+                    searchHistoryPanel.onKeywordSubmitted(query);
+                }
                 if (query.equals(searchId)) {
+                    searchHistoryPanel.hide();
                     return false;
                 }
                 searchId = query;
                 presenter.searchVideos(searchId, sort, true);
+                searchHistoryPanel.hide();
                 return false;
             }
 
             @Override
             public boolean onQueryTextChange(String newText) {
+                if (TextUtils.isEmpty(newText)) {
+                    searchHistoryPanel.show();
+                } else {
+                    searchHistoryPanel.hide();
+                }
                 return false;
             }
         });
         searchView.setOnCloseListener(new android.support.v7.widget.SearchView.OnCloseListener() {
             @Override
             public boolean onClose() {
+                searchHistoryPanel.show();
                 return true;
             }
         });

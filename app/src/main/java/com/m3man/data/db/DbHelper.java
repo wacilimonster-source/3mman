@@ -63,4 +63,15 @@ public interface DbHelper {
     List<String> getAutoCompleteNames(int type);
 
     void saveAutoComplete(String name, int type);
+
+    // ---- 搜索历史（复用 AutoCompleteEntity 表，type = TYPE_SEARCH_HISTORY） ----
+
+    /** 按最近使用时间倒序返回搜索历史（最多 limit 条） */
+    List<String> getSearchHistory(int type, int limit);
+
+    /** 清空指定类型的全部搜索历史 */
+    void clearSearchHistory(int type);
+
+    /** 删除单条搜索历史 */
+    void deleteSearchHistory(String name, int type);
 }

@@ -406,6 +406,16 @@ public class AppDataManager implements DataManager {
     }
 
     @Override
+    public void setNightMode(int nightMode) {
+        mPreferencesHelper.setNightMode(nightMode);
+    }
+
+    @Override
+    public int getNightMode() {
+        return mPreferencesHelper.getNightMode();
+    }
+
+    @Override
     public void setProxyIpAddress(String proxyIpAddress) {
         mPreferencesHelper.setProxyIpAddress(proxyIpAddress);
     }
@@ -674,6 +684,9 @@ public class AppDataManager implements DataManager {
     public void existLogin() {
         cookieManager.cleanAllCookies();
         user.cleanProperties();
+        // H6：同时清空持久化的登录用户名，否则重启后构造函数会再次恢复"假登录态"。
+        // 设置页与"我的"页退出均走此路径，统一在此清理可保证两处行为一致。
+        mPreferencesHelper.setMman9VideoLoginUserName("");
     }
 
     @Override
@@ -729,5 +742,50 @@ public class AppDataManager implements DataManager {
     @Override
     public void saveAutoComplete(String name, int type) {
         mDbHelper.saveAutoComplete(name, type);
+    }
+
+    @Override
+    public List<String> getSearchHistory(int type, int limit) {
+        return mDbHelper.getSearchHistory(type, limit);
+    }
+
+    @Override
+    public void clearSearchHistory(int type) {
+        mDbHelper.clearSearchHistory(type);
+    }
+
+    @Override
+    public void deleteSearchHistory(String name, int type) {
+        mDbHelper.deleteSearchHistory(name, type);
+    }
+
+    @Override
+    public void setPornySearchSort(String sort) {
+        mPreferencesHelper.setPornySearchSort(sort);
+    }
+
+    @Override
+    public String getPornySearchSort() {
+        return mPreferencesHelper.getPornySearchSort();
+    }
+
+    @Override
+    public void setPornySearchTime(String time) {
+        mPreferencesHelper.setPornySearchTime(time);
+    }
+
+    @Override
+    public String getPornySearchTime() {
+        return mPreferencesHelper.getPornySearchTime();
+    }
+
+    @Override
+    public void setPornySearchViews(String views) {
+        mPreferencesHelper.setPornySearchViews(views);
+    }
+
+    @Override
+    public String getPornySearchViews() {
+        return mPreferencesHelper.getPornySearchViews();
     }
 }

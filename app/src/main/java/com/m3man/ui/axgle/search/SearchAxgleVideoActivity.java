@@ -9,6 +9,7 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SearchView;
 import android.support.v7.widget.Toolbar;
+import android.text.TextUtils;
 import android.view.View;
 
 import com.chad.library.adapter.base.BaseQuickAdapter;
@@ -16,7 +17,9 @@ import com.m3man.R;
 import com.m3man.adapter.AxgleAdapter;
 import com.m3man.constants.Keys;
 import com.m3man.data.model.axgle.AxgleVideo;
+import com.m3man.data.DataManager;
 import com.m3man.ui.MvpActivity;
+import com.m3man.ui.search.SearchHistoryPanel;
 import com.m3man.ui.axgle.play.AxglePlayActivity;
 import com.m3man.utils.DialogUtils;
 
@@ -31,6 +34,8 @@ public class SearchAxgleVideoActivity extends MvpActivity<SearchAxgleVideoView, 
 
     @Inject
     protected SearchAxgleVideoPresenter searchAxgleVideoPresenter;
+    @Inject
+    protected DataManager dataManager;
     @BindView(R.id.search_view)
     SearchView searchView;
     @BindView(R.id.toolbar)
@@ -41,6 +46,7 @@ public class SearchAxgleVideoActivity extends MvpActivity<SearchAxgleVideoView, 
     AppCompatCheckBox checkboxSearchJavVideo;
 
     private String searchId;
+    private SearchHistoryPanel searchHistoryPanel;
 
     private AxgleAdapter axgleAdapter;
 
@@ -84,26 +90,51 @@ public class SearchAxgleVideoActivity extends MvpActivity<SearchAxgleVideoView, 
                 presenter.searchAxgleVideo(searchId, checkboxSearchJavVideo.isChecked(), false);
             }
         }, recyclerViewSearchAxgleVideo);
+
+        // 搜索历史面板
+        searchHistoryPanel = new SearchHistoryPanel(findViewById(R.id.layout_search_history), dataManager,
+                new SearchHistoryPanel.OnHistoryItemClickListener() {
+                    @Override
+                    public void onHistoryItemClick(String keyword) {
+                        if (TextUtils.isEmpty(keyword)) {
+                            return;
+                        }
+                        searchId = keyword;
+                        searchView.setQuery(keyword, false);
+                        presenter.searchAxgleVideo(searchId, checkboxSearchJavVideo.isChecked(), true);
+                        searchHistoryPanel.hide();
+                    }
+                });
+        searchHistoryPanel.show();
     }
 
     private void setListener() {
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
-
+                if (!TextUtils.isEmpty(query)) {
+                    searchHistoryPanel.onKeywordSubmitted(query);
+                }
                 searchId = query;
                 presenter.searchAxgleVideo(searchId, checkboxSearchJavVideo.isChecked(), true);
+                searchHistoryPanel.hide();
                 return false;
             }
 
             @Override
             public boolean onQueryTextChange(String newText) {
+                if (TextUtils.isEmpty(newText)) {
+                    searchHistoryPanel.show();
+                } else {
+                    searchHistoryPanel.hide();
+                }
                 return false;
             }
         });
         searchView.setOnCloseListener(new SearchView.OnCloseListener() {
             @Override
             public boolean onClose() {
+                searchHistoryPanel.show();
                 return true;
             }
         });

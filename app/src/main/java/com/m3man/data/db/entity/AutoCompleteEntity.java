@@ -17,6 +17,8 @@ import java.util.Date;
 public class AutoCompleteEntity {
     /** M3：地址自动补全建议的类型标签（与用户名等区分） */
     public static final int TYPE_ADDRESS = 1;
+    /** 搜索历史类型标签（复用本表存储关键词历史，全局共享一份） */
+    public static final int TYPE_SEARCH_HISTORY = 2;
 
     @Id
     private Long id;

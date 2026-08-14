@@ -1,7 +1,7 @@
 {
-  "versionCode": 87,
-  "versionName": "1.0.54",
-  "updateMessage": "修复视频分类下载误判「源站受限」（探活未带Referer导致直链被403拒绝）；分分钟备用源下载任务正确进入「我的下载」列表。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.54.apk",
-  "sha256": "4ada01b682f4e39d5a9ae8437c6901d1ed28eb9140a801271b2eb6d55a320e91"
+  "versionCode": 88,
+  "versionName": "1.0.55",
+  "updateMessage": "新增搜索历史：进入搜索即展示最近关键词，点击回填、长按删除、一键清空；四个搜索入口（91 / 分分钟 / 站内）通用。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.55.apk",
+  "sha256": "df52ca4b8a522a309fce517b1b67db810c7ef808c870198286c7793ebc2882b9"
 }
