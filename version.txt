@@ -1,7 +1,7 @@
 {
-  "versionCode": 84,
-  "versionName": "1.0.51",
-  "updateMessage": "视频列表/作者页彻底移除滚动加载，仅保留跳页栏翻页；推荐页视频增加全屏按钮。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.51.apk",
-  "sha256": "a78cbe7e2822772f00c028003d632c1f823b177b08d235bcd876fe739149fa59"
+  "versionCode": 85,
+  "versionName": "1.0.52",
+  "updateMessage": "推荐页视频播放器增加全屏按钮（点击进入横屏全屏播放）。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.52.apk",
+  "sha256": "3f4e610a02d864a0ebb7e8f2330e1f3f66531f21ef867bcddb2be32f04aed80a"
 }
