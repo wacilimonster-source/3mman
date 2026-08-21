@@ -1,7 +1,7 @@
 {
-  "versionCode": 91,
-  "versionName": "1.0.58",
-  "updateMessage": "修复点击推荐闪退；修复分分钟(91porny)搜索闪退；恢复1.0.41-1.0.55完整功能；精简设置页四个无用开关。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.58.apk",
-  "sha256": "2f822ba856bd8283255cd386ad190e3e029244e386ec67a17185c7627f65bedb"
+  "versionCode": 92,
+  "versionName": "1.0.59",
+  "updateMessage": "修复点推荐闪退；修复点分分钟(91porny)搜索闪退；恢复1.0.41-1.0.55完整功能；精简设置页四个无用开关。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.59.apk",
+  "sha256": "25a3867b24a7214d7612eccda387d4390c2a73f772586db5c543dde7fab74965"
 }
