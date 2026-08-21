@@ -1,7 +1,7 @@
 {
-  "versionCode": 88,
-  "versionName": "1.0.55",
-  "updateMessage": "紧急回滚：1.0.56 构建基于不完整源码存在分分钟闪退；先回滚到 1.0.55，待修复后重新发布。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.55.apk",
-  "sha256": "df52ca4b8a522a309fce517b1b67db810c7ef808c870198286c7793ebc2882b9"
+  "versionCode": 90,
+  "versionName": "1.0.57",
+  "updateMessage": "修复分分钟(91porny)搜索闪退；恢复1.0.41-1.0.55间完整功能(搜索历史/分页/筛选/HLS下载等)；精简设置页四个无用开关(固定导航/视频跳页/Google验证/重定向弹窗)。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.57.apk",
+  "sha256": "936a98771012afeaccd96212b745fbd687db8621dee136af9ffef9e794129a02"
 }

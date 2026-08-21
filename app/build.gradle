@@ -8,8 +8,8 @@ android {
         applicationId "com.m3man"
         minSdkVersion parent.ext.minSdkVersion
         targetSdkVersion parent.ext.targetSdkVersion
-        versionCode 89
-        versionName "1.0.56"
+        versionCode 90
+        versionName "1.0.57"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
         multiDexEnabled true
@@ -21,7 +21,10 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file('../3mman.jks')
+            storeFile file('C:/gwork/origks/debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
         }
     }
 
