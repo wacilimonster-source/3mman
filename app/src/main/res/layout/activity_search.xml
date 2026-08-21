@@ -53,6 +53,13 @@
             app:backgroundSelector="@color/common_background"
             android:layout_margin="2dp" />
 
+        <!-- 搜索历史面板（默认隐藏，无历史 / 未搜索时展示；SearchActivity 与 SearchPornyActivity 共用） -->
+        <include
+            android:id="@+id/layout_search_history"
+            layout="@layout/layout_search_history"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
         <android.support.v7.widget.RecyclerView
             android:id="@+id/recyclerView"
             android:layout_width="match_parent"
