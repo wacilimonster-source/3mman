@@ -1,7 +1,7 @@
 {
-  "versionCode": 89,
-  "versionName": "1.0.56",
-  "updateMessage": "删除 Axgle、Pxgav/PAV、KeDouWo 数据源，保留 91porn/mman9 与 91porny 功能；修复并优化更新分发。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.56.apk",
-  "sha256": "d8746f12869eab4eaf334559876829c04ff58aecd84f26898db1c50c617c0d49"
+  "versionCode": 88,
+  "versionName": "1.0.55",
+  "updateMessage": "紧急回滚：1.0.56 构建基于不完整源码存在分分钟闪退；先回滚到 1.0.55，待修复后重新发布。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.55.apk",
+  "sha256": "df52ca4b8a522a309fce517b1b67db810c7ef808c870198286c7793ebc2882b9"
 }
