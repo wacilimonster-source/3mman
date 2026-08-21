@@ -106,50 +106,11 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         addressItemWithChevron.setDetailText(TextUtils.isEmpty(video91Address) ? "未设置" : video91Address);
         addressItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
 
-        //ZhuGuLi视频地址
-        QMUICommonListItemView pigAvAddressItemWithChevron = qmuiGroupListView.createItemView(getString(R.string.address_pa));
-        pigAvAddressItemWithChevron.setOrientation(QMUICommonListItemView.VERTICAL);
-        String pigAvAddress = presenter.getPavAddress();
-        pigAvAddressItemWithChevron.setDetailText(TextUtils.isEmpty(pigAvAddress) ? "未设置" : pigAvAddress);
-        pigAvAddressItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
-
-        //Axgle视频地址设置
-        QMUICommonListItemView axgleAddressItemWithChevron = qmuiGroupListView.createItemView(getString(R.string.address_axgle));
-        axgleAddressItemWithChevron.setOrientation(QMUICommonListItemView.VERTICAL);
-        String axgleAddress = presenter.getAxgleAddress();
-        axgleAddressItemWithChevron.setDetailText(TextUtils.isEmpty(axgleAddress) ? "请设置API地址(注意，是带“api”字的地址)" : axgleAddress);
-        axgleAddressItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
-
-        //蝌蚪窝地址
-        QMUICommonListItemView kedouwoAddressItemWithChevron = qmuiGroupListView.createItemView(getString(R.string.address_kedou));
-        kedouwoAddressItemWithChevron.setOrientation(QMUICommonListItemView.VERTICAL);
-        kedouwoAddressItemWithChevron.setId(R.id.setting_item_kedou_address);
-        String kedouwoAddress = presenter.getKeDouWoAddress();
-        kedouwoAddressItemWithChevron.setDetailText(TextUtils.isEmpty(kedouwoAddress) ? "未设置" : kedouwoAddress);
-        kedouwoAddressItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
 
         tsec.addItemView(addressItemWithChevron, new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 showAddressSettingDialog((QMUICommonListItemView) v, AppPreferencesHelper.KEY_SP_PORN_91_VIDEO_ADDRESS);
-            }
-        });
-        tsec.addItemView(pigAvAddressItemWithChevron, new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showAddressSettingDialog((QMUICommonListItemView) v, AppPreferencesHelper.KEY_SP_PIG_AV_ADDRESS);
-            }
-        });
-        tsec.addItemView(axgleAddressItemWithChevron, new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showAddressSettingDialog((QMUICommonListItemView) v, AppPreferencesHelper.KEY_SP_AXGLE_ADDRESS);
-            }
-        });
-        tsec.addItemView(kedouwoAddressItemWithChevron, new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showAddressSettingDialog((QMUICommonListItemView) v, AppPreferencesHelper.KEY_SP_KE_DOU_WO_ADDRESS);
             }
         });
 
@@ -378,12 +339,6 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         switch (key) {
             case AppPreferencesHelper.KEY_SP_PORN_91_VIDEO_ADDRESS:
                 return "9*mman视频地址设置";
-            case AppPreferencesHelper.KEY_SP_PIG_AV_ADDRESS:
-                return "P*gav地址设置";
-            case AppPreferencesHelper.KEY_SP_AXGLE_ADDRESS:
-                return "A*gle地址设置";
-            case AppPreferencesHelper.KEY_SP_KE_DOU_WO_ADDRESS:
-                return "KeDouWo地址设置";
             case AppPreferencesHelper.KEY_SP_PORNY_ADDRESS:
                 return "91porny地址设置";
             default:
@@ -409,15 +364,6 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
             switch (key) {
                 case AppPreferencesHelper.KEY_SP_PORN_91_VIDEO_ADDRESS:
                     autoCompleteTextView.setText(presenter.getVideo9MmanAddress());
-                    break;
-                case AppPreferencesHelper.KEY_SP_PIG_AV_ADDRESS:
-                    autoCompleteTextView.setText(presenter.getPavAddress());
-                    break;
-                case AppPreferencesHelper.KEY_SP_AXGLE_ADDRESS:
-                    autoCompleteTextView.setText(presenter.getAxgleAddress());
-                    break;
-                case AppPreferencesHelper.KEY_SP_KE_DOU_WO_ADDRESS:
-                    autoCompleteTextView.setText(presenter.getKeDouWoAddress());
                     break;
 
                 case AppPreferencesHelper.KEY_SP_PORNY_ADDRESS:
@@ -492,12 +438,6 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
             case AppPreferencesHelper.KEY_SP_PORN_91_VIDEO_ADDRESS:
                 presenter.test9MmanVideo(address, qmuiCommonListItemView, key);
                 break;
-            case AppPreferencesHelper.KEY_SP_PIG_AV_ADDRESS:
-                presenter.testPav(address, qmuiCommonListItemView, key);
-                break;
-                case AppPreferencesHelper.KEY_SP_AXGLE_ADDRESS:
-                    presenter.testAxgle(address, qmuiCommonListItemView, key);
-                    break;
                 case AppPreferencesHelper.KEY_SP_PORNY_ADDRESS:
                     presenter.testPorny(address, qmuiCommonListItemView, key);
                     break;
@@ -516,21 +456,6 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
                 // 全局 BaseUrl 的优先级低于 Domain-Name header 中单独配置的,其他未配置的接口将受全局 BaseUrl 的影响
                 if (!TextUtils.isEmpty(presenter.getVideo9MmanAddress())) {
                     RetrofitUrlManager.getInstance().putDomain(Api.PORN9_VIDEO_DOMAIN_NAME, presenter.getVideo9MmanAddress());
-                }
-                break;
-            case AppPreferencesHelper.KEY_SP_PIG_AV_ADDRESS:
-                if (!TextUtils.isEmpty(presenter.getPavAddress())) {
-                    RetrofitUrlManager.getInstance().putDomain(Api.PA_DOMAIN_NAME, presenter.getPavAddress());
-                }
-                break;
-            case AppPreferencesHelper.KEY_SP_AXGLE_ADDRESS:
-                if (!TextUtils.isEmpty(presenter.getAxgleAddress())) {
-                    RetrofitUrlManager.getInstance().putDomain(Api.AXGLE_DOMAIN_NAME, presenter.getAxgleAddress());
-                }
-                break;
-            case AppPreferencesHelper.KEY_SP_KE_DOU_WO_ADDRESS:
-                if (!TextUtils.isEmpty(presenter.getKeDouWoAddress())) {
-                    RetrofitUrlManager.getInstance().putDomain(Api.KE_DOU_WO_DOMAIN_NAME, presenter.getKeDouWoAddress());
                 }
                 break;
             case AppPreferencesHelper.KEY_SP_PORNY_ADDRESS:
@@ -553,15 +478,6 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         switch (key) {
             case AppPreferencesHelper.KEY_SP_PORN_91_VIDEO_ADDRESS:
                 presenter.setMman9VideoAddress(address);
-                break;
-            case AppPreferencesHelper.KEY_SP_PIG_AV_ADDRESS:
-                presenter.setPavAddress(address);
-                break;
-            case AppPreferencesHelper.KEY_SP_AXGLE_ADDRESS:
-                presenter.setAxgleAddress(address);
-                break;
-            case AppPreferencesHelper.KEY_SP_KE_DOU_WO_ADDRESS:
-                presenter.setKeDouWoAddress(address);
                 break;
             case AppPreferencesHelper.KEY_SP_PORNY_ADDRESS:
                 presenter.setPornyAddress(address);

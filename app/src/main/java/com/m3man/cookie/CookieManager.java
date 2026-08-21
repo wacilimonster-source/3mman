@@ -13,7 +13,5 @@ public interface CookieManager {
      */
     void resetMman91VideoWatchTime(boolean forceReset);
 
-    void resetKeDouWoVideoWatchTime();
-
     void cleanAllCookies();
 }

@@ -29,12 +29,6 @@ public interface IMain {
 
     boolean haveNotSetV9pronAddress();
 
-    boolean haveNotSetPavAddress();
-
-    boolean haveNotSetAxgleAddress();
-
-    boolean haveNotSetKeDouWoAddress();
-
     boolean isPornyEnabled();
 
     boolean isUserLogin();

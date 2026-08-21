@@ -14,10 +14,6 @@ public interface ISetting {
     void test9MmanVideo(String baseUrl, QMUICommonListItemView qmuiCommonListItemView, String key);
 
 
-    void testPav(String baseUrl, QMUICommonListItemView qmuiCommonListItemView, String key);
-
-    void testAxgle(String baseUrl, QMUICommonListItemView qmuiCommonListItemView, String key);
-
     void testPorny(String baseUrl, QMUICommonListItemView qmuiCommonListItemView, String key);
 
     boolean isPornyEnabled();
@@ -48,9 +44,6 @@ public interface ISetting {
 
     void setMman9VideoAddress(String mman9VideoAddress);
 
-
-    void setPavAddress(String pavAddress);
-
     void setCustomDownloadVideoDirPath(String newDirPath);
 
     String getCustomDownloadVideoDirPath();
@@ -69,21 +62,9 @@ public interface ISetting {
 
     String getVideo9MmanAddress();
 
-
-    String getPavAddress();
-
     boolean isShowUrlRedirectTipDialog();
 
     void setShowUrlRedirectTipDialog(boolean showUrlRedirectTipDialog);
-
-    void setAxgleAddress(String address);
-
-    String getAxgleAddress();
-
-    void setKeDouWoAddress(String address);
-
-    String getKeDouWoAddress();
-
     boolean isFixMainNavigation();
 
     void setFixMainNavigation(boolean fixMainNavigation);

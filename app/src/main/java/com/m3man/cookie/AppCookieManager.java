@@ -107,40 +107,6 @@ public class AppCookieManager implements CookieManager {
     }
 
     @Override
-    public void resetKeDouWoVideoWatchTime() {
-        Observable.fromCallable(new Callable<List<Cookie>>() {
-            @Override
-            public List<Cookie> call() throws Exception {
-                return sharedPrefsCookiePersistor.loadAll();
-            }
-        }).flatMap(new Function<List<Cookie>, ObservableSource<Cookie>>() {
-            @Override
-            public ObservableSource<Cookie> apply(List<Cookie> cookies) throws Exception {
-                return Observable.fromIterable(cookies);
-            }
-        }).filter(new Predicate<Cookie>() {
-            @Override
-            public boolean test(Cookie cookie) throws Exception {
-                return "video_log".equals(cookie.name());
-//                return "kt_qparams".equals(cookie.name());
-            }
-        }).compose(RxSchedulersHelper.ioMainThread())
-                .subscribe(new CallBackWrapper<Cookie>() {
-                    @Override
-                    public void onSuccess(Cookie cookie) {
-                        Logger.t(TAG).d("kedouwo已经观看10次，重置cookies");
-                        sharedPrefsCookiePersistor.delete(cookie);
-                        setCookieCache.delete(cookie);
-                    }
-
-                    @Override
-                    public void onError(String msg, int code) {
-                        Logger.t(TAG).d("重置观看次数出错了：" + msg);
-                    }
-                });
-    }
-
-    @Override
     public void cleanAllCookies() {
         persistentCookieJar.clear();
     }

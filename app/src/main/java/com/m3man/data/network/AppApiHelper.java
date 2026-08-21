@@ -18,17 +18,7 @@ import com.m3man.data.model.UpdateVersion;
 import com.m3man.data.model.User;
 import com.m3man.data.model.VideoComment;
 import com.m3man.data.model.VideoCommentResult;
-import com.m3man.data.model.axgle.Axgle;
-import com.m3man.data.model.axgle.AxgleResponse;
-import com.m3man.data.model.kedouwo.KeDouModel;
-import com.m3man.data.model.kedouwo.KeDouRelated;
-import com.m3man.data.model.pxgav.PxgavLoadMoreResponse;
-import com.m3man.data.model.pxgav.PxgavResultWithBlockId;
-import com.m3man.data.model.pxgav.PxgavVideoParserJsonResult;
-import com.m3man.data.network.apiservice.AxgleServiceApi;
 import com.m3man.data.network.apiservice.GitHubServiceApi;
-import com.m3man.data.network.apiservice.KeDouServiceApi;
-import com.m3man.data.network.apiservice.PavServiceApi;
 import com.m3man.data.network.apiservice.PornyServiceApi;
 import com.m3man.data.network.apiservice.ProxyServiceApi;
 import com.m3man.data.network.apiservice.V9MmanServiceApi;
@@ -36,10 +26,8 @@ import com.m3man.data.network.okhttp.HeaderUtils;
 import com.m3man.data.network.okhttp.MyProxySelector;
 import com.m3man.exception.FavoriteException;
 import com.m3man.exception.MessageException;
-import com.m3man.parser.ParseKeDouWo;
 import com.m3man.parser.Parse91PornyVideo;
 import com.m3man.parser.ParseProxy;
-import com.m3man.parser.ParsePxgav;
 import com.m3man.parser.ParseV9MmanVideo;
 import com.m3man.rxjava.RetryWhenProcess;
 import com.m3man.utils.AddressHelper;
@@ -85,10 +73,7 @@ public class AppApiHelper implements ApiHelper {
 
     private V9MmanServiceApi     v9MmanServiceApi;
     private GitHubServiceApi     gitHubServiceApi;
-    private PavServiceApi        pavServiceApi;
     private ProxyServiceApi      proxyServiceApi;
-    private AxgleServiceApi      axgleServiceApi;
-    private KeDouServiceApi      keDouServiceApi;
     private PornyServiceApi       pornyServiceApi;
     private AddressHelper        addressHelper;
     private MyProxySelector      myProxySelector;
@@ -96,14 +81,11 @@ public class AppApiHelper implements ApiHelper {
     private User                 user;
 
     @Inject
-    public AppApiHelper(CacheProviders cacheProviders, V9MmanServiceApi v9MmanServiceApi, GitHubServiceApi gitHubServiceApi, PavServiceApi pavServiceApi, ProxyServiceApi proxyServiceApi, AxgleServiceApi axgleServiceApi, KeDouServiceApi keDouServiceApi, PornyServiceApi pornyServiceApi, AddressHelper addressHelper, Gson gson, MyProxySelector myProxySelector, User user) {
+    public AppApiHelper(CacheProviders cacheProviders, V9MmanServiceApi v9MmanServiceApi, GitHubServiceApi gitHubServiceApi, ProxyServiceApi proxyServiceApi, PornyServiceApi pornyServiceApi, AddressHelper addressHelper, Gson gson, MyProxySelector myProxySelector, User user) {
         this.cacheProviders = cacheProviders;
         this.v9MmanServiceApi = v9MmanServiceApi;
         this.gitHubServiceApi = gitHubServiceApi;
-        this.pavServiceApi = pavServiceApi;
         this.proxyServiceApi = proxyServiceApi;
-        this.axgleServiceApi = axgleServiceApi;
-        this.keDouServiceApi = keDouServiceApi;
         this.pornyServiceApi = pornyServiceApi;
         this.addressHelper = addressHelper;
         this.gson = gson;
@@ -436,87 +418,6 @@ public class AppApiHelper implements ApiHelper {
     }
 
     @Override
-    public Observable<PxgavResultWithBlockId> loadPxgavListByCategory(String category, boolean pullToRefresh) {
-        DynamicKey dynamicKey = new DynamicKey(category);
-        EvictDynamicKey evictDynamicKey = new EvictDynamicKey(pullToRefresh);
-        if ("index".equals(category)) {
-            return action(cacheProviders.cacheWithLimitTime(pavServiceApi.pigAvVideoList(addressHelper.getPavAddress()), dynamicKey, evictDynamicKey));
-        } else {
-            return action(cacheProviders.cacheWithLimitTime(pavServiceApi.pigAvVideoList(addressHelper.getPavAddress() + category + "av線上看"), dynamicKey, evictDynamicKey));
-        }
-    }
-
-    @Override
-    public Observable<PxgavResultWithBlockId> loadMorePxgavListByCategory(String category, int page, String lastBlockId, boolean pullToRefresh) {
-        Map<String, String> map = new HashMap<>();
-        map.put("action","penci_ajax_block");
-        map.put("datafilter[build_query]","post_type:post|size:23|order_by:rand");
-        map.put("datafilter[add_title_icon]","");
-        map.put("datafilter[title_i_align]","left");
-        map.put("datafilter[title_icon]","");
-        map.put("datafilter[image_type]","landscape");
-        map.put("datafilter[block_title_meta_settings]","");
-        map.put("datafilter[block_title_align]","style-title-left");
-        map.put("datafilter[block_title_off_uppercase]","");
-        map.put("datafilter[block_title_wborder_left_right]","5px");
-        map.put("datafilter[block_title_wborder]","3px");
-        map.put("datafilter[post_title_trimword_settings]","");
-        map.put("datafilter[post_standard_title_length]","15");
-        map.put("datafilter[hide_comment]","true");
-        map.put("datafilter[hide_post_date]","true");
-        map.put("datafilter[hide_icon_post_format]","true");
-        map.put("datafilter[hide_cat]","true");
-        map.put("datafilter[show_allcat]","");
-        map.put("datafilter[hide_count_view]","true");
-        map.put("datafilter[hide_review_piechart]","true");
-        map.put("datafilter[show_readmore]","");
-        map.put("datafilter[show_author]","");
-        map.put("datafilter[dis_bg_block]","true");
-        map.put("datafilter[enable_stiky_post]","");
-        map.put("datafilter[hide_excrept]","true");
-        map.put("datafilter[post_excrept_length]","15");
-        map.put("datafilter[style_pag]","load_more");
-        map.put("datafilter[limit_loadmore]","8");
-        map.put("datafilter[readmore_css]","");
-        map.put("datafilter[post_category_css]","");
-        map.put("datafilter[pagination_css]","");
-        map.put("datafilter[loadmore_css]","");
-        map.put("datafilter[disable_bg_load_more]","");
-        map.put("datafilter[custom_markup_1]","");
-        map.put("datafilter[ajax_filter_type]","");
-        map.put("datafilter[ajax_filter_selected]","");
-        map.put("datafilter[ajax_filter_childselected]","");
-        map.put("datafilter[ajax_filter_number_item]","5");
-        map.put("datafilter[infeed_ads__order]","22");
-        map.put("datafilter[block_id]","penci_block_14-1551151497775");
-        map.put("datafilter[penci_show_desk]","1");
-        map.put("datafilter[penci_show_tablet]","1");
-        map.put("datafilter[penci_show_mobile]","1");
-        map.put("datafilter[paged]","1");
-        map.put("datafilter[unique_id]","penci_block_14__83050151");
-        map.put("datafilter[shortcode_id]","block_14");
-        map.put("datafilter[category_ids]","");
-        map.put("datafilter[taxonomy]","");
-        map.put("styleAction","load_more");
-        map.put("paged",""+page);
-        map.put("datacontent","JTNDY2VudGVyJTNFJTNDc2NyaXB0JTIwdHlwZSUzRCUyMnRleHQlMkZqYXZhc2NyaXB0JTIyJTIwZGF0YS1pZHpvbmUlM0QlMjIzMzM3NDA4JTIyJTIwc3JjJTNEJTIyaHR0cHMlM0ElMkYlMkZhZHMuZXhvc3J2LmNvbSUyRm5hdGl2ZWFkcy5qcyUyMiUzRSUzQyUyRnNjcmlwdCUzRSUzQyUyRmNlbnRlciUzRQ==");
-        map.put("nonce","7f02fb57e5");
-        return actionMore(pavServiceApi.moreVideoList(map), pullToRefresh);
-    }
-
-    @Override
-    public Observable<PxgavVideoParserJsonResult> loadPxgavVideoUrl(String url, String pId, boolean pullToRefresh) {
-        if (TextUtils.isEmpty(pId)) {
-            pId = "aaa1";
-            pullToRefresh = true;
-        }
-        DynamicKey dynamicKey = new DynamicKey(pId);
-        return cacheProviders.cacheWithNoLimitTime(pavServiceApi.pigAvVideoUrl(url), dynamicKey, new EvictDynamicKey(pullToRefresh))
-                .map(Reply::getData)
-                .map(s -> ParsePxgav.parserVideoUrl(s).getData());
-    }
-
-    @Override
     public Observable<BaseResult<List<ProxyModel>>> loadXiCiDaiLiProxyData(final int page) {
         return proxyServiceApi.proxyXiciDaili(page)
                 .map(s -> ParseProxy.parseXiCiDaiLi(s, page));
@@ -550,115 +451,6 @@ public class AppApiHelper implements ApiHelper {
     }
 
     @Override
-    public Observable<Boolean> testPavAddress(String url) {
-        return pavServiceApi.pigAvVideoList(addressHelper.getPavAddress())
-                .map(s -> {
-                    // M16：解析失败 / 错误页时 baseResult 或 data 可能为 null，避免 NPE
-                    BaseResult<PxgavResultWithBlockId> baseResult = ParsePxgav.videoList(s, false);
-                    if (baseResult == null || baseResult.getData() == null
-                            || baseResult.getData().getPxgavModelList() == null) {
-                        return false;
-                    }
-                    return baseResult.getData().getPxgavModelList().size() != 0;
-                });
-    }
-
-    @Override
-    public Observable<Boolean> testAxgle() {
-        int page = 1;
-        String o = "mr";
-        String t = "a";
-        String type = "public";
-        return axgleServiceApi.videos(page, o, t, type, "1", 10).map(s -> {
-            if (TextUtils.isEmpty(s)) {
-                return false;
-            }
-            Axgle axgle = gson.fromJson(s, Axgle.class);
-            return axgle != null && axgle.isSuccess();
-        });
-    }
-
-    @Override
-    public Observable<AxgleResponse> axgleVideos(int page, String o, String t, String type, String c, int limit) {
-        return axgleServiceApi.videos(page, o, t, type, c, limit).map(s -> {
-            // M16：空响应 / 错误页时 gson 返回 null，直接解引用 getResponse() 会 NPE
-            if (TextUtils.isEmpty(s)) {
-                return null;
-            }
-            Axgle axgle = gson.fromJson(s, Axgle.class);
-            return axgle == null ? null : axgle.getResponse();
-        });
-    }
-
-    @Override
-    public Observable<AxgleResponse> searchAxgleVideo(String keyWord, int page) {
-        return axgleServiceApi.search(keyWord, page).map(s -> {
-            if (TextUtils.isEmpty(s)) {
-                return null;
-            }
-            Axgle axgle = gson.fromJson(s, Axgle.class);
-            return axgle == null ? null : axgle.getResponse();
-        });
-    }
-
-    @Override
-    public Observable<AxgleResponse> searchAxgleJavVideo(String keyWord, int page) {
-        return axgleServiceApi.searchJav(keyWord, page).map(s -> {
-            if (TextUtils.isEmpty(s)) {
-                return null;
-            }
-            Axgle axgle = gson.fromJson(s, Axgle.class);
-            return axgle == null ? null : axgle.getResponse();
-        });
-    }
-
-    @Override
-    public Call<ResponseBody> getPlayVideoUrl(String url) {
-        return axgleServiceApi.getPlayVideoUrl(url);
-    }
-
-    @Override
-    public Observable<List<KeDouModel>> videoList(String category, int page, boolean pullToRefresh) {
-//        DynamicKeyGroup dynamicKeyGroup = new DynamicKeyGroup(category, page);
-//        EvictDynamicKeyGroup evictDynamicKeyGroup = new EvictDynamicKeyGroup(pullToRefresh);
-        return keDouServiceApi.videoList(category,page)
-                .map(ParseKeDouWo::parseVideoList);
-    }
-
-    @Override
-    public Observable<List<KeDouModel>> videoListLatest(int page) {
-        return keDouServiceApi.videoListLatest(page)
-                .map(ParseKeDouWo::parseVideoList);
-    }
-
-    @Override
-    public Observable<List<KeDouModel>> videoListTop(int page) {
-        return keDouServiceApi.videoListTop(page)
-                .map(ParseKeDouWo::parseVideoList);
-    }
-
-    @Override
-    public Observable<List<KeDouModel>> videoListPopular(int page) {
-        return keDouServiceApi.videoListPopular(page)
-                .map(ParseKeDouWo::parseVideoList);
-    }
-
-    @Override
-    public Observable<KeDouRelated> videoRelated(String url) {
-        String ip = addressHelper.getRandomIPAddress();
-        return  keDouServiceApi.videoRelated(url,ip)
-                .map(ParseKeDouWo::parseVideoDetail);
-    }
-
-    @Override
-    public Observable<String> getRealVideoUrl(String url) {
-        return Observable.just(url)
-                .map(ParseKeDouWo::getRedirectUrl);
-//        return keDouServiceApi.getRealVideoUrl(url)
-//                .map(ParseKeDouWo::parseRealVideoUrl);
-    }
-
-    @Override
     public Observable<Response<ResponseBody>> testV9Mman(String url) {
         return v9MmanServiceApi.testV9Mman(url);
     }
@@ -666,26 +458,6 @@ public class AppApiHelper implements ApiHelper {
     @Override
     public Observable<Response<ResponseBody>> verifyGoogleRecaptcha(String action, String r, String id, String recaptcha) {
         return v9MmanServiceApi.verifyGoogleRecaptcha(action, r, id, recaptcha);
-    }
-
-    private Observable<PxgavResultWithBlockId> actionMore(Observable<String> observable, final boolean pullToRefresh) {
-        return observable
-                .map(s -> {
-                    Logger.t(TAG).d("p*gav 更多原始数据：" + s);
-                    PxgavLoadMoreResponse pxgavLoadMoreResponse = gson.fromJson(s, PxgavLoadMoreResponse.class);
-                    BaseResult<PxgavResultWithBlockId> baseResult = ParsePxgav.moreVideoList(pxgavLoadMoreResponse.getData().getItems());
-                    //baseResult.getData().setBlockId(pxgavLoadMoreResponse.getTd_block_id());
-                    return baseResult.getData();
-                });
-    }
-
-    private Observable<PxgavResultWithBlockId> action(Observable<Reply<String>> observable) {
-        return observable
-                .map(Reply::getData)
-                .map(s -> {
-                    BaseResult<PxgavResultWithBlockId> baseResult = ParsePxgav.videoList(s, false);
-                    return baseResult.getData();
-                });
     }
 
 }

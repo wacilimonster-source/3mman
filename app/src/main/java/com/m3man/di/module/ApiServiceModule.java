@@ -11,10 +11,7 @@ import com.m3man.cookie.RulerCookie;
 import com.m3man.cookie.SetCookieCache;
 import com.m3man.cookie.SharedPrefsCookiePersistor;
 import com.m3man.data.network.Api;
-import com.m3man.data.network.apiservice.AxgleServiceApi;
 import com.m3man.data.network.apiservice.GitHubServiceApi;
-import com.m3man.data.network.apiservice.KeDouServiceApi;
-import com.m3man.data.network.apiservice.PavServiceApi;
 import com.m3man.data.network.apiservice.PornyServiceApi;
 import com.m3man.data.network.apiservice.ProxyServiceApi;
 import com.m3man.data.network.apiservice.V9MmanServiceApi;
@@ -105,15 +102,6 @@ public class ApiServiceModule {
         if (!TextUtils.isEmpty(addressHelper.getVideo9MmanAddress())) {
             RetrofitUrlManager.getInstance().putDomain(Api.PORN9_VIDEO_DOMAIN_NAME, addressHelper.getVideo9MmanAddress());
         }
-        if (!TextUtils.isEmpty(addressHelper.getPavAddress())) {
-            RetrofitUrlManager.getInstance().putDomain(Api.PA_DOMAIN_NAME, addressHelper.getPavAddress());
-        }
-        if (!TextUtils.isEmpty(addressHelper.getAxgleAddress())) {
-            RetrofitUrlManager.getInstance().putDomain(Api.AXGLE_DOMAIN_NAME, addressHelper.getAxgleAddress());
-        }
-        if (!TextUtils.isEmpty(addressHelper.getKeDouWoAddress())) {
-            RetrofitUrlManager.getInstance().putDomain(Api.KE_DOU_WO_DOMAIN_NAME, addressHelper.getKeDouWoAddress());
-        }
         if (!TextUtils.isEmpty(addressHelper.getPornyAddress())) {
             RetrofitUrlManager.getInstance().putDomain(Api.PORNY_DOMAIN_NAME, addressHelper.getPornyAddress());
         }
@@ -145,26 +133,8 @@ public class ApiServiceModule {
 
     @Singleton
     @Provides
-    PavServiceApi providesPigAvServiceApi(Retrofit retrofit) {
-        return retrofit.create(PavServiceApi.class);
-    }
-
-    @Singleton
-    @Provides
     ProxyServiceApi providesProxyServiceApi(Retrofit retrofit) {
         return retrofit.create(ProxyServiceApi.class);
-    }
-
-    @Singleton
-    @Provides
-    AxgleServiceApi providesAxgleServiceApi(Retrofit retrofit) {
-        return retrofit.create(AxgleServiceApi.class);
-    }
-
-    @Singleton
-    @Provides
-    KeDouServiceApi providesKeDouWOServiceApi(Retrofit retrofit) {
-        return retrofit.create(KeDouServiceApi.class);
     }
 
     @Singleton

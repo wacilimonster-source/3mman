@@ -43,9 +43,6 @@ public class AppDbHelper implements DbHelper {
         Database db = helper.getWritableDb();
         this.mDaoSession = new DaoMaster(db).newSession();
         initCategory(Category.TYPE_91PORN, Category.CATEGORY_DEFAULT_91PORN_VALUE, Category.CATEGORY_DEFAULT_91PORN_NAME);
-        initCategory(Category.TYPE_PXG_AV, Category.CATEGORY_DEFAULT_PXG_AV_VALUE, Category.CATEGORY_DEFAULT_PXG_AV_NAME);
-        initCategory(Category.TYPE_AXGLE, Category.CATEGORY_DEFAULT_AXGLE_VALUE, Category.CATEGORY_DEFAULT_AXGLE_NAME);
-        initCategory(Category.TYPE_KE_DOU_WO, Category.CATEGORY_DEFAULT_KE_DOU_WO_VALUE, Category.CATEGORY_DEFAULT_KE_DOU_WO_NAME);
     }
 
     @Override

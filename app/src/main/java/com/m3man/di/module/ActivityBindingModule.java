@@ -3,16 +3,10 @@ package com.m3man.di.module;
 import com.m3man.di.PerActivity;
 import com.m3man.ui.about.AboutActivity;
 import com.m3man.ui.about.AboutActivityModule;
-import com.m3man.ui.axgle.play.AxglePlayActivity;
-import com.m3man.ui.axgle.play.AxglePlayActivityModule;
-import com.m3man.ui.axgle.search.SearchAxgleVideoActivity;
-import com.m3man.ui.axgle.search.SearchAxgleVideoActivityModule;
 import com.m3man.ui.download.DownloadActivity;
 import com.m3man.ui.download.DownloadActivityModule;
 import com.m3man.ui.google.GoogleRecaptchaVerifyActivity;
 import com.m3man.ui.google.GoogleRecaptchaVerifyActivityModule;
-import com.m3man.ui.kedouwo.play.KeDouPlayActivity;
-import com.m3man.ui.kedouwo.play.KeDouPlayActivityModule;
 import com.m3man.ui.main.MainActivity;
 import com.m3man.ui.main.MainActivityModule;
 import com.m3man.ui.mman9video.author.AuthorActivity;
@@ -38,8 +32,6 @@ import com.m3man.ui.mman9video.user.UserRegisterActivity;
 import com.m3man.ui.mman9video.user.UserRegisterActivityModule;
 import com.m3man.ui.proxy.ProxySettingActivity;
 import com.m3man.ui.proxy.ProxySettingActivityModule;
-import com.m3man.ui.pxgav.playpxgav.PlayPxgavActivity;
-import com.m3man.ui.pxgav.playpxgav.PlayPxgavActivityModule;
 import com.m3man.ui.recommend.RecommendFeedActivity;
 import com.m3man.ui.setting.SettingActivity;
 import com.m3man.ui.setting.SettingActivityModule;
@@ -115,24 +107,8 @@ public abstract class ActivityBindingModule {
     abstract ProxySettingActivity proxySettingActivity();
 
     @PerActivity
-    @ContributesAndroidInjector(modules = PlayPxgavActivityModule.class)
-    abstract PlayPxgavActivity playPavActivity();
-
-    @PerActivity
     @ContributesAndroidInjector(modules = HistoryActivityModule.class)
     abstract HistoryActivity historyActivity();
-
-    @PerActivity
-    @ContributesAndroidInjector(modules = AxglePlayActivityModule.class)
-    abstract AxglePlayActivity axglePlayActivity();
-
-    @PerActivity
-    @ContributesAndroidInjector(modules = SearchAxgleVideoActivityModule.class)
-    abstract SearchAxgleVideoActivity searchAxgleVideoActivity();
-
-    @PerActivity
-    @ContributesAndroidInjector(modules = KeDouPlayActivityModule.class)
-    abstract KeDouPlayActivity keDouPlayActivity();
 
     @PerActivity
     @ContributesAndroidInjector(modules = GoogleRecaptchaVerifyActivityModule.class)

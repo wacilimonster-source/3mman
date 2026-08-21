@@ -3,7 +3,6 @@
     <item name="setting_item_forbidden_auto_release_memory" type="id" />
     <item name="setting_item_player_engine_choice" type="id" />
     <item name="setting_item_9_mman_address" type="id" />
-    <item name="setting_item_kedou_address" type="id" />
     <item name="setting_item_porny_address" type="id" />
     <item name="setting_item_google_recaptcha_verify" type="id" />
 </resources>

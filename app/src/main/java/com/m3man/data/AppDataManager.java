@@ -16,11 +16,6 @@ import com.m3man.data.model.ProxyModel;
 import com.m3man.data.model.UpdateVersion;
 import com.m3man.data.model.User;
 import com.m3man.data.model.VideoComment;
-import com.m3man.data.model.axgle.AxgleResponse;
-import com.m3man.data.model.kedouwo.KeDouModel;
-import com.m3man.data.model.kedouwo.KeDouRelated;
-import com.m3man.data.model.pxgav.PxgavResultWithBlockId;
-import com.m3man.data.model.pxgav.PxgavVideoParserJsonResult;
 import com.m3man.data.network.ApiHelper;
 import com.m3man.data.prefs.PreferencesHelper;
 import com.m3man.utils.UserHelper;
@@ -261,21 +256,6 @@ public class AppDataManager implements DataManager {
     }
 
     @Override
-    public Observable<PxgavResultWithBlockId> loadPxgavListByCategory(String category, boolean pullToRefresh) {
-        return mApiHelper.loadPxgavListByCategory(category, pullToRefresh);
-    }
-
-    @Override
-    public Observable<PxgavResultWithBlockId> loadMorePxgavListByCategory(String category, int page, String lastBlockId, boolean pullToRefresh) {
-        return mApiHelper.loadMorePxgavListByCategory(category, page, lastBlockId, pullToRefresh);
-    }
-
-    @Override
-    public Observable<PxgavVideoParserJsonResult> loadPxgavVideoUrl(String url, String pId, boolean pullToRefresh) {
-        return mApiHelper.loadPxgavVideoUrl(url, pId, pullToRefresh);
-    }
-
-    @Override
     public Observable<BaseResult<List<ProxyModel>>> loadXiCiDaiLiProxyData(int page) {
         return mApiHelper.loadXiCiDaiLiProxyData(page);
     }
@@ -303,16 +283,6 @@ public class AppDataManager implements DataManager {
     @Override
     public String getMman9ProxyCookie() {
         return mPreferencesHelper.getMman9ProxyCookie();
-    }
-
-    @Override
-    public void setPavAddress(String address) {
-        mPreferencesHelper.setPavAddress(address);
-    }
-
-    @Override
-    public String getPavAddress() {
-        return mPreferencesHelper.getPavAddress();
     }
 
     @Override
@@ -526,26 +496,6 @@ public class AppDataManager implements DataManager {
     }
 
     @Override
-    public void setAxgleAddress(String address) {
-        mPreferencesHelper.setAxgleAddress(address);
-    }
-
-    @Override
-    public String getAxgleAddress() {
-        return mPreferencesHelper.getAxgleAddress();
-    }
-
-    @Override
-    public void setKeDouWoAddress(String address) {
-        mPreferencesHelper.setKeDouWoAddress(address);
-    }
-
-    @Override
-    public String getKeDouWoAddress() {
-        return mPreferencesHelper.getKeDouWoAddress();
-    }
-
-    @Override
     public void setPornyAddress(String address) {
         mPreferencesHelper.setPornyAddress(address);
     }
@@ -601,66 +551,6 @@ public class AppDataManager implements DataManager {
     }
 
     @Override
-    public Observable<Boolean> testPavAddress(String url) {
-        return mApiHelper.testPavAddress(url);
-    }
-
-    @Override
-    public Observable<Boolean> testAxgle() {
-        return mApiHelper.testAxgle();
-    }
-
-    @Override
-    public Observable<AxgleResponse> axgleVideos(int page, String o, String t, String type, String c, int limit) {
-        return mApiHelper.axgleVideos(page, o, t, type, c, limit);
-    }
-
-    @Override
-    public Observable<AxgleResponse> searchAxgleVideo(String keyWord, int page) {
-        return mApiHelper.searchAxgleVideo(keyWord, page);
-    }
-
-    @Override
-    public Observable<AxgleResponse> searchAxgleJavVideo(String keyWord, int page) {
-        return mApiHelper.searchAxgleJavVideo(keyWord, page);
-    }
-
-    @Override
-    public Call<ResponseBody> getPlayVideoUrl(String url) {
-        return mApiHelper.getPlayVideoUrl(url);
-    }
-
-    @Override
-    public Observable<List<KeDouModel>> videoList(String category, int page,boolean pullToRefresh) {
-        return mApiHelper.videoList(category,page,pullToRefresh);
-    }
-
-    @Override
-    public Observable<List<KeDouModel>> videoListLatest(int page) {
-        return mApiHelper.videoListLatest(page);
-    }
-
-    @Override
-    public Observable<List<KeDouModel>> videoListTop(int page) {
-        return mApiHelper.videoListTop(page);
-    }
-
-    @Override
-    public Observable<List<KeDouModel>> videoListPopular(int page) {
-        return mApiHelper.videoListPopular(page);
-    }
-
-    @Override
-    public Observable<KeDouRelated> videoRelated(String url) {
-        return mApiHelper.videoRelated(url);
-    }
-
-    @Override
-    public Observable<String> getRealVideoUrl(String url) {
-        return mApiHelper.getRealVideoUrl(url);
-    }
-
-    @Override
     public Observable<Response<ResponseBody>> testV9Mman(String url) {
         return mApiHelper.testV9Mman(url);
     }
@@ -692,11 +582,6 @@ public class AppDataManager implements DataManager {
     @Override
     public void resetMman91VideoWatchTime(boolean reset) {
         cookieManager.resetMman91VideoWatchTime(reset);
-    }
-
-    @Override
-    public void resetKeDouWoVideoWatchTime() {
-        cookieManager.resetKeDouWoVideoWatchTime();
     }
 
     @Override

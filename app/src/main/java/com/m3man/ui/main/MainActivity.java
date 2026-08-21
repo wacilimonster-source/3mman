@@ -35,18 +35,14 @@ import com.m3man.eventbus.LowMemoryEvent;
 import com.m3man.eventbus.UrlRedirectEvent;
 import com.m3man.service.UpdateDownloadService;
 import com.m3man.ui.MvpActivity;
-import com.m3man.ui.axgle.MainAxgleFragment;
-import com.m3man.ui.axgle.search.SearchAxgleVideoActivity;
 import com.m3man.ui.basemain.BaseMainFragment;
 import com.m3man.ui.download.DownloadActivity;
-import com.m3man.ui.kedouwo.MainKeDouFragment;
 import com.m3man.ui.mine.MineFragment;
 import com.m3man.ui.mman9video.Main9MmanVideoFragment;
 import com.m3man.ui.mman9video.search.SearchActivity;
 import com.m3man.ui.update.UpdateActivity;
 import com.m3man.ui.mman9video.search.SearchPornyActivity;
 import com.m3man.ui.mman9video.user.UserLoginActivity;
-import com.m3man.ui.pxgav.MainPxgavFragment;
 import com.m3man.ui.recommend.RecommendFeedActivity;
 import com.m3man.ui.setting.SettingActivity;
 import com.m3man.utils.ApkVersionUtils;
@@ -113,9 +109,6 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
     }
 
     private Main9MmanVideoFragment mMain9MmanVideoFragment;
-    private MainPxgavFragment mMainPxgavFragment;
-    private MainAxgleFragment mainAxgleFragment;
-    private MainKeDouFragment mMainKeDouFragment;
     private MineFragment mMineFragment;
     private FragmentManager fragmentManager;
     private int selectIndex;
@@ -133,12 +126,9 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         setContentView(R.layout.activity_main);
         NotificationChannelHelper.initChannel(this);
         ButterKnife.bind(this);
-        firstTagsArray.add(Tags.TAG_SEARCH_PORN_AXGLE_VIDEO);
+        firstTagsArray.add(Tags.TAG_SEARCH_PORN_VIDEO);
         firstTagsArray.add(Tags.TAG_MY_DOWNLOAD);
         firstTagsArray.add(Tags.TAG_PRON_9_VIDEO);
-        firstTagsArray.add(Tags.TAG_PXGAV_VIDEO);
-        firstTagsArray.add(Tags.TAG_AXGLE_VIDEO);
-        firstTagsArray.add(Tags.TAG_KE_DOU_WO_VIDEO);
 
         fragmentManager = getSupportFragmentManager();
         selectIndex = getIntent().getIntExtra(Keys.KEY_SELECT_INDEX, 0);
@@ -221,17 +211,14 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
 
     private void showVideoBottomSheet(final int checkIndex) {
         new QMUIBottomSheet.BottomListSheetBuilder(this, true)
-                .addItem(ResourceUtil.getDrawable(this, R.drawable.ic_search_black_24dp), Tags.TAG_SEARCH_PORN_AXGLE_VIDEO)
+                .addItem(ResourceUtil.getDrawable(this, R.drawable.ic_search_black_24dp), Tags.TAG_SEARCH_PORN_VIDEO)
                 .addItem(ResourceUtil.getDrawable(this, R.drawable.ic_my_download), Tags.TAG_MY_DOWNLOAD)
                 .addItem(ResourceUtil.getDrawable(this, R.drawable.ic_video_library_black_24dp), Tags.TAG_PRON_9_VIDEO)
-                .addItem(ResourceUtil.getDrawable(this, R.drawable.ic_video_library_black_24dp), Tags.TAG_PXGAV_VIDEO)
-                .addItem(ResourceUtil.getDrawable(this, R.drawable.ic_video_library_black_24dp), Tags.TAG_AXGLE_VIDEO)
-                .addItem(ResourceUtil.getDrawable(this, R.drawable.ic_video_library_black_24dp), Tags.TAG_KE_DOU_WO_VIDEO)
                 .setCheckedIndex(checkIndex)
                 .setOnSheetItemClickListener((dialog, itemView, position, tag) -> {
                     dialog.dismiss();
                     switch (tag) {
-                        case Tags.TAG_SEARCH_PORN_AXGLE_VIDEO:
+                        case Tags.TAG_SEARCH_PORN_VIDEO:
                             goToSearchVideo();
                             break;
                         case Tags.TAG_MY_DOWNLOAD:
@@ -330,43 +317,8 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                 mCurrentFragment = FragmentUtils.switchContent(fragmentManager, mCurrentFragment, mMain9MmanVideoFragment, contentFrameLayout.getId(), itemId, isInnerReplace);
                 firstTabShow = Tags.TAG_PRON_9_VIDEO;
                 presenter.setMainFirstTabShow(Tags.TAG_PRON_9_VIDEO);
-                mMainPxgavFragment = null;
                 if (presenter.haveNotSetV9pronAddress()) {
                     showMessage("请先在设置中配置视频地址", TastyToast.INFO);
-                }
-                break;
-            case Tags.TAG_PXGAV_VIDEO:
-                if (mMainPxgavFragment == null) {
-                    mMainPxgavFragment = MainPxgavFragment.getInstance();
-                }
-                mCurrentFragment = FragmentUtils.switchContent(fragmentManager, mCurrentFragment, mMainPxgavFragment, contentFrameLayout.getId(), itemId, isInnerReplace);
-                firstTabShow = Tags.TAG_PXGAV_VIDEO;
-                presenter.setMainFirstTabShow(Tags.TAG_PXGAV_VIDEO);
-                mMain9MmanVideoFragment = null;
-                if (presenter.haveNotSetPavAddress()) {
-                    showMessage("请先在设置中配置 P*gav 地址", TastyToast.INFO);
-                }
-                break;
-            case Tags.TAG_AXGLE_VIDEO:
-                if (mainAxgleFragment == null) {
-                    mainAxgleFragment = MainAxgleFragment.getInstance();
-                }
-                mCurrentFragment = FragmentUtils.switchContent(fragmentManager, mCurrentFragment, mainAxgleFragment, contentFrameLayout.getId(), itemId, isInnerReplace);
-                firstTabShow = Tags.TAG_AXGLE_VIDEO;
-                presenter.setMainFirstTabShow(Tags.TAG_AXGLE_VIDEO);
-                if (presenter.haveNotSetAxgleAddress()) {
-                    showMessage("请先在设置中配置 A*gle 地址", TastyToast.INFO);
-                }
-                break;
-            case Tags.TAG_KE_DOU_WO_VIDEO:
-                if (mMainKeDouFragment == null) {
-                    mMainKeDouFragment = MainKeDouFragment.getInstance();
-                }
-                mCurrentFragment = FragmentUtils.switchContent(fragmentManager, mCurrentFragment, mMainKeDouFragment, contentFrameLayout.getId(), itemId, isInnerReplace);
-                firstTabShow = Tags.TAG_KE_DOU_WO_VIDEO;
-                presenter.setMainFirstTabShow(Tags.TAG_KE_DOU_WO_VIDEO);
-                if (presenter.haveNotSetKeDouWoAddress()) {
-                    showMessage("请先在设置中配置 KeDouWo 地址", TastyToast.INFO);
                 }
                 break;
             default:
@@ -517,7 +469,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
     }
 
     private void goToSearchVideo() {
-        String[] items = {"搜9*Mman视频", "搜a*gle视频"};
+        String[] items = {"搜视频地址视频"};
         new QMUIDialog.CheckableDialogBuilder(this)
                 .setTitle("搜索啥呀")
                 .addItems(items, (dialog, which) -> {
@@ -533,10 +485,6 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                             }
                             Intent intent = new Intent(MainActivity.this, SearchActivity.class);
                             startActivityWithAnimation(intent);
-                            break;
-                        case 1:
-                            Intent axgleIntent = new Intent(MainActivity.this, SearchAxgleVideoActivity.class);
-                            startActivityWithAnimation(axgleIntent);
                             break;
                     }
                 })
@@ -678,10 +626,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
     private void setNull(int position) {
         switch (position) {
             case 0:
-                mMainPxgavFragment = null;
                 mMain9MmanVideoFragment = null;
-                mainAxgleFragment = null;
-                mMainKeDouFragment = null;
                 break;
             case 3:
                 mMineFragment = null;

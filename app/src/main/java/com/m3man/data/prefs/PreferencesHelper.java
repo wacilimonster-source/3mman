@@ -14,12 +14,6 @@ public interface PreferencesHelper {
 
     String getMman9ProxyCookie();
 
-
-
-    void setPavAddress(String address);
-
-    String getPavAddress();
-
     void setMman9VideoLoginUserName(String userName);
 
     String getMman9VideoLoginUserName();
@@ -101,14 +95,6 @@ public interface PreferencesHelper {
     boolean isShowUrlRedirectTipDialog();
 
     void setShowUrlRedirectTipDialog(boolean showUrlRedirectTipDialog);
-
-    void setAxgleAddress(String address);
-
-    String getAxgleAddress();
-
-    void setKeDouWoAddress(String address);
-
-    String getKeDouWoAddress();
 
     void setPornyAddress(String address);
 

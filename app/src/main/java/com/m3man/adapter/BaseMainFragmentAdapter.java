@@ -9,11 +9,8 @@ import android.support.v4.app.FragmentTransaction;
 import android.view.ViewGroup;
 
 import com.m3man.data.db.entity.Category;
-import com.m3man.ui.axgle.AxgleFragment;
-import com.m3man.ui.kedouwo.KeDouFragment;
 import com.m3man.ui.mman9video.index.IndexFragment;
 import com.m3man.ui.mman9video.videolist.VideoListFragment;
-import com.m3man.ui.pxgav.PxgavFragment;
 
 import java.util.List;
 
@@ -87,18 +84,6 @@ public class BaseMainFragmentAdapter extends FragmentPagerAdapter {
                     return videoListFragment;
                 }
 
-            case Category.TYPE_PXG_AV:
-                PxgavFragment pigAvFragment = PxgavFragment.getInstance();
-                pigAvFragment.setCategory(category);
-                return pigAvFragment;
-            case Category.TYPE_AXGLE:
-                AxgleFragment axgleFragment=AxgleFragment.getInstance();
-                axgleFragment.setCategory(category);
-                return axgleFragment;
-            case Category.TYPE_KE_DOU_WO:
-                KeDouFragment keDouFragment = KeDouFragment.getInstance();
-                keDouFragment.setCategory(category);
-                return keDouFragment;
             default:
         }
         return new Fragment();

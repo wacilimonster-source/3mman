@@ -46,8 +46,6 @@
     <string name="google_recaptcha_verify">Google机器人验证</string>
     <string name="address_forum_mman">设置论坛地址</string>
     <string name="address_t6y">设置CaoLiu地址</string>
-    <string name="address_pa">设置P*gav视频地址</string>
-    <string name="address_kedou">设置kedouwo视频地址</string>
     <string name="address_porny">设置 91porny 地址</string>
     <string name="enable_porny_source">启用 91porny 搜索源</string>
     <string name="about_item_clean_cache">清除缓存</string>
@@ -83,12 +81,10 @@
     <string name="forum_content">帖子内容</string>
     <string name="dialog_title_system_msg">系统弹出提示框</string>
     <string name="photo">看图</string>
-    <string name="pav">Pav</string>
     <string name="back">返回</string>
     <string name="sure">确定</string>
     <string name="author">作者：</string>
     <string name="send_icon">sendIcon</string>
-    <string name="address_axgle">设置A*gle的API地址</string>
     <string name="search_jav_video">搜Jav视频</string>
 
     <!-- 91porny 搜索筛选 -->

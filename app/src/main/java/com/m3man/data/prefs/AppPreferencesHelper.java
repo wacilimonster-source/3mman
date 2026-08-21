@@ -27,9 +27,6 @@ public class AppPreferencesHelper implements PreferencesHelper {
     /** 视频分类源站默认地址（用户未配置时使用；以 / 结尾保证 Referer 拼接正确） */
     private final static String DEFAULT_MAN9_VIDEO_ADDRESS = "https://www.91porn.com/";
     public final static String KEY_SP_PORN_COOKIE_PROXY = "key_sp_mman_cookie_proxy";
-    public final static String KEY_SP_PIG_AV_ADDRESS = "key_sp_pig_av_address";
-    public final static String KEY_SP_AXGLE_ADDRESS = "key_sp_axgle_address";
-    public final static String KEY_SP_KE_DOU_WO_ADDRESS = "key_sp_ke_dou_wo_address";
     public final static String KEY_SP_PORNY_ADDRESS = "key_sp_porny_address";
     public final static String KEY_SP_PORNY_ENABLED = "key_sp_porny_enabled";
     private final static String KEY_SP_USER_LOGIN_USERNAME = "key_sp_user_login_username";
@@ -84,16 +81,6 @@ public class AppPreferencesHelper implements PreferencesHelper {
     @Override
     public String getMman9ProxyCookie() {
         return mPrefs.getString(KEY_SP_PORN_COOKIE_PROXY,"");
-    }
-
-    @Override
-    public void setPavAddress(String address) {
-        mPrefs.edit().putString(KEY_SP_PIG_AV_ADDRESS, address).apply();
-    }
-
-    @Override
-    public String getPavAddress() {
-        return mPrefs.getString(KEY_SP_PIG_AV_ADDRESS, "");
     }
 
     @Override
@@ -310,26 +297,6 @@ public class AppPreferencesHelper implements PreferencesHelper {
     @Override
     public void setShowUrlRedirectTipDialog(boolean showUrlRedirectTipDialog) {
         mPrefs.edit().putBoolean(KEY_SP_SHOW_URL_REDIRECT_TIP_DIALOG, showUrlRedirectTipDialog).apply();
-    }
-
-    @Override
-    public void setAxgleAddress(String address) {
-        mPrefs.edit().putString(KEY_SP_AXGLE_ADDRESS, address).apply();
-    }
-
-    @Override
-    public String getAxgleAddress() {
-        return mPrefs.getString(KEY_SP_AXGLE_ADDRESS, "");
-    }
-
-    @Override
-    public void setKeDouWoAddress(String address) {
-        mPrefs.edit().putString(KEY_SP_KE_DOU_WO_ADDRESS,address).apply();
-    }
-
-    @Override
-    public String getKeDouWoAddress() {
-        return mPrefs.getString(KEY_SP_KE_DOU_WO_ADDRESS, "");
     }
 
     @Override

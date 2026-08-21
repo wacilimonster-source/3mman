@@ -36,18 +36,6 @@ public class AddressHelper {
         return preferencesHelper.getMman9VideoAddress();
     }
 
-    public String getPavAddress() {
-        return preferencesHelper.getPavAddress();
-    }
-
-    public String getAxgleAddress() {
-        return preferencesHelper.getAxgleAddress();
-    }
-
-    public String getKeDouWoAddress() {
-        return  preferencesHelper.getKeDouWoAddress();
-    }
-
     public String getPornyAddress() {
         return preferencesHelper.getPornyAddress();
     }

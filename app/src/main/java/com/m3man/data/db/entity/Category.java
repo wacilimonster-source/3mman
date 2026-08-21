@@ -16,21 +16,8 @@ import java.io.Serializable;
 public class Category implements Serializable {
     public static final String[] CATEGORY_DEFAULT_91PORN_VALUE = {"index", "watch", "hot", "rp", "long", "md", "tf", "mf", "rf", "top", "top1", "hd"};
     public static final String[] CATEGORY_DEFAULT_91PORN_NAME = {"主页", "最近更新", "当前最热", "最近得分", "10分钟以上", "本月讨论", "本月收藏", "收藏最多", "最近加精", "本月最热", "上月最热", "高清(会员)"};
-    public static final String[] CATEGORY_DEFAULT_PXG_AV_VALUE = {"index", "熱門", "長片", "每日", "最新", "日韓", "精選"};
-    public static final String[] CATEGORY_DEFAULT_PXG_AV_NAME = {"主页", "热门", "长片", "每日", "最新", "日韩", "精选"};
-
-    public static final String[] CATEGORY_DEFAULT_AXGLE_VALUE={"1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24"};
-    public static final String[] CATEGORY_DEFAULT_AXGLE_NAME = {"AV女優", "日本AV", "無修正", "少女", "素人", "肛X", "巨乳", "Cosplay", "女子校生", "人妻", "熟女", "SM", "中國", "香港", "日本", "韓国", "台湾", "亞洲", "金髪洋物", "3D", "VR", "偶像", "映画・電影", "Anime"};
-
-
-//    public static final String[] CATEGORY_DEFAULT_KE_DOU_WO_VALUE={"1","2","3"};
-    public static final String[] CATEGORY_DEFAULT_KE_DOU_WO_VALUE={"latest-updates","top-rated","most-popular"};
-    public static final String[] CATEGORY_DEFAULT_KE_DOU_WO_NAME={"最新的","最受欢迎的","流行的"};
 
     public static final int TYPE_91PORN = 1;
-    public static final int TYPE_PXG_AV = 4;
-    public static final int TYPE_AXGLE=7;
-    public static final int TYPE_KE_DOU_WO= 9;
     private static final long serialVersionUID = 1L;
 
     @Id(autoincrement = true)

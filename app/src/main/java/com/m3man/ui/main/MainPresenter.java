@@ -123,21 +123,6 @@ public class MainPresenter extends MvpBasePresenter<MainView> implements IMain {
     }
 
     @Override
-    public boolean haveNotSetPavAddress() {
-        return TextUtils.isEmpty(dataManager.getPavAddress());
-    }
-
-    @Override
-    public boolean haveNotSetAxgleAddress() {
-        return TextUtils.isEmpty(dataManager.getAxgleAddress());
-    }
-
-    @Override
-    public boolean haveNotSetKeDouWoAddress() {
-        return TextUtils.isEmpty(dataManager.getKeDouWoAddress());
-    }
-
-    @Override
     public boolean isPornyEnabled() {
         return dataManager.isPornyEnabled();
     }

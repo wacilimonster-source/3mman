@@ -140,12 +140,6 @@
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode|keyboard|layoutDirection"
             android:label="@string/activity_proxy_setting"
             android:screenOrientation="portrait" />
-        <activity
-            android:name=".ui.pxgav.playpxgav.PlayPxgavActivity"
-            android:configChanges="orientation|screenSize|keyboardHidden|uiMode|keyboard|layoutDirection"
-            android:label="@string/pav"
-            android:screenOrientation="portrait" />
-
         <!-- M31：API34 起前台服务必须声明 foregroundServiceType，否则启动被系统阻断 -->
         <service
             android:name=".service.UpdateDownloadService"
@@ -171,19 +165,6 @@
             android:name="android.max_aspect"
             android:value="2.1" />
 
-        <activity
-            android:name=".ui.axgle.play.AxglePlayActivity"
-            android:configChanges="orientation|screenSize|keyboardHidden|uiMode|keyboard|layoutDirection"
-            android:screenOrientation="portrait" />
-        <activity
-            android:name=".ui.axgle.search.SearchAxgleVideoActivity"
-            android:configChanges="orientation|screenSize|keyboardHidden|uiMode|keyboard|layoutDirection"
-            android:screenOrientation="portrait" />
-
-        <activity
-            android:name=".ui.kedouwo.play.KeDouPlayActivity"
-            android:configChanges="orientation|screenSize|keyboardHidden|uiMode|keyboard|layoutDirection"
-            android:screenOrientation="portrait" />
         <activity
             android:name=".ui.google.GoogleRecaptchaVerifyActivity"
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode|keyboard|layoutDirection"
