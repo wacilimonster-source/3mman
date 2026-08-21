@@ -19,6 +19,7 @@ import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.utils.PlaybackEngine;
 
 import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
 import cn.bingoogolapple.swipebacklayout.BGASwipeBackHelper;
 import dagger.android.support.DaggerAppCompatActivity;
 
@@ -39,8 +40,25 @@ public abstract class BaseAppCompatActivity extends DaggerAppCompatActivity impl
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         initSwipeBackFinish();
         super.onCreate(savedInstanceState);
-        EventBus.getDefault().register(this);
+        // EventBus 3 对「注册类及其父类没有任何 @Subscribe 方法」会抛 EventBusException。
+        // 本基类不再自带 @Subscribe（Google 验证 / 重定向弹窗等已删除），很多子类（推荐、下载等）
+        // 也没有订阅方法，因此仅在真正声明了订阅方法时才注册，避免进入推荐等页面即闪退。
+        if (eventBusHasSubscriber(getClass())) {
+            EventBus.getDefault().register(this);
+        }
         context = this;
+    }
+
+    /** @return 该类自身或父类上是否声明了至少一个 {@link Subscribe} 方法 */
+    private static boolean eventBusHasSubscriber(Class<?> clazz) {
+        for (Class<?> c = clazz; c != null; c = c.getSuperclass()) {
+            for (java.lang.reflect.Method m : c.getDeclaredMethods()) {
+                if (m.isAnnotationPresent(Subscribe.class)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     @Override
@@ -117,7 +135,9 @@ public abstract class BaseAppCompatActivity extends DaggerAppCompatActivity impl
 
     @Override
     protected void onDestroy() {
-        EventBus.getDefault().unregister(this);
+        if (EventBus.getDefault().isRegistered(this)) {
+            EventBus.getDefault().unregister(this);
+        }
         super.onDestroy();
     }
 
