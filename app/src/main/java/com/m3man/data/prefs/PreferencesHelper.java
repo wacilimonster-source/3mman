@@ -50,6 +50,10 @@ public interface PreferencesHelper {
 
     boolean isOpenNightMode();
 
+    void setNightMode(int nightMode);
+
+    int getNightMode();
+
     void setProxyIpAddress(String proxyIpAddress);
 
     String getProxyIpAddress();
@@ -112,4 +116,17 @@ public interface PreferencesHelper {
     void setLocalFavoriteMode(boolean localFavoriteMode);
 
     boolean isLocalFavoriteMode();
+
+    /** 91porny 搜索筛选持久化：排序 / 发布时间 / 播放量 */
+    void setPornySearchSort(String sort);
+
+    String getPornySearchSort();
+
+    void setPornySearchTime(String time);
+
+    String getPornySearchTime();
+
+    void setPornySearchViews(String views);
+
+    String getPornySearchViews();
 }

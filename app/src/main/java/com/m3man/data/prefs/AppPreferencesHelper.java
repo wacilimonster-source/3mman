@@ -38,6 +38,10 @@ public class AppPreferencesHelper implements PreferencesHelper {
     private final static String KEY_SP_DOWNLOAD_VIDEO_NEED_WIFI = "key_sp_download_video_need_wifi";
     private final static String KEY_SP_OPEN_HTTP_PROXY = "key_sp_open_http_proxy";
     private final static String KEY_SP_OPEN_NIGHT_MODE = "key_sp_open_night_mode";
+    private final static String KEY_SP_NIGHT_MODE = "key_sp_night_mode";
+    private final static String KEY_SP_PORNY_SEARCH_SORT = "key_sp_porny_search_sort";
+    private final static String KEY_SP_PORNY_SEARCH_TIME = "key_sp_porny_search_time";
+    private final static String KEY_SP_PORNY_SEARCH_VIEWS = "key_sp_porny_search_views";
     private final static String KEY_SP_PROXY_IP_ADDRESS = "key_sp_proxy_ip_address";
     private final static String KEY_SP_PROXY_PORT = "key_sp_proxy_port";
     private final static String KEY_SP_NEVER_ASK_FOR_WATCH_DOWNLOAD_TIP = "key_sp_never_ask_for_watch_download_tip";
@@ -180,6 +184,20 @@ public class AppPreferencesHelper implements PreferencesHelper {
     @Override
     public boolean isOpenNightMode() {
         return mPrefs.getBoolean(KEY_SP_OPEN_NIGHT_MODE, false);
+    }
+
+    @Override
+    public void setNightMode(int nightMode) {
+        mPrefs.edit().putInt(KEY_SP_NIGHT_MODE, nightMode).apply();
+    }
+
+    @Override
+    public int getNightMode() {
+        if (!mPrefs.contains(KEY_SP_NIGHT_MODE)) {
+            int migrated = mPrefs.getBoolean(KEY_SP_OPEN_NIGHT_MODE, false) ? 1 : 2;
+            mPrefs.edit().putInt(KEY_SP_NIGHT_MODE, migrated).apply();
+        }
+        return mPrefs.getInt(KEY_SP_NIGHT_MODE, 0);
     }
 
     @Override
@@ -339,5 +357,35 @@ public class AppPreferencesHelper implements PreferencesHelper {
     public boolean isLocalFavoriteMode() {
         // 默认本地收藏（无需登录，与分分钟一致）
         return mPrefs.getBoolean(KEY_SP_LOCAL_FAVORITE_MODE, true);
+    }
+
+    @Override
+    public void setPornySearchSort(String sort) {
+        mPrefs.edit().putString(KEY_SP_PORNY_SEARCH_SORT, sort == null ? "" : sort).apply();
+    }
+
+    @Override
+    public String getPornySearchSort() {
+        return mPrefs.getString(KEY_SP_PORNY_SEARCH_SORT, "");
+    }
+
+    @Override
+    public void setPornySearchTime(String time) {
+        mPrefs.edit().putString(KEY_SP_PORNY_SEARCH_TIME, time == null ? "" : time).apply();
+    }
+
+    @Override
+    public String getPornySearchTime() {
+        return mPrefs.getString(KEY_SP_PORNY_SEARCH_TIME, "");
+    }
+
+    @Override
+    public void setPornySearchViews(String views) {
+        mPrefs.edit().putString(KEY_SP_PORNY_SEARCH_VIEWS, views == null ? "" : views).apply();
+    }
+
+    @Override
+    public String getPornySearchViews() {
+        return mPrefs.getString(KEY_SP_PORNY_SEARCH_VIEWS, "");
     }
 }
