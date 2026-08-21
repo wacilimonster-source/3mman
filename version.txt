@@ -1,7 +1,7 @@
 {
-  "versionCode": 88,
-  "versionName": "1.0.55",
-  "updateMessage": "新增搜索历史：进入搜索即展示最近关键词，点击回填、长按删除、一键清空；四个搜索入口（91 / 分分钟 / 站内）通用。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.55.apk",
-  "sha256": "df52ca4b8a522a309fce517b1b67db810c7ef808c870198286c7793ebc2882b9"
+  "versionCode": 89,
+  "versionName": "1.0.56",
+  "updateMessage": "删除 Axgle、Pxgav/PAV、KeDouWo 数据源，保留 91porn/mman9 与 91porny 功能；修复并优化更新分发。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.56.apk",
+  "sha256": ""
 }
