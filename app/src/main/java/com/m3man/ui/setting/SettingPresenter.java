@@ -297,28 +297,8 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
     }
 
     @Override
-    public boolean isOpenSkipPage() {
-        return dataManager.isOpenSkipPage();
-    }
-
-    @Override
-    public void setOpenSkipPage(boolean openSkipPage) {
-        dataManager.setOpenSkipPage(openSkipPage);
-    }
-
-    @Override
     public String getVideo9MmanAddress() {
         return dataManager.getMman9VideoAddress();
-    }
-
-    @Override
-    public boolean isShowUrlRedirectTipDialog() {
-        return dataManager.isShowUrlRedirectTipDialog();
-    }
-
-    @Override
-    public void setShowUrlRedirectTipDialog(boolean showUrlRedirectTipDialog) {
-        dataManager.setShowUrlRedirectTipDialog(showUrlRedirectTipDialog);
     }
 
     @Override
@@ -351,13 +331,4 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
         dataManager.setPornyAddress(address);
     }
 
-    @Override
-    public boolean isFixMainNavigation() {
-        return dataManager.isFixMainNavigation();
-    }
-
-    @Override
-    public void setFixMainNavigation(boolean fixMainNavigation) {
-        dataManager.setFixMainNavigation(fixMainNavigation);
-    }
 }

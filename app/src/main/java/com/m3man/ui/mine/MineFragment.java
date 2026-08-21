@@ -154,9 +154,6 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
     }
 
     private void handlerMargin() {
-        if (presenter.isFixMainNavigation()) {
-            return;
-        }
         FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) rootRelativeLayout.getLayoutParams();
         layoutParams.bottomMargin = QMUIDisplayHelper.getActionBarHeight(context);
         rootRelativeLayout.setLayoutParams(layoutParams);

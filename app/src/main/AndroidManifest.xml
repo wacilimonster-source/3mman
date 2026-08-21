@@ -165,11 +165,6 @@
             android:name="android.max_aspect"
             android:value="2.1" />
 
-        <activity
-            android:name=".ui.google.GoogleRecaptchaVerifyActivity"
-            android:configChanges="orientation|screenSize|keyboardHidden|uiMode|keyboard|layoutDirection"
-            android:label="@string/google_recaptcha_verify"
-            android:screenOrientation="portrait"/>
     </application>
 
 </manifest>

@@ -5,8 +5,6 @@ import com.m3man.ui.about.AboutActivity;
 import com.m3man.ui.about.AboutActivityModule;
 import com.m3man.ui.download.DownloadActivity;
 import com.m3man.ui.download.DownloadActivityModule;
-import com.m3man.ui.google.GoogleRecaptchaVerifyActivity;
-import com.m3man.ui.google.GoogleRecaptchaVerifyActivityModule;
 import com.m3man.ui.main.MainActivity;
 import com.m3man.ui.main.MainActivityModule;
 import com.m3man.ui.mman9video.author.AuthorActivity;
@@ -109,10 +107,6 @@ public abstract class ActivityBindingModule {
     @PerActivity
     @ContributesAndroidInjector(modules = HistoryActivityModule.class)
     abstract HistoryActivity historyActivity();
-
-    @PerActivity
-    @ContributesAndroidInjector(modules = GoogleRecaptchaVerifyActivityModule.class)
-    abstract GoogleRecaptchaVerifyActivity googleRecaptchaVerifyActivity();
 
     @PerActivity
     @ContributesAndroidInjector

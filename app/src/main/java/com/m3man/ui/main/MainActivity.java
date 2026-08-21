@@ -32,7 +32,6 @@ import com.m3man.data.model.Notice;
 import com.m3man.data.model.UpdateVersion;
 import com.m3man.data.network.Api;
 import com.m3man.eventbus.LowMemoryEvent;
-import com.m3man.eventbus.UrlRedirectEvent;
 import com.m3man.service.UpdateDownloadService;
 import com.m3man.ui.MvpActivity;
 import com.m3man.ui.basemain.BaseMainFragment;
@@ -254,12 +253,13 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         });
         bottomNavigationBar.setBarBackgroundColor(R.color.bottom_navigation_bar_background);
         bottomNavigationBar.setFab(fabSearch);
-        bottomNavigationBar.setAutoHideEnabled(!presenter.isFixMainNavigation());
+        // 首页底部导航栏固定展示，不再提供自动隐藏开关。
+        bottomNavigationBar.setAutoHideEnabled(false);
         bottomNavigationBar.initialise();
     }
 
     private void handlerContentMargin() {
-        if (contentFrameLayout == null || bottomNavigationBar == null || !presenter.isFixMainNavigation()) {
+        if (contentFrameLayout == null || bottomNavigationBar == null) {
             return;
         }
         CoordinatorLayout.LayoutParams layoutParams = (CoordinatorLayout.LayoutParams) contentFrameLayout.getLayoutParams();
@@ -599,28 +599,6 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                 //Bugsnag.notify(new Throwable(TAG + " tryToReleaseMemory error::", e), Severity.WARNING);
             }
         }
-    }
-
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void urlRedirectEvent(final UrlRedirectEvent urlRedirectEvent) {
-        if (isBackground) {
-            return;
-        }
-        QMUIDialog.MessageDialogBuilder builder = new QMUIDialog.MessageDialogBuilder(this);
-        builder.setTitle("温馨提示");
-        builder.setMessage("服务器连接发生跳转，新地址为：\n" + urlRedirectEvent.getNewUrl() + "\n原地址：\n" + urlRedirectEvent.getOldUrl() + "\n是否保存为最新地址？");
-        builder.addAction("保存", (dialog, index) -> {
-            if (Api.PORN9_VIDEO_DOMAIN_NAME.equals(urlRedirectEvent.getHeader())) {
-                presenter.setMman9VideoAddress(urlRedirectEvent.getNewUrl());
-                showMessage("保存成功", TastyToast.SUCCESS);
-            } else {
-                showMessage("保存失败，信息错误", TastyToast.ERROR);
-            }
-
-            dialog.dismiss();
-        });
-        builder.addAction("取消", (dialog, index) -> dialog.dismiss());
-        builder.show();
     }
 
     private void setNull(int position) {

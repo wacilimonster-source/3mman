@@ -33,15 +33,35 @@ if os.path.exists(bg):
     with open(bg, "r", encoding="utf-8") as f:
         _txt = f.read()
     _old = "storeFile file('../3mman.jks')"
-    _new = ("storeFile file('C:/gwork/origks/debug.keystore')\n"
+    _new = ("storeFile file('" + config.ORIG_KS.replace('\\', '/') + "')\n"
             "            storePassword 'android'\n"
             "            keyAlias 'androiddebugkey'\n"
             "            keyPassword 'android'")
-    assert _old in _txt, "未找到 release signingConfig.storeFile，请检查 build.gradle"
-    _txt = _txt.replace(_old, _new)
-    with open(bg, "w", encoding="utf-8") as f:
-        f.write(_txt)
-    print("patched release signing ->", config.ORIG_KS)
+    if _old in _txt:
+        _txt = _txt.replace(_old, _new)
+        with open(bg, "w", encoding="utf-8") as f:
+            f.write(_txt)
+        print("patched release signing ->", config.ORIG_KS)
+    elif _new not in _txt:
+        raise AssertionError("未找到 release signingConfig.storeFile，请检查 build.gradle")
+    else:
+        print("release signing already points to ->", config.ORIG_KS)
+
+# 沙箱内 Gradle Worker 加载 native-platform.dll 时创建 .lock 被拒（native-platform.dll.lock 拒绝访问）。
+# 从根上禁用 Gradle 原生服务，绕过该路径，不影响编译/混淆产物。
+_gp = os.path.join(config.WORK, "gradle.properties")
+_extra = "org.gradle.native=false\n"
+if os.path.exists(_gp):
+    with open(_gp, "r", encoding="utf-8") as f:
+        _gtxt = f.read()
+    if "org.gradle.native" not in _gtxt:
+        with open(_gp, "a", encoding="utf-8") as f:
+            f.write("\n" + _extra)
+    print("gradle.properties native disabled")
+else:
+    with open(_gp, "w", encoding="utf-8") as f:
+        f.write(_extra)
+    print("gradle.properties created with native disabled")
 
 args = [JAVA,
         "-Xmx2048m",
@@ -49,6 +69,7 @@ args = [JAVA,
         "-cp", cp,
         "org.gradle.launcher.GradleMain",
         "-p", config.WORK,
+        "--project-cache-dir", config.PROJECT_CACHE,
         "--no-daemon",
         "assembleRelease",
         "--stacktrace"]

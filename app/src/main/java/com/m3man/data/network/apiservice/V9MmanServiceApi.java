@@ -242,17 +242,4 @@ public interface V9MmanServiceApi {
     @Headers({"Domain-Name: " + Api.PORN9_VIDEO_DOMAIN_NAME})
     Observable<Response<ResponseBody>> testV9Mman(@Url String url);
 
-    /**
-     * 提交google人机验证结果
-     *
-     * @param action    form action url
-     * @param r         r
-     * @param id        clf id
-     * @param recaptcha token
-     * @return ob
-     */
-    @POST
-    @FormUrlEncoded
-    @Headers({"Domain-Name: " + Api.PORN9_VIDEO_DOMAIN_NAME})
-    Observable<Response<ResponseBody>> verifyGoogleRecaptcha(@Url String action, @Field("r") String r, @Field("id") String id, @Field("g-recaptcha-response") String recaptcha);
 }

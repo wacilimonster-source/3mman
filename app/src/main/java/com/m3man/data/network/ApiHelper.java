@@ -84,6 +84,4 @@ public interface ApiHelper {
     Observable<Boolean> testMman9VideoAddress();
 
     Observable<Response<ResponseBody>> testV9Mman(String url);
-
-    Observable<Response<ResponseBody>> verifyGoogleRecaptcha(String action, String r, String id, String recaptcha);
 }

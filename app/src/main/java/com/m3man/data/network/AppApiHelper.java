@@ -455,9 +455,4 @@ public class AppApiHelper implements ApiHelper {
         return v9MmanServiceApi.testV9Mman(url);
     }
 
-    @Override
-    public Observable<Response<ResponseBody>> verifyGoogleRecaptcha(String action, String r, String id, String recaptcha) {
-        return v9MmanServiceApi.verifyGoogleRecaptcha(action, r, id, recaptcha);
-    }
-
 }

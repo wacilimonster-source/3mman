@@ -7,10 +7,6 @@ import android.util.Log;
 import com.orhanobut.logger.Logger;
 import com.m3man.data.network.Api;
 import com.m3man.data.prefs.PreferencesHelper;
-import com.m3man.eventbus.UrlRedirectEvent;
-
-import org.greenrobot.eventbus.EventBus;
-
 import java.io.IOException;
 
 import javax.inject.Inject;
@@ -59,9 +55,6 @@ public class CommonHeaderInterceptor implements Interceptor {
                 Logger.t(TAG).e("连接被重定向为:" + urlStr);
                 //更新为最新地址
                 RetrofitUrlManager.getInstance().putDomain(Api.PORN9_VIDEO_DOMAIN_NAME, urlStr);
-                if (preferencesHelper.isShowUrlRedirectTipDialog()) {
-                    EventBus.getDefault().post(new UrlRedirectEvent(url, urlStr, Api.PORN9_VIDEO_DOMAIN_NAME));
-                }
             }
         }
 

@@ -50,6 +50,12 @@ def main():
                     data = fh.read()
                 with open(dstf, 'wb') as fh:
                     fh.write(data)
+                # Windows 沙箱可能让新副本继承只读属性；R8 会回写 seeds/usage 等文件，
+                # 因此显式清除目标文件的只读位。
+                try:
+                    os.chmod(dstf, 0o666)
+                except OSError:
+                    pass
                 count += 1
             except Exception as e:
                 print("SKIP", srcf, type(e).__name__, str(e)[:60])

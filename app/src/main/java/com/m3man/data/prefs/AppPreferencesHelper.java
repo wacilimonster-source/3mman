@@ -51,10 +51,7 @@ public class AppPreferencesHelper implements PreferencesHelper {
     private final static String KEY_SP_FIRST_TAB_SHOW = "key_sp_first_tab_show_str";
     private final static String KEY_SP_SECOND_TAB_SHOW = "key_sp_second_tab_show_str";
     private final static String KEY_SP_SETTING_SCROLLVIEW_SCROLL_POSITION = "key_sp_setting_scrollview_scroll_position";
-    private final static String KEY_SP_OPEN_SKIP_PAGE = "key_sp_open_skip_page";
     private final static String KEY_SP_CUSTOM_DOWNLOAD_VIDEO_DIR_PATH = "key_sp_custom_download_video_dir_path";
-    private final static String KEY_SP_SHOW_URL_REDIRECT_TIP_DIALOG = "key_sp_show_url_redirect_tip_dialog";
-    private final static String KEY_SP_FIX_MAIN_NAVIGATION = "key_sp_fix_main_navigation";
     private final static String KEY_SP_LOCAL_FAVORITE_MODE = "key_sp_local_favorite_mode";
 
     private final SharedPreferences mPrefs;
@@ -281,16 +278,6 @@ public class AppPreferencesHelper implements PreferencesHelper {
     }
 
     @Override
-    public void setOpenSkipPage(boolean openSkipPage) {
-        mPrefs.edit().putBoolean(KEY_SP_OPEN_SKIP_PAGE, openSkipPage).apply();
-    }
-
-    @Override
-    public boolean isOpenSkipPage() {
-        return mPrefs.getBoolean(KEY_SP_OPEN_SKIP_PAGE, false);
-    }
-
-    @Override
     public void setCustomDownloadVideoDirPath(String customDirPath) {
         mPrefs.edit().putString(KEY_SP_CUSTOM_DOWNLOAD_VIDEO_DIR_PATH, customDirPath).commit();
     }
@@ -305,16 +292,6 @@ public class AppPreferencesHelper implements PreferencesHelper {
             return path;
         }
         return path + "/";
-    }
-
-    @Override
-    public boolean isShowUrlRedirectTipDialog() {
-        return mPrefs.getBoolean(KEY_SP_SHOW_URL_REDIRECT_TIP_DIALOG, true);
-    }
-
-    @Override
-    public void setShowUrlRedirectTipDialog(boolean showUrlRedirectTipDialog) {
-        mPrefs.edit().putBoolean(KEY_SP_SHOW_URL_REDIRECT_TIP_DIALOG, showUrlRedirectTipDialog).apply();
     }
 
     @Override
@@ -336,16 +313,6 @@ public class AppPreferencesHelper implements PreferencesHelper {
     public boolean isPornyEnabled() {
         // 默认开启，装好即可用 91porny 无限制搜索
         return mPrefs.getBoolean(KEY_SP_PORNY_ENABLED, true);
-    }
-
-    @Override
-    public boolean isFixMainNavigation() {
-        return mPrefs.getBoolean(KEY_SP_FIX_MAIN_NAVIGATION, false);
-    }
-
-    @Override
-    public void setFixMainNavigation(boolean fixMainNavigation) {
-        mPrefs.edit().putBoolean(KEY_SP_FIX_MAIN_NAVIGATION, fixMainNavigation).apply();
     }
 
     @Override

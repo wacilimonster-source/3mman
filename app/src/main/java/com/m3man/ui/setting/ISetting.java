@@ -56,18 +56,8 @@ public interface ISetting {
 
     void setDownloadVideoNeedWifi(boolean downloadVideoNeedWifi);
 
-    boolean isOpenSkipPage();
-
-    void setOpenSkipPage(boolean openSkipPage);
-
     String getVideo9MmanAddress();
 
-    boolean isShowUrlRedirectTipDialog();
-
-    void setShowUrlRedirectTipDialog(boolean showUrlRedirectTipDialog);
-    boolean isFixMainNavigation();
-
-    void setFixMainNavigation(boolean fixMainNavigation);
 
     List<String> getAutoCompleteNames(int type);
 

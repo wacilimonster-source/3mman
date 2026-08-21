@@ -137,8 +137,4 @@ public class MainPresenter extends MvpBasePresenter<MainView> implements IMain {
         dataManager.setMman9VideoAddress(mman9VideoAddress);
     }
 
-    @Override
-    public boolean isFixMainNavigation() {
-        return dataManager.isFixMainNavigation();
-    }
 }

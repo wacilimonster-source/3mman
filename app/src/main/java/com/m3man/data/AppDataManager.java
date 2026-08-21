@@ -466,16 +466,6 @@ public class AppDataManager implements DataManager {
     }
 
     @Override
-    public void setOpenSkipPage(boolean openSkipPage) {
-        mPreferencesHelper.setOpenSkipPage(openSkipPage);
-    }
-
-    @Override
-    public boolean isOpenSkipPage() {
-        return mPreferencesHelper.isOpenSkipPage();
-    }
-
-    @Override
     public void setCustomDownloadVideoDirPath(String customDirPath) {
         mPreferencesHelper.setCustomDownloadVideoDirPath(customDirPath);
     }
@@ -483,16 +473,6 @@ public class AppDataManager implements DataManager {
     @Override
     public String getCustomDownloadVideoDirPath() {
         return mPreferencesHelper.getCustomDownloadVideoDirPath();
-    }
-
-    @Override
-    public boolean isShowUrlRedirectTipDialog() {
-        return mPreferencesHelper.isShowUrlRedirectTipDialog();
-    }
-
-    @Override
-    public void setShowUrlRedirectTipDialog(boolean showUrlRedirectTipDialog) {
-        mPreferencesHelper.setShowUrlRedirectTipDialog(showUrlRedirectTipDialog);
     }
 
     @Override
@@ -531,16 +511,6 @@ public class AppDataManager implements DataManager {
     }
 
     @Override
-    public boolean isFixMainNavigation() {
-        return mPreferencesHelper.isFixMainNavigation();
-    }
-
-    @Override
-    public void setFixMainNavigation(boolean fixMainNavigation) {
-        mPreferencesHelper.setFixMainNavigation(fixMainNavigation);
-    }
-
-    @Override
     public void existProxyTest() {
         mApiHelper.existProxyTest();
     }
@@ -553,11 +523,6 @@ public class AppDataManager implements DataManager {
     @Override
     public Observable<Response<ResponseBody>> testV9Mman(String url) {
         return mApiHelper.testV9Mman(url);
-    }
-
-    @Override
-    public Observable<Response<ResponseBody>> verifyGoogleRecaptcha(String action, String r, String id, String recaptcha) {
-        return mApiHelper.verifyGoogleRecaptcha(action, r, id, recaptcha);
     }
 
     @Override

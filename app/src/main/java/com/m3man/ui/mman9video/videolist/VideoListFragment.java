@@ -159,13 +159,10 @@ public class VideoListFragment extends MvpFragment<VideoListView, VideoListPrese
     }
 
     private void handlerSkipPage() {
-        if (presenter.isOpenSkipPage()) {
-            skipPageLayout.setVisibility(View.VISIBLE);
-            skipPageRecyclerView.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false));
-            skipPageRecyclerView.setAdapter(skipPageAdapter);
-        } else {
-            skipPageLayout.setVisibility(View.GONE);
-        }
+        // 视频地址跳页功能固定展示，不再受设置项控制。
+        skipPageLayout.setVisibility(View.VISIBLE);
+        skipPageRecyclerView.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false));
+        skipPageRecyclerView.setAdapter(skipPageAdapter);
     }
 
     @Override

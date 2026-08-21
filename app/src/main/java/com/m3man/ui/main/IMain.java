@@ -34,6 +34,4 @@ public interface IMain {
     boolean isUserLogin();
 
     void setMman9VideoAddress(String mman9VideoAddress);
-
-    boolean isFixMainNavigation();
 }

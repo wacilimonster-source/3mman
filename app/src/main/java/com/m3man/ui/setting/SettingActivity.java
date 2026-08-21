@@ -25,7 +25,6 @@ import com.m3man.data.network.Api;
 import com.m3man.data.db.entity.AutoCompleteEntity;
 import com.m3man.data.prefs.AppPreferencesHelper;
 import com.m3man.ui.MvpActivity;
-import com.m3man.ui.google.GoogleRecaptchaVerifyActivity;
 import com.m3man.ui.mman9video.user.UserLoginActivity;
 import com.m3man.utils.DialogUtils;
 import com.m3man.utils.PlaybackEngine;
@@ -191,43 +190,6 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
             }
         });
 
-        //开启91视频跳页功能
-        boolean isOpenSkipPage = presenter.isOpenSkipPage();
-        QMUICommonListItemView openSkipPageItemWithSwitch = qmuiGroupListView.createItemView("开启视频地址视频跳页功能");
-        openSkipPageItemWithSwitch.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_SWITCH);
-        openSkipPageItemWithSwitch.getSwitch().setChecked(isOpenSkipPage);
-        openSkipPageItemWithSwitch.getSwitch().setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                presenter.setOpenSkipPage(isChecked);
-            }
-        });
-
-
-        //服务器连接重定向时是否弹窗提示
-        boolean isShowUrlRedirectTipDialog = presenter.isShowUrlRedirectTipDialog();
-        QMUICommonListItemView showUrlRedirectTipDialogItemWithSwitch = qmuiGroupListView.createItemView("连接被服务器重定向时弹窗提示");
-        showUrlRedirectTipDialogItemWithSwitch.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_SWITCH);
-        showUrlRedirectTipDialogItemWithSwitch.getSwitch().setChecked(isShowUrlRedirectTipDialog);
-        showUrlRedirectTipDialogItemWithSwitch.getSwitch().setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                presenter.setShowUrlRedirectTipDialog(isChecked);
-            }
-        });
-
-        //主页固定底部导航栏
-        boolean fixMainNavigation = presenter.isFixMainNavigation();
-        QMUICommonListItemView fixMainNavigationItemWithSwitch = qmuiGroupListView.createItemView("固定首页底部导航栏(需重启)");
-        fixMainNavigationItemWithSwitch.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_SWITCH);
-        fixMainNavigationItemWithSwitch.getSwitch().setChecked(fixMainNavigation);
-        fixMainNavigationItemWithSwitch.getSwitch().setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                presenter.setFixMainNavigation(isChecked);
-            }
-        });
-
         //启用 91porny 搜索源
         boolean isPornyEnabled = presenter.isPornyEnabled();
         QMUICommonListItemView pornyEnabledItemWithSwitch = qmuiGroupListView.createItemView(getString(R.string.enable_porny_source));
@@ -256,12 +218,8 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
 
         sec.addItemView(itemWithSwitch, null);
         sec.addItemView(itemWithSwitchForbidden, this);
-        sec.addItemView(openSkipPageItemWithSwitch, null);
-        sec.addItemView(showUrlRedirectTipDialogItemWithSwitch, null);
-        sec.addItemView(fixMainNavigationItemWithSwitch, null);
         sec.addItemView(pornyEnabledItemWithSwitch, null);
         sec.addItemView(localFavoriteItemWithSwitch, null);
-        sec.addItemView(verifyGoogleRecaptcha(), this);
         sec.addTo(qmuiGroupListView);
     }
 
@@ -294,17 +252,6 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
             }
         });
         picker.show();
-    }
-
-    private QMUICommonListItemView verifyGoogleRecaptcha() {
-        QMUICommonListItemView googleRecaptchaItemWithChevron = qmuiGroupListView.createItemView(getString(R.string.google_recaptcha_verify));
-        googleRecaptchaItemWithChevron.setId(R.id.setting_item_google_recaptcha_verify);
-        googleRecaptchaItemWithChevron.setOrientation(QMUICommonListItemView.VERTICAL);
-
-        googleRecaptchaItemWithChevron.setDetailText("手动验证Google机器人");
-        googleRecaptchaItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
-
-        return googleRecaptchaItemWithChevron;
     }
 
     private void showIsMoveOldDirVideoFileToNewDirDialog(final String newDirPath, final QMUICommonListItemView qmuiCommonListItemView) {
@@ -583,15 +530,6 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
                 break;
             case R.id.setting_item_player_engine_choice:
                 showPlaybackEngineChoiceDialog((QMUICommonListItemView) v);
-                break;
-            case R.id.setting_item_google_recaptcha_verify:
-                String address = presenter.getVideo9MmanAddress();
-                if (TextUtils.isEmpty(address)) {
-                    showMessage("请先设置视频地址地址", TastyToast.INFO);
-                    return;
-                }
-                Intent intent = new Intent(this, GoogleRecaptchaVerifyActivity.class);
-                startActivityWithAnimation(intent);
                 break;
             default:
         }

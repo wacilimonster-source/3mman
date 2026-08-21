@@ -13,8 +13,8 @@ import os
 import datetime
 
 # ---------- 机器环境（如换机器请修改） ----------
-JAVA_HOME = r"C:\jdk17\jdk-17.0.14+7"
-ANDROID_SDK = r"C:\Android\Sdk"
+JAVA_HOME = r"C:\Users\wacil\.workbuddy\binaries\jdk17\jdk-17.0.2"
+ANDROID_SDK = r"G:\Android"
 BUILD_TOOLS = os.path.join(ANDROID_SDK, "build-tools", "34.0.0")
 # Gradle 发行包 lib 目录（wrapper 下载后固定路径）
 GRADLE_DIST_LIB = (
@@ -29,7 +29,7 @@ ORIG_KS = r"C:\gwork\origks\debug.keystore"
 GIT_REPO = r"C:\repo3mman"
 
 # ---------- 项目 ----------
-SRC = r"G:\game\新建文件夹\3mman"
+SRC = r"G:\game\nw\3mman"
 # GitHub 远程（ls-remote 取父提交）
 GIT_REMOTE = "origin"
 GIT_BRANCH = "refs/heads/master"
@@ -37,13 +37,14 @@ GIT_BRANCH = "refs/heads/master"
 # ---------- 每版构建的临时目录（时间戳，全新） ----------
 # 支持跨脚本共享同一时间戳（避免 01 复制与 03/04 重签/推送目录不一致）
 STAMP = os.environ.get("RECO_STAMP") or datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-_DRIVE = "C:/"                                          # Windows 接受正斜杠，避免 r"C:\" 语法坑
+_DRIVE = "C:/faban/"                                      # 所有隔离构建产物统一放在 C:/faban
 WORK = os.path.join(_DRIVE, "p3mman_" + STAMP)         # 源码副本（构建目录）
 GHOME = os.path.join(_DRIVE, "gh3mman_" + STAMP)       # GRADLE_USER_HOME
 AHOME = os.path.join(_DRIVE, "ah3mman_" + STAMP)       # ANDROID_USER_HOME
 OUT = os.path.join(WORK, "app", "build", "outputs", "apk", "release")
-# 日志写到可写目录（C:/ 根目录直接写文件在 Windows 下会被拒绝）
-LOG = os.path.join(r"C:\gwork", "build_" + STAMP + ".log")
+# 日志、临时签名和项目缓存均置于 C:/faban，避免污染 C:/ 根目录
+LOG = os.path.join(_DRIVE, "build_" + STAMP + ".log")
+PROJECT_CACHE = os.path.join(_DRIVE, "project-cache-" + STAMP)
 
 # 构建出的 APK 名：3mman_v<versionName>.apk（与 build.gradle 的 outputFileName 一致）
 def apk_name(version_name):

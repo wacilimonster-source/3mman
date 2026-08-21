@@ -88,17 +88,9 @@ public interface PreferencesHelper {
 
     int getSettingScrollViewScrollPosition();
 
-    void setOpenSkipPage(boolean openSkipPage);
-
-    boolean isOpenSkipPage();
-
     void setCustomDownloadVideoDirPath(String customDirPath);
 
     String getCustomDownloadVideoDirPath();
-
-    boolean isShowUrlRedirectTipDialog();
-
-    void setShowUrlRedirectTipDialog(boolean showUrlRedirectTipDialog);
 
     void setPornyAddress(String address);
 
@@ -108,9 +100,6 @@ public interface PreferencesHelper {
 
     boolean isPornyEnabled();
 
-    boolean isFixMainNavigation();
-
-    void setFixMainNavigation(boolean fixMainNavigation);
 
     /** M42：收藏方式——true=本地收藏（无需登录，与分分钟一致）；false=服务器收藏 */
     void setLocalFavoriteMode(boolean localFavoriteMode);

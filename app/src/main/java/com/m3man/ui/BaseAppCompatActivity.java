@@ -16,14 +16,9 @@ import com.sdsmdg.tastytoast.TastyToast;
 import com.m3man.R;
 import com.m3man.constants.Keys;
 import com.m3man.data.db.entity.V9MmanItem;
-import com.m3man.eventbus.NeedCheckGoogleRecaptchaEvent;
-import com.m3man.ui.google.GoogleRecaptchaVerifyActivity;
 import com.m3man.utils.PlaybackEngine;
 
 import org.greenrobot.eventbus.EventBus;
-import org.greenrobot.eventbus.Subscribe;
-import org.greenrobot.eventbus.ThreadMode;
-
 import cn.bingoogolapple.swipebacklayout.BGASwipeBackHelper;
 import dagger.android.support.DaggerAppCompatActivity;
 
@@ -57,18 +52,6 @@ public abstract class BaseAppCompatActivity extends DaggerAppCompatActivity impl
     public void setContentView(int layoutResID) {
         super.setContentView(layoutResID);
         setStatusBarColor(ContextCompat.getColor(this, R.color.colorPrimary));
-    }
-
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void checkGoogleRecaptcha(NeedCheckGoogleRecaptchaEvent needCheckGoogleRecaptchaEvent) {
-        if (needGoToCheckGoogleRecaptcha()) {
-            Intent intent = new Intent(this, GoogleRecaptchaVerifyActivity.class);
-            startActivityWithAnimation(intent);
-        }
-    }
-
-    protected boolean needGoToCheckGoogleRecaptcha() {
-        return true;
     }
 
     /**
