@@ -776,7 +776,7 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
         String url = videoResult.getVideoUrl();
         if (!com.m3man.ui.mman9video.play.PlayVideoPresenter.isPornySource(target)) {
             try {
-                VideoResult fresh = dataManager.loadMman9VideoUrl(viewKey.startsWith("viewkey=") ? viewKey.substring(8) : viewKey).blockingFirst();
+                VideoResult fresh = dataManager.loadMman9VideoUrl(viewKey).blockingFirst(); // M62：直传完整 viewKey（契约要求带前缀）
                 if (fresh != null && !TextUtils.isEmpty(fresh.getVideoUrl())) {
                     dataManager.saveVideoResult(fresh);
                     target.setVideoResult(fresh);

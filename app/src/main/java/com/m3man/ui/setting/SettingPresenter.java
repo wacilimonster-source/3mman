@@ -61,6 +61,8 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
     @Override
     public void test9MmanVideo(String baseUrl, final QMUICommonListItemView qmuiCommonListItemView, final String key) {
         // 全局 BaseUrl 的优先级低于 Domain-Name header 中单独配置的,其他未配置的接口将受全局 BaseUrl 的影响
+        // M62：记住旧地址，测试失败时回滚域名映射，避免主站请求继续打向坏地址直到进程重启
+        final String oldAddress = dataManager.getMman9VideoAddress();
         RetrofitUrlManager.getInstance().putDomain(Api.PORN9_VIDEO_DOMAIN_NAME, baseUrl);
         dataManager.testMman9VideoAddress()
                 .compose(RxSchedulersHelper.<Boolean>ioMainThread())
@@ -94,6 +96,10 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
 
                     @Override
                     public void onError(final String msg, int code) {
+                        // M62：测试失败回滚域名映射
+                        if (!TextUtils.isEmpty(oldAddress)) {
+                            RetrofitUrlManager.getInstance().putDomain(Api.PORN9_VIDEO_DOMAIN_NAME, oldAddress);
+                        }
                         ifViewAttached(new ViewAction<SettingView>() {
                             @Override
                             public void run(@NonNull SettingView view) {
@@ -106,6 +112,8 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
 
     @Override
     public void testPorny(String baseUrl, final QMUICommonListItemView qmuiCommonListItemView, final String key) {
+        // M62：记住旧地址，测试失败时回滚域名映射（testPornyAddress 内部会 putDomain 新地址）
+        final String oldPornyAddress = dataManager.getPornyAddress();
         dataManager.testPornyAddress(baseUrl)
                 .compose(RxSchedulersHelper.<Boolean>ioMainThread())
                 .compose(provider.<Boolean>bindToLifecycle())
@@ -137,6 +145,10 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
 
                     @Override
                     public void onError(final String msg, int code) {
+                        // M62：测试失败回滚域名映射
+                        if (!TextUtils.isEmpty(oldPornyAddress)) {
+                            RetrofitUrlManager.getInstance().putDomain(Api.PORNY_DOMAIN_NAME, oldPornyAddress);
+                        }
                         ifViewAttached(new ViewAction<SettingView>() {
                             @Override
                             public void run(@NonNull SettingView view) {

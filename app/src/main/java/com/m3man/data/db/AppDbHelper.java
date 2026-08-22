@@ -12,6 +12,7 @@ import com.m3man.data.db.entity.DaoSession;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.db.entity.V9MmanItemDao;
 import com.m3man.data.db.entity.VideoResult;
+import com.m3man.data.db.entity.VideoResultDao;
 import com.m3man.data.db.entity.AutoCompleteEntity;
 import com.m3man.data.db.entity.AutoCompleteEntityDao;
 import android.text.TextUtils;
@@ -158,6 +159,20 @@ public class AppDbHelper implements DbHelper {
 
     @Override
     public long saveVideoResult(VideoResult videoResult) {
+        // M62：按业务键 videoId 去重——所有调用方传入的 id 均为 null（GreenDAO 一律 INSERT），
+        // 旧行为导致 VIDEO_RESULT 表随每次解析无限膨胀出孤儿行。
+        // 已存在同 videoId 的记录时复用其主键做替换，外键引用保持有效。
+        if (videoResult.getId() == null && !TextUtils.isEmpty(videoResult.getVideoId())) {
+            try {
+                VideoResult existing = mDaoSession.getVideoResultDao().queryBuilder()
+                        .where(VideoResultDao.Properties.VideoId.eq(videoResult.getVideoId()))
+                        .build().unique();
+                if (existing != null) {
+                    videoResult.setId(existing.getId());
+                }
+            } catch (Exception ignored) {
+            }
+        }
         return mDaoSession.getVideoResultDao().insertOrReplace(videoResult);
     }
 

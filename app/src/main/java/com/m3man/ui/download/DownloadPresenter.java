@@ -350,7 +350,10 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
             if (TextUtils.isEmpty(addr)) {
                 return null;
             }
-            return addr + "view_video.php?viewkey=" + viewKey;
+            // M62：DB 中的 viewKey 带 "viewkey=" 前缀，直接拼会产生 viewkey=viewkey=XXX
+            String bareKey = viewKey != null && viewKey.startsWith("viewkey=")
+                    ? viewKey.substring(8) : viewKey;
+            return addr + "view_video.php?viewkey=" + bareKey;
         } catch (Exception e) {
             return null;
         }

@@ -855,7 +855,10 @@ public class RecommendFeedFragment extends BaseFragment
         try {
             String addr = dataManager.getMman9VideoAddress();
             if (!TextUtils.isEmpty(addr)) {
-                referer = addr + "view_video.php?viewkey=" + viewKey;
+                // M62：viewKey 已带 "viewkey=" 前缀，直接拼会产生 viewkey=viewkey=XXX
+                String bareKey = viewKey != null && viewKey.startsWith("viewkey=")
+                        ? viewKey.substring(8) : viewKey;
+                referer = addr + "view_video.php?viewkey=" + bareKey;
             }
         } catch (Exception ignored) {
         }

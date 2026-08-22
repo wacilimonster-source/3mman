@@ -605,7 +605,8 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         VideoResult videoResult = v9MmanItem.getVideoResult();
         if (!presenter.isUserLogin()) {
             goToLogin(KeysActivityRequestResultCode.LOGIN_ACTION_FOR_GET_UID);
-            showMessage("请先登录", TastyToast.SUCCESS);
+            // M62：提示语义修正——"请先登录"不该用成功样式
+            showMessage("请先登录", TastyToast.WARNING);
             return;
         }
         favoriteDialog.show();

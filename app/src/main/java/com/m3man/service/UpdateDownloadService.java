@@ -73,7 +73,10 @@ public class UpdateDownloadService extends Service {
         }
         int action = intent.getIntExtra(KEY_ACTION, 0);
         if (action == ACTION_PAUSE) {
-            FileDownloader.getImpl().pauseAll();
+            // M62：只暂停本 APK 下载任务——pauseAll 是进程级操作，会把用户正在下载的视频一并暂停
+            if (downloadId != 0) {
+                FileDownloader.getImpl().pause(downloadId);
+            }
             return START_NOT_STICKY;
         } else if (action == ACTION_GO_ON) {
             //直接过去就好
@@ -83,8 +86,10 @@ public class UpdateDownloadService extends Service {
                 FileDownloader.getImpl().clear(downloadId, path);
                 stopForeground(true);
             } else {
-                //否则先暂停，在暂停中移除
-                FileDownloader.getImpl().pauseAll();
+                //否则先暂停，在暂停中移除（M62：同样只暂停本任务）
+                if (downloadId != 0) {
+                    FileDownloader.getImpl().pause(downloadId);
+                }
                 isPause = true;
             }
             return START_NOT_STICKY;

@@ -43,6 +43,10 @@ public class ParseV9MmanVideo {
         Document doc = Jsoup.parse(html);
 
         Element body = doc.getElementById("wrapper");
+        // M62：CDN/代理拦截页、错误页可能不含 #wrapper，判空避免 NPE
+        if (body == null) {
+            return new ArrayList<>();
+        }
 
         Element container = body.selectFirst("div.container");
 
@@ -62,6 +66,13 @@ public class ParseV9MmanVideo {
         Document doc = Jsoup.parse(html);
 
         Element body = doc.getElementById("wrapper");
+        // M62：判空避免 NPE（拦截页/错误页）
+        if (body == null) {
+            BaseResult<List<V9MmanItem>> emptyResult = new BaseResult<>();
+            emptyResult.setTotalPage(1);
+            emptyResult.setData(new ArrayList<>());
+            return emptyResult;
+        }
 
         Element container = body.selectFirst("div.container");
         List<V9MmanItem> v9MmanItemList = parserByDivContainer(container);
@@ -112,7 +123,8 @@ public class ParseV9MmanVideo {
             v9MmanItem.setDuration(duration);
 
             int start = allInfo.indexOf("添加时间");
-            String info = allInfo.substring(start);
+            // M62：start==-1 时直接 substring 会越界并拖垮整页列表
+            String info = start >= 0 ? allInfo.substring(start) : allInfo;
             v9MmanItem.setInfo(info.replace("还未被评分", ""));
             //  Logger.d(info);
 
@@ -203,7 +215,9 @@ public class ParseV9MmanVideo {
                 }
             }
 
-            String info = allInfo.substring(start);
+            // M62：三语文案都未命中时 start==-1，直接 substring 会越界并拖垮整页列表；
+            // 退化为整段文本，保证单条异常不炸全页
+            String info = start >= 0 ? allInfo.substring(start) : allInfo;
             try {
                 if (TextUtils.equals(v9MmanItem.getDuration(), "00:00")) {
                     String duration = allInfo.substring(allInfo.indexOf("时长:") + 3, allInfo.indexOf("查看"));
@@ -305,7 +319,8 @@ public class ParseV9MmanVideo {
             String allInfo = element.text();
 
             int start = allInfo.indexOf("添加时间");
-            String info = allInfo.substring(start);
+            // M62：start==-1 时直接 substring 会越界并拖垮整页列表
+            String info = start >= 0 ? allInfo.substring(start) : allInfo;
             v9MmanItem.setInfo(info.replace("还未被评分", ""));
             //Logger.d(info);
 
@@ -529,10 +544,15 @@ public class ParseV9MmanVideo {
         Element userLickElement = element.select("a").first();
         if (userLickElement != null) {
             String userLinks = userLickElement.attr("href");
-            int uid = Integer.parseInt(StringUtils.subString(userLinks, userLinks.indexOf("=") + 1, userLinks.length()));
-            user.setUserId(uid);
-            Logger.t(TAG).d(userLinks);
-            Logger.t(TAG).d(uid);
+            // M62：parseInt 加捕获，异常页结构变化时不再让登录成功路径中断
+            try {
+                int uid = Integer.parseInt(StringUtils.subString(userLinks, userLinks.indexOf("=") + 1, userLinks.length()));
+                user.setUserId(uid);
+                Logger.t(TAG).d(userLinks);
+                Logger.t(TAG).d(uid);
+            } catch (Exception e) {
+                Logger.t(TAG).e("parse uid failed: " + e.getMessage());
+            }
         } else {
             Logger.t(TAG).d("无法解析用户uid");
         }
@@ -541,20 +561,35 @@ public class ParseV9MmanVideo {
         Logger.t(TAG).d(userName);
         user.setUserName(userName);
 
-        String userAccountStatus = doc.getElementById("userinfo-title").select("font").first().text();
-        Logger.t(TAG).d(userAccountStatus);
-        user.setStatus(userAccountStatus);
+        // M62：font 元素可能缺失，判空避免登录成功路径 NPE
+        Element fontEle = doc.getElementById("userinfo-title").select("font").first();
+        if (fontEle != null) {
+            String userAccountStatus = fontEle.text();
+            Logger.t(TAG).d(userAccountStatus);
+            user.setStatus(userAccountStatus);
+        }
 
         String userContent = doc.getElementById("userinfo-content").text();
         Logger.t(TAG).d(userContent);
 
-        String lastLoginTime = userContent.substring(userContent.indexOf("最后登录"), userContent.indexOf("IP:"));
-        String lastLoginIP = userContent.substring(userContent.indexOf("IP:"), userContent.indexOf("点此查看"));
-        user.setLastLoginTime(lastLoginTime);
-        user.setLastLoginIP(lastLoginIP);
-
-        Logger.t(TAG).d(lastLoginTime);
-        Logger.t(TAG).d(lastLoginIP);
+        // M62：任一锚点文案缺失或顺序颠倒时 indexOf 返回 -1，直接 substring 会越界
+        try {
+            int tStart = userContent.indexOf("最后登录");
+            int ipIdx = userContent.indexOf("IP:");
+            if (tStart >= 0 && ipIdx > tStart) {
+                String lastLoginTime = userContent.substring(tStart, ipIdx);
+                user.setLastLoginTime(lastLoginTime);
+                int viewIdx = userContent.indexOf("点此查看");
+                String lastLoginIP = viewIdx > ipIdx
+                        ? userContent.substring(ipIdx, viewIdx)
+                        : userContent.substring(ipIdx);
+                user.setLastLoginIP(lastLoginIP);
+                Logger.t(TAG).d(lastLoginTime);
+                Logger.t(TAG).d(lastLoginIP);
+            }
+        } catch (Exception e) {
+            Logger.t(TAG).e("parse lastLogin failed: " + e.getMessage());
+        }
 
         return user;
     }
@@ -568,6 +603,13 @@ public class ParseV9MmanVideo {
     public static BaseResult<List<V9MmanItem>> parseMyFavorite(String html) {
         Document doc = Jsoup.parse(html);
         Element body = doc.getElementById("wrapper");
+        // M62：判空避免 NPE（拦截页/错误页）
+        if (body == null) {
+            BaseResult<List<V9MmanItem>> emptyResult = new BaseResult<>();
+            emptyResult.setTotalPage(1);
+            emptyResult.setData(new ArrayList<>());
+            return emptyResult;
+        }
 
         Element container = body.selectFirst("div.container");
 
@@ -619,7 +661,9 @@ public class ParseV9MmanVideo {
                 }
             }
 
-            String info = allInfo.substring(start);
+            // M62：三语文案都未命中时 start==-1，直接 substring 会越界并拖垮整页列表；
+            // 退化为整段文本，保证单条异常不炸全页
+            String info = start >= 0 ? allInfo.substring(start) : allInfo;
             try {
                 if (TextUtils.equals(v9MmanItem.getDuration(), "00:00")) {
                     String duration = allInfo.substring(allInfo.indexOf("时长:") + 3, allInfo.indexOf("查看"));
@@ -687,6 +731,13 @@ public class ParseV9MmanVideo {
 
 
         Element body = doc.getElementById("wrapper");
+        // M62：判空避免 NPE（拦截页/错误页）
+        if (body == null) {
+            BaseResult<List<V9MmanItem>> emptyResult = new BaseResult<>();
+            emptyResult.setTotalPage(1);
+            emptyResult.setData(new ArrayList<>());
+            return emptyResult;
+        }
 
         Element container = body.selectFirst("div.container");
         List<V9MmanItem> v9MmanItemList = parserByDivContainer(container);
@@ -741,25 +792,39 @@ public class ParseV9MmanVideo {
         for (Element element : elements) {
             VideoComment videoComment = new VideoComment();
 
-            String ownnerUrl = element.select("a[href*=UID]").first().attr("href");
+            // M62：注销用户等场景可能缺 UID 链接，判空跳过该条而不是拖垮整页评论
+            Element uidLink = element.select("a[href*=UID]").first();
+            if (uidLink == null) {
+                continue;
+            }
+            String ownnerUrl = uidLink.attr("href");
             String uid = ownnerUrl.substring(ownnerUrl.indexOf("=") + 1, ownnerUrl.length());
             videoComment.setUid(uid);
             //Logger.t(TAG).d(uid);
 
-            String uName = element.select("a[href*=UID]").first().text();
+            String uName = uidLink.text();
             videoComment.setuName(uName);
             Logger.t(TAG).d(uName);
 
-            String replyTime = element.select("span.comment-info").first().text();
-            videoComment.setReplyTime(replyTime.replace("(", "").replace(")", ""));
-            // Logger.t(TAG).d(replyTime);
+            // M62：comment-info 缺失时跳过时间解析，不中断整页
+            Element infoEle = element.select("span.comment-info").first();
+            if (infoEle != null) {
+                String replyTime = infoEle.text();
+                videoComment.setReplyTime(replyTime.replace("(", "").replace(")", ""));
+            } // Logger.t(TAG).d(replyTime);
 
-            String tmpreplyId = element.select("div.comment-body").first().attr("id");
-            String replyId = tmpreplyId.substring(tmpreplyId.lastIndexOf("_") + 1, tmpreplyId.length());
+            // M62：comment-body 判空必须先于 replyId 解析——
+            // replyId 取自同一元素的 attr("id")，若把判空放在其后，缺 body 的行会先在取 id 处 NPE
+            Element bodyEle = element.select("div.comment-body").first();
+            if (bodyEle == null) {
+                continue;
+            }
+            String replyIdSrc = bodyEle.attr("id");
+            String replyId = replyIdSrc.substring(replyIdSrc.lastIndexOf("_") + 1, replyIdSrc.length());
             videoComment.setReplyId(replyId);
             // Logger.t(TAG).d("replyId:" + replyId);
 
-            String comment = element.select("div.comment-body").first().text().replace("举报", "").replace("Show", "");
+            String comment = bodyEle.text().replace("举报", "").replace("Show", "");
             //            videoComment.setContentMessage(comment.replace("Show", ""));
             //Logger.t(TAG).d(comment);
 
@@ -787,10 +852,14 @@ public class ParseV9MmanVideo {
 
             videoComment.setCommentQuoteList(quoteList);
 
-            String info = element.select("td").first().text();
-            int bracket = info.indexOf("(");
-            String titleInfo = bracket > 0 ? info.substring(0, bracket) : info;
-            videoComment.setTitleInfo(titleInfo.replace(uName, ""));
+            // M62：td 元素缺失时跳过标题信息解析，不中断整页（评论正文已在上方就绪）
+            Element infoTd = element.select("td").first();
+            if (infoTd != null) {
+                String info = infoTd.text();
+                int bracket = info.indexOf("(");
+                String titleInfo = bracket > 0 ? info.substring(0, bracket) : info;
+                videoComment.setTitleInfo(titleInfo.replace(uName, ""));
+            }
             // Logger.t(TAG).d(titleInfo);
 
             videoCommentList.add(videoComment);

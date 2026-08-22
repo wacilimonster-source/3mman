@@ -40,10 +40,21 @@ public class CommonHeaderInterceptor implements Interceptor {
         Request original = chain.request();
         String header = original.header("Domain-Name");
 
-        //如果是可能被重定向的header
+        Request.Builder requestBuilder = original.newBuilder();
+        requestBuilder.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.84 Safari/537.36");
+        requestBuilder.header("Accept-Language", "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5");
+        requestBuilder.header("Proxy-Connection", "keep-alive");
+        requestBuilder.header("Cache-Control", "max-age=0");
+
+        requestBuilder.method(original.method(), original.body());
+
+        Request request = requestBuilder.build();
+        // M62：只 proceed 一次。旧实现先 proceed 一次探测重定向、再 proceed 一次返回，
+        // 导致所有主站请求被真实执行两次（POST 双提交/配额双耗），且首个 Response 从不关闭造成连接泄漏。
+        Response response = chain.proceed(request);
+
+        //如果是可能被重定向的header，从最终响应读取实际 host 探测重定向
         if (!TextUtils.isEmpty(header) && header.equals(Api.PORN9_VIDEO_DOMAIN_NAME)) {
-            //返回的地址
-            Response response = chain.proceed(original);
             HttpUrl httpUrl = response.request().url();
             //读取本地地址
             String url = preferencesHelper.getMman9VideoAddress();
@@ -58,15 +69,6 @@ public class CommonHeaderInterceptor implements Interceptor {
             }
         }
 
-        Request.Builder requestBuilder = original.newBuilder();
-        requestBuilder.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.84 Safari/537.36");
-        requestBuilder.header("Accept-Language", "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5");
-        requestBuilder.header("Proxy-Connection", "keep-alive");
-        requestBuilder.header("Cache-Control", "max-age=0");
-
-        requestBuilder.method(original.method(), original.body());
-
-        Request request = requestBuilder.build();
-        return chain.proceed(request);
+        return response;
     }
 }

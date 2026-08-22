@@ -30,7 +30,8 @@ public class ParseProxy {
         Document doc = Jsoup.parse(html);
 
         Element ipList = doc.getElementById("ip_list");
-        Elements trs = ipList.select("tr");
+        // M62：源页面结构异常时 ip_list 可能为 null，返回空列表而非 NPE
+        Elements trs = ipList == null ? new Elements() : ipList.select("tr");
         int trSize = trs.size();
         List<ProxyModel> proxyModelList = new ArrayList<>();
         for (int i = 0; i < trSize; i++) {
@@ -97,12 +98,16 @@ public class ParseProxy {
         }
         baseResult.setData(proxyModelList);
         if (page == 1) {
-            Elements elements = doc.getElementsByClass("pagination").first().select("a");
-            if (elements.size() > 3) {
-                String totalPageStr = elements.get(elements.size() - 2).text();
-                Logger.t(TAG).d(totalPageStr);
-                if (TextUtils.isDigitsOnly(totalPageStr)) {
-                    baseResult.setTotalPage(Integer.parseInt(totalPageStr));
+            // M62：pagination 可能为 null，判空避免 NPE
+            Element pagination = doc.getElementsByClass("pagination").first();
+            if (pagination != null) {
+                Elements elements = pagination.select("a");
+                if (elements.size() > 3) {
+                    String totalPageStr = elements.get(elements.size() - 2).text();
+                    Logger.t(TAG).d(totalPageStr);
+                    if (TextUtils.isDigitsOnly(totalPageStr)) {
+                        baseResult.setTotalPage(Integer.parseInt(totalPageStr));
+                    }
                 }
             }
         }

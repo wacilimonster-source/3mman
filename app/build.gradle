@@ -8,8 +8,8 @@ android {
         applicationId "com.m3man"
         minSdkVersion parent.ext.minSdkVersion
         targetSdkVersion parent.ext.targetSdkVersion
-        versionCode 94
-        versionName "1.0.61"
+        versionCode 95
+        versionName "1.0.62"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
         multiDexEnabled true
@@ -81,7 +81,8 @@ tasks.withType(JavaCompile) {
 }
 
 greendao {
-    schemaVersion 9//数据库版本号（v9: V9MmanItem.isLocalFavorite 改为可空 + 迁移事务化，避免升级清空本地收藏/下载/历史）
+    //v10: AutoCompleteEntity 唯一索引从 name 单列改为 (name,type) 复合（M62）
+    schemaVersion 10
 }
 
 /*

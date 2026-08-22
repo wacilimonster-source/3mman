@@ -13,7 +13,11 @@ import java.util.Date;
  * @author flymegoc
  * @date 2018/2/7
  */
-@Entity
+// M62：业务键是 (name,type)——同一 URL 先存地址建议再存搜索历史是现实场景，
+// 旧的 name 单列唯一索引会静默吞掉跨类型同名写入（SQLiteConstraintException 被吞）。
+// 注意：greenDAO 3.2.2 的 @Index @Target 仅 FIELD，复合索引必须挂在 @Entity(indexes=...) 上，
+// 且 value 是逗号分隔字符串（不是 {"a","b"} 数组）
+@Entity(indexes = { @Index(value = "name,type", unique = true) })
 public class AutoCompleteEntity {
     /** M3：地址自动补全建议的类型标签（与用户名等区分） */
     public static final int TYPE_ADDRESS = 1;
@@ -22,7 +26,6 @@ public class AutoCompleteEntity {
 
     @Id
     private Long id;
-    @Index(unique = true)
     private String name;
     private int useTime;
     private int type;

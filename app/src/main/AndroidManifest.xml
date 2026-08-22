@@ -8,10 +8,12 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
-    <!-- M20：API29 起分区存储生效，该权限已无实际作用，声明 maxSdkVersion 避免高版本无意义弹窗 -->
+    <!-- M62：targetSdk=28 + requestLegacyExternalStorage 下，API 29~32 设备仍走 legacy 存储模型，
+         写 /sdcard/3mman/video 必须持有 WRITE_EXTERNAL_STORAGE；maxSdkVersion 从 28 提到 32，
+         否则 Android 10~12 设备该权限在合并 manifest 中不存在、运行时请求被静默拒绝 -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
+        android:maxSdkVersion="32" />
     <!-- M20：API33+ 细分媒体权限，读取本地已下载视频/封面需要 -->
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />

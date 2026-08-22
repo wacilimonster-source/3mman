@@ -19,6 +19,7 @@
     <string name="my_collect">我的收藏</string>
     <string name="my_download">我的下载</string>
     <string name="more_setting">更多设置</string>
+    <string name="copy_log">复制全部日志</string>
     <string name="about_me">关于</string>
     <string name="pl_login">请登录</string>
     <string name="no_data">暂无数据</string>

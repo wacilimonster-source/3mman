@@ -165,7 +165,19 @@ public class AppApiHelper implements ApiHelper {
     @Override
     public Observable<VideoResult> loadMman9VideoUrl(String viewKey) {
 
-        String[] queryMap = viewKey.split("&");
+        // M62：契约归一化——本方法按 "&"/"=" 切分 query，必须收到 "viewkey=xxx" 完整形态。
+        // v1.0.60 起部分调用方误剥前缀传入裸 key，导致请求变成 /view_video.php?<裸key>= 解析必败。
+        // 在入口统一兜底：裸 key 自动补前缀；历史误存的其他参数名前缀（如 UID=）纠正为 viewkey=。
+        String normalized = viewKey == null ? "" : viewKey.trim();
+        if (TextUtils.isEmpty(normalized)) {
+            return io.reactivex.Observable.error(new IllegalArgumentException("viewKey 为空，无法解析视频"));
+        }
+        if (!normalized.startsWith("viewkey=")) {
+            int eq = normalized.indexOf('=');
+            normalized = "viewkey=" + (eq > 0 ? normalized.substring(eq + 1) : normalized);
+        }
+
+        String[] queryMap = normalized.split("&");
         Map<String, String> viewKeyQuery = new LinkedHashMap<>(queryMap.length);
         for (String q : queryMap) {
             String[] keyValue = q.split("=");
@@ -257,7 +269,8 @@ public class AppApiHelper implements ApiHelper {
     public Observable<String> favoriteMman9Video(String uId, String videoId, String ownnerId) {
         String cpaintFunction = "addToFavorites";
         String responseType = "json";
-        return v9MmanServiceApi.favoriteVideo(uId,videoId,ownnerId,HeaderUtils.getIndexHeader(addressHelper))
+        // M62：接口签名是 (VID=视频id, UID=用户id, VUID=作者id)，原调用把前两者装反了
+        return v9MmanServiceApi.favoriteVideo(videoId, uId, ownnerId, HeaderUtils.getIndexHeader(addressHelper))
                 .map(s -> {
                     Logger.t(TAG).d("favoriteStr: " + s);
                     int code;
@@ -334,7 +347,17 @@ public class AppApiHelper implements ApiHelper {
 
     @Override
     public Observable<Bitmap> mman9VideoLoginCaptcha() {
-        return v9MmanServiceApi.captcha().map(responseBody -> BitmapFactory.decodeStream(responseBody.byteStream()));
+        // M62：ResponseBody 用完必须关闭，否则每次拉验证码泄漏一条连接
+        return v9MmanServiceApi.captcha().map(responseBody -> {
+            try {
+                return BitmapFactory.decodeStream(responseBody.byteStream());
+            } finally {
+                try {
+                    responseBody.close();
+                } catch (Exception ignored) {
+                }
+            }
+        });
     }
 
     @Override

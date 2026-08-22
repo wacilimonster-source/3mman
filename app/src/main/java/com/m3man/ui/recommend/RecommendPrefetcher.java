@@ -215,15 +215,14 @@ public class RecommendPrefetcher {
             inFlight.add(viewKey);
         }
         // M60：hex viewkey（20位十六进制）= 91porny 视频，走 91porny 解析器；其余走 9mman。
-        // DB 中 viewKey 可能带 "viewkey=" 前缀，需先剥离。
-        String cleanViewKey = viewKey;
-        if (cleanViewKey != null && cleanViewKey.startsWith("viewkey=")) {
-            cleanViewKey = cleanViewKey.substring(8);
-        }
-        final boolean isHexViewKey = cleanViewKey != null && cleanViewKey.matches("[0-9a-fA-F]{16,32}");
+        // M62：9mman 候选的 viewKey 恒带 "viewkey=" 前缀（extractViewKey 契约），必须完整传给
+        // loadMman9VideoUrl（其入口已做归一化兜底）；v1.0.60 在此剥前缀导致推荐流 9mman 解析必败。
+        // 只有裸 key 且恰为纯 hex 才判定为 91porny 源。
+        final boolean isMmanPrefixed = viewKey != null && viewKey.startsWith("viewkey=");
+        final boolean isHexViewKey = !isMmanPrefixed && viewKey != null && viewKey.matches("[0-9a-fA-F]{16,32}");
         final Observable<VideoResult> parseObs = isHexViewKey
-                ? dataManager.loadPornyVideoUrl(cleanViewKey)
-                : dataManager.loadMman9VideoUrl(cleanViewKey);
+                ? dataManager.loadPornyVideoUrl(viewKey)
+                : dataManager.loadMman9VideoUrl(viewKey);
         disposables.add(parseObs
                 .subscribeOn(Schedulers.io())
                 .map(videoResult -> {

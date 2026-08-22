@@ -121,19 +121,29 @@ public class HlsDownloader {
                         return;
                     }
                     File tsFile = new File(tempDir, String.format("seg_%05d.ts", i));
+                    boolean pieceOk;
                     if (useCache && cacheHits.containsKey(fullUrls.get(i))) {
-                        if (copyFile(cacheHits.get(fullUrls.get(i)), tsFile)) {
-                            tsFiles.add(tsFile);
-                            ok++;
-                        }
-                    } else if (downloadToFile(fullUrls.get(i), tsFile)) {
+                        // M62：缓存复制失败时回退网络下载，而不是静默跳过该分片
+                        pieceOk = copyFile(cacheHits.get(fullUrls.get(i)), tsFile)
+                                || downloadToFile(fullUrls.get(i), tsFile);
+                    } else {
+                        pieceOk = downloadToFile(fullUrls.get(i), tsFile);
+                    }
+                    if (pieceOk) {
                         tsFiles.add(tsFile);
                         ok++;
                     }
                     notifyProgress(listener, ok, fullUrls.size());
                 }
-                if (tsFiles.isEmpty()) {
-                    notifyError(listener, "所有分片下载失败");
+                // M62：硬校验——任一分片失败都不得合并，否则产出缺段 mp4 被标成"下载完成"
+                if (ok != fullUrls.size()) {
+                    notifyError(listener, "有 " + (fullUrls.size() - ok) + "/" + fullUrls.size()
+                            + " 个分片下载失败，已中止（请重试）");
+                    return;
+                }
+                if (cancelled) {
+                    // M62：合并/转码阶段也响应取消，避免已取消任务照常产出"下载完成"
+                    notifyError(listener, "下载已取消");
                     return;
                 }
 
@@ -148,6 +158,10 @@ public class HlsDownloader {
                     return;
                 }
                 File mp4File = new File(outDir, fileName + ".mp4");
+                if (cancelled) {
+                    notifyError(listener, "下载已取消");
+                    return;
+                }
                 boolean remuxOk = remuxTsToMp4(tsMerged, mp4File);
                 if (!remuxOk || !mp4File.exists() || mp4File.length() <= 0) {
                     notifyError(listener, "视频转码失败（该分片可能不支持转 mp4）");
@@ -187,14 +201,21 @@ public class HlsDownloader {
                 return null;
             }
             InputStream in = new BufferedInputStream(conn.getInputStream());
-            StringBuilder sb = new StringBuilder();
-            byte[] buf = new byte[4096];
-            int n;
-            while ((n = in.read(buf)) != -1) {
-                sb.append(new String(buf, 0, n, "UTF-8"));
+            try {
+                StringBuilder sb = new StringBuilder();
+                byte[] buf = new byte[4096];
+                int n;
+                while ((n = in.read(buf)) != -1) {
+                    sb.append(new String(buf, 0, n, "UTF-8"));
+                }
+                return sb.toString();
+            } finally {
+                // M62：异常路径也要关流，避免连接泄漏
+                try {
+                    in.close();
+                } catch (Exception ignored) {
+                }
             }
-            in.close();
-            return sb.toString();
         } finally {
             conn.disconnect();
         }
@@ -230,45 +251,72 @@ public class HlsDownloader {
     }
 
     private static boolean copyFile(File from, File to) {
+        InputStream in = null;
+        OutputStream out = null;
         try {
-            InputStream in = new BufferedInputStream(new FileInputStream(from));
-            OutputStream out = new BufferedOutputStream(new FileOutputStream(to));
+            in = new BufferedInputStream(new FileInputStream(from));
+            out = new BufferedOutputStream(new FileOutputStream(to));
             byte[] buf = new byte[8192];
             int n;
             while ((n = in.read(buf)) != -1) {
                 out.write(buf, 0, n);
             }
             out.flush();
-            out.close();
-            in.close();
             return to.length() > 0;
         } catch (Exception e) {
             return false;
+        } finally {
+            // M62：异常路径也要关流
+            try {
+                if (out != null) {
+                    out.close();
+                }
+            } catch (Exception ignored) {
+            }
+            try {
+                if (in != null) {
+                    in.close();
+                }
+            } catch (Exception ignored) {
+            }
         }
     }
 
     private boolean tryDownloadToFile(String urlStr, File file) {
         HttpURLConnection conn = null;
+        InputStream in = null;
+        OutputStream out = null;
         try {
             conn = open(urlStr);
             int code = conn.getResponseCode();
             if (code != 200) {
                 return false;
             }
-            InputStream in = new BufferedInputStream(conn.getInputStream());
-            OutputStream out = new BufferedOutputStream(new FileOutputStream(file));
+            in = new BufferedInputStream(conn.getInputStream());
+            out = new BufferedOutputStream(new FileOutputStream(file));
             byte[] buf = new byte[8192];
             int n;
             while ((n = in.read(buf)) != -1) {
                 out.write(buf, 0, n);
             }
             out.flush();
-            out.close();
-            in.close();
             return file.length() > 0;
         } catch (Exception e) {
             return false;
         } finally {
+            // M62：异常路径也要关流，避免每次失败泄一个 fd
+            try {
+                if (out != null) {
+                    out.close();
+                }
+            } catch (Exception ignored) {
+            }
+            try {
+                if (in != null) {
+                    in.close();
+                }
+            } catch (Exception ignored) {
+            }
             if (conn != null) {
                 conn.disconnect();
             }
@@ -334,17 +382,30 @@ public class HlsDownloader {
 
     private static void mergeFiles(List<File> parts, File out) throws IOException {
         BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(out));
-        byte[] buf = new byte[8192];
-        for (File part : parts) {
-            BufferedInputStream bis = new BufferedInputStream(new FileInputStream(part));
-            int n;
-            while ((n = bis.read(buf)) != -1) {
-                bos.write(buf, 0, n);
+        try {
+            byte[] buf = new byte[8192];
+            for (File part : parts) {
+                BufferedInputStream bis = new BufferedInputStream(new FileInputStream(part));
+                try {
+                    int n;
+                    while ((n = bis.read(buf)) != -1) {
+                        bos.write(buf, 0, n);
+                    }
+                } finally {
+                    // M62：异常路径也要关流
+                    try {
+                        bis.close();
+                    } catch (Exception ignored) {
+                    }
+                }
             }
-            bis.close();
+            bos.flush();
+        } finally {
+            try {
+                bos.close();
+            } catch (Exception ignored) {
+            }
         }
-        bos.flush();
-        bos.close();
     }
 
     /**

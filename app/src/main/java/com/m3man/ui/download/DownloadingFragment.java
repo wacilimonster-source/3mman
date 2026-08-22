@@ -96,6 +96,13 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
                     continue;
                 }
                 String path = v9MmanItem.getDownLoadPath(presenter.getCustomDownloadVideoDirPath());
+                // M62：HLS(m3u8) 任务从未在 FileDownloader 登记（getStatus 恒返回 INVALID，
+                // 文件存在时又误判 completed），其状态由 HlsDownloadService 全权管理，必须跳过，
+                // 否则会覆写 HLS 记录制造/冻结幽灵行
+                if (v9MmanItem.getVideoResult().getVideoUrl() != null
+                        && DownloadManager.isHlsUrl(v9MmanItem.getVideoResult().getVideoUrl())) {
+                    continue;
+                }
                 int status = FileDownloader.getImpl().getStatus(v9MmanItem.getVideoResult().getVideoUrl(), path);
                 Logger.t(TAG).d("fix status:::" + status);
                 if (status != v9MmanItem.getStatus()) {
@@ -300,6 +307,10 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
 
     private void cancelHlsDownload(V9MmanItem item) {
         Intent cancel = new Intent(getContext(), HlsDownloadService.class).setAction(HlsDownloadService.ACTION_CANCEL);
+        // M62：带上目标 viewKey，服务端校验匹配后才取消，防止删无关行误杀当前下载
+        if (item != null && !TextUtils.isEmpty(item.getViewKey())) {
+            cancel.putExtra(HlsDownloadService.EXTRA_VIEW_KEY, item.getViewKey());
+        }
         getContext().startService(cancel);
         if (item != null) {
             item.setDownloadId(0);

@@ -60,10 +60,9 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
     @Override
     public void loadVideoUrl(final V9MmanItem v9MmanItem) {
         final String rawViewKey = v9MmanItem.getViewKey();
-        // DB 中 viewKey 既可能是 viewkey=xxx，也可能是旧版的纯 xxx。
-        // 只把请求参数用纯值，日志保留原始值便于定位数据来源。
-        final String viewKey = rawViewKey != null && rawViewKey.startsWith("viewkey=")
-                ? rawViewKey.substring(8) : rawViewKey;
+        // M62：loadMman9VideoUrl 契约要求 "viewkey=xxx" 完整形态（其入口已做归一化兜底），
+        // 此处必须直传原始值；v1.0.60 在此剥前缀导致新视频解析必败（回归）。
+        final String viewKey = rawViewKey;
         boolean porny = isPornySource(v9MmanItem);
         String source = porny ? "91porny" : (v9MmanItem.getSource() == null ? "9mman" : v9MmanItem.getSource());
         AppLog.i(TAG, "路由判断 rawViewKey=" + rawViewKey + " cleanViewKey=" + viewKey

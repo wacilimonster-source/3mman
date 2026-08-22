@@ -72,7 +72,30 @@ public class UserHelper {
         return user != null && !TextUtils.isEmpty(user.getUserName());
     }
 
+    /**
+     * 判定登录 POST 的响应页是否代表登录成功。
+     * <p>
+     * 旧实现 {@code (!含"登录" || !含"注册" || 含"退出")} 过弱：
+     * 错误页只要不同时含「登录」「注册」文案就会被误判为成功，
+     * 随后 parseUserInfo 解析错误页产出残缺用户。
+     * 现改为要求正向证据：
+     * <ul>
+     *   <li>页面出现「退出」入口（登录后才有）→ 成功；</li>
+     *   <li>同时保留「登录」「注册」入口 → 仍是未登录表单页 → 失败；</li>
+     *   <li>空页 / 无法确证登录态 → 保守判为失败（宁可让用户重试，也不把错误页当成功）。</li>
+     * </ul>
+     */
     public static boolean isMmanVideoLoginSuccess(String html) {
-        return (!html.contains("登录") || !html.contains("注册") || html.contains("退出"));
+        if (html == null || html.isEmpty()) {
+            return false;
+        }
+        // 正向证据任一即可：退出入口 / 登录成功页专有的用户信息区块（与
+        // ParseV9MmanVideo.parseUserInfo 解析的目标元素一致）/ 最近登录时间文案
+        if (html.contains("退出")
+                || html.contains("userinfo-content")
+                || html.contains("最后登录")) {
+            return true;
+        }
+        return false;
     }
 }
