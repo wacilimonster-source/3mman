@@ -1,7 +1,7 @@
 {
-  "versionCode": 92,
-  "versionName": "1.0.59",
-  "updateMessage": "修复点推荐闪退；修复点分分钟(91porny)搜索闪退；恢复1.0.41-1.0.55完整功能；精简设置页四个无用开关。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.59.apk",
-  "sha256": "25a3867b24a7214d7612eccda387d4390c2a73f772586db5c543dde7fab74965"
+  "versionCode": 93,
+  "versionName": "1.0.60",
+  "updateMessage": "推荐/分分钟改为主界面底部Tab；推荐调参和查看日志统一到我的页面；修复91porny HLS播放no protocol；修复播放器未准备时getDuration崩溃；诊断客户端注入应用代理；增强下载诊断日志。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.60.apk",
+  "sha256": "368fa9e8e37c4613fab997bdedb9007b2444204f5e0af158c9a10f1352069f11"
 }

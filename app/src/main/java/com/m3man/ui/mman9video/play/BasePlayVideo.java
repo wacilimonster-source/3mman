@@ -46,6 +46,7 @@ import com.m3man.ui.mman9video.author.AuthorFragment;
 import com.m3man.ui.mman9video.comment.CommentFragment;
 import com.m3man.ui.mman9video.user.UserLoginActivity;
 import com.m3man.ui.mman9video.videolist.VideoListFragment;
+import com.m3man.utils.AppLog;
 import com.m3man.utils.DialogUtils;
 import com.m3man.utils.LoadHelperUtils;
 
@@ -266,10 +267,21 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
      * 分片相对路径与签名参数的转发有缺陷，直接播放原始地址；其余来源走原有代理缓存。
      */
     private String resolvePlayUrl(String originalUrl, boolean isPornySource) {
-        if (isPornySource || TextUtils.isEmpty(originalUrl)) {
+        if (TextUtils.isEmpty(originalUrl) || isHlsUrl(originalUrl)) {
+            // 91porny 返回 HLS；旧 videocache 会把 index0.ts 当成独立地址，
+            // 因此所有 m3u8 都直接交给 ExoPlayer/系统 HLS 播放器。
             return originalUrl;
         }
         return presenter.getVideoCacheProxyUrl(originalUrl);
+    }
+
+    private static boolean isHlsUrl(String url) {
+        String lower = url == null ? "" : url.toLowerCase(java.util.Locale.US);
+        int query = lower.indexOf('?');
+        if (query >= 0) {
+            lower = lower.substring(0, query);
+        }
+        return lower.endsWith(".m3u8") || lower.contains(".m3u8/");
     }
 
     private void setToolBarLayoutInfo(final V9MmanItem v9MmanItem) {
@@ -432,6 +444,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     public void errorParseVideoUrl(String errorMessage) {
         dismissDialog();
         helper.showError();
+        AppLog.e("BasePlayVideo", "播放页解析失败: " + errorMessage);
         LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, "解析视频地址失败了，点击重试");
         showMessage(errorMessage, TastyToast.ERROR);
     }

@@ -20,6 +20,7 @@ import com.m3man.rxjava.RetryWhenProcess;
 import com.m3man.rxjava.RxSchedulersHelper;
 import com.m3man.ui.download.DownloadPresenter;
 import com.m3man.ui.mman9video.favorite.FavoritePresenter;
+import com.m3man.utils.AppLog;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -58,14 +59,31 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
 
     @Override
     public void loadVideoUrl(final V9MmanItem v9MmanItem) {
-        String viewKey = v9MmanItem.getViewKey();
-        if (isPornySource(v9MmanItem)) {
+        final String rawViewKey = v9MmanItem.getViewKey();
+        // DB 中 viewKey 既可能是 viewkey=xxx，也可能是旧版的纯 xxx。
+        // 只把请求参数用纯值，日志保留原始值便于定位数据来源。
+        final String viewKey = rawViewKey != null && rawViewKey.startsWith("viewkey=")
+                ? rawViewKey.substring(8) : rawViewKey;
+        boolean porny = isPornySource(v9MmanItem);
+        String source = porny ? "91porny" : (v9MmanItem.getSource() == null ? "9mman" : v9MmanItem.getSource());
+        AppLog.i(TAG, "路由判断 rawViewKey=" + rawViewKey + " cleanViewKey=" + viewKey
+                + " sourceField=" + v9MmanItem.getSource() + " sourceName=" + v9MmanItem.getSourceName()
+                + " isPorny=" + porny);
+        String videoAddr = porny ? dataManager.getPornyAddress() : dataManager.getMman9VideoAddress();
+        AppLog.i(TAG, "解析开始 viewKey=" + viewKey + " 源=" + source
+                + " 地址=" + (videoAddr == null ? "null" : videoAddr)
+                + " 代理=" + (dataManager.isOpenHttpProxy()
+                        ? dataManager.getProxyIpAddress() + ":" + dataManager.getProxyPort() : "关"));
+        if (porny) {
             // 91porny 来源走单独的解析路径
             dataManager.loadPornyVideoUrl(viewKey)
+                    .doOnSubscribe(d -> AppLog.i(TAG, "请求91porny播放页 viewKey=" + viewKey))
                     .map(videoResult -> {
-                        if (TextUtils.isEmpty(videoResult.getVideoUrl())) {
+                        if (videoResult == null || TextUtils.isEmpty(videoResult.getVideoUrl())) {
+                            AppLog.e(TAG, "解析失败(空结果) viewKey=" + viewKey + " 源=91porny");
                             throw new VideoException("解析视频链接失败了");
                         }
+                        AppLog.i(TAG, "解析成功 viewKey=" + viewKey + " 源=91porny url=" + shortUrl(videoResult.getVideoUrl()));
                         return videoResult;
                     })
                     .retryWhen(new RetryWhenProcess(RetryWhenProcess.PROCESS_TIME))
@@ -84,23 +102,27 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
 
                         @Override
                         public void onError(final String msg, int code) {
-                            ifViewAttached(view -> view.errorParseVideoUrl(msg));
+                            AppLog.e(TAG, "91porny解析失败 viewKey=" + viewKey + " msg=" + msg);
+                            ifViewAttached(view -> view.errorParseVideoUrl(diagnoseMsg(msg, videoAddr)));
                         }
                     });
             return;
         }
         dataManager.loadMman9VideoUrl(viewKey)
+                .doOnSubscribe(d -> AppLog.i(TAG, "请求9mman播放页 viewKey=" + viewKey))
                 .map(videoResult -> {
-                    if (TextUtils.isEmpty(videoResult.getVideoUrl())) {
-                        if (VideoResult.OUT_OF_WATCH_TIMES.equals(videoResult.getId())) {
+                    if (videoResult == null || TextUtils.isEmpty(videoResult.getVideoUrl())) {
+                        if (videoResult != null && VideoResult.OUT_OF_WATCH_TIMES.equals(videoResult.getId())) {
                             //尝试强行重置，并上报异常
                             dataManager.resetMman91VideoWatchTime(true);
-                            // Bugsnag.notify(new Throwable(TAG + "Ten videos each day address: " + dataManager.getMman9VideoAddress()), Severity.WARNING);
+                            AppLog.w(TAG, "观看次数达上限，已重置cookie viewKey=" + viewKey);
                             throw new VideoException("观看次数达到上限了,请更换地址或者代理服务器！");
                         } else {
+                            AppLog.e(TAG, "9mman解析失败(空结果) viewKey=" + viewKey);
                             throw new VideoException("解析视频链接失败了");
                         }
                     }
+                    AppLog.i(TAG, "解析成功 viewKey=" + viewKey + " 源=9mman url=" + shortUrl(videoResult.getVideoUrl()));
                     return videoResult;
                 })
                 .retryWhen(new RetryWhenProcess(RetryWhenProcess.PROCESS_TIME))
@@ -120,9 +142,51 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
 
                     @Override
                     public void onError(final String msg, int code) {
-                        ifViewAttached(view -> view.errorParseVideoUrl(msg));
+                        AppLog.e(TAG, "9mman解析失败 viewKey=" + viewKey + " msg=" + msg);
+                        ifViewAttached(view -> view.errorParseVideoUrl(diagnoseMsg(msg, videoAddr)));
                     }
                 });
+    }
+
+    /**
+     * 解析失败的提示增强：给出可操作的排查方向，而不是一句笼统的「解析视频链接失败」。
+     */
+    private String diagnoseMsg(String msg, String videoAddr) {
+        if (msg == null || msg.length() > 30) {
+            // 已经有明确/较长描述（如观看上限）时不再拼接
+            if (msg != null && !msg.contains("失败")) {
+                return msg;
+            }
+        }
+        boolean proxyOn = dataManager.isOpenHttpProxy();
+        StringBuilder sb = new StringBuilder("解析视频失败");
+        if (!proxyOn) {
+            sb.append("（未开启HTTP代理，源站可能无法访问，可在 我的-HTTP代理 中开启）");
+        } else {
+            sb.append("（代理 ").append(dataManager.getProxyIpAddress()).append(':')
+                    .append(dataManager.getProxyPort()).append("，地址：")
+                    .append(TextUtils.isEmpty(videoAddr) ? "未设置" : videoAddr).append('）');
+        }
+        sb.append("，请点击「复制日志」后反馈");
+        return sb.toString();
+    }
+
+    /** 截断 URL 防日志过长（只留 host + 前 80 字符） */
+    private static String shortUrl(String url) {
+        if (url == null) {
+            return "null";
+        }
+        try {
+            java.net.URI uri = java.net.URI.create(url);
+            String host = uri.getHost();
+            String tail = url;
+            if (tail.length() > 120) {
+                tail = tail.substring(0, 120) + "...";
+            }
+            return (host == null ? url : host) + " | " + tail;
+        } catch (Exception e) {
+            return url.length() > 120 ? url.substring(0, 120) + "..." : url;
+        }
     }
 
     /**
@@ -165,10 +229,28 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
      * 判断视频是否来自 91porny 源。
      * source 是 transient 字段（不落库），本地收藏/历史页从数据库加载后为 null，
      * 因此同时检查持久化的 sourceName。
+     *
+     * M60：hex viewkey（20位十六进制）是 91porny 的视频 ID，
+     * 当 source/sourceName 都为空（如列表页未设源）时，用 viewKey 格式作为兜底判断，
+     * 避免 hex viewkey 被错误路由到 9mman 解析器导致「解析视频链接失败」。
+     *
+     * 注意：DB 中 viewKey 可能带 "viewkey=" 前缀（如 "viewkey=a6019455d1bdfa805355"），
+     * 需先剥离前缀再判断。
      */
     public static boolean isPornySource(V9MmanItem item) {
         if (item == null) {
             return false;
+        }
+        // 先按 key 格式判断：旧数据库可能把 91porny 项目错误保存成 source=9mman，
+        // source 字段不能覆盖 91porny 的 20~32 位十六进制视频 ID。
+        String viewKey = item.getViewKey();
+        if (viewKey != null) {
+            if (viewKey.startsWith("viewkey=")) {
+                viewKey = viewKey.substring(8);
+            }
+            if (viewKey.matches("[0-9a-fA-F]{16,32}")) {
+                return true;
+            }
         }
         return Parse91PornyVideo.SOURCE.equals(item.getSource())
                 || Parse91PornyVideo.SOURCE.equals(item.getSourceName());

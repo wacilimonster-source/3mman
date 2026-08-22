@@ -4,6 +4,7 @@ import android.text.TextUtils;
 
 import com.orhanobut.logger.Logger;
 import com.m3man.data.prefs.PreferencesHelper;
+import com.m3man.utils.AppLog;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -118,6 +119,7 @@ public class MyProxySelector extends ProxySelector {
             return DIRECT_NO_PROXY;
         }
         //每次构造不可变快照，避免共享列表被并发清空/写入
+        AppLog.i(TAG, "代理选择=HTTP " + proxyHost + ":" + port + " target=" + host);
         return Collections.singletonList(
                 new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, port)));
     }

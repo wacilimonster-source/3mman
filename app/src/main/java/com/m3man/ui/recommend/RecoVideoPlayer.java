@@ -155,11 +155,14 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
      */
     public float watchedRatio() {
         try {
-            long duration = getDuration();
+            if (!isSeekable()) {
+                return 0f;
+            }
+            long duration = safeDuration();
             if (duration <= 0) {
                 return 0f;
             }
-            long position = getCurrentPositionWhenPlaying();
+            long position = safePosition();
             float ratio = position * 1.0f / duration;
             if (ratio < 0f) {
                 return 0f;

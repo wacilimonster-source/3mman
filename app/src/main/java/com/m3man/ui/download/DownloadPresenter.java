@@ -20,6 +20,7 @@ import com.m3man.parser.Parse91PornyVideo;
 import com.m3man.rxjava.CallBackWrapper;
 import com.m3man.rxjava.RxSchedulersHelper;
 import com.m3man.utils.AppCacheUtils;
+import com.m3man.utils.AppLog;
 import com.m3man.utils.DownloadManager;
 import com.m3man.utils.PornyFallbackResolver;
 import com.m3man.utils.SDCardUtils;
@@ -77,7 +78,18 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
 
     @Override
     public void downloadVideo(V9MmanItem v9MmanItem, boolean isForceReDownload, DownloadListener downloadListener) {
+        AppLog.i("Download", "下载请求 viewKey=" + (v9MmanItem == null ? "null" : v9MmanItem.getViewKey())
+                + " force=" + isForceReDownload);
+        if (v9MmanItem == null) {
+            if (downloadListener != null) {
+                downloadListener.onError("视频信息为空");
+            }
+            return;
+        }
         V9MmanItem tmp = dataManager.findV9MmanItemByViewKey(v9MmanItem.getViewKey());
+        if (tmp == null) {
+            AppLog.e("Download", "数据库找不到视频 viewKey=" + v9MmanItem.getViewKey());
+        }
         if (tmp == null || tmp.getVideoResultId() == 0) {
             if (downloadListener != null) {
                 downloadListener.onError("还未解析成功视频地址");
@@ -142,11 +154,26 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         }
         Logger.d("视频连接：" + videoResult.getVideoUrl());
         String path = v9MmanItem.getDownLoadPath(getCustomDownloadVideoDirPath());
+        String requestedPath = path;
+        path = SDCardUtils.ensureDownloadDir(path, context);
+        if (TextUtils.isEmpty(path)) {
+            AppLog.e("Download", "下载目录不可写 requestedPath=" + requestedPath);
+            if (downloadListener != null) {
+                downloadListener.onError("下载目录不可写，请检查存储权限或更换下载目录");
+            }
+            return;
+        }
         Logger.d(path);
+        AppLog.i("Download", "开始下载 viewKey=" + tmp.getViewKey()
+                + " 标题=" + tmp.getTitle() + " 源=" + (tmp.getSource() == null ? "9mman" : tmp.getSource())
+                + " 地址=" + dataManager.getMman9VideoAddress()
+                + " 代理=" + (dataManager.isOpenHttpProxy()
+                        ? dataManager.getProxyIpAddress() + ":" + dataManager.getProxyPort() : "关"));
         boolean isDownloadNeedWifi = dataManager.isDownloadVideoNeedWifi();
         // 91mman 视频分类源：直链带时效签名（st/f 参数），DB 里存的旧 URL 过期后 CDN 拒绝
         // （表现为进度 0% 无速度）。下载前先重新解析播放页拿新鲜 URL；其它源（91porny 等）直接用。
-        if (!Parse91PornyVideo.SOURCE.equals(tmp.getSource())) {
+        // M60：hex viewkey（20位十六进制）= 91porny 视频，不走 reparse。
+        if (!isPornyVideo(tmp)) {
             reparseThenDownload(tmp, path, isDownloadNeedWifi, isForceReDownload, downloadListener);
             return;
         }
@@ -168,6 +195,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                     public void onSuccess(VideoResult fresh) {
                         String freshUrl = fresh == null ? null : fresh.getVideoUrl();
                         if (TextUtils.isEmpty(freshUrl)) {
+                            AppLog.w("Download", "重新解析为空，走91porny兜底 viewKey=" + tmp.getViewKey());
                             // 观看次数超限等：直接尝试备用源
                             tryPornyFallback(tmp, path, wifi, force, listener);
                             return;
@@ -181,14 +209,18 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                         }
                         // 直链 CDN 可能封锁当前网络（下载 error/0% 无速度）：先探活，被拒则走 91porny 备用源
                         if (!PornyFallbackResolver.isAlive(okHttpClient, freshUrl)) {
+                            AppLog.w("Download", "直链探活失败，走91porny兜底 viewKey=" + tmp.getViewKey());
                             tryPornyFallback(tmp, path, wifi, force, listener);
                             return;
                         }
+                        AppLog.i("Download", "重新解析成功，开始下载 viewKey=" + tmp.getViewKey()
+                                + " host=" + AppLog.hostOf(freshUrl));
                         startDownloadInternal(tmp, freshUrl, path, wifi, force, listener);
                     }
 
                     @Override
                     public void onError(String msg, int code) {
+                        AppLog.e("Download", "重新解析失败(" + msg + ")，走91porny兜底 viewKey=" + tmp.getViewKey());
                         tryPornyFallback(tmp, path, wifi, force, listener);
                     }
                 });
@@ -224,6 +256,8 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                     @Override
                     public void onSuccess(VideoResult pornyResult) {
                         if (pornyResult != null && !TextUtils.isEmpty(pornyResult.getVideoUrl())) {
+                            AppLog.i("Download", "91porny兜底命中，改HLS下载 viewKey=" + tmp.getViewKey()
+                                    + " host=" + AppLog.hostOf(pornyResult.getVideoUrl()));
                             PornyFallbackResolver.applyPornyResult(dataManager, tmp, pornyResult);
                             PornyFallbackResolver.enqueueHlsDownload(context, tmp, pornyResult.getVideoUrl(), path);
                             if (listener != null) {
@@ -238,12 +272,14 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                             }
                             return;
                         }
+                        AppLog.w("Download", "91porny兜底未命中，退回旧地址 viewKey=" + tmp.getViewKey());
                         // 备用源未命中：退回旧地址尝试
                         startDownloadWithFallback(tmp, path, wifi, force, listener);
                     }
 
                     @Override
                     public void onError(String msg, int code) {
+                        AppLog.e("Download", "91porny兜底解析失败(" + msg + ")，退回旧地址 viewKey=" + tmp.getViewKey());
                         startDownloadWithFallback(tmp, path, wifi, force, listener);
                     }
                 });
@@ -583,6 +619,24 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
 
     public int getPlaybackEngine(){
         return dataManager.getPlaybackEngine();
+    }
+
+    /** M60：判断是否 91porny 源（含 hex viewkey 兜底），与 PlayVideoPresenter.isPornySource 同逻辑。 */
+    private static boolean isPornyVideo(V9MmanItem item) {
+        if (item == null) {
+            return false;
+        }
+        String viewKey = item.getViewKey();
+        if (viewKey != null) {
+            if (viewKey.startsWith("viewkey=")) {
+                viewKey = viewKey.substring(8);
+            }
+            if (viewKey.matches("[0-9a-fA-F]{16,32}")) {
+                return true;
+            }
+        }
+        return Parse91PornyVideo.SOURCE.equals(item.getSource())
+                || Parse91PornyVideo.SOURCE.equals(item.getSourceName());
     }
 
     public interface DownloadListener {

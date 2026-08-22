@@ -7,6 +7,7 @@ import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.db.entity.VideoResult;
 import com.m3man.data.reco.RecoCandidate;
+import com.m3man.utils.AppLog;
 import com.m3man.utils.GlideApp;
 import com.orhanobut.logger.Logger;
 
@@ -25,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.functions.Consumer;
@@ -100,9 +102,13 @@ public class RecommendPrefetcher {
         }
     }
 
-    /** 把原始地址包成本地代理地址（失败时回退原始地址） */
+    /**
+     * 把普通 MP4 包成本地代理地址；HLS m3u8 必须保留原始地址。
+     * videocache 2.7.1 不能为 m3u8 内的相对分片补全基地址，会把 index0.ts
+     * 直接交给播放器，最终触发 "no protocol"。
+     */
     public String toPlayUrl(String rawUrl) {
-        if (TextUtils.isEmpty(rawUrl)) {
+        if (TextUtils.isEmpty(rawUrl) || isHlsUrl(rawUrl)) {
             return rawUrl;
         }
         try {
@@ -111,6 +117,15 @@ public class RecommendPrefetcher {
         } catch (Exception e) {
             return rawUrl;
         }
+    }
+
+    private static boolean isHlsUrl(String url) {
+        String lower = url == null ? "" : url.toLowerCase(java.util.Locale.US);
+        int query = lower.indexOf('?');
+        if (query >= 0) {
+            lower = lower.substring(0, query);
+        }
+        return lower.endsWith(".m3u8") || lower.contains(".m3u8/");
     }
 
     /**
@@ -199,12 +214,33 @@ public class RecommendPrefetcher {
             }
             inFlight.add(viewKey);
         }
-        disposables.add(dataManager.loadMman9VideoUrl(viewKey)
+        // M60：hex viewkey（20位十六进制）= 91porny 视频，走 91porny 解析器；其余走 9mman。
+        // DB 中 viewKey 可能带 "viewkey=" 前缀，需先剥离。
+        String cleanViewKey = viewKey;
+        if (cleanViewKey != null && cleanViewKey.startsWith("viewkey=")) {
+            cleanViewKey = cleanViewKey.substring(8);
+        }
+        final boolean isHexViewKey = cleanViewKey != null && cleanViewKey.matches("[0-9a-fA-F]{16,32}");
+        final Observable<VideoResult> parseObs = isHexViewKey
+                ? dataManager.loadPornyVideoUrl(cleanViewKey)
+                : dataManager.loadMman9VideoUrl(cleanViewKey);
+        disposables.add(parseObs
                 .subscribeOn(Schedulers.io())
                 .map(videoResult -> {
                     if (videoResult == null || TextUtils.isEmpty(videoResult.getVideoUrl())) {
+                        if (!isHexViewKey && videoResult != null
+                                && VideoResult.OUT_OF_WATCH_TIMES.equals(videoResult.getId())) {
+                            dataManager.resetMman91VideoWatchTime(true);
+                        }
+                        AppLog.e("RecoPrefetcher", "推荐解析失败(空结果) viewKey=" + viewKey
+                                + " 源=" + (isHexViewKey ? "91porny" : "9mman")
+                                + " 代理=" + (dataManager.isOpenHttpProxy()
+                                        ? dataManager.getProxyIpAddress() + ":" + dataManager.getProxyPort() : "关"));
                         throw new IllegalStateException("解析视频链接失败了");
                     }
+                    AppLog.i("RecoPrefetcher", "推荐解析成功 viewKey=" + viewKey
+                            + " 源=" + (isHexViewKey ? "91porny" : "9mman")
+                            + " url=" + shortUrl(videoResult.getVideoUrl()));
                     persist(videoResult, candidate.item);
                     return videoResult;
                 })
@@ -212,6 +248,20 @@ public class RecommendPrefetcher {
                 .subscribe(
                         videoResult -> onParseSuccess(viewKey, candidate, videoResult, urgent),
                         throwable -> onParseFailed(viewKey, throwable)));
+    }
+
+    private static String shortUrl(String url) {
+        if (url == null) {
+            return "null";
+        }
+        try {
+            java.net.URI uri = java.net.URI.create(url);
+            String host = uri.getHost();
+            String tail = url.length() > 120 ? url.substring(0, 120) + "..." : url;
+            return (host == null ? url : host) + " | " + tail;
+        } catch (Exception e) {
+            return url.length() > 120 ? url.substring(0, 120) + "..." : url;
+        }
     }
 
     private void onParseSuccess(String viewKey, RecoCandidate candidate,
@@ -331,6 +381,7 @@ public class RecommendPrefetcher {
             warmExecutor.execute(new Runnable() {
                 @Override
                 public void run() {
+                    // HLS 不经过 videocache，避免缓存服务错误解析相对 ts 分片。
                     doWarm(toPlayUrl(rawUrl));
                 }
             });

@@ -40,11 +40,12 @@ import com.m3man.ui.mine.MineFragment;
 import com.m3man.ui.mman9video.Main9MmanVideoFragment;
 import com.m3man.ui.mman9video.search.SearchActivity;
 import com.m3man.ui.update.UpdateActivity;
-import com.m3man.ui.mman9video.search.SearchPornyActivity;
+import com.m3man.ui.mman9video.search.SearchPornyFragment;
 import com.m3man.ui.mman9video.user.UserLoginActivity;
-import com.m3man.ui.recommend.RecommendFeedActivity;
+import com.m3man.ui.recommend.RecommendFeedFragment;
 import com.m3man.ui.setting.SettingActivity;
 import com.m3man.utils.ApkVersionUtils;
+import com.m3man.utils.AppLog;
 import com.m3man.utils.FragmentUtils;
 import com.m3man.utils.NotificationChannelHelper;
 import android.Manifest;
@@ -108,6 +109,8 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
     }
 
     private Main9MmanVideoFragment mMain9MmanVideoFragment;
+    private RecommendFeedFragment mRecommendFeedFragment;
+    private SearchPornyFragment mSearchPornyFragment;
     private MineFragment mMineFragment;
     private FragmentManager fragmentManager;
     private int selectIndex;
@@ -168,12 +171,15 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         if (presenter.getIgnoreUpdateVersionCode() == updateVersion.getVersionCode()) {
             return;
         }
+        AppLog.i("UpdateCheck", "发现新版本 v" + updateVersion.getVersionName()
+                + " (code=" + updateVersion.getVersionCode() + ") url=" + updateVersion.getApkDownloadUrl());
         showUpdateDialog(updateVersion);
     }
 
     @Override
     public void noNeedUpdate() {
         Logger.t(TAG).d("当前已是最新版本");
+        AppLog.i("UpdateCheck", "当前已是最新版本 (code=" + ApkVersionUtils.getVersionCode(this) + ")");
         //没有更新再检查公告
         presenter.checkNewNotice();
     }
@@ -181,6 +187,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
     @Override
     public void checkUpdateError(String message) {
         Logger.t(TAG).d("检查更新错误：" + message);
+        AppLog.e("UpdateCheck", "检查更新失败: " + message);
         presenter.checkNewNotice();
     }
 
@@ -274,19 +281,24 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                 showFloatingActionButton(fabSearch);
                 break;
             case 1:
-                // 推荐流（抖音式上下滑），独立全屏页
-                Intent recommendIntent = new Intent(context, RecommendFeedActivity.class);
-                startActivityWithAnimation(recommendIntent);
+                // 推荐流固定嵌入主界面，不再启动新 Activity
+                if (mRecommendFeedFragment == null) {
+                    mRecommendFeedFragment = RecommendFeedFragment.getInstance();
+                }
+                mCurrentFragment = FragmentUtils.switchContent(fragmentManager, mCurrentFragment,
+                        mRecommendFeedFragment, contentFrameLayout.getId(), position, false);
                 hideFloatingActionButton(fabSearch);
                 break;
             case 2:
-                // 91porny 第二视频源（首版仅搜索接入）
+                // 分分钟固定嵌入主界面，不再启动新 Activity
                 if (!presenter.isPornyEnabled()) {
                     showMessage("请在设置中启用 91porny 源", TastyToast.INFO);
-                    break;
                 }
-                Intent pornyIntent = new Intent(context, SearchPornyActivity.class);
-                startActivityWithAnimation(pornyIntent);
+                if (mSearchPornyFragment == null) {
+                    mSearchPornyFragment = SearchPornyFragment.getInstance();
+                }
+                mCurrentFragment = FragmentUtils.switchContent(fragmentManager, mCurrentFragment,
+                        mSearchPornyFragment, contentFrameLayout.getId(), position, false);
                 hideFloatingActionButton(fabSearch);
                 break;
             case 3:
@@ -605,6 +617,12 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         switch (position) {
             case 0:
                 mMain9MmanVideoFragment = null;
+                break;
+            case 1:
+                mRecommendFeedFragment = null;
+                break;
+            case 2:
+                mSearchPornyFragment = null;
                 break;
             case 3:
                 mMineFragment = null;

@@ -38,9 +38,16 @@ import com.m3man.ui.mman9video.author.AuthorFavoriteActivity;
 import com.m3man.ui.mman9video.history.HistoryActivity;
 import com.m3man.ui.mman9video.user.UserLoginActivity;
 import com.m3man.ui.proxy.ProxySettingActivity;
+import com.m3man.data.DataManager;
+import com.m3man.data.reco.RecoEngine;
+import com.m3man.data.reco.RecoParams;
+import com.m3man.ui.recommend.RecoSettingsDialog;
 import com.m3man.ui.setting.SettingActivity;
+import com.m3man.utils.AppLog;
 import com.m3man.utils.UserHelper;
 import com.m3man.widget.ObservableScrollView;
+
+import com.sdsmdg.tastytoast.TastyToast;
 
 import javax.inject.Inject;
 
@@ -81,6 +88,8 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
     private String nightModeStr;
     private String aboutMeStr;
     private String moreSettingStr;
+    private String viewLogStr;
+    private String recoTuneStr;
 
     private QMUICommonListItemView logoutItemView;
 
@@ -94,6 +103,8 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
 
     @Inject
     protected MinePresenter minePresenter;
+    @Inject
+    protected DataManager dataManager;
 
     public MineFragment() {
 
@@ -185,6 +196,8 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
         nightModeStr = getString(R.string.night_mode);
         aboutMeStr = getString(R.string.about_me);
         moreSettingStr = getString(R.string.more_setting);
+        viewLogStr = "查看日志";
+        recoTuneStr = "推荐调参";
     }
 
     private void initMineSection() {
@@ -280,8 +293,15 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
         QMUICommonListItemView moreSettingItemWithChevron = mineList.createItemView(moreSettingStr);
         moreSettingItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
 
+        QMUICommonListItemView recoTuneItemWithChevron = mineList.createItemView(recoTuneStr);
+        recoTuneItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
+        QMUICommonListItemView viewLogItemWithChevron = mineList.createItemView(viewLogStr);
+        viewLogItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
+
         QMUIGroupListView.newSection(context)
                 .addItemView(moreSettingItemWithChevron, this)
+                .addItemView(recoTuneItemWithChevron, this)
+                .addItemView(viewLogItemWithChevron, this)
                 .addTo(mineList);
 
         QMUICommonListItemView aboutItemWithChevron = mineList.createItemView(aboutMeStr);
@@ -428,6 +448,69 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
         } else if (content.equals(moreSettingStr)) {
             Intent intent = new Intent(context, SettingActivity.class);
             startActivityWithAnimation(intent);
+        } else if (content.equals(recoTuneStr)) {
+            showRecoTuneDialog();
+        } else if (content.equals(viewLogStr)) {
+            showLogPreviewDialog();
         }
+    }
+
+    /** 在“我的”中统一查看日志，并在弹窗内复制全部日志。 */
+    private void showLogPreviewDialog() {
+        if (getActivity() == null) {
+            return;
+        }
+        String log = AppLog.dump(context);
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        builder.setTitle("运行日志");
+        if (TextUtils.isEmpty(log.trim())) {
+            builder.setMessage("暂无日志");
+        } else {
+            android.widget.ScrollView scrollView = new android.widget.ScrollView(getActivity());
+            TextView textView = new TextView(getActivity());
+            textView.setTextSize(11);
+            textView.setTextIsSelectable(true);
+            int padding = (int) (12 * getResources().getDisplayMetrics().density);
+            textView.setPadding(padding, padding, padding, padding);
+            textView.setText(log);
+            scrollView.addView(textView);
+            builder.setView(scrollView);
+        }
+        builder.setPositiveButton("复制全部", (dialog, which) -> copyLogToClipboard());
+        builder.setNegativeButton("关闭", null);
+        builder.show();
+    }
+
+    /** 推荐调参统一放在“我的”页面。 */
+    private void showRecoTuneDialog() {
+        final RecoEngine engine = RecoEngine.get(context);
+        new RecoSettingsDialog(getActivity(), engine, dataManager, new RecoSettingsDialog.OnParamsChangedListener() {
+            @Override
+            public void onParamsChanged(RecoParams params) {
+                showMessage("推荐参数已保存", TastyToast.SUCCESS);
+            }
+
+            @Override
+            public void onMemoryCleared() {
+                engine.resetMemory();
+                showMessage("推荐记忆已清除", TastyToast.SUCCESS);
+            }
+        }).show();
+    }
+
+    /** 复制诊断日志到剪贴板 */
+    private void copyLogToClipboard() {
+        if (getActivity() == null) {
+            return;
+        }
+        String log = AppLog.dump(context);
+        if (log == null || log.trim().isEmpty()) {
+            showMessage("暂无日志", TastyToast.INFO);
+            return;
+        }
+        android.content.ClipboardManager cm =
+                (android.content.ClipboardManager) getActivity().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+        cm.setPrimaryClip(android.content.ClipData.newPlainText("3mman_log", log));
+        showMessage("日志已复制（共 " + log.split("\n").length + " 行），反馈问题时请粘贴给我", TastyToast.SUCCESS);
     }
 }

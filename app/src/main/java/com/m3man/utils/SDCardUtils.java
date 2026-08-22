@@ -82,6 +82,50 @@ public class SDCardUtils {
     }
 
     /**
+     * 确保目标文件所在目录可写；外部公共目录不可写时回退到应用专属 externalFilesDir。
+     */
+    public static String ensureDownloadDir(String path, Context context) {
+        if (TextUtils.isEmpty(path)) {
+            return null;
+        }
+        File target = new File(path);
+        File parent = target.getParentFile();
+        if (parent != null && (!parent.exists() ? parent.mkdirs() : true) && canWrite(parent)) {
+            return path;
+        }
+        if (context == null) {
+            return null;
+        }
+        File fallbackDir = new File(context.getExternalFilesDir(Environment.DIRECTORY_MOVIES), "3mman/video");
+        if (!fallbackDir.exists() && !fallbackDir.mkdirs()) {
+            return null;
+        }
+        if (!canWrite(fallbackDir)) {
+            return null;
+        }
+        return new File(fallbackDir, target.getName()).getAbsolutePath();
+    }
+
+    private static boolean canWrite(File dir) {
+        File probe = new File(dir, ".write_probe_" + System.currentTimeMillis());
+        FileOutputStream os = null;
+        try {
+            os = new FileOutputStream(probe);
+            os.write(1);
+            return true;
+        } catch (IOException e) {
+            return false;
+        } finally {
+            if (os != null) {
+                try { os.close(); } catch (IOException ignored) { }
+            }
+            if (probe.exists()) {
+                probe.delete();
+            }
+        }
+    }
+
+    /**
      * M41：判断文件是否“已完整、可视为下载完成”。
      *
      * 兼容部分 CDN 的 Content-Length 与实际字节数不一致（通常偏差 ≤5%）导致的

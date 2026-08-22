@@ -266,7 +266,8 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                 if (skipPageRecyclerView == null) {
                     return;
                 }
-                skipPageRecyclerView.smoothScrollToPosition(currentPage + 2);
+                int target = Math.max(0, Math.min(skipPageAdapter.getItemCount() - 1, currentPage - 1));
+                skipPageRecyclerView.smoothScrollToPosition(target);
             }
         }, 200);
     }

@@ -12,6 +12,7 @@ import com.m3man.exception.MessageException;
 import com.m3man.rxjava.CallBackWrapper;
 import com.m3man.rxjava.RetryWhenProcess;
 import com.m3man.rxjava.RxSchedulersHelper;
+import com.m3man.utils.AppLog;
 
 import java.util.List;
 
@@ -83,6 +84,7 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
     }
 
     private void doSearch(final int currentPage, String searchId, String sort, String time, String views, final boolean jumpMode) {
+        AppLog.i(TAG, "分分钟搜索 page=" + currentPage + " keyword=" + searchId);
         dataManager.searchPornyVideos(searchId, currentPage, normalizeFilter(sort), normalizeFilter(time), normalizeFilter(views))
                 .map(new Function<BaseResult<List<V9MmanItem>>, List<V9MmanItem>>() {
                     @Override
@@ -147,6 +149,7 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
 
                     @Override
                     public void onError(final String msg, int code) {
+                        AppLog.e(TAG, "分分钟搜索失败 page=" + currentPage + " msg=" + msg);
                         ifViewAttached(new ViewAction<SearchView>() {
                             @Override
                             public void run(@NonNull SearchView view) {

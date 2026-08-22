@@ -221,6 +221,7 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         sec.addItemView(pornyEnabledItemWithSwitch, null);
         sec.addItemView(localFavoriteItemWithSwitch, null);
         sec.addTo(qmuiGroupListView);
+
     }
 
     /**

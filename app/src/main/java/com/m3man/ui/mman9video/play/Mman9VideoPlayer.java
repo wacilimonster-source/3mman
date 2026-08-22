@@ -12,6 +12,7 @@ import cn.jzvd.JZVideoPlayer;
 import cn.jzvd.JZVideoPlayerStandard;
 
 import java.io.IOException;
+import java.net.ProxySelector;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.Call;
@@ -222,10 +223,15 @@ public class Mman9VideoPlayer extends JZVideoPlayerStandard {
 
     private OkHttpClient getClient() {
         if (mClient == null) {
-            mClient = new OkHttpClient.Builder()
+            OkHttpClient.Builder builder = new OkHttpClient.Builder()
                     .connectTimeout(8, TimeUnit.SECONDS)
-                    .readTimeout(8, TimeUnit.SECONDS)
-                    .build();
+                    .readTimeout(8, TimeUnit.SECONDS);
+            // 诊断请求不能绕过应用代理，否则会把“代理可达”误判成“源站不可达”。
+            ProxySelector selector = ProxySelector.getDefault();
+            if (selector != null) {
+                builder.proxySelector(selector);
+            }
+            mClient = builder.build();
         }
         return mClient;
     }

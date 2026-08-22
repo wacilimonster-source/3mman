@@ -11,6 +11,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -243,26 +244,17 @@ public class Parse91PornyVideo {
             return url;
         }
         String trimmed = url.trim();
-        // 已经是绝对地址
-        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+        try {
+            if (trimmed.startsWith("//")) {
+                return new URI("https:" + trimmed).toString();
+            }
+            // URI.resolve 同时正确处理 /、./、../ 和站点 base path。
+            URI base = new URI(baseUrl.endsWith("/") ? baseUrl : baseUrl + "/");
+            return base.resolve(trimmed).toString();
+        } catch (Exception ignored) {
+            // 解析异常时保留原值，由上层记录真实失败原因。
             return trimmed;
         }
-        // 协议相对
-        if (trimmed.startsWith("//")) {
-            return "https:" + trimmed;
-        }
-        // 相对路径：以 / 或 ./ 或 ../ 开头，拼接 baseUrl 的域名部分
-        String base = baseUrl.trim();
-        if (base.endsWith("/") && base.length() > 1) {
-            base = base.substring(0, base.length() - 1);
-        }
-        if (trimmed.startsWith("/")) {
-            return base + trimmed;
-        }
-        if (trimmed.startsWith("./") || trimmed.startsWith("../")) {
-            return base + "/" + trimmed;
-        }
-        return trimmed;
     }
 
     private static boolean isAdItem(Element item) {

@@ -23,6 +23,7 @@ import com.m3man.BuildConfig;
 import com.m3man.R;
 import com.m3man.data.model.UpdateVersion;
 import com.m3man.ui.BaseAppCompatActivity;
+import com.m3man.utils.AppLog;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -94,6 +95,8 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
             dir.mkdirs();
         }
         apkPath = dir.getAbsolutePath() + "/3mman_" + updateVersion.getVersionName() + ".apk";
+        AppLog.i(TAG, "更新下载开始 url=" + updateVersion.getApkDownloadUrl()
+                + " 版本=v" + updateVersion.getVersionName());
 
         // 进入界面先检查安装权限（Android 8.0+ 默认关闭），未开启则引导，不再静默失败
         if (needInstallPermission() && !canInstall()) {
@@ -174,6 +177,7 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
                         if (released) {
                             return;
                         }
+                        AppLog.i(TAG, "更新包下载完成 size=" + task.getSmallFileSoFarBytes() + " 路径=" + apkPath);
                         runOnUiThread(() -> onDownloadCompleted());
                     }
 
@@ -194,6 +198,8 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
                         }
                         final String msg = e != null ? e.getMessage() : "未知错误";
                         Logger.t(TAG).e("download error: " + msg);
+                        AppLog.e(TAG, "更新包下载失败 url=" + updateVersion.getApkDownloadUrl()
+                                + " err=" + AppLog.cause(e));
                         runOnUiThread(() -> onDownloadError("下载失败：" + msg));
                     }
 
@@ -263,6 +269,7 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
         pb.setProgress(0);
         tvPercent.setText("失败");
         btnRetry.setVisibility(View.VISIBLE);
+        AppLog.e(TAG, "更新失败: " + msg);
         showMessage(msg, TastyToast_ERROR());
     }
 

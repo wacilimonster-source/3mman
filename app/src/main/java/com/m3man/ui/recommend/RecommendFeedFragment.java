@@ -6,11 +6,16 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.v4.app.Fragment;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.PagerSnapHelper;
 import android.support.v7.widget.RecyclerView;
 import android.text.TextUtils;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -31,8 +36,11 @@ import com.m3man.data.reco.RecoStore;
 import com.m3man.parser.Parse91PornyVideo;
 import com.m3man.service.DownloadVideoService;
 import com.m3man.utils.PornyFallbackResolver;
-import com.m3man.ui.BaseAppCompatActivity;
+import com.m3man.ui.BaseFragment;
+import com.m3man.utils.AppLog;
+import com.m3man.utils.DownloadDiag;
 import com.m3man.utils.DownloadManager;
+import com.m3man.utils.SDCardUtils;
 import com.orhanobut.logger.Logger;
 import com.sdsmdg.tastytoast.TastyToast;
 
@@ -51,19 +59,11 @@ import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.schedulers.Schedulers;
 
 /**
- * 推荐流（上下滑切换的沉浸式视频流）。
- * <p>
- * 结构：RecyclerView + PagerSnapHelper 做整页吸附，一屏一条视频。
- * 同一时刻只有「当前吸附页」持有解码器，切页时先释放再起播。
- * <ul>
- *   <li>召回 / 排序：{@link RecoRepository}</li>
- *   <li>解析 / 预热：{@link RecommendPrefetcher}</li>
- *   <li>画像 / 反馈：{@link RecoEngine}</li>
- * </ul>
- *
- * @author 3mman
+ * 推荐流（抖音式上下滑全屏播放）—— 以 Fragment 形式内嵌在主界面「推荐」Tab 下，
+ * 点击 Tab 固定选中并直接展示本页（不再跳独立 Activity）。
+ * 逻辑与原 RecommendFeedActivity 一致（引擎召回 / 预取 / 进度条 / 封面 watcher / 下载兜底）。
  */
-public class RecommendFeedActivity extends BaseAppCompatActivity
+public class RecommendFeedFragment extends BaseFragment
         implements RecommendFeedAdapter.Callback {
 
     private static final String TAG = "RecoFeed";
@@ -117,39 +117,40 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
     /** 用户正在拖动进度条时暂停自动刷新，避免手指被「拽回去」 */
     private boolean userSeeking = false;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_recommend_feed);
-        setStatusBarColor(Color.BLACK, 0);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    public static RecommendFeedFragment getInstance() {
+        return new RecommendFeedFragment();
+    }
 
-        engine = RecoEngine.get(this);
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+                             @Nullable Bundle savedInstanceState) {
+        return inflater.inflate(R.layout.fragment_recommend_feed, container, false);
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        if (getActivity() != null) {
+            getActivity().getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
+        engine = RecoEngine.get(context);
         repository = new RecoRepository(dataManager, engine);
-        prefetcher = new RecommendPrefetcher(this, dataManager);
+        prefetcher = new RecommendPrefetcher(context, dataManager);
 
         initViews();
         loadMore(true);
     }
 
-    /** 竖向流与播放器的横向手势冲突，这里关掉侧滑返回 */
-    @Override
-    public boolean isSupportSwipeBack() {
-        return false;
-    }
-
     private void initViews() {
-        recyclerView = findViewById(R.id.recyclerView_recommend);
-        globalLoading = findViewById(R.id.pb_recommend_loading);
-        emptyLayout = findViewById(R.id.ll_recommend_empty);
-        emptyText = findViewById(R.id.tv_recommend_empty);
-        retryButton = findViewById(R.id.btn_recommend_retry);
-        ImageView backView = findViewById(R.id.iv_recommend_back);
-        ImageView tuneView = findViewById(R.id.iv_recommend_tune);
+        recyclerView = getView().findViewById(R.id.recyclerView_recommend);
+        globalLoading = getView().findViewById(R.id.pb_recommend_loading);
+        emptyLayout = getView().findViewById(R.id.ll_recommend_empty);
+        emptyText = getView().findViewById(R.id.tv_recommend_empty);
+        retryButton = getView().findViewById(R.id.btn_recommend_retry);
 
-        layoutManager = new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
+        layoutManager = new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false);
         recyclerView.setLayoutManager(layoutManager);
-        recyclerView.setHasFixedSize(true);
         // 关掉默认动画，避免插入新页时当前页被重绘导致画面闪烁
         recyclerView.setItemAnimator(null);
 
@@ -176,18 +177,6 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
             }
         });
 
-        backView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                onBackPressed();
-            }
-        });
-        tuneView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showTuneDialog();
-            }
-        });
         retryButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -254,8 +243,9 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
     private void onBatchFailed(boolean first, Throwable throwable) {
         loading = false;
         globalLoading.setVisibility(View.GONE);
-        Logger.t(TAG).d("load batch failed: "
-                + (throwable == null ? "unknown" : throwable.getMessage()));
+        String reason = throwable == null ? "unknown" : AppLog.cause(throwable);
+        Logger.t(TAG).d("load batch failed: " + reason);
+        AppLog.e(TAG, "推荐列表加载失败: " + reason);
         if (adapter.getItemCount() == 0) {
             showEmpty("加载失败，点击重试");
         } else {
@@ -319,7 +309,7 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
             handler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    if (!isFinishing() && position == currentPosition) {
+                    if (isUsable() && position == currentPosition) {
                         startPlay(position);
                     }
                 }
@@ -345,7 +335,7 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
         prefetcher.resolveNow(candidate, new RecommendPrefetcher.ResolveCallback() {
             @Override
             public void onResolved(String viewKey, String playUrl, V9MmanItem item) {
-                if (isFinishing() || position != currentPosition) {
+                if (!isUsable() || position != currentPosition) {
                     return;
                 }
                 // 解析回调是异步的，回来时必须确认还是同一条视频
@@ -359,12 +349,18 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
 
             @Override
             public void onFailed(String viewKey, String message) {
-                if (isFinishing() || position != currentPosition) {
+                if (!isUsable() || position != currentPosition) {
                     return;
                 }
+                AppLog.e(TAG, "推荐播放解析失败 viewKey=" + candidate.viewKey() + " msg=" + message);
                 showPlayError(position, message);
             }
         });
+    }
+
+    /** fragment 是否仍可用（替代原 Activity 的 isFinishing()） */
+    private boolean isUsable() {
+        return isAdded() && getActivity() != null;
     }
 
     /** 除 keepPosition 外，其余已 attach 的页一律禁止循环续播 */
@@ -412,6 +408,7 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
             holder.player.startVideo();
         } catch (Exception e) {
             Logger.t(TAG).d("start video failed: " + e.getMessage());
+            AppLog.e(TAG, "推荐起播失败 viewKey=" + candidate.viewKey() + " " + AppLog.cause(e));
             showPlayError(position, null);
             return;
         }
@@ -464,7 +461,7 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
         progressTicker = new Runnable() {
             @Override
             public void run() {
-                if (isFinishing() || position != currentPosition) {
+                if (!isUsable() || position != currentPosition) {
                     progressTicker = null;
                     return;
                 }
@@ -537,7 +534,7 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
         coverWatcher = new Runnable() {
             @Override
             public void run() {
-                if (isFinishing() || position != currentPosition) {
+                if (!isUsable() || position != currentPosition) {
                     coverWatcher = null;
                     return;
                 }
@@ -670,7 +667,7 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
         if (candidate == null || candidate.item == null) {
             return;
         }
-        goToPlayVideo(candidate.item, dataManager.getPlaybackEngine());
+        goToPlayVideo(candidate.item, dataManager.getPlaybackEngine(), 0, position);
     }
 
     @Override
@@ -699,7 +696,7 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
         prefetcher.resolveNow(candidate, new RecommendPrefetcher.ResolveCallback() {
             @Override
             public void onResolved(String viewKey, String playUrl, V9MmanItem item) {
-                if (isFinishing()) {
+                if (!isUsable()) {
                     return;
                 }
                 enqueueDownload(candidate);
@@ -707,7 +704,7 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
 
             @Override
             public void onFailed(String viewKey, String message) {
-                if (isFinishing()) {
+                if (!isUsable()) {
                     return;
                 }
                 showMessage(TextUtils.isEmpty(message)
@@ -725,10 +722,10 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(result -> {
                     showMessage(result.message, result.ok ? TastyToast.SUCCESS : TastyToast.INFO);
-                    if (result.ok) {
+                    if (result.ok && getActivity() != null) {
                         // 拉起下载前台服务，保证退出页面后仍继续下载
                         try {
-                            startService(new Intent(RecommendFeedActivity.this,
+                            getActivity().startService(new Intent(getActivity(),
                                     DownloadVideoService.class));
                         } catch (Exception e) {
                             Logger.t(TAG).d("start download service failed: " + e.getMessage());
@@ -743,6 +740,7 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
      * 先取库里已解析的实体 → 查重 → 查是否在下载 → 交给 FileDownloader。
      */
     private DownloadResult doEnqueueDownload(String viewKey, V9MmanItem fallback) {
+        DownloadDiag.reset(viewKey);
         V9MmanItem target = null;
         try {
             target = dataManager.findV9MmanItemByViewKey(viewKey);
@@ -752,6 +750,8 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
             target = fallback;
         }
         if (target == null || target.getVideoResultId() == 0) {
+            AppLog.e(TAG, "推荐下载缺少VideoResult viewKey=" + viewKey);
+            DownloadDiag.append(viewKey, "enqueue=无已解析的 VideoResult → 失败");
             return new DownloadResult(false, "还未解析成功视频地址");
         }
         VideoResult videoResult;
@@ -761,42 +761,91 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
             videoResult = null;
         }
         if (videoResult == null || TextUtils.isEmpty(videoResult.getVideoUrl())) {
+            DownloadDiag.append(viewKey, "enqueue=videoResult.videoUrl 为空 → 失败");
             return new DownloadResult(false, "还未解析成功视频地址");
         }
         String path = target.getDownLoadPath(dataManager.getCustomDownloadVideoDirPath());
         File file = new File(path);
         if (file.exists() && file.length() > 0) {
+            DownloadDiag.append(viewKey, "enqueue=目标文件已存在(" + file.length() + "B) → 跳过");
             return new DownloadResult(false, "已经下载过了，请查看下载目录");
         }
         if (target.getStatus() == FileDownloadStatus.progress && target.getDownloadId() != 0) {
+            DownloadDiag.append(viewKey, "enqueue=已在下载(downloadId=" + target.getDownloadId() + ") → 跳过");
             return new DownloadResult(false, "已经在下载了");
         }
         // 91mman 视频分类源：直链带时效签名（st/f），预取/库里存的旧 URL 过期会被 CDN 拒绝
         // （表现为「正在下载」里报下载错误）。下载前重新解析播放页拿新鲜签名 URL。
         String url = videoResult.getVideoUrl();
-        if (!com.m3man.ui.mman9video.play.PlayVideoPresenter.isPornySource(target)) {
+        DownloadDiag.append(viewKey, "enqueue=旧URL host=" + DownloadDiag.hostOf(url));
+        // M50：20 位 hex viewkey = 91porny 视频。这类视频直链多落在 cdn77，但 cdn77 对部分出口
+        // （如用户 VPN）会返回 3.5KB 错误页——isAlive 探活只验 Content-Range 总长拦不住，下载即
+        // 假完成/error。已知 key 直接走 91porny m3u8 HLS 下载，绕开 cdn77 直链，更稳。
+        // M50：91porny 的 viewKey 实际为 24 位 hex（见 Parse91PornyVideo），旧正则锁死 20 位
+        // 导致该绕过 cdn77 的分支永不触发。放宽到 [16,32] 位全 hex，覆盖 20/24 位。
+        boolean isPornyHex = viewKey != null && viewKey.matches("[0-9a-fA-F]{16,32}");
+        if (isPornyHex) {
             try {
-                VideoResult fresh = dataManager.loadMman9VideoUrl(viewKey.startsWith("viewkey=") ? viewKey.substring(8) : viewKey).blockingFirst();
+                VideoResult porny = dataManager.loadPornyVideoUrl(viewKey).blockingFirst();
+                if (porny != null && !TextUtils.isEmpty(porny.getVideoUrl())) {
+                    DownloadDiag.append(viewKey, "91porny=直链host=" + DownloadDiag.hostOf(url)
+                            + " → 命中m3u8=" + DownloadDiag.hostOf(porny.getVideoUrl()) + " → HLS下载");
+                    PornyFallbackResolver.applyPornyResult(dataManager, target, porny);
+                    String hlsPath = path;
+                    try {
+                        String ensured = SDCardUtils.ensureDownloadDir(path, context);
+                        if (ensured != null) {
+                            hlsPath = ensured;
+                        }
+                    } catch (Exception ignored) {
+                    }
+                    PornyFallbackResolver.enqueueHlsDownload(context,
+                            target, porny.getVideoUrl(), hlsPath);
+                    return new DownloadResult(true, "已改用分分钟源下载");
+                }
+                DownloadDiag.append(viewKey, "91porny=直链m3u8为空 → 退回原直链");
+            } catch (Exception e) {
+                DownloadDiag.append(viewKey, "91porny=直链异常(" + (e.getMessage() == null ? e.toString() : e.getMessage()) + ") → 退回原直链");
+            }
+        }
+        if (!Parse91PornyVideo.SOURCE.equals(target.getSource())) {
+            try {
+                VideoResult fresh = dataManager.loadMman9VideoUrl(viewKey).blockingFirst();
                 if (fresh != null && !TextUtils.isEmpty(fresh.getVideoUrl())) {
                     dataManager.saveVideoResult(fresh);
                     target.setVideoResult(fresh);
                     dataManager.updateV9MmanItem(target);
                     url = fresh.getVideoUrl();
+                    DownloadDiag.append(viewKey, "reparse=成功 host=" + DownloadDiag.hostOf(url));
+                } else {
+                    DownloadDiag.append(viewKey, "reparse=空URL(观看超限/解析失败) → 尝试91porny备用源");
                 }
             } catch (Exception e) {
                 Logger.t(TAG).d("recommend re-parse failed, fallback old url: " + e.getMessage());
+                DownloadDiag.append(viewKey, "reparse=异常(" + e.getMessage() + ") → 退回旧URL");
             }
             // 直链 CDN 可能封锁当前网络（下载报错/0% 无速度）：探活被拒则改用 91porny 备用源
-            if (!PornyFallbackResolver.isAlive(okHttpClient, url)) {
+            boolean alive = PornyFallbackResolver.isAlive(okHttpClient, url);
+            DownloadDiag.append(viewKey, "isAlive=" + alive + " host=" + DownloadDiag.hostOf(url));
+            if (!alive) {
                 try {
                     VideoResult porny = PornyFallbackResolver.resolve(dataManager, target.getTitle());
                     if (porny != null && !TextUtils.isEmpty(porny.getVideoUrl())) {
+                        DownloadDiag.append(viewKey, "91porny=命中 host=" + DownloadDiag.hostOf(porny.getVideoUrl()) + " → HLS下载");
                         PornyFallbackResolver.applyPornyResult(dataManager, target, porny);
-                        PornyFallbackResolver.enqueueHlsDownload(RecommendFeedActivity.this,
-                                target, porny.getVideoUrl(), path);
+                        // M50：兜底路径也要 ensureDownloadDir（之前漏了，HLS 写到不可写目录会 error）
+                        String hlsPath2 = path;
+                        try {
+                            String ensured = SDCardUtils.ensureDownloadDir(path, context);
+                            if (ensured != null) hlsPath2 = ensured;
+                        } catch (Exception ignored) {}
+                        PornyFallbackResolver.enqueueHlsDownload(context,
+                                target, porny.getVideoUrl(), hlsPath2);
                         return new DownloadResult(true, "源站受限，已改用分分钟源下载");
                     }
-                } catch (Exception ignored) {
+                    DownloadDiag.append(viewKey, "91porny=未命中 → 退回原直链");
+                } catch (Exception e) {
+                    DownloadDiag.append(viewKey, "91porny=解析异常(" + (e.getMessage() == null ? e.toString() : e.getMessage()) + ") → 退回原直链");
                 }
                 // 备用源未命中：仍用原直链尝试（可能探活误报）
             }
@@ -805,12 +854,20 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
         try {
             String addr = dataManager.getMman9VideoAddress();
             if (!TextUtils.isEmpty(addr)) {
-                String cleanKey = viewKey != null && viewKey.startsWith("viewkey=")
-                        ? viewKey.substring(8) : viewKey;
-                referer = addr + "view_video.php?viewkey=" + cleanKey;
+                referer = addr + "view_video.php?viewkey=" + viewKey;
             }
         } catch (Exception ignored) {
         }
+        // M47：Android 11+ 上 /sdcard/3mman/video/ 对 app 只读，FileDownloader 写入会抛
+        // java.io.IOException: Operation not permitted。提前探测并 fallback 到 app 私有目录。
+        String requestedPath = path;
+        path = SDCardUtils.ensureDownloadDir(path, context);
+        AppLog.i(TAG, "推荐下载目录 requested=" + requestedPath + " actual=" + path);
+        if (path == null) {
+            DownloadDiag.append(viewKey, "download=目录不可写且无 fallback（requested=" + requestedPath + "）");
+            return new DownloadResult(false, "下载目录不可写，请检查存储权限或更换下载目录");
+        }
+        DownloadDiag.append(viewKey, "startDownload url.host=" + DownloadDiag.hostOf(url) + " referer=" + DownloadDiag.hostOf(referer) + " path.dir=" + path);
         int id = DownloadManager.getImpl().startDownload(url, path,
                 dataManager.isDownloadVideoNeedWifi(), false, referer);
         if (target.getAddDownloadDate() == null) {
@@ -859,31 +916,6 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
         dataManager.saveV9MmanItem(item);
     }
 
-    // ==================== 调参 ====================
-
-    private void showTuneDialog() {
-        new RecoSettingsDialog(this, engine, dataManager, new RecoSettingsDialog.OnParamsChangedListener() {
-            @Override
-            public void onParamsChanged(RecoParams params) {
-                showMessage(getString(R.string.reco_param_saved), TastyToast.SUCCESS);
-                // 参数变了，池子里的旧分数已失效，重排会话
-                repository.resetSession();
-                noMore = false;
-            }
-
-            @Override
-            public void onMemoryCleared() {
-                engine.resetMemory();
-                repository.resetSession();
-                noMore = false;
-                showMessage(getString(R.string.reco_param_memory_cleared), TastyToast.SUCCESS);
-                if (adapter != null) {
-                    adapter.notifyDataSetChanged();
-                }
-            }
-        }).show();
-    }
-
     // ==================== 持久化 ====================
 
     private void persistAsync(boolean force) {
@@ -901,13 +933,13 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
     // ==================== 生命周期 ====================
 
     @Override
-    protected void onResume() {
+    public void onResume() {
         super.onResume();
         JZVideoPlayer.goOnPlayOnResume();
     }
 
     @Override
-    protected void onPause() {
+    public void onPause() {
         super.onPause();
         JZVideoPlayer.goOnPlayOnPause();
         recordWatchRatio(currentPosition);
@@ -915,20 +947,33 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
     }
 
     @Override
-    public void onBackPressed() {
-        if (JZVideoPlayer.backPress()) {
-            return;
+    public void onHiddenChanged(boolean hidden) {
+        super.onHiddenChanged(hidden);
+        // hide/show 切换（切到其它 Tab）时同步播放器状态，避免切回时黑屏/声画残留
+        if (hidden) {
+            JZVideoPlayer.goOnPlayOnPause();
+            recordWatchRatio(currentPosition);
+            persistAsync(true);
+        } else if (isResumed()) {
+            JZVideoPlayer.goOnPlayOnResume();
         }
-        super.onBackPressed();
+    }
+
+    /** 供宿主 MainActivity 返回键转发：先让播放器消费（退出全屏等） */
+    public boolean handleBackPressed() {
+        if (JZVideoPlayer.backPress()) {
+            return true;
+        }
+        return false;
     }
 
     @Override
-    protected void onDestroy() {
+    public void onDestroyView() {
         stopCoverWatcher();
         stopProgressTicker();
         handler.removeCallbacksAndMessages(null);
         recordWatchRatio(currentPosition);
-        // Activity 已在销毁，Rx 订阅马上会被清掉，这里用裸线程保证画像一定落盘
+        // View 已销毁，Rx 订阅马上会被清掉，这里用裸线程保证画像一定落盘
         final RecoEngine target = engine;
         if (target != null) {
             new Thread(new Runnable() {
@@ -948,6 +993,12 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
             prefetcher.release();
         }
         JZVideoPlayer.releaseAllVideos();
-        super.onDestroy();
+        if (getActivity() != null) {
+            try {
+                getActivity().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            } catch (Exception ignored) {
+            }
+        }
+        super.onDestroyView();
     }
 }

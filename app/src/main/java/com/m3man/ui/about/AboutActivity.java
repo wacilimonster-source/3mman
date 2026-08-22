@@ -26,6 +26,7 @@ import com.m3man.ui.MvpActivity;
 import com.m3man.ui.update.UpdateActivity;
 import com.m3man.utils.ApkVersionUtils;
 import com.m3man.utils.AppCacheUtils;
+import com.m3man.utils.AppLog;
 import com.m3man.utils.DialogUtils;
 
 import java.io.File;
@@ -236,16 +237,20 @@ public class AboutActivity extends MvpActivity<AboutView, AboutPresenter> implem
 
     @Override
     public void needUpdate(UpdateVersion updateVersion) {
+        AppLog.i("UpdateCheck", "[关于页]发现新版本 v" + updateVersion.getVersionName()
+                + " url=" + updateVersion.getApkDownloadUrl());
         showUpdateDialog(updateVersion);
     }
 
     @Override
     public void noNeedUpdate() {
+        AppLog.i("UpdateCheck", "[关于页]当前已是最新版本");
         showMessage("当前已是最新版本", TastyToast.SUCCESS);
     }
 
     @Override
     public void checkUpdateError(String message) {
+        AppLog.e("UpdateCheck", "[关于页]检查更新失败: " + message);
         showMessage(message, TastyToast.ERROR);
     }
 
