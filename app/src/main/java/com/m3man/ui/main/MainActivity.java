@@ -287,6 +287,10 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                 }
                 mCurrentFragment = FragmentUtils.switchContent(fragmentManager, mCurrentFragment,
                         mRecommendFeedFragment, contentFrameLayout.getId(), position, false);
+                // M61：采纳真正被显示的实例，防止字段指向未挂载的“幽灵”对象
+                if (mCurrentFragment instanceof RecommendFeedFragment) {
+                    mRecommendFeedFragment = (RecommendFeedFragment) mCurrentFragment;
+                }
                 hideFloatingActionButton(fabSearch);
                 break;
             case 2:
@@ -299,6 +303,9 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                 }
                 mCurrentFragment = FragmentUtils.switchContent(fragmentManager, mCurrentFragment,
                         mSearchPornyFragment, contentFrameLayout.getId(), position, false);
+                if (mCurrentFragment instanceof SearchPornyFragment) {
+                    mSearchPornyFragment = (SearchPornyFragment) mCurrentFragment;
+                }
                 hideFloatingActionButton(fabSearch);
                 break;
             case 3:
@@ -306,6 +313,9 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                     mMineFragment = MineFragment.getInstance();
                 }
                 mCurrentFragment = FragmentUtils.switchContent(fragmentManager, mCurrentFragment, mMineFragment, contentFrameLayout.getId(), position, false);
+                if (mCurrentFragment instanceof MineFragment) {
+                    mMineFragment = (MineFragment) mCurrentFragment;
+                }
                 hideFloatingActionButton(fabSearch);
                 break;
             default:
@@ -327,6 +337,9 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                     mMain9MmanVideoFragment = Main9MmanVideoFragment.getInstance();
                 }
                 mCurrentFragment = FragmentUtils.switchContent(fragmentManager, mCurrentFragment, mMain9MmanVideoFragment, contentFrameLayout.getId(), itemId, isInnerReplace);
+                if (mCurrentFragment instanceof Main9MmanVideoFragment) {
+                    mMain9MmanVideoFragment = (Main9MmanVideoFragment) mCurrentFragment;
+                }
                 firstTabShow = Tags.TAG_PRON_9_VIDEO;
                 presenter.setMainFirstTabShow(Tags.TAG_PRON_9_VIDEO);
                 if (presenter.haveNotSetV9pronAddress()) {

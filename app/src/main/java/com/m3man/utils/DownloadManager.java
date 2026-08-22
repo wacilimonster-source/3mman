@@ -53,6 +53,19 @@ public class DownloadManager {
     private final CopyOnWriteArrayList<DownloadStatusUpdater> updaterList = new CopyOnWriteArrayList<>();
 
 
+    /**
+     * M61：判断是否 HLS m3u8 地址。m3u8 绝不能交给 FileDownloader：
+     * 它会把几百字节的播放列表文本当成 mp4「秒下载完成」，产生假完成文件。
+     */
+    public static boolean isHlsUrl(String url) {
+        String lower = url == null ? "" : url.toLowerCase(java.util.Locale.US);
+        int query = lower.indexOf('?');
+        if (query >= 0) {
+            lower = lower.substring(0, query);
+        }
+        return lower.endsWith(".m3u8") || lower.contains(".m3u8/");
+    }
+
     public int startDownload(String url, final String path, boolean isDownloadNeedWifi, boolean isForceReDownload) {
         return startDownload(url, path, isDownloadNeedWifi, isForceReDownload, null);
     }
@@ -203,6 +216,20 @@ public class DownloadManager {
         }
         if (task.getStatus() == FileDownloadStatus.completed) {
             v9MmanItem.setFinishedDownloadDate(new Date());
+            // M61：假完成防护——m3u8 播放列表/错误页被当 mp4 下完时只有几百字节，
+            // 判定为无效文件：删除并标记 error，避免污染「下载完成」列表。
+            try {
+                File done = new File(task.getPath());
+                if (done.exists() && done.length() < 100 * 1024) {
+                    AppLog.e(TAG, "疑似假完成文件(" + done.length() + "B)已删除 url.host="
+                            + AppLog.hostOf(task.getUrl()));
+                    done.delete();
+                    v9MmanItem.setStatus(FileDownloadStatus.error);
+                    dataManager.updateV9MmanItem(v9MmanItem);
+                    return;
+                }
+            } catch (Exception ignored) {
+            }
         }
         v9MmanItem.setSpeed(task.getSpeed());
         v9MmanItem.setStatus(task.getStatus());

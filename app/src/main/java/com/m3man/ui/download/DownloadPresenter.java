@@ -104,9 +104,10 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
             return;
         }
         VideoResult videoResult = tmp.getVideoResult();
-        //先检查文件
-        File toFile = new File(tmp.getDownLoadPath(getCustomDownloadVideoDirPath()));
-        if (toFile.exists() && toFile.length() > 0) {
+        //先检查文件（M61：兼容回退目录，避免重复下载）
+        File toFile = SDCardUtils.resolveExistingDownloadFile(context,
+                tmp.getDownLoadPath(getCustomDownloadVideoDirPath()));
+        if (toFile != null && toFile.exists() && toFile.length() > 0) {
             if (downloadListener != null) {
                 downloadListener.onError("已经下载过了，请查看下载目录");
             } else {
@@ -307,6 +308,23 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
 
     /** 真正启动下载（带 Referer/UA 请求头） */
     private void startDownloadInternal(V9MmanItem tmp, String url, String path, boolean wifi, boolean force, DownloadListener listener) {
+        // M61：m3u8 绝不能交给 FileDownloader（会把播放列表文本秒下成假 mp4），改走 HLS 服务
+        if (DownloadManager.isHlsUrl(url)) {
+            AppLog.i("Download", "HLS地址改走HLS服务下载 viewKey=" + tmp.getViewKey()
+                    + " host=" + AppLog.hostOf(url));
+            PornyFallbackResolver.enqueueHlsDownload(context, tmp, url, path);
+            if (listener != null) {
+                listener.onSuccess("已加入后台下载");
+            } else {
+                ifViewAttached(new ViewAction<DownloadView>() {
+                    @Override
+                    public void run(@NonNull DownloadView view) {
+                        view.showMessage("已加入后台下载", TastyToast.SUCCESS);
+                    }
+                });
+            }
+            return;
+        }
         int id = DownloadManager.getImpl().startDownload(url, path, wifi, force, buildReferer(tmp.getViewKey()));
         if (tmp.getAddDownloadDate() == null) {
             tmp.setAddDownloadDate(new Date());
@@ -356,7 +374,8 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                                 if (item == null || item.getStatus() != FileDownloadStatus.error) {
                                     continue;
                                 }
-                                File f = new File(item.getDownLoadPath(customDir));
+                                File f = SDCardUtils.resolveExistingDownloadFile(context,
+                                        item.getDownLoadPath(customDir));
                                 if (SDCardUtils.isDownloadFileComplete(f, item.getTotalFarBytes())) {
                                     item.setStatus(FileDownloadStatus.completed);
                                     item.setProgress(100);
@@ -448,6 +467,11 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         }
         // 2) 兜底：直接删除目标文件及其临时文件（不依赖下载服务，确保“正在下载”也能删除）
         deleteFileWithTemp(path);
+        // M61：文件可能被写进应用专属回退目录，一并清理
+        File fallback = SDCardUtils.resolveExistingDownloadFile(context, path);
+        if (fallback != null && !fallback.getAbsolutePath().equals(path)) {
+            deleteFileWithTemp(fallback.getAbsolutePath());
+        }
         v9MmanItem.setDownloadId(0);
         dataManager.updateV9MmanItem(v9MmanItem);
     }
@@ -518,8 +542,10 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
      * @param v9MmanItem v
      */
     private void deleteWithFile(V9MmanItem v9MmanItem) {
-        File file = new File(v9MmanItem.getDownLoadPath(getCustomDownloadVideoDirPath()));
-        if (file.delete()) {
+        // M61：按真实位置删除（原路径或回退目录）
+        File file = SDCardUtils.resolveExistingDownloadFile(context,
+                v9MmanItem.getDownLoadPath(getCustomDownloadVideoDirPath()));
+        if (file != null && file.exists() && file.delete()) {
             v9MmanItem.setDownloadId(0);
             dataManager.updateV9MmanItem(v9MmanItem);
         } else {

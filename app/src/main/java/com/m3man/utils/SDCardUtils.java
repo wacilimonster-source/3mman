@@ -126,6 +126,31 @@ public class SDCardUtils {
     }
 
     /**
+     * M61：解析已下载文件的真实路径。
+     * 下载时 ensureDownloadDir 可能把文件写进应用专属回退目录（公共 /sdcard 不可写的机型），
+     * 但 DB 记录只存了原始路径 → 播放/删除时按原路径找会“文件不存在”。
+     * 这里按「原路径优先，回退目录兜底」解析，两处都不存在时返回原路径文件（保持旧提示行为）。
+     */
+    public static File resolveExistingDownloadFile(Context context, String preferredPath) {
+        if (TextUtils.isEmpty(preferredPath)) {
+            return null;
+        }
+        File preferred = new File(preferredPath);
+        if (preferred.exists() && preferred.length() > 0) {
+            return preferred;
+        }
+        if (context != null) {
+            File fallback = new File(
+                    new File(context.getExternalFilesDir(Environment.DIRECTORY_MOVIES), "3mman/video"),
+                    preferred.getName());
+            if (fallback.exists() && fallback.length() > 0) {
+                return fallback;
+            }
+        }
+        return preferred;
+    }
+
+    /**
      * M41：判断文件是否“已完整、可视为下载完成”。
      *
      * 兼容部分 CDN 的 Content-Length 与实际字节数不一致（通常偏差 ≤5%）导致的

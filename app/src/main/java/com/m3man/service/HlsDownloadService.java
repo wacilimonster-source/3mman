@@ -22,6 +22,7 @@ import com.m3man.R;
 import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.utils.AppCacheUtils;
+import com.m3man.utils.AppLog;
 import com.m3man.utils.HlsDownloader;
 import com.m3man.utils.SDCardUtils;
 
@@ -92,6 +93,14 @@ public class HlsDownloadService extends Service {
                 targetMp4Path = SDCardUtils.DOWNLOAD_VIDEO_PATH + fileName + ".mp4";
             } else {
                 targetMp4Path = savePath;
+            }
+            // M61：目录不可写时回退到应用专属目录，避免 Android 11+ 公共目录写入直接失败
+            String ensured = SDCardUtils.ensureDownloadDir(targetMp4Path, this);
+            if (!TextUtils.isEmpty(ensured)) {
+                targetMp4Path = ensured;
+                AppLog.i("HlsDownload", "下载目录 ensured=" + ensured);
+            } else {
+                AppLog.e("HlsDownload", "下载目录不可写且无 fallback path=" + targetMp4Path);
             }
             // 稳定的伪 downloadId，使「我的下载」查询（DownloadId!=0）能命中本记录
             pseudoDownloadId = Math.abs(url.hashCode());

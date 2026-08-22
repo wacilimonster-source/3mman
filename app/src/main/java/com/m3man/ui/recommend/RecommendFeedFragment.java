@@ -765,8 +765,9 @@ public class RecommendFeedFragment extends BaseFragment
             return new DownloadResult(false, "还未解析成功视频地址");
         }
         String path = target.getDownLoadPath(dataManager.getCustomDownloadVideoDirPath());
-        File file = new File(path);
-        if (file.exists() && file.length() > 0) {
+        // M61：兼容 ensureDownloadDir 回退目录，文件可能已写进应用专属目录
+        File file = SDCardUtils.resolveExistingDownloadFile(context, path);
+        if (file != null && file.exists() && file.length() > 0) {
             DownloadDiag.append(viewKey, "enqueue=目标文件已存在(" + file.length() + "B) → 跳过");
             return new DownloadResult(false, "已经下载过了，请查看下载目录");
         }
@@ -868,6 +869,12 @@ public class RecommendFeedFragment extends BaseFragment
             return new DownloadResult(false, "下载目录不可写，请检查存储权限或更换下载目录");
         }
         DownloadDiag.append(viewKey, "startDownload url.host=" + DownloadDiag.hostOf(url) + " referer=" + DownloadDiag.hostOf(referer) + " path.dir=" + path);
+        // M61：m3u8 绝不能交给 FileDownloader（会把播放列表文本秒下成假 mp4），改走 HLS 服务
+        if (DownloadManager.isHlsUrl(url)) {
+            DownloadDiag.append(viewKey, "HLS=改走HlsDownloadService");
+            PornyFallbackResolver.enqueueHlsDownload(context, target, url, path);
+            return new DownloadResult(true, "已加入后台下载");
+        }
         int id = DownloadManager.getImpl().startDownload(url, path,
                 dataManager.isDownloadVideoNeedWifi(), false, referer);
         if (target.getAddDownloadDate() == null) {

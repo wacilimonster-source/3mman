@@ -31,6 +31,7 @@ import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.service.DownloadVideoService;
 import com.m3man.ui.MvpFragment;
 import com.m3man.utils.DownloadManager;
+import com.m3man.utils.SDCardUtils;
 import com.m3man.service.HlsDownloadService;
 import com.m3man.ui.mman9video.play.PlayVideoPresenter;
 
@@ -126,7 +127,9 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
                 if (view.getId() == R.id.right_menu_delete && v9MmanItem != null) {
                     SwipeItemLayout swipeItemLayout = (SwipeItemLayout) view.getParent();
                     swipeItemLayout.close();
-                    File file = new File(v9MmanItem.getDownLoadPath(presenter.getCustomDownloadVideoDirPath()));
+                    // M61：兼容 ensureDownloadDir 回退目录，文件可能不在原路径
+                    File file = SDCardUtils.resolveExistingDownloadFile(getContext(),
+                            v9MmanItem.getDownLoadPath(presenter.getCustomDownloadVideoDirPath()));
                     if (file.exists()) {
                         showDeleteFileDialog(v9MmanItem);
                     } else {
@@ -166,7 +169,10 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
      * @param v9MmanItem item
      */
     private void openMp4File(V9MmanItem v9MmanItem) {
-        File file = new File(v9MmanItem.getDownLoadPath(presenter.getCustomDownloadVideoDirPath()));
+        // M61：下载目录不可写时文件被写进应用专属回退目录，按原路径找会误报“文件不存在”；
+        // 这里按「原路径 → 回退目录」解析真实文件再播放。
+        File file = SDCardUtils.resolveExistingDownloadFile(getContext(),
+                v9MmanItem.getDownLoadPath(presenter.getCustomDownloadVideoDirPath()));
         if (file.exists()) {
             Uri uri;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
