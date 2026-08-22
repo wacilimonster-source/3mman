@@ -38,6 +38,13 @@ public class MyProxySelector extends ProxySelector {
     private volatile boolean isTest = false;
     private final PreferencesHelper preferencesHelper;
 
+    /**
+     * M-sys：保存被本选择器替换前的系统默认选择器（反映设备全局代理/VPN）。
+     * 不可在 select() 内直接调用 ProxySelector.getDefault()——本实例已被 setDefault 注册为默认，
+     * 那样会递归调用自身导致 StackOverflow。
+     */
+    private ProxySelector systemDefaultSelector;
+
     @Inject
     public MyProxySelector(List<Proxy> proxyList, PreferencesHelper preferencesHelper) {
         //注入的 proxyList 仅作占位，实际选路每次构造不可变快照，避免并发修改
@@ -66,6 +73,13 @@ public class MyProxySelector extends ProxySelector {
     public void clearTest() {
         isTest = false;
         testProxyList = null;
+    }
+
+    /**
+     * 注入被本选择器替换前的系统默认 ProxySelector（须在 MyApplication.setDefault 之前捕获后传入）。
+     */
+    public void setSystemDefaultSelector(ProxySelector selector) {
+        this.systemDefaultSelector = selector;
     }
 
     /**
@@ -106,6 +120,21 @@ public class MyProxySelector extends ProxySelector {
         }
 
         if (!isOpenProxy) {
+            // 应用内代理关闭时，回退到系统默认 ProxySelector（设备全局代理/VPN 对本应用生效）。
+            // 注意：必须用注入的 systemDefaultSelector，不能调 ProxySelector.getDefault()——
+            // 本实例已被注册为默认，调它会递归自身导致 StackOverflow。
+            ProxySelector def = systemDefaultSelector;
+            if (def != null) {
+                try {
+                    List<Proxy> sys = def.select(uri);
+                    if (sys != null && !sys.isEmpty()) {
+                        Logger.t(TAG).d("未开应用内代理，走系统默认代理：" + sys);
+                        return sys;
+                    }
+                } catch (IllegalArgumentException ignore) {
+                    // 某些 URI 方案默认选择器可能抛异常，忽略后回退直连
+                }
+            }
             Logger.t(TAG).d("未有任何代理或测试，直连");
             //M14：不得返回 null，否则部分 HttpURLConnection 栈会 NPE
             return DIRECT_NO_PROXY;

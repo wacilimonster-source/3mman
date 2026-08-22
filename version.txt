@@ -1,7 +1,7 @@
 {
-  "versionCode": 94,
-  "versionName": "1.0.61",
-  "updateMessage": "修复推荐下载秒完成但文件无效（m3u8误走普通下载）；修复我的下载点击找不到文件；修复我的页面切换推荐时叠加在顶部。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.61.apk",
-  "sha256": "c2f24a50cedcf81bd4b9e930a8d6a83e6c79e78ebadd387dd02095a44036fd7e"
+  "versionCode": 96,
+  "versionName": "1.0.63",
+  "updateMessage": "修复关闭代理时误用系统默认选择器导致的无限递归(StackOverflow)崩溃；修复排序弹窗弹出位置与关闭交互（去掉 Gravity.BOTTOM，支持外部点击关闭）；播放页悬浮按钮上移避开控制条，展开菜单移除评论与分享。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.63.apk",
+  "sha256": "23b775abfcc17475b1d9c06af06fc1076931324987c6b18e7a124cf72b866b43"
 }

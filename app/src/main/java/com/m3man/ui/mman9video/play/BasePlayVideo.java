@@ -509,12 +509,6 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         } else if (id == R.id.menu_play_download) {
             startDownloadVideo();
             return true;
-        } else if (id == R.id.menu_play_share) {
-            shareVideoUrl();
-            return true;
-        } else if (id == R.id.menu_play_comment) {
-            showMessage("向下滑动即可评论", TastyToast.INFO);
-            return true;
         } else if (id == R.id.menu_play_close) {
             floatingToolbar.hide();
             return true;
@@ -611,22 +605,6 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         }
         favoriteDialog.show();
         presenter.favorite(String.valueOf(presenter.getLoginUserId()), videoResult.getVideoId(), videoResult.getAuthorId());
-    }
-
-    private void shareVideoUrl() {
-        if (v9MmanItem == null || v9MmanItem.getVideoResultId() == 0) {
-            showMessage("还未成功解析视频链接，不能分享！", TastyToast.INFO);
-            return;
-        }
-        String url = v9MmanItem.getVideoResult().getVideoUrl();
-        if (TextUtils.isEmpty(url)) {
-            showMessage("还未成功解析视频链接，不能分享！", TastyToast.INFO);
-            return;
-        }
-        Intent textIntent = new Intent(Intent.ACTION_SEND);
-        textIntent.setType("text/plain");
-        textIntent.putExtra(Intent.EXTRA_TEXT, "链接：" + url);
-        startActivity(Intent.createChooser(textIntent, "分享视频地址"));
     }
 
     /**

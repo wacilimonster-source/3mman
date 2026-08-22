@@ -50,7 +50,11 @@ public class MyApplication extends DaggerApplication {
         myApplication = this;
         // 将应用代理选择器注册为全局默认，使 filedownloader 等直接使用 HttpURLConnection 的模块（如下载）
         // 也能统一走 Http 代理，解决“下载一直卡住”的问题。
+        // 先捕获系统原始默认选择器（含设备全局代理/VPN），交给 MyProxySelector 作为回退，
+        // 否则其内部再调 ProxySelector.getDefault() 会拿到自己，陷入无限递归。
+        ProxySelector systemDefaultSelector = ProxySelector.getDefault();
         ProxySelector.setDefault(myProxySelector);
+        myProxySelector.setSystemDefaultSelector(systemDefaultSelector);
         initNightMode();
         AppLogger.initLogger();
         logStartupEnvironment();

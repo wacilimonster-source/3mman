@@ -2,6 +2,8 @@ package com.m3man.ui.basemain;
 
 
 import android.content.Context;
+import android.graphics.drawable.ColorDrawable;
+import android.view.Gravity;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -18,7 +20,6 @@ import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.helper.ItemTouchHelper;
-import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -185,6 +186,9 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
                 popupWindow.setElevation(10);
             }
             popupWindow.setOutsideTouchable(true);
+            // 必须设置 focusable + 背景，否则外部点击无法关闭，且点击会穿透到下方控件
+            popupWindow.setFocusable(true);
+            popupWindow.setBackgroundDrawable(new ColorDrawable(ContextCompat.getColor(context, android.R.color.white)));
             popupWindow.setOnDismissListener(new PopupWindow.OnDismissListener() {
                 @Override
                 public void onDismiss() {
@@ -203,17 +207,19 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
             sortCategoryRecyclerView.addItemDecoration(new DividerItemDecoration(context, DividerItemDecoration.VERTICAL));
             sortCategoryRecyclerView.setAdapter(sortCategoryAdapter);
             initItemTouchHelper(sortCategoryAdapter, sortCategoryRecyclerView, sortCategoryList);
-            PopupWindowCompat.showAsDropDown(popupWindow, tabLayout, 0, 0, Gravity.BOTTOM);
+            // 注意：showAsDropDown 不能传 Gravity.BOTTOM，否则弹窗会向上覆盖工具栏并挡住排序按钮，
+            // 导致第二次点击被弹窗吸收而无法关闭。使用默认（下拉在 anchor 之下）即可。
+            PopupWindowCompat.showAsDropDown(popupWindow, tabLayout, 0, 0, Gravity.NO_GRAVITY);
             AnimationUtils.rotateUp(ivSortCategory);
             isNeedInterruptOnBackPressed = true;
             showMessage("拖动左边滑块可以排序哟", TastyToast.INFO);
         } else {
-            if (!popupWindow.isShowing()) {
-                AnimationUtils.rotateUp(ivSortCategory);
-                PopupWindowCompat.showAsDropDown(popupWindow, tabLayout, 0, 0, Gravity.BOTTOM);
-                isNeedInterruptOnBackPressed = true;
-            } else {
+            if (popupWindow.isShowing()) {
                 dismissPopupWindow();
+            } else {
+                AnimationUtils.rotateUp(ivSortCategory);
+                PopupWindowCompat.showAsDropDown(popupWindow, tabLayout, 0, 0, Gravity.NO_GRAVITY);
+                isNeedInterruptOnBackPressed = true;
             }
         }
     }
