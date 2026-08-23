@@ -326,23 +326,24 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         return sb.toString();
     }
 
-    /** M71：从 info 文本里移除 "From:/来自:/來自:" 字段值，避免与 @作者 前缀重复 */
+    /** M72：从 info 文本里移除作者字段（中文站「作者:」/英文站「From:」），避免与 @作者 前缀重复 */
     private static String stripFromField(String info) {
         if (info == null || info.isEmpty()) {
             return info;
         }
-        // 已知字段名列表（中英文），按 "字段名:" 切分后丢弃 From 段、重新拼接
-        String[] keys = {"Added", "添加时间", "添加時間", "From", "来自", "來自",
-                "Views", "查看", "Favorites", "收藏", "Comments", "评论", "Point", "积分"};
-        // 找出所有 "key:" 出现位置并按位置排序切分成段
+        // 已知字段名列表（中英文实测变体），按 "字段名:" 定位切分后丢弃作者段、重新拼接
+        String[] keys = {"添加时间", "Added", "Added:", "作者", "From", "來自", "来自",
+                "热度", "Views", "查看", "收藏", "Favorites", "留言", "Comments", "评论",
+                "积分", "Point"};
         java.util.TreeMap<Integer, String> marks = new java.util.TreeMap<>();
         for (String k : keys) {
-            int idx = info.indexOf(k + ":");
+            String needle = k.endsWith(":") ? k : k + ":";
+            int idx = info.indexOf(needle);
             while (idx >= 0) {
                 if (!marks.containsKey(idx)) {
                     marks.put(idx, k);
                 }
-                idx = info.indexOf(k + ":", idx + 1);
+                idx = info.indexOf(needle, idx + 1);
             }
         }
         if (marks.isEmpty()) {
@@ -354,8 +355,9 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
             int start = positions.get(i);
             String key = marks.get(start);
             int end = (i + 1 < positions.size()) ? positions.get(i + 1).intValue() : info.length();
-            if ("From".equals(key) || "来自".equals(key) || "來自".equals(key)) {
-                continue; // 丢弃作者字段
+            // 作者字段丢弃（前缀 @作者 已展示）
+            if ("作者".equals(key) || "From".equals(key) || "来自".equals(key) || "來自".equals(key)) {
+                continue;
             }
             String seg = info.substring(start, end).trim();
             if (seg.length() > 0) {

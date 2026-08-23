@@ -1,7 +1,7 @@
 {
-  "versionCode": 102,
-  "versionName": "1.0.69",
-  "updateMessage": "推荐流与播放体验修复：1）修复推荐流视频标题/封面错位（站点列表页含CSS隐藏的废弃条目，其viewKey/标题/封面互相串位，App解析时未过滤且去重误留坏行，表现为多条视频同标题、点进去信息不符），现从源头过滤隐藏条目并用播放页权威标题回写兜底；2）修复推荐流信息栏顺序跳变与作者名重复显示；3）新增播放器错误/缓冲诊断日志（排查起播转圈问题）。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.69.apk",
-  "sha256": "b8e094c7fca4a0f73b378763232bf49e15ee6ee24e570f132734184877d4371f"
+  "versionCode": 103,
+  "versionName": "1.0.70",
+  "updateMessage": "修复推荐流视频起播转圈：过期签名直链（DB/内存缓存的历史URL）导致本地代理建流失败，现起播前校验直链时效（提前5分钟），过期自动重新解析；顺带补上DB有效直链秒开路径。另修复推荐流信息栏作者名重复显示（中文站字段「作者:」此前未被剥离）。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.70.apk",
+  "sha256": "24d4f3b3bca5cb4f7cd02906a12dc7e3632414ce91fd1258c36d25987c743312"
 }

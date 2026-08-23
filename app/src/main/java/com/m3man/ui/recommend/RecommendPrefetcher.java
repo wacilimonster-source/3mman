@@ -103,6 +103,42 @@ public class RecommendPrefetcher {
     }
 
     /**
+     * M72：判断 9mman 直链的时效签名（secure=&lt;base64&gt;,&lt;unix秒&gt;）是否已过期。
+     * 过期的直链交给 videocache 本地代理时，代理建流失败会导致播放器连不上
+     * 127.0.0.1 端口而无限转圈（实测日志：Unable to connect to http://127.0.0.1:44183）。
+     *
+     * @return true=确定过期；false=无签名(其它源)或仍在有效期内
+     */
+    public static boolean isSecureUrlExpired(String url) {
+        if (TextUtils.isEmpty(url)) {
+            return false;
+        }
+        try {
+            java.net.URI uri = java.net.URI.create(url);
+            String query = uri.getRawQuery();
+            if (query == null || !query.contains("secure=")) {
+                return false;
+            }
+            for (String p : query.split("&")) {
+                if (p.startsWith("secure=")) {
+                    String val = p.substring("secure=".length());
+                    // 形如 <base64>%3D%3D,1787513682 或 <base64>==,1787513682（可能已 URL 编码）
+                    int comma = val.lastIndexOf(',');
+                    if (comma < 0 || comma + 1 >= val.length()) {
+                        return false;
+                    }
+                    long expireSec = Long.parseLong(val.substring(comma + 1));
+                    // 提前 5 分钟视为过期，避免起播途中跨过有效期
+                    return System.currentTimeMillis() / 1000L >= expireSec - 300;
+                }
+            }
+        } catch (Throwable ignored) {
+            // 解析不了就当没过期，走原有逻辑
+        }
+        return false;
+    }
+
+    /**
      * 把普通 MP4 包成本地代理地址；HLS m3u8 必须保留原始地址。
      * videocache 2.7.1 不能为 m3u8 内的相对分片补全基地址，会把 index0.ts
      * 直接交给播放器，最终触发 "no protocol"。
@@ -141,11 +177,39 @@ public class RecommendPrefetcher {
         String viewKey = candidate.viewKey();
         String cached = peekRawUrl(viewKey);
         if (!TextUtils.isEmpty(cached)) {
-            if (callback != null) {
-                callback.onResolved(viewKey, toPlayUrl(cached), candidate.item);
+            // M72：内存缓存命中但签名已过期 → 丢弃走重新解析
+            if (isSecureUrlExpired(cached)) {
+                AppLog.i(TAG, "缓存直链已过期，重新解析 viewKey=" + viewKey);
+                synchronized (urlCache) {
+                    urlCache.remove(viewKey);
+                }
+            } else {
+                if (callback != null) {
+                    callback.onResolved(viewKey, toPlayUrl(cached), candidate.item);
+                }
+                warm(cached);
+                return;
             }
-            warm(cached);
-            return;
+        }
+        // M72：DB 里存着旧的 VideoResult（含过期直链）时同样强制重新解析，
+        // 避免拿到 10 天前的签名 URL 去建本地代理流。
+        try {
+            V9MmanItem dbItem = dataManager.findV9MmanItemByViewKey(viewKey);
+            VideoResult dbVr = (dbItem == null || dbItem.getVideoResultId() == 0)
+                    ? null : dbItem.getVideoResult();
+            if (dbVr != null && isSecureUrlExpired(dbVr.getVideoUrl())) {
+                AppLog.i(TAG, "DB直链已过期，强制重新解析 viewKey=" + viewKey);
+            } else if (dbVr != null && !TextUtils.isEmpty(dbVr.getVideoUrl())) {
+                // DB 直链仍有效：入缓存并直接起播
+                put(viewKey, dbVr.getVideoUrl());
+                if (callback != null) {
+                    callback.onResolved(viewKey, toPlayUrl(dbVr.getVideoUrl()), candidate.item);
+                }
+                warm(dbVr.getVideoUrl());
+                return;
+            }
+        } catch (Throwable ignored) {
+            // DB 查询失败不影响后续解析流程
         }
         if (callback != null) {
             synchronized (waiting) {
