@@ -17,6 +17,7 @@ import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.db.entity.VideoResult;
 import com.m3man.di.ApplicationContext;
 import com.m3man.parser.Parse91PornyVideo;
+import com.m3man.ui.mman9video.play.PlayVideoPresenter;
 import com.m3man.rxjava.CallBackWrapper;
 import com.m3man.rxjava.RxSchedulersHelper;
 import com.m3man.utils.AppCacheUtils;
@@ -123,8 +124,28 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         V9MmanItem tmp = dataManager.findV9MmanItemByViewKey(v9MmanItem.getViewKey());
         if (tmp == null) {
             AppLog.e("Download", "数据库找不到视频 viewKey=" + v9MmanItem.getViewKey());
+        } else if (tmp.getVideoResultId() == 0) {
+            AppLog.w("Download", "DB行无解析结果 videoResultId=0 viewKey=" + v9MmanItem.getViewKey());
+        }
+        // M68：DB 行缺失或无解析结果时，用刚解析成功的内存对象兜底并回写，
+        // 避免「明明刚解析成功却提示还未解析成功视频地址」的死路。
+        if ((tmp == null || tmp.getVideoResultId() == 0)
+                && v9MmanItem.getVideoResult() != null
+                && !TextUtils.isEmpty(v9MmanItem.getVideoResult().getVideoUrl())) {
+            AppLog.w("Download", "用内存解析结果兜底并回写DB viewKey=" + v9MmanItem.getViewKey());
+            try {
+                if (v9MmanItem.getSourceName() == null) {
+                    v9MmanItem.setSourceName(PlayVideoPresenter.SOURCE_MMAN9_PERSIST);
+                }
+                dataManager.saveV9MmanItem(v9MmanItem);
+                tmp = dataManager.findV9MmanItemByViewKey(v9MmanItem.getViewKey());
+                AppLog.i("Download", "兜底回写完成 videoResultId=" + (tmp == null ? -1 : tmp.getVideoResultId()));
+            } catch (Exception e) {
+                AppLog.e("Download", "兜底回写失败 " + AppLog.cause(e));
+            }
         }
         if (tmp == null || tmp.getVideoResultId() == 0) {
+            AppLog.e("Download", "下载中止：无可用解析结果 viewKey=" + v9MmanItem.getViewKey());
             if (downloadListener != null) {
                 downloadListener.onError("还未解析成功视频地址");
             } else {
@@ -142,6 +163,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         File toFile = SDCardUtils.resolveExistingDownloadFile(context,
                 tmp.getDownLoadPath(getCustomDownloadVideoDirPath()));
         if (toFile != null && toFile.exists() && toFile.length() > 0) {
+            AppLog.w("Download", "文件已存在，跳过下载 path=" + toFile.getAbsolutePath());
             if (downloadListener != null) {
                 downloadListener.onError("已经下载过了，请查看下载目录");
             } else {
@@ -156,6 +178,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         }
         //如果已经缓存完成，直接使用缓存代理完成
         if (dataManager.isVideoCacheByProxy(videoResult.getVideoUrl())) {
+            AppLog.i("Download", "命中播放缓存，走缓存拷贝路径 viewKey=" + tmp.getViewKey());
             try {
                 copyCacheFile(AppCacheUtils.getVideoCacheDir(context), tmp, downloadListener);
             } catch (IOException e) {
@@ -175,17 +198,49 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         }
         //检查当前状态
         if (tmp.getStatus() == FileDownloadStatus.progress && tmp.getDownloadId() != 0 && !isForceReDownload) {
-            if (downloadListener != null) {
-                downloadListener.onError("已经在下载了");
-            } else {
-                ifViewAttached(new ViewAction<DownloadView>() {
-                    @Override
-                    public void run(@NonNull DownloadView view) {
-                        view.showMessage("已经在下载了", TastyToast.SUCCESS);
-                    }
-                });
+            // M68：僵尸任务防护——DB 状态是 progress 但下载器里已没有该任务
+            //（App 重启后状态残留 / 历史遗留），永远不会再有回调，点下载会被永远封锁。
+            // FileDownloader 无公开查询 API，用 pause 探针：pause 返回被暂停的任务数，
+            // >0 = 真有任务（已转为暂停态，走下面的重新入队即断点续传）；
+            // =0 或服务未连接 = 僵尸记录，清掉状态后照常重新下载。
+            boolean realTask = false;
+            try {
+                if (FileDownloader.getImpl().isServiceConnected()) {
+                    int pausedCount = FileDownloader.getImpl().pause(tmp.getDownloadId());
+                    realTask = pausedCount > 0;
+                    AppLog.i("Download", "pause探针 downloadId=" + tmp.getDownloadId()
+                            + " pausedCount=" + pausedCount + " realTask=" + realTask);
+                } else {
+                    AppLog.w("Download", "下载服务未连接且DB状态progress，按僵尸处理 downloadId="
+                            + tmp.getDownloadId());
+                }
+            } catch (Throwable ignored) {
             }
-            return;
+            if (!realTask) {
+                AppLog.w("Download", "检测到僵尸下载任务(downloadId=" + tmp.getDownloadId()
+                        + ")，清除残留后重新下载 viewKey=" + tmp.getViewKey());
+                // M69：用户日志实锤「IOException: No such file or directory」——
+                // DB 进度偏移还在但 .fddownload 临时文件已丢，直接续传会 ENOENT。
+                // 必须 clear 掉下载器侧的旧任务与坏临时文件，从头下。
+                try {
+                    String clearPath = tmp.getDownLoadPath(getCustomDownloadVideoDirPath());
+                    FileDownloader.getImpl().clear(tmp.getDownloadId(), clearPath);
+                    deleteFileWithTemp(clearPath);
+                    // 回退目录里的残留也清掉
+                    File fallback = SDCardUtils.resolveExistingDownloadFile(context, clearPath);
+                    if (fallback != null && !fallback.getAbsolutePath().equals(clearPath)) {
+                        deleteFileWithTemp(fallback.getAbsolutePath());
+                    }
+                } catch (Exception e) {
+                    AppLog.w("Download", "僵尸清理异常(忽略) " + AppLog.cause(e));
+                }
+                tmp.setStatus(FileDownloadStatus.error);
+                tmp.setSoFarBytes(0);
+                tmp.setProgress(0);
+                dataManager.updateV9MmanItem(tmp);
+            }
+            // 无论真实任务(已暂停)还是僵尸记录，都继续往下走统一重新入队：
+            // 真实任务同路径断点续传；僵尸任务已清残留，从头下不会报错。
         }
         Logger.d("视频连接：" + videoResult.getVideoUrl());
         String path = v9MmanItem.getDownLoadPath(getCustomDownloadVideoDirPath());
@@ -207,7 +262,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         boolean isDownloadNeedWifi = dataManager.isDownloadVideoNeedWifi();
         // 91mman 视频分类源：直链带时效签名（st/f 参数），DB 里存的旧 URL 过期后 CDN 拒绝
         // （表现为进度 0% 无速度）。下载前先重新解析播放页拿新鲜 URL；其它源（91porny 等）直接用。
-        // M60：hex viewkey（20位十六进制）= 91porny 视频，不走 reparse。
+        // M68：isPornyVideo 已与 PlayVideoPresenter.isPornySource 权威逻辑对齐。
         if (!isPornyVideo(tmp)) {
             reparseThenDownload(tmp, path, isDownloadNeedWifi, isForceReDownload, downloadListener);
             return;
@@ -374,6 +429,29 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                     view.showMessage("开始下载", TastyToast.SUCCESS);
                 }
             });
+        }
+    }
+
+    /**
+     * M68：查询 FileDownloader 中是否真的存在该 downloadId 的运行中任务。
+     * FileDownloadList.copy() 是包私有无法访问；保留此方法供日志/调试参考，
+     * 实际僵尸判定用 pause 探针（见 downloadVideo）。
+     */
+    @SuppressWarnings("unused")
+    private static Boolean findRunningTask(V9MmanItem tmp, String path) {
+        try {
+            String url = tmp.getVideoResult() == null ? null : tmp.getVideoResult().getVideoUrl();
+            if (TextUtils.isEmpty(url)) {
+                return null;
+            }
+            int regeneratedId = com.liulishuo.filedownloader.util.FileDownloadUtils
+                    .generateId(url, path);
+            if (regeneratedId != tmp.getDownloadId()) {
+                return null;
+            }
+            return Boolean.TRUE;
+        } catch (Throwable t) {
+            return null;
         }
     }
 
@@ -684,22 +762,37 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         return dataManager.getPlaybackEngine();
     }
 
-    /** M60：判断是否 91porny 源（含 hex viewkey 兜底），与 PlayVideoPresenter.isPornySource 同逻辑。 */
+    /**
+     * M68：判断是否 91porny 源。与 PlayVideoPresenter.isPornySource 保持同一权威逻辑：
+     * 持久化标记优先（mman9 标记直接短路为 false），无标记时才做格式推断兜底。
+     * v1.0.67 及之前此方法是纯 hex 正则，会把带 hex key 的 9mman 视频误判成 porny，
+     * 跳过下载前的重新解析、拿过期签名直链去下导致必然失败。
+     */
     private static boolean isPornyVideo(V9MmanItem item) {
         if (item == null) {
             return false;
         }
-        String viewKey = item.getViewKey();
-        if (viewKey != null) {
-            if (viewKey.startsWith("viewkey=")) {
-                viewKey = viewKey.substring(8);
-            }
-            if (viewKey.matches("[0-9a-fA-F]{16,32}")) {
-                return true;
-            }
-        }
-        return Parse91PornyVideo.SOURCE.equals(item.getSource())
+        boolean markedPorny = Parse91PornyVideo.SOURCE.equals(item.getSource())
                 || Parse91PornyVideo.SOURCE.equals(item.getSourceName());
+        if (markedPorny) {
+            return true;
+        }
+        // 权威短路：明确标 mman9 的不走格式推断
+        if (PlayVideoPresenter.SOURCE_MMAN9_PERSIST.equals(item.getSourceName())
+                || PlayVideoPresenter.SOURCE_MMAN9_PERSIST.equals(item.getSource())) {
+            return false;
+        }
+        // 兜底：带前缀恒为 9mman，裸 hex 才可能是 porny
+        String viewKey = item.getViewKey();
+        if (TextUtils.isEmpty(viewKey)) {
+            return false;
+        }
+        boolean prefixed = viewKey.startsWith("viewkey=");
+        String bare = prefixed ? viewKey.substring(8) : viewKey;
+        if (bare.matches("[0-9a-fA-F]{16,32}")) {
+            return !prefixed;
+        }
+        return false;
     }
 
     public interface DownloadListener {

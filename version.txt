@@ -1,7 +1,7 @@
 {
-  "versionCode": 100,
-  "versionName": "1.0.67",
-  "updateMessage": "来源路由权威化改造：修复推荐/详情页作者其他作品404（9mman作者UID被误判为porny源去请求错误接口）、视频解析失败及列表与详情标题缩略图不一致（hex误判致错误数据写库+viewKey双形态分裂行）。现以解析时持久化的来源标记为权威判定，启动时自动修复历史误标数据。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.67.apk",
-  "sha256": "848d21d6edc2784e2e90dc1ffedd2dc0fffbc931f7c3ead342541cda2035c814"
+  "versionCode": 101,
+  "versionName": "1.0.68",
+  "updateMessage": "下载体验修复：1）下载/下载完成列表点击本地播放闪退（Intent序列化的V9MmanItem脱离DaoSession，播放页渲染信息时抛DaoException），现改为从DB取附着实体并加固信息栏渲染；2）下载遇僵尸任务(进度偏移残留但临时文件丢失致IOException: No such file or directory)时，解除封锁并清理下载器残留任务与坏临时文件后从头重新下载；3）下载路由判定对齐M67权威来源标记（原先hex正则误判hex key的9mman视频为porny跳过重新解析拿过期签名直链）。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.68.apk",
+  "sha256": "5f1cb257029e0d783a271da4100718e9222647a3cf0df5bb49377f51ee38ff27"
 }

@@ -223,12 +223,30 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     public void initData() {
         // 本地下载播放不依赖 viewKey 或远程 VideoResult，直接交给当前播放引擎。
         if (!TextUtils.isEmpty(localVideoPath)) {
-            if (v9MmanItem != null) {
-                setToolBarLayoutInfo(v9MmanItem);
+            // M69：Intent 反序列化出来的 V9MmanItem 已脱离 DaoSession（transient 字段不参与序列化），
+            // 直接调 getVideoResult() 会抛 DaoException("Entity is detached")导致本页闪退。
+            // 展示信息优先改用 DB 中附着的同 key 实体；拿不到也照常播本地文件。
+            if (v9MmanItem != null && !TextUtils.isEmpty(v9MmanItem.getViewKey())) {
+                try {
+                    V9MmanItem attached = presenter.findV9MmanItemByViewKey(v9MmanItem.getViewKey());
+                    if (attached != null) {
+                        v9MmanItem = attached;
+                        AppLog.i(TAG, "本地播放：已从DB附着视频信息 viewKey=" + v9MmanItem.getViewKey());
+                    }
+                } catch (Exception e) {
+                    AppLog.w(TAG, "本地播放：附着DB实体失败 " + AppLog.cause(e));
+                }
             }
             videoPlayerContainer.setVisibility(View.VISIBLE);
-            playVideo(v9MmanItem == null ? "本地视频" : v9MmanItem.getTitle(),
-                    "file://" + localVideoPath, "", null);
+            try {
+                setToolBarLayoutInfo(v9MmanItem);
+            } catch (Exception e) {
+                // 信息栏失败绝不影响播放本身
+                AppLog.w(TAG, "本地播放：信息栏渲染失败 " + AppLog.cause(e));
+            }
+            String displayTitle = v9MmanItem == null ? "本地视频" : v9MmanItem.getTitle();
+            AppLog.i(TAG, "本地播放开始 标题=" + displayTitle + " path=" + localVideoPath);
+            playVideo(displayTitle, "file://" + localVideoPath, "", null);
             return;
         }
         // C9：入参零校验，避免 v9MmanItem 或 viewKey 为 null 时直接 NPE
@@ -299,20 +317,36 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     }
 
     private void setToolBarLayoutInfo(final V9MmanItem v9MmanItem) {
-        if (v9MmanItem.getVideoResultId() == 0) {
+        if (v9MmanItem == null) {
             return;
         }
-        String searchTitleTag = "...";
-        VideoResult videoResult = v9MmanItem.getVideoResult();
-        if (v9MmanItem.getTitle().contains(searchTitleTag) || v9MmanItem.getTitle().endsWith(searchTitleTag)) {
-            tvPlayVideoTitle.setText(videoResult.getVideoName());
-        } else {
-            tvPlayVideoTitle.setText(v9MmanItem.getTitle());
+        // 标题不依赖 DB 关联，先兜底展示（M69：本地播放时实体可能无 videoResult）
+        String displayTitle = v9MmanItem.getTitle();
+        if (v9MmanItem.getVideoResultId() == 0) {
+            if (!TextUtils.isEmpty(displayTitle)) {
+                tvPlayVideoTitle.setText(displayTitle);
+            }
+            return;
         }
-        tvPlayVideoAuthor.setText(videoResult.getOwnerName());
-        tvPlayVideoAddDate.setText(videoResult.getAddDate());
-        tvPlayVideoInfo.setText(videoResult.getUserOtherInfo());
-        refreshAuthorFavoriteState();
+        try {
+            VideoResult videoResult = v9MmanItem.getVideoResult();
+            String searchTitleTag = "...";
+            if (displayTitle != null && (displayTitle.contains(searchTitleTag) || displayTitle.endsWith(searchTitleTag))) {
+                tvPlayVideoTitle.setText(videoResult.getVideoName());
+            } else {
+                tvPlayVideoTitle.setText(displayTitle);
+            }
+            tvPlayVideoAuthor.setText(videoResult.getOwnerName());
+            tvPlayVideoAddDate.setText(videoResult.getAddDate());
+            tvPlayVideoInfo.setText(videoResult.getUserOtherInfo());
+            refreshAuthorFavoriteState();
+        } catch (Exception e) {
+            // M69：detached 实体或关联缺失时保底只显示标题，不让信息栏拖垮播放
+            AppLog.w(TAG, "setToolBarLayoutInfo 异常 " + AppLog.cause(e));
+            if (!TextUtils.isEmpty(displayTitle)) {
+                tvPlayVideoTitle.setText(displayTitle);
+            }
+        }
     }
 
     /**
@@ -351,21 +385,26 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     }
 
     private void refreshAuthorFavoriteState() {
-        if (v9MmanItem == null || v9MmanItem.getVideoResult() == null
-                || TextUtils.isEmpty(v9MmanItem.getVideoResult().getOwnerId())) {
-            return;
+        try {
+            if (v9MmanItem == null || v9MmanItem.getVideoResult() == null
+                    || TextUtils.isEmpty(v9MmanItem.getVideoResult().getOwnerId())) {
+                return;
+            }
+            final String authorKey = v9MmanItem.getVideoResult().getOwnerId();
+            final String source = PlayVideoPresenter.isPornySource(v9MmanItem)
+                    ? AuthorFavorite.SOURCE_PORNY : AuthorFavorite.SOURCE_MMAN9;
+            mDisposables.add(Observable.just(1)
+                    .map(integer -> presenter.isAuthorFavorited(authorKey, source))
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(fav -> {
+                        isAuthorFavorited = fav;
+                        updateFavoriteIcon();
+                    }, throwable -> Logger.t(TAG).e(throwable, "读取作者收藏态失败")));
+        } catch (Exception e) {
+            // M69：detached 实体访问 getVideoResult() 可能抛 DaoException，收藏态失败不影响播放
+            AppLog.w(TAG, "refreshAuthorFavoriteState 异常 " + AppLog.cause(e));
         }
-        final String authorKey = v9MmanItem.getVideoResult().getOwnerId();
-        final String source = PlayVideoPresenter.isPornySource(v9MmanItem)
-                ? AuthorFavorite.SOURCE_PORNY : AuthorFavorite.SOURCE_MMAN9;
-        mDisposables.add(Observable.just(1)
-                .map(integer -> presenter.isAuthorFavorited(authorKey, source))
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(fav -> {
-                    isAuthorFavorited = fav;
-                    updateFavoriteIcon();
-                }, throwable -> Logger.t(TAG).e(throwable, "读取作者收藏态失败")));
     }
 
     private void updateFavoriteIcon() {
