@@ -1,7 +1,7 @@
 {
-  "versionCode": 99,
-  "versionName": "1.0.66",
-  "updateMessage": "修复91porny源视频播放失败：播放页请求此前先打github.com再被重定向导致400（域名兜底已覆盖porny）；同时修复viewKey带前缀拼入路径导致的解析必败（现按porny契约传裸hex）。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.66.apk",
-  "sha256": "92706f92edbc0c514bda3a54241f7f14abb443d72b14f8f752b57fc9cd53b7c6"
+  "versionCode": 100,
+  "versionName": "1.0.67",
+  "updateMessage": "来源路由权威化改造：修复推荐/详情页作者其他作品404（9mman作者UID被误判为porny源去请求错误接口）、视频解析失败及列表与详情标题缩略图不一致（hex误判致错误数据写库+viewKey双形态分裂行）。现以解析时持久化的来源标记为权威判定，启动时自动修复历史误标数据。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.67.apk",
+  "sha256": "848d21d6edc2784e2e90dc1ffedd2dc0fffbc931f7c3ead342541cda2035c814"
 }
