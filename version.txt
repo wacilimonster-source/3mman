@@ -1,7 +1,7 @@
 {
-  "versionCode": 96,
-  "versionName": "1.0.63",
-  "updateMessage": "修复关闭代理时误用系统默认选择器导致的无限递归(StackOverflow)崩溃；修复排序弹窗弹出位置与关闭交互（去掉 Gravity.BOTTOM，支持外部点击关闭）；播放页悬浮按钮上移避开控制条，展开菜单移除评论与分享。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.63.apk",
-  "sha256": "23b775abfcc17475b1d9c06af06fc1076931324987c6b18e7a124cf72b866b43"
+  "versionCode": 97,
+  "versionName": "1.0.64",
+  "updateMessage": "修复推荐/视频/详情页404（视频源地址误存github.com导致请求经GitHub重定向，已双层修复：偏好层回退默认域名+拦截器层host兜底）；下载中支持暂停/继续/重试且点击整行不再进入播放；下载完成文件丢失后确认立即重新下载；我的收藏缩略图防变形并移除导出功能；下载完成支持App内本地播放，删除可选仅记录或连文件删除；我的页导航栏上方空白遮挡修复；夜间模式入口从我的移至更多设置；播放器支持按住左侧区域临时2x速度松手恢复。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.64.apk",
+  "sha256": "5062d35161dcc203f0cd054e32d58c9d95b2bb5b2915db2f7e570c4f8e432a21"
 }
