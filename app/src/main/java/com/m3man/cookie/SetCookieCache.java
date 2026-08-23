@@ -78,6 +78,15 @@ public class SetCookieCache implements CookieCache {
 
         private Iterator<IdentifiableCookie> iterator;
 
+        /**
+         * M64：快照迭代器必须支持 remove()。PersistentCookieJar v1.0.1 的
+         * loadForRequest() 在遍历中用 iterator.remove() 清理过期 Cookie，
+         * M62 改快照后此处抛 UnsupportedOperationException 导致带过期 Cookie
+         * 的域名（如 GitHub 更新检查）每次请求都失败。
+         * 现记录 lastReturned 并在锁内从底层集合删除，语义与库期望一致。
+         */
+        private IdentifiableCookie lastReturned;
+
         public SetCookieCacheIterator() {
             // M62：锁内做快照，迭代期间其他线程的增删不再触发 CME
             List<IdentifiableCookie> snapshot;
@@ -94,13 +103,19 @@ public class SetCookieCache implements CookieCache {
 
         @Override
         public Cookie next() {
-            return iterator.next().getCookie();
+            lastReturned = iterator.next();
+            return lastReturned.getCookie();
         }
 
         @Override
         public void remove() {
-            // 快照迭代器不支持移除（原实现直接操作底层集合同样不安全）；如需删除请走 delete(Cookie)
-            throw new UnsupportedOperationException("Use SetCookieCache.delete(Cookie) instead");
+            if (lastReturned == null) {
+                throw new IllegalStateException("next() has not been called");
+            }
+            synchronized (lock) {
+                cookies.remove(lastReturned);
+            }
+            lastReturned = null;
         }
     }
 }
