@@ -105,6 +105,9 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
 
     protected V9MmanItem v9MmanItem;
 
+    /** 非空时直接播放下载好的本地文件，不再解析远程地址。 */
+    protected String localVideoPath;
+
     private boolean isAuthorFavorited;
 
     protected Category category;
@@ -151,6 +154,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         category = (Category) getIntent().getSerializableExtra(Keys.KEY_INTENT_CATEGORY_ITEM);
         skipPage = getIntent().getIntExtra(Keys.KEY_INTENT_SKIP_PAGE, 0);
         position = getIntent().getIntExtra(Keys.KEY_INTENT_SCROLL_TO_POSITION, 0);
+        localVideoPath = getIntent().getStringExtra(Keys.KEY_INTENT_LOCAL_VIDEO_PATH);
     }
 
     /**
@@ -217,6 +221,16 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     public abstract void initPlayerView();
 
     public void initData() {
+        // 本地下载播放不依赖 viewKey 或远程 VideoResult，直接交给当前播放引擎。
+        if (!TextUtils.isEmpty(localVideoPath)) {
+            if (v9MmanItem != null) {
+                setToolBarLayoutInfo(v9MmanItem);
+            }
+            videoPlayerContainer.setVisibility(View.VISIBLE);
+            playVideo(v9MmanItem == null ? "本地视频" : v9MmanItem.getTitle(),
+                    "file://" + localVideoPath, "", null);
+            return;
+        }
         // C9：入参零校验，避免 v9MmanItem 或 viewKey 为 null 时直接 NPE
         if (v9MmanItem == null || TextUtils.isEmpty(v9MmanItem.getViewKey())) {
             Logger.t(TAG).e("initData: v9MmanItem 为空或 viewKey 缺失，无法初始化播放页");

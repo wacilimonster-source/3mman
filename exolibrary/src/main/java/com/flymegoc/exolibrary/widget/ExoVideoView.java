@@ -104,6 +104,8 @@ public class ExoVideoView extends RelativeLayout {
 
     protected boolean releaseOnDetachFromWindow = true;
     protected boolean handleAudioFocus = true;
+    private boolean leftPressSpeedEnabled;
+    private float playbackSpeed = 1.0f;
 
     public ExoVideoView(Context context) {
         super(context);
@@ -559,7 +561,13 @@ public class ExoVideoView extends RelativeLayout {
      * @return True if the speed was set
      */
     public boolean setPlaybackSpeed(float speed) {
+        playbackSpeed = speed;
         return videoViewImpl.setPlaybackSpeed(speed);
+    }
+
+    /** 开启后，按住视频左侧区域临时使用 2 倍速，抬手恢复原速度。 */
+    public void setLeftPressSpeedEnabled(boolean enabled) {
+        leftPressSpeedEnabled = enabled;
     }
 
     /**
@@ -994,6 +1002,8 @@ public class ExoVideoView extends RelativeLayout {
         private boolean isblockX = false;
         private float oX;
         private float oY;
+        private boolean leftSpeedPressed;
+        private float speedBeforeLeftPress = 1.0f;
 
         public TouchListener(Context context) {
             gestureDetector = new GestureDetector(context, this);
@@ -1004,6 +1014,10 @@ public class ExoVideoView extends RelativeLayout {
         @Override
         public boolean onTouch(View view, MotionEvent event) {
             if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
+                if (leftSpeedPressed) {
+                    leftSpeedPressed = false;
+                    setPlaybackSpeed(speedBeforeLeftPress);
+                }
                 if (videoControls != null) {
                     videoControls.hideFormatTime();
                     videoControls.hideVolumeLightView();
@@ -1039,7 +1053,11 @@ public class ExoVideoView extends RelativeLayout {
                 }
                 int per = getWidth() / 4;
                 int threePer = 3 * per;
-                if (event.getX() >= 0 && event.getX() <= per) {
+                if (leftPressSpeedEnabled && event.getX() >= 0 && event.getX() <= getWidth() * 0.35f) {
+                    leftSpeedPressed = true;
+                    speedBeforeLeftPress = playbackSpeed;
+                    setPlaybackSpeed(2.0f);
+                } else if (event.getX() >= 0 && event.getX() <= per) {
                     isLight = true;
                 } else if (event.getX() >= threePer && event.getX() <= getWidth()) {
                     isVolume = true;

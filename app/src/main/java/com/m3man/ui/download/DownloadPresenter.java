@@ -76,6 +76,40 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         downloadVideo(v9MmanItem, isForceReDownload, null);
     }
 
+    /**
+     * 立即使用数据库中已有的视频地址重新建立下载任务。
+     * 用于“本地文件丢失后重新下载”场景，避免确认后还要等待一次播放页解析。
+     */
+    public void downloadVideoImmediately(V9MmanItem v9MmanItem) {
+        if (v9MmanItem == null) {
+            return;
+        }
+        V9MmanItem tmp = dataManager.findV9MmanItemByViewKey(v9MmanItem.getViewKey());
+        if (tmp == null || tmp.getVideoResult() == null
+                || TextUtils.isEmpty(tmp.getVideoResult().getVideoUrl())) {
+            ifViewAttached(new ViewAction<DownloadView>() {
+                @Override
+                public void run(@NonNull DownloadView view) {
+                    view.showMessage("没有可用的视频地址，请稍后重试", TastyToast.WARNING);
+                }
+            });
+            return;
+        }
+        String path = SDCardUtils.ensureDownloadDir(
+                tmp.getDownLoadPath(getCustomDownloadVideoDirPath()), context);
+        if (TextUtils.isEmpty(path)) {
+            ifViewAttached(new ViewAction<DownloadView>() {
+                @Override
+                public void run(@NonNull DownloadView view) {
+                    view.showMessage("下载目录不可写，请检查存储权限或更换下载目录", TastyToast.ERROR);
+                }
+            });
+            return;
+        }
+        startDownloadInternal(tmp, tmp.getVideoResult().getVideoUrl(), path,
+                dataManager.isDownloadVideoNeedWifi(), true, null);
+    }
+
     @Override
     public void downloadVideo(V9MmanItem v9MmanItem, boolean isForceReDownload, DownloadListener downloadListener) {
         AppLog.i("Download", "下载请求 viewKey=" + (v9MmanItem == null ? "null" : v9MmanItem.getViewKey())

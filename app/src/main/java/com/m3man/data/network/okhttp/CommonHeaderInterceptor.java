@@ -6,6 +6,7 @@ import android.util.Log;
 
 import com.orhanobut.logger.Logger;
 import com.m3man.data.network.Api;
+import com.m3man.utils.AppLog;
 import com.m3man.data.prefs.PreferencesHelper;
 import java.io.IOException;
 
@@ -48,10 +49,50 @@ public class CommonHeaderInterceptor implements Interceptor {
 
         requestBuilder.method(original.method(), original.body());
 
+        // Retrofit 的默认 BaseUrl 是 GitHub。若 URL 管理器尚未完成域名替换，
+        // 先把带视频域名标记的请求直接改到当前配置，避免视频页面先访问 GitHub 再被重定向。
+        if (Api.PORN9_VIDEO_DOMAIN_NAME.equals(header)) {
+            HttpUrl configuredUrl = HttpUrl.parse(preferencesHelper.getMman9VideoAddress());
+            HttpUrl originalUrl = original.url();
+            HttpUrl githubUrl = HttpUrl.parse(Api.APP_GITHUB_DOMAIN);
+            if (configuredUrl != null
+                    && githubUrl != null
+                    && githubUrl.host().equals(originalUrl.host())
+                    && !configuredUrl.host().equals(originalUrl.host())) {
+                HttpUrl.Builder urlBuilder = originalUrl.newBuilder()
+                        .scheme(configuredUrl.scheme())
+                        .host(configuredUrl.host())
+                        .port(configuredUrl.port());
+                requestBuilder.url(urlBuilder.build());
+            }
+        }
+
         Request request = requestBuilder.build();
         // M62：只 proceed 一次。旧实现先 proceed 一次探测重定向、再 proceed 一次返回，
         // 导致所有主站请求被真实执行两次（POST 双提交/配额双耗），且首个 Response 从不关闭造成连接泄漏。
+        // === M63 诊断：打印完整请求 URL + 最终 URL + HTTP 状态码，用于定位推荐/视频/详情 404 ===
+        String reqUrl = request.url().toString();
+        String diagStart = "[DIAG] --> " + request.method() + " " + reqUrl;
+        Logger.t(TAG).d(diagStart);
+        AppLog.i(TAG, diagStart);
+        Log.i(TAG, diagStart);
         Response response = chain.proceed(request);
+        String finalUrl = response.request().url().toString();
+        int code = response.code();
+        String diagEnd = "[DIAG] <-- HTTP " + code + "  "
+                + (reqUrl.equals(finalUrl) ? "" : ("(重定向->" + finalUrl + ") "))
+                + reqUrl;
+        Logger.t(TAG).d(diagEnd);
+        AppLog.i(TAG, diagEnd);
+        Log.i(TAG, diagEnd);
+        if (code >= 400) {
+            String diagError = "[DIAG-ERR] 失败请求: " + request.method() + " " + reqUrl
+                    + "  HTTP=" + code + "  final=" + finalUrl;
+            Logger.t(TAG).e(diagError);
+            AppLog.e(TAG, diagError);
+            Log.e(TAG, diagError);
+        }
+        // === 诊断结束 ===
 
         //如果是可能被重定向的header，从最终响应读取实际 host 探测重定向
         if (!TextUtils.isEmpty(header) && header.equals(Api.PORN9_VIDEO_DOMAIN_NAME)) {

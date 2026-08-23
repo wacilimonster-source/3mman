@@ -160,6 +160,16 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
     }
 
     @Override
+    public boolean isOpenNightMode() {
+        return dataManager.isOpenNightMode();
+    }
+
+    @Override
+    public void setOpenNightMode(boolean openNightMode) {
+        dataManager.setOpenNightMode(openNightMode);
+    }
+
+    @Override
     public boolean isHaveUnFinishDownloadVideo() {
         return dataManager.loadDownloadingData().size() != 0;
     }

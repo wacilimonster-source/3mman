@@ -14,6 +14,8 @@ public class Keys {
     public final static String KEY_INTENT_CATEGORY_ITEM = "key_intent_category_item";
     public final static String KEY_INTENT_SKIP_PAGE = "key_intent_skip_page";
     public final static String KEY_INTENT_SCROLL_TO_POSITION = "key_intent_scroll_to_position";
+    /** 本地下载文件播放路径；非空时播放页跳过远程地址解析。 */
+    public final static String KEY_INTENT_LOCAL_VIDEO_PATH = "key_intent_local_video_path";
     public final static String KEY_INTENT_UID = "key_intent_uid";
     public final static String KEY_INTENT_SOURCE = "key_intent_source";
     public final static String KEY_INTENT_AUTHOR_NAME = "key_intent_author_name";

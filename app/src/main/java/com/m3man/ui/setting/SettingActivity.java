@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AlertDialog;
+import android.support.v7.app.AppCompatDelegate;
 import android.support.v7.widget.AppCompatAutoCompleteTextView;
 import android.support.v7.widget.AppCompatButton;
 import android.support.v7.widget.Toolbar;
@@ -162,6 +163,21 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
 
 
         QMUIGroupListView.Section sec = QMUIGroupListView.newSection(this);
+
+        // 夜间模式归入“更多设置”，避免在“我的”页面占用独立入口。
+        QMUICommonListItemView nightModeItemWithSwitch = qmuiGroupListView.createItemView(getString(R.string.night_mode));
+        nightModeItemWithSwitch.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_SWITCH);
+        nightModeItemWithSwitch.getSwitch().setChecked(presenter.isOpenNightMode());
+        nightModeItemWithSwitch.getSwitch().setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                presenter.setOpenNightMode(isChecked);
+                AppCompatDelegate.setDefaultNightMode(isChecked
+                        ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
+                recreate();
+            }
+        });
+        sec.addItemView(nightModeItemWithSwitch, null);
 
         //禁用自动释放内存功能
         boolean isForbidden = presenter.isForbiddenAutoReleaseMemory();

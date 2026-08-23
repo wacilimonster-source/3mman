@@ -171,6 +171,17 @@ public abstract class BaseFragment extends DaggerFragment {
         }
     }
 
+    /** 启动播放页并直接播放本地下载文件。 */
+    protected void goToPlayLocalVideo(V9MmanItem v9MmanItem, int playBackEngine, String localPath) {
+        Intent intent = PlaybackEngine.getPlaybackEngineIntent(getContext(), playBackEngine);
+        intent.putExtra(Keys.KEY_INTENT_V9MMAN_ITEM, v9MmanItem);
+        intent.putExtra(Keys.KEY_INTENT_LOCAL_VIDEO_PATH, localPath);
+        startActivity(intent);
+        if (activity != null) {
+            activity.overridePendingTransition(R.anim.slide_in_right, R.anim.side_out_left);
+        }
+    }
+
     public Category getCategory() {
         return category;
     }

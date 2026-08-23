@@ -41,6 +41,7 @@ public class HlsDownloadService extends Service {
 
     public static final String ACTION_START = "com.m3man.service.action.HLS_START";
     public static final String ACTION_CANCEL = "com.m3man.service.action.HLS_CANCEL";
+    public static final String ACTION_PAUSE = "com.m3man.service.action.HLS_PAUSE";
     public static final String EXTRA_VIDEO_URL = "extra_video_url";
     public static final String EXTRA_TITLE = "extra_title";
     public static final String EXTRA_FILE_NAME = "extra_file_name";
@@ -118,6 +119,28 @@ public class HlsDownloadService extends Service {
             // 记录在「正在下载」「下载完成」两列表均不可见、进度广播空转。
             markRecordDownloading();
             startDownload(url, targetMp4Path, replacedDownloader, replacedViewKey, replacedPseudoId);
+        } else if (ACTION_PAUSE.equals(action)) {
+            if (downloader == null) {
+                return START_NOT_STICKY;
+            }
+            String pauseViewKey = intent.getStringExtra(EXTRA_VIEW_KEY);
+            if (!TextUtils.isEmpty(pauseViewKey) && !pauseViewKey.equals(viewKey)) {
+                return START_NOT_STICKY;
+            }
+            cancelledByUser = true;
+            downloader.cancel();
+            downloader.shutdown();
+            downloader = null;
+            cleanupHlsTemp();
+            V9MmanItem item = findItem();
+            if (item != null) {
+                item.setStatus(FileDownloadStatus.paused);
+                getDataManager().updateV9MmanItem(item);
+            }
+            LocalBroadcastManager.getInstance(this).sendBroadcast(new Intent(ACTION_HLS_PROGRESS)
+                    .putExtra(EXTRA_VIEW_KEY, viewKey).putExtra(EXTRA_PROGRESS, lastProgress < 0 ? 0 : lastProgress));
+            stopForeground(true);
+            stopSelf();
         } else if (ACTION_CANCEL.equals(action)) {
             // M62：竞态防护——
             // ① 无活跃下载（downloader==null）时忽略取消，防止陈旧 viewKey 清错已完成记录；

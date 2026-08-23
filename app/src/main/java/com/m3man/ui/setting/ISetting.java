@@ -28,6 +28,10 @@ public interface ISetting {
 
     void setPornyAddress(String address);
 
+    boolean isOpenNightMode();
+
+    void setOpenNightMode(boolean openNightMode);
+
     boolean isHaveUnFinishDownloadVideo();
 
     boolean isHaveFinishDownloadVideoFile();

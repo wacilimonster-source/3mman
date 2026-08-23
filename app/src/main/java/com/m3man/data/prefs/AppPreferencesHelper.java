@@ -6,6 +6,8 @@ import android.content.SharedPreferences;
 import android.text.TextUtils;
 import android.util.Base64;
 
+import java.util.Locale;
+
 import com.m3man.di.ApplicationContext;
 import com.m3man.di.PreferenceInfo;
 import com.m3man.utils.PlaybackEngine;
@@ -69,9 +71,20 @@ public class AppPreferencesHelper implements PreferencesHelper {
 
     @Override
     public String getMman9VideoAddress() {
-        // 默认填充 91porn 官方站；空串（含旧版本曾保存空值）同样回退默认，保证开箱即用
+        // 默认填充 91porn 官方站；空串或历史误保存的 GitHub 默认域名回退，避免视频请求落到 GitHub。
         String addr = mPrefs.getString(KEY_SP_PORN_91_VIDEO_ADDRESS, DEFAULT_MAN9_VIDEO_ADDRESS);
-        return TextUtils.isEmpty(addr) ? DEFAULT_MAN9_VIDEO_ADDRESS : addr;
+        if (TextUtils.isEmpty(addr)) {
+            return DEFAULT_MAN9_VIDEO_ADDRESS;
+        }
+        String normalized = addr.trim().toLowerCase(Locale.US);
+        if ("https://github.com".equals(normalized)
+                || "https://github.com/".equals(normalized)
+                || "http://github.com".equals(normalized)
+                || "http://github.com/".equals(normalized)) {
+            mPrefs.edit().putString(KEY_SP_PORN_91_VIDEO_ADDRESS, DEFAULT_MAN9_VIDEO_ADDRESS).apply();
+            return DEFAULT_MAN9_VIDEO_ADDRESS;
+        }
+        return addr;
     }
 
     @Override

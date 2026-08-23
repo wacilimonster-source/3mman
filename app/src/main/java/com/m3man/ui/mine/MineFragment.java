@@ -8,20 +8,16 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
-import android.support.v7.app.AppCompatDelegate;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CompoundButton;
-import android.widget.FrameLayout;
 import android.widget.ImageView;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import android.support.v7.app.AlertDialog;
 
-import com.qmuiteam.qmui.util.QMUIDisplayHelper;
 import com.qmuiteam.qmui.widget.grouplist.QMUICommonListItemView;
 import com.qmuiteam.qmui.widget.grouplist.QMUIGroupListView;
 import com.m3man.R;
@@ -32,7 +28,6 @@ import com.m3man.data.model.User;
 import com.m3man.ui.MvpFragment;
 import com.m3man.ui.about.AboutActivity;
 import com.m3man.ui.download.DownloadActivity;
-import com.m3man.ui.main.MainActivity;
 import com.m3man.ui.mman9video.favorite.FavoriteActivity;
 import com.m3man.ui.mman9video.author.AuthorFavoriteActivity;
 import com.m3man.ui.mman9video.history.HistoryActivity;
@@ -78,14 +73,10 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
     ImageView imageView;
     @BindView(R.id.ov_setting_wrapper)
     ObservableScrollView observableScrollView;
-    @BindView(R.id.root_layout)
-    RelativeLayout rootRelativeLayout;
-
     private String myFavoriteStr;
     private String proxyStr;
     public String myDownloadStr;
     private String viewHistoryStr;
-    private String nightModeStr;
     private String aboutMeStr;
     private String moreSettingStr;
     private String viewLogStr;
@@ -161,13 +152,6 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
         };
         observableScrollView.postDelayed(restoreScrollRunnable, 200);
         initMineSection();
-        handlerMargin();
-    }
-
-    private void handlerMargin() {
-        FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) rootRelativeLayout.getLayoutParams();
-        layoutParams.bottomMargin = QMUIDisplayHelper.getActionBarHeight(context);
-        rootRelativeLayout.setLayoutParams(layoutParams);
     }
 
     @Override
@@ -193,7 +177,6 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
         proxyStr = getString(R.string.proxy_setting);
         myDownloadStr = getString(R.string.my_download);
         viewHistoryStr = getString(R.string.history_views);
-        nightModeStr = getString(R.string.night_mode);
         aboutMeStr = getString(R.string.about_me);
         moreSettingStr = getString(R.string.more_setting);
         viewLogStr = "查看日志";
@@ -201,25 +184,6 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
     }
 
     private void initMineSection() {
-
-        boolean openNightMode = presenter.isOpenNightMode();
-        QMUICommonListItemView openNightModeItemWithSwitch = mineList.createItemView(nightModeStr);
-        openNightModeItemWithSwitch.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_SWITCH);
-        openNightModeItemWithSwitch.getSwitch().setChecked(openNightMode);
-        openNightModeItemWithSwitch.getSwitch().setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                presenter.setOpenNightMode(isChecked);
-                presenter.setSettingScrollViewScrollPosition(scrollYPosition);
-                AppCompatDelegate.setDefaultNightMode(isChecked ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
-                Intent intent = new Intent(context, MainActivity.class);
-                // 夜间模式切换后重建主界面，回到「我的」这个 Tab（底部导航第 4 个，下标 3）
-                intent.putExtra(Keys.KEY_SELECT_INDEX, 3);
-                startActivity(intent);
-                activity.finish();
-                activity.overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
-            }
-        });
 
         boolean openProxy = presenter.isOpenHttpProxy();
         openProxyItemWithSwitch = mineList.createItemView(proxyStr);
@@ -273,10 +237,9 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
         if (pornyFavoriteItemWithChevron != null) {
             mineSection.addItemView(pornyFavoriteItemWithChevron, this);
         }
-        mineSection.addItemView(authorFavoriteItemWithChevron, this)
+        mineSection                .addItemView(authorFavoriteItemWithChevron, this)
                 .addItemView(downloadItemWithChevron, this)
                 .addItemView(viewHistoryItemWithChevron, this)
-                .addItemView(openNightModeItemWithSwitch, null)
                 .addTo(mineList);
 
         QMUIGroupListView.newSection(context)

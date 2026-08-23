@@ -24,6 +24,7 @@ import android.view.ViewGroup;
 import com.aitsuki.swipe.SwipeItemLayout;
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.liulishuo.filedownloader.BaseDownloadTask;
+import com.liulishuo.filedownloader.model.FileDownloadStatus;
 import com.sdsmdg.tastytoast.TastyToast;
 import com.m3man.R;
 import com.m3man.adapter.DownloadVideoAdapter;
@@ -174,25 +175,8 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
         File file = SDCardUtils.resolveExistingDownloadFile(getContext(),
                 v9MmanItem.getDownLoadPath(presenter.getCustomDownloadVideoDirPath()));
         if (file.exists()) {
-            Uri uri;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                uri = FileProvider.getUriForFile(context, "com.m3man.fileprovider", file);
-            } else {
-                uri = Uri.fromFile(file);
-            }
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setDataAndType(uri, "video/mp4");
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-            PackageManager pm = context.getPackageManager();
-            ComponentName cn = intent.resolveActivity(pm);
-            if (cn == null) {
-                showMessage("你手机上未安装任何可以播放此视频的播放器！", TastyToast.INFO);
-                return;
-            }
-            startActivity(intent);
+            // 统一走 App 内播放引擎，直接传入本地文件，不再请求远程视频地址。
+            goToPlayLocalVideo(v9MmanItem, presenter.getPlaybackEngine(), file.getAbsolutePath());
         } else {
             showReDownloadFileDialog(v9MmanItem);
         }
@@ -217,8 +201,11 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
                 }
                 v9MmanItem.setDownloadId(0);
                 v9MmanItem.setSoFarBytes(0);
+                v9MmanItem.setProgress(0);
+                v9MmanItem.setStatus(FileDownloadStatus.pending);
                 presenter.updateV9MmanItem(v9MmanItem);
-                presenter.downloadVideo(v9MmanItem, true);
+                // 直接用已有地址入队，确认后立即显示为下载中，不再经过一次延迟解析。
+                presenter.downloadVideoImmediately(v9MmanItem);
                 isFocusRefresh = true;
                 Intent intent = new Intent(getContext(), DownloadVideoService.class);
                 context.startService(intent);

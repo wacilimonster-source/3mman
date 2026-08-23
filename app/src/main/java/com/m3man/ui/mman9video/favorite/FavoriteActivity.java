@@ -1,14 +1,11 @@
 package com.m3man.ui.mman9video.favorite;
 
-import android.content.DialogInterface;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.Toolbar;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 
 import com.aitsuki.swipe.SwipeItemLayout;
@@ -148,50 +145,6 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
         return favoritePresenter;
     }
 
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.favorite, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.menu_favorite_export) {
-            showMessage("暂不支持导出", TastyToast.WARNING);
-            //showExportDialog();
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
-
-    private void showExportDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("导出选择");
-        builder.setMessage("导出视频链接和标题还是仅导出视频链接？");
-        builder.setNegativeButton("包括标题", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                presenter.exportData(false);
-            }
-        });
-        builder.setPositiveButton("仅链接", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                presenter.exportData(true);
-            }
-        });
-        builder.show();
-
-    }
 
     @Override
     public void setFavoriteData(List<V9MmanItem> v9MmanItemList) {

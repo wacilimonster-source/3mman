@@ -35,6 +35,7 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
         videoPlayer = view.findViewById(R.id.video_view);
         videoControlsMobile = (ExoVideoControlsMobile) videoPlayer.getVideoControls();
         videoPlayer.setOnPreparedListener(this);
+        videoPlayer.setLeftPressSpeedEnabled(true);
     }
 
     @Override

@@ -158,7 +158,14 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
         mDownloadAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
-                goToPlayVideo((V9MmanItem) adapter.getItem(position), presenter.getPlaybackEngine(), 0, 0);
+                V9MmanItem item = (V9MmanItem) adapter.getItem(position);
+                if (item == null) {
+                    return;
+                }
+                // 下载未完成时点击整行不再进入播放，避免播放半成品文件或重新解析远程地址。
+                if (item.getStatus() != FileDownloadStatus.completed) {
+                    showMessage("视频尚未下载完成，请使用右侧控制按钮暂停、继续或重试", TastyToast.INFO);
+                }
             }
         });
 
@@ -175,16 +182,17 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
                     SwipeItemLayout swipeItemLayout = (SwipeItemLayout) view.getParent();
                     swipeItemLayout.close();
                     if (view.getId() == R.id.right_menu_delete) {
-                        cancelHlsDownload(v9MmanItem);
-                    } else if (view.getId() == R.id.iv_download_control) {
-                        if (v9MmanItem.getStatus() == FileDownloadStatus.error) {
-                            // M41：失败记录点控制按钮 → 重新下载
-                            startHlsReDownload(v9MmanItem);
-                        } else {
-                            // 下载中：点控制按钮 → 取消
-                            cancelHlsDownload(v9MmanItem);
-                        }
+                    cancelHlsDownload(v9MmanItem);
+                } else if (view.getId() == R.id.iv_download_control) {
+                    if (v9MmanItem.getStatus() == FileDownloadStatus.error
+                            || v9MmanItem.getStatus() == FileDownloadStatus.paused) {
+                        // 失败/暂停记录点控制按钮 → 重新下载
+                        startHlsReDownload(v9MmanItem);
+                    } else {
+                        // HLS 下载中点控制按钮 → 暂停并保留记录
+                        pauseHlsDownload(v9MmanItem);
                     }
+                }
                     presenter.loadDownloadingData();
                     return;
                 }
@@ -195,10 +203,16 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
                     presenter.loadDownloadingData();
                 } else if (view.getId() == R.id.iv_download_control) {
                     if (FileDownloader.getImpl().isServiceConnected()) {
-                        if (v9MmanItem.getStatus() == FileDownloadStatus.progress) {
+                        if (v9MmanItem.getStatus() == FileDownloadStatus.progress
+                                || v9MmanItem.getStatus() == FileDownloadStatus.started
+                                || v9MmanItem.getStatus() == FileDownloadStatus.connected
+                                || v9MmanItem.getStatus() == FileDownloadStatus.pending) {
                             FileDownloader.getImpl().pause(v9MmanItem.getDownloadId());
+                            v9MmanItem.setStatus(FileDownloadStatus.paused);
+                            presenter.updateV9MmanItem(v9MmanItem);
                             ((ImageView) view).setImageResource(R.drawable.start_download);
                         } else {
+                            // 暂停、失败、警告状态统一支持继续/重试。
                             showDownloadCheck(v9MmanItem, view);
                         }
                     }
@@ -303,6 +317,19 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
         FileDownloader.getImpl().removeServiceConnectListener(fileDownloadConnectListener);
         DownloadManager.getImpl().removeUpdater(this);
         LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(hlsReceiver);
+    }
+
+    private void pauseHlsDownload(V9MmanItem item) {
+        Intent pause = new Intent(getContext(), HlsDownloadService.class).setAction(HlsDownloadService.ACTION_PAUSE);
+        if (item != null && !TextUtils.isEmpty(item.getViewKey())) {
+            pause.putExtra(HlsDownloadService.EXTRA_VIEW_KEY, item.getViewKey());
+        }
+        getContext().startService(pause);
+        if (item != null) {
+            item.setStatus(FileDownloadStatus.paused);
+            presenter.updateV9MmanItem(item);
+        }
+        showMessage("已暂停下载", TastyToast.INFO);
     }
 
     private void cancelHlsDownload(V9MmanItem item) {
