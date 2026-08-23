@@ -159,6 +159,15 @@ public class ParseV9MmanVideo {
         Elements select = container.select("div.row>div.col-sm-12>div.row>div");
 
         for (Element item : select) {
+            // M71：过滤站点的废弃渲染残留。91porn 列表页服务端会多渲染一批
+            // 带 col-lg-8 类的条目，页面 CSS 用 `.col-lg-8{display:none}` 把它们隐藏——
+            // 这些块里的 viewKey/标题/封面互相串位（实测一页 41 块中 17 个隐藏块、16 个错位）。
+            // 浏览器不显示它们，但 Jsoup 不执行 CSS 会全部解析进来；去重只留第一行时
+            // 错误标题/封面就会进入推荐流（表现为"列表 A 视频点进去是 B 的信息/两条视频同标题"）。
+            // 站点可见条目的容器类是 col-lg-3，与浏览器实际展示的 24 个/页完全一致。
+            if (item.hasClass("col-lg-8")) {
+                continue;
+            }
             Element a = item.selectFirst("a");
             if (a == null) {
                 continue;

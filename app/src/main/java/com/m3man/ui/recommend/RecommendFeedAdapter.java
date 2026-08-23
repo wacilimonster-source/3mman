@@ -79,6 +79,26 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         return data.get(position);
     }
 
+    /**
+     * M71：作者名异步回填后立即刷新该页信息栏，不再等 ViewHolder 复用时才更新。
+     * 消除"刚滑到显示 时长·添加时间，滑回来变成 @作者·时长·添加时间"的顺序跳变。
+     */
+    public void refreshMeta(RecyclerView recyclerView, int position) {
+        if (position < 0 || position >= data.size() || recyclerView == null) {
+            return;
+        }
+        RecyclerView.ViewHolder vh = recyclerView.findViewHolderForAdapterPosition(position);
+        if (vh instanceof PageHolder) {
+            PageHolder holder = (PageHolder) vh;
+            RecoCandidate candidate = data.get(position);
+            // 一致性校验：复用错位时不刷新
+            if (candidate != null && candidate.viewKey() != null
+                    && candidate.viewKey().equals(holder.boundKey)) {
+                holder.meta.setText(buildMeta(candidate));
+            }
+        }
+    }
+
     public void appendData(List<RecoCandidate> more) {
         if (more == null || more.isEmpty()) {
             return;
@@ -299,7 +319,51 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
             if (sb.length() > 0) {
                 sb.append("  ·  ");
             }
-            sb.append(item.getInfo());
+            // M71：info 原文自带 "From: 作者名"（列表页字段），前缀已有 @作者 时会重复展示；
+            // 且 authorName 异步回填前后 info 里有无 From 会造成"顺序变化"的观感，统一剥掉。
+            sb.append(stripFromField(item.getInfo()));
+        }
+        return sb.toString();
+    }
+
+    /** M71：从 info 文本里移除 "From:/来自:/來自:" 字段值，避免与 @作者 前缀重复 */
+    private static String stripFromField(String info) {
+        if (info == null || info.isEmpty()) {
+            return info;
+        }
+        // 已知字段名列表（中英文），按 "字段名:" 切分后丢弃 From 段、重新拼接
+        String[] keys = {"Added", "添加时间", "添加時間", "From", "来自", "來自",
+                "Views", "查看", "Favorites", "收藏", "Comments", "评论", "Point", "积分"};
+        // 找出所有 "key:" 出现位置并按位置排序切分成段
+        java.util.TreeMap<Integer, String> marks = new java.util.TreeMap<>();
+        for (String k : keys) {
+            int idx = info.indexOf(k + ":");
+            while (idx >= 0) {
+                if (!marks.containsKey(idx)) {
+                    marks.put(idx, k);
+                }
+                idx = info.indexOf(k + ":", idx + 1);
+            }
+        }
+        if (marks.isEmpty()) {
+            return info;
+        }
+        StringBuilder sb = new StringBuilder();
+        java.util.List<Integer> positions = new java.util.ArrayList<>(marks.keySet());
+        for (int i = 0; i < positions.size(); i++) {
+            int start = positions.get(i);
+            String key = marks.get(start);
+            int end = (i + 1 < positions.size()) ? positions.get(i + 1).intValue() : info.length();
+            if ("From".equals(key) || "来自".equals(key) || "來自".equals(key)) {
+                continue; // 丢弃作者字段
+            }
+            String seg = info.substring(start, end).trim();
+            if (seg.length() > 0) {
+                if (sb.length() > 0) {
+                    sb.append(' ');
+                }
+                sb.append(seg);
+            }
         }
         return sb.toString();
     }

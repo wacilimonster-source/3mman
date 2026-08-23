@@ -308,9 +308,22 @@ public class RecommendPrefetcher {
     /**
      * 解析结果落库：与播放页保持一致，这样从推荐流点进详情页时可以直接复用，
      * 同时补上浏览历史。
+     * <p>
+     * M71：91porn 列表页服务端渲染存在系统性「标题/封面串位」（实测同一页面 45 个条目
+     * 里约一半的预览视频ID与封面图ID对不上），列表解析出的 title 不可信。
+     * 播放页 h4 标题是权威数据，解析成功后用它覆盖条目标题并回写 DB，
+     * 详情页 / 推荐流 / 历史记录从此都显示权威标题。
      */
     private void persist(VideoResult videoResult, V9MmanItem item) {
         try {
+            // M71：用播放页权威标题修正列表页串位标题
+            if (item != null && videoResult != null
+                    && !TextUtils.isEmpty(videoResult.getVideoName())
+                    && !TextUtils.equals(item.getTitle(), videoResult.getVideoName())) {
+                AppLog.i(TAG, "标题修正(站点列表页串位) viewKey=" + item.getViewKey()
+                        + " 列表页=\"" + item.getTitle() + "\" -> 播放页=\"" + videoResult.getVideoName() + '"');
+                item.setTitle(videoResult.getVideoName());
+            }
             dataManager.saveVideoResult(videoResult);
             if (item != null) {
                 item.setVideoResult(videoResult);

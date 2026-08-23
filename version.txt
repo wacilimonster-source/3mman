@@ -1,7 +1,7 @@
 {
-  "versionCode": 101,
-  "versionName": "1.0.68",
-  "updateMessage": "下载体验修复：1）下载/下载完成列表点击本地播放闪退（Intent序列化的V9MmanItem脱离DaoSession，播放页渲染信息时抛DaoException），现改为从DB取附着实体并加固信息栏渲染；2）下载遇僵尸任务(进度偏移残留但临时文件丢失致IOException: No such file or directory)时，解除封锁并清理下载器残留任务与坏临时文件后从头重新下载；3）下载路由判定对齐M67权威来源标记（原先hex正则误判hex key的9mman视频为porny跳过重新解析拿过期签名直链）。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.68.apk",
-  "sha256": "5f1cb257029e0d783a271da4100718e9222647a3cf0df5bb49377f51ee38ff27"
+  "versionCode": 102,
+  "versionName": "1.0.69",
+  "updateMessage": "推荐流与播放体验修复：1）修复推荐流视频标题/封面错位（站点列表页含CSS隐藏的废弃条目，其viewKey/标题/封面互相串位，App解析时未过滤且去重误留坏行，表现为多条视频同标题、点进去信息不符），现从源头过滤隐藏条目并用播放页权威标题回写兜底；2）修复推荐流信息栏顺序跳变与作者名重复显示；3）新增播放器错误/缓冲诊断日志（排查起播转圈问题）。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.69.apk",
+  "sha256": "b8e094c7fca4a0f73b378763232bf49e15ee6ee24e570f132734184877d4371f"
 }

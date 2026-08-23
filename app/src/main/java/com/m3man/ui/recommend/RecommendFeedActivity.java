@@ -354,6 +354,14 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
                     return;
                 }
                 engine.attachAuthor(candidate, item);
+                // M71：作者名/权威标题此刻已回填，立即刷新该页文案，
+                // 消除"先显示 时长·添加时间、解析完滑回来才出现 @作者"的跳变
+                RecommendFeedAdapter.PageHolder curHolder = findHolder(position);
+                if (curHolder != null && !TextUtils.isEmpty(curHolder.boundKey)
+                        && curHolder.boundKey.equals(expectKey)) {
+                    curHolder.title.setText(candidate.title() == null ? "" : candidate.title());
+                    adapter.refreshMeta(recyclerView, position);
+                }
                 doStart(position, candidate, playUrl);
             }
 

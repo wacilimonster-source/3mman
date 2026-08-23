@@ -292,6 +292,16 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
 
     private V9MmanItem saveVideoUrl(VideoResult videoResult, V9MmanItem v9MmanItem) {
         dataManager.saveVideoResult(videoResult);
+        // M71：91porn 列表页服务端渲染存在标题/封面串位，列表解析出的 title 不可信；
+        // 播放页 h4 标题是权威数据，用它覆盖条目标题并回写 DB，
+        // 修复"推荐/详情进入后标题与实际视频不符 / 多条视频同标题"的问题。
+        if (videoResult != null && !TextUtils.isEmpty(videoResult.getVideoName())
+                && v9MmanItem != null
+                && !TextUtils.equals(v9MmanItem.getTitle(), videoResult.getVideoName())) {
+            AppLog.i(TAG, "标题修正(站点列表页串位) viewKey=" + v9MmanItem.getViewKey()
+                    + " 列表页=\"" + v9MmanItem.getTitle() + "\" -> 播放页=\"" + videoResult.getVideoName() + '"');
+            v9MmanItem.setTitle(videoResult.getVideoName());
+        }
         v9MmanItem.setVideoResult(videoResult);
         v9MmanItem.setViewHistoryDate(new Date());
         // M66b：来源标记权威化——解析成功即按本次路由结果写入持久化标记，
