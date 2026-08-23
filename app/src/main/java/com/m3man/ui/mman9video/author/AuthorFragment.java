@@ -151,7 +151,11 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
             return;
         }
         String ownerId = v9MmanItem.getVideoResult().getOwnerId();
-        if (isPornySource()) {
+        // M66b：ownerId 形态防御——9mman 的加密 UID（含 _/- 或超长）绝不能走 porny /author/，
+        // 否则站点 404（作者其他作品加载失败）
+        boolean uidLooksLikeMman = ownerId != null
+                && (ownerId.contains("_") || ownerId.contains("-") || ownerId.length() > 32);
+        if (isPornySource() && !uidLooksLikeMman) {
             // 91porny 作者：ownerId 即作者名，走 /author/{name}
             presenter.pornyAuthorVideos(ownerId, pullToRefresh);
         } else {

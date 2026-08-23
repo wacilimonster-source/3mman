@@ -37,6 +37,9 @@ import javax.inject.Singleton;
 public class AppDbHelper implements DbHelper {
     private final DaoSession mDaoSession;
 
+    /** M66b：持久化来源标记取值，与 PlayVideoPresenter.SOURCE_MMAN9_PERSIST 一致 */
+    private static final String SOURCE_MMAN9 = "mman9";
+
     @Inject
     AppDbHelper(MySQLiteOpenHelper helper) {
         //如果你想查看日志信息，请将DEBUG设置为true
@@ -44,6 +47,34 @@ public class AppDbHelper implements DbHelper {
         Database db = helper.getWritableDb();
         this.mDaoSession = new DaoMaster(db).newSession();
         initCategory(Category.TYPE_91PORN, Category.CATEGORY_DEFAULT_91PORN_VALUE, Category.CATEGORY_DEFAULT_91PORN_NAME);
+        repairMisflaggedPornyRows();
+    }
+
+    /**
+     * M66b 一次性数据修复：旧版 isPornySource 的 hex 正则误判把大量 9mman 视频标成了
+     * "91porny"，导致播放走错源、作者页 404、详情数据错乱。
+     * 可安全校正的子集：viewKey 带 "viewkey=" 前缀（9mman extractViewKey 契约，
+     * porny 条目恒为裸 hex）但 sourceName 被标成 91porny 的行 → 改回 mman9。
+     */
+    private void repairMisflaggedPornyRows() {
+        try {
+            List<V9MmanItem> misflagged = mDaoSession.getV9MmanItemDao().queryBuilder()
+                    .where(V9MmanItemDao.Properties.SourceName.eq("91porny"))
+                    .build().list();
+            boolean dirty = false;
+            for (V9MmanItem item : misflagged) {
+                String key = item.getViewKey();
+                if (key != null && key.startsWith("viewkey=")) {
+                    item.setSourceName(SOURCE_MMAN9);
+                    dirty = true;
+                }
+            }
+            if (dirty) {
+                mDaoSession.getV9MmanItemDao().updateInTx(misflagged);
+            }
+        } catch (Exception ignored) {
+            // 修复失败不影响启动
+        }
     }
 
     @Override
@@ -179,13 +210,37 @@ public class AppDbHelper implements DbHelper {
     @Override
     public V9MmanItem findV9MmanItemByViewKey(String viewKey) {
         V9MmanItemDao v9MmanItemDao = mDaoSession.getV9MmanItemDao();
+        // M66b：历史数据存在「同一视频存成两行」的分裂——一处存裸 key（如 36055117）、
+        // 另一处存带前缀 key（viewkey=36055117），按原值精确匹配会命中错误行，
+        // 表现为列表与详情标题/缩略图不一致。这里先按原值查，未命中再用两种归一化形态查。
+        V9MmanItem hit = queryV9MmanItemByKey(v9MmanItemDao, viewKey);
+        if (hit != null) {
+            return hit;
+        }
+        if (TextUtils.isEmpty(viewKey)) {
+            return null;
+        }
+        String bare = viewKey.startsWith("viewkey=") ? viewKey.substring(8) : viewKey;
+        // 归一化形态 2：裸值
+        hit = queryV9MmanItemByKey(v9MmanItemDao, bare);
+        if (hit != null) {
+            return hit;
+        }
+        // 归一化形态 3：带前缀
+        return queryV9MmanItemByKey(v9MmanItemDao, "viewkey=" + bare);
+    }
+
+    private V9MmanItem queryV9MmanItemByKey(V9MmanItemDao dao, String key) {
+        if (TextUtils.isEmpty(key)) {
+            return null;
+        }
         try {
             // D3：viewKey 已建立唯一索引，直接用 unique() 即可；
             // 偶发异常不再删除命中行，避免误删用户数据。
-            return v9MmanItemDao.queryBuilder().where(V9MmanItemDao.Properties.ViewKey.eq(viewKey)).build().unique();
+            return dao.queryBuilder().where(V9MmanItemDao.Properties.ViewKey.eq(key)).build().unique();
         } catch (Exception e) {
             // 兜底：用 list 取第一条，绝不再删除用户数据
-            List<V9MmanItem> tmp = v9MmanItemDao.queryBuilder().where(V9MmanItemDao.Properties.ViewKey.eq(viewKey)).build().list();
+            List<V9MmanItem> tmp = dao.queryBuilder().where(V9MmanItemDao.Properties.ViewKey.eq(key)).build().list();
             if (tmp != null && !tmp.isEmpty()) {
                 return tmp.get(0);
             }

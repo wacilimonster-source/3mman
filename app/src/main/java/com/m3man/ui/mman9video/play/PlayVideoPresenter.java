@@ -40,6 +40,9 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
 
     private static final String TAG = PlayVideoPresenter.class.getSimpleName();
 
+    /** M66b：持久化来源标记（sourceName 列）取值，与 AuthorFavorite.SOURCE_MMAN9 保持一致 */
+    public static final String SOURCE_MMAN9_PERSIST = "mman9";
+
     private FavoritePresenter favoritePresenter;
     private DownloadPresenter downloadPresenter;
 
@@ -230,33 +233,46 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
 
     /**
      * 判断视频是否来自 91porny 源。
-     * source 是 transient 字段（不落库），本地收藏/历史页从数据库加载后为 null，
-     * 因此同时检查持久化的 sourceName。
      *
-     * M60：hex viewkey（20位十六进制）是 91porny 的视频 ID，
-     * 当 source/sourceName 都为空（如列表页未设源）时，用 viewKey 格式作为兜底判断，
-     * 避免 hex viewkey 被错误路由到 9mman 解析器导致「解析视频链接失败」。
-     *
-     * 注意：DB 中 viewKey 可能带 "viewkey=" 前缀（如 "viewkey=a6019455d1bdfa805355"），
-     * 需先剥离前缀再判断。
+     * M66b（方案B 彻底改造）：来源判定以「解析时写入的持久化标记」为唯一权威：
+     * 1. sourceName（持久化列）== "91porny" → porny；
+     * 2. transient source == "91porny"（本次会话内存中标记）→ porny；
+     * 3. sourceName/sourceSource 明确标为 mman9 的直接判 9mman（权威短路，
+     *    不再进入格式兜底——测试用例发现的漏洞：裸 hex + mman9 标记会被兜底误判）；
+     * 4. 无任何标记时才用 viewKey 格式兜底，且规则收紧：
+     *    - 91porny 的视频 ID 恒为纯 hex（16~32 位）且【不带 "viewkey=" 前缀】；
+     *    - 9mman 的 viewKey 可能恰好是纯 hex（如 c9236ce81db652e4b5d9），但
+     *      【恒带 "viewkey=" 前缀】（extractViewKey 契约），带前缀的一律按 9mman。
+     * 旧版「只要裸值是 hex 就算 porny」把大量 9mman hex key 误判成 porny，
+     * 导致作者页 404、播放走错源、DB 写入错误 VideoResult（标题/缩略图错乱）。
      */
     public static boolean isPornySource(V9MmanItem item) {
         if (item == null) {
             return false;
         }
-        // 先按 key 格式判断：旧数据库可能把 91porny 项目错误保存成 source=9mman，
-        // source 字段不能覆盖 91porny 的 20~32 位十六进制视频 ID。
-        String viewKey = item.getViewKey();
-        if (viewKey != null) {
-            if (viewKey.startsWith("viewkey=")) {
-                viewKey = viewKey.substring(8);
-            }
-            if (viewKey.matches("[0-9a-fA-F]{16,32}")) {
-                return true;
-            }
+        // 权威判定：持久化标记 / 内存标记
+        boolean markedPorny = Parse91PornyVideo.SOURCE.equals(item.getSourceName())
+                || Parse91PornyVideo.SOURCE.equals(item.getSource());
+        if (markedPorny) {
+            return true;
         }
-        return Parse91PornyVideo.SOURCE.equals(item.getSource())
-                || Parse91PornyVideo.SOURCE.equals(item.getSourceName());
+        // 权威短路：明确标为 mman9 的不再走格式推断（防裸 hex 被兜底误判）
+        if (SOURCE_MMAN9_PERSIST.equals(item.getSourceName())
+                || SOURCE_MMAN9_PERSIST.equals(item.getSource())) {
+            return false;
+        }
+        // 兜底：格式推断（仅在无任何标记时）
+        String viewKey = item.getViewKey();
+        if (TextUtils.isEmpty(viewKey)) {
+            return false;
+        }
+        boolean prefixed = viewKey.startsWith("viewkey=");
+        String bare = prefixed ? viewKey.substring(8) : viewKey;
+        if (bare.matches("[0-9a-fA-F]{16,32}")) {
+            // 带前缀的 hex = 9mman（extractViewKey 契约）；裸 hex 才可能是 porny
+            return !prefixed;
+        }
+        return false;
     }
 
     @Override
@@ -278,10 +294,10 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
         dataManager.saveVideoResult(videoResult);
         v9MmanItem.setVideoResult(videoResult);
         v9MmanItem.setViewHistoryDate(new Date());
-        // 同步持久化来源标记，保证本地收藏/历史页重启后仍能识别
-        if (v9MmanItem.getSourceName() == null) {
-            v9MmanItem.setSourceName(v9MmanItem.getSource());
-        }
+        // M66b：来源标记权威化——解析成功即按本次路由结果写入持久化标记，
+        // 不再沿用可能为空的旧值；这是后续 isPornySource 判定的唯一权威。
+        v9MmanItem.setSourceName(isPornySource(v9MmanItem)
+                ? Parse91PornyVideo.SOURCE : SOURCE_MMAN9_PERSIST);
         dataManager.saveV9MmanItem(v9MmanItem);
         return v9MmanItem;
     }

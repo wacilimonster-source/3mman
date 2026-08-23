@@ -147,8 +147,21 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
                 }, throwable -> showMessage("操作失败，请重试", TastyToast.ERROR)));
     }
 
+    /**
+     * M66b：来源判定加 UID 形态防御。9mman 作者 UID 是长 Base64ish 串（常含 _ 或 -，
+     * 长度远超 porny 的短 slug 作者名），历史数据可能把 source 标错；
+     * 形态与标记冲突时以形态为准，避免把 9mman UID 拿去请求 porny /author/ 而 404。
+     */
     private boolean isPorny() {
-        return AuthorFavorite.SOURCE_PORNY.equals(source);
+        boolean bySource = AuthorFavorite.SOURCE_PORNY.equals(source);
+        if (TextUtils.isEmpty(uid)) {
+            return bySource;
+        }
+        boolean looksLikeMmanUid = uid.contains("_") || uid.contains("-") || uid.length() > 32;
+        if (looksLikeMmanUid) {
+            return false;
+        }
+        return bySource;
     }
 
     private int pickEngine() {

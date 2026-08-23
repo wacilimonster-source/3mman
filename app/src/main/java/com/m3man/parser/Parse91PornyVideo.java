@@ -105,6 +105,8 @@ public class Parse91PornyVideo {
             }
             v.setInfo(authorInfo);
             v.setSource(SOURCE);
+            // M66b：解析时打持久化来源标记，供路由权威判定（source 是 transient 不落库）
+            v.setSourceName(SOURCE);
             list.add(v);
         }
 

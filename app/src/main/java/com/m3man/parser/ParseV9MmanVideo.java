@@ -105,6 +105,8 @@ public class ParseV9MmanVideo {
             // Logger.d(contentUrl);
             String viewKey = contentUrl.substring(contentUrl.indexOf("=") + 1);
             v9MmanItem.setViewKey(viewKey);
+            // M66b：解析时打持久化来源标记（9mman），供路由权威判定
+            v9MmanItem.setSourceName("mman9");
 
             String imgUrl = element.select("a").first().select("img").first().attr("src");
             //  Logger.d(imgUrl);
@@ -189,6 +191,8 @@ public class ParseV9MmanVideo {
             // 存储（loadMman9VideoUrl 内部会按 & 切分并当作 key=value 解析，必须带前缀）。
             String viewKey = extractViewKey(contentUrl);
             v9MmanItem.setViewKey(viewKey);
+            // M66b：解析时打持久化来源标记（9mman），供路由权威判定
+            v9MmanItem.setSourceName("mman9");
 
             // 相同视频（归一化 viewKey 一致）只保留第一条；viewKey 解析异常（为空）时
             // 退化为按「标题 + 封面」去重，避免误删正常条目
@@ -303,6 +307,8 @@ public class ParseV9MmanVideo {
                 viewKey = contentUrl.substring(eqIdx + 1);
             }
             v9MmanItem.setViewKey(viewKey);
+            // M66b：解析时打持久化来源标记（9mman），供路由权威判定
+            v9MmanItem.setSourceName("mman9");
             //Logger.d(viewKey);
 
             String imgUrl = element.select("a").first().select("img").first().attr("src");
@@ -644,6 +650,8 @@ public class ParseV9MmanVideo {
             // 与列表解析一致：稳健抽取 viewkey 参数（见 extractViewKey 注释）
             String viewKey = extractViewKey(contentUrl);
             v9MmanItem.setViewKey(viewKey);
+            // M66b：解析时打持久化来源标记（9mman），供路由权威判定
+            v9MmanItem.setSourceName("mman9");
 
             if (!seenViewKeys.add(viewKey)) {
                 continue;
