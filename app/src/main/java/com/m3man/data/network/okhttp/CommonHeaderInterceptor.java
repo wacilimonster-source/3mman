@@ -51,8 +51,15 @@ public class CommonHeaderInterceptor implements Interceptor {
 
         // Retrofit 的默认 BaseUrl 是 GitHub。若 URL 管理器尚未完成域名替换，
         // 先把带视频域名标记的请求直接改到当前配置，避免视频页面先访问 GitHub 再被重定向。
-        if (Api.PORN9_VIDEO_DOMAIN_NAME.equals(header)) {
-            HttpUrl configuredUrl = HttpUrl.parse(preferencesHelper.getMman9VideoAddress());
+        // M65b：覆盖 9mman 与 porny 两个源（此前只处理 9mman，porny 播放页仍经 GitHub 重定向 400）。
+        if (Api.PORN9_VIDEO_DOMAIN_NAME.equals(header) || Api.PORNY_DOMAIN_NAME.equals(header)) {
+            String configuredAddress;
+            if (Api.PORNY_DOMAIN_NAME.equals(header)) {
+                configuredAddress = preferencesHelper.getPornyAddress();
+            } else {
+                configuredAddress = preferencesHelper.getMman9VideoAddress();
+            }
+            HttpUrl configuredUrl = HttpUrl.parse(configuredAddress);
             HttpUrl originalUrl = original.url();
             HttpUrl githubUrl = HttpUrl.parse(Api.APP_GITHUB_DOMAIN);
             if (configuredUrl != null

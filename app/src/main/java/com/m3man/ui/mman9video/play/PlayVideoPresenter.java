@@ -75,14 +75,18 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
                         ? dataManager.getProxyIpAddress() + ":" + dataManager.getProxyPort() : "关"));
         if (porny) {
             // 91porny 来源走单独的解析路径
-            dataManager.loadPornyVideoUrl(viewKey)
-                    .doOnSubscribe(d -> AppLog.i(TAG, "请求91porny播放页 viewKey=" + viewKey))
+            // M65b：porny 播放页契约是 /video/view/<裸hex>（无 "viewkey=" 前缀）。
+            // 直传原始值会拼出 /video/view/viewkey=xxx 导致解析必败（与 9mman 契约相反）。
+            final String pornyViewKey = rawViewKey != null && rawViewKey.startsWith("viewkey=")
+                    ? rawViewKey.substring("viewkey=".length()) : rawViewKey;
+            dataManager.loadPornyVideoUrl(pornyViewKey)
+                    .doOnSubscribe(d -> AppLog.i(TAG, "请求91porny播放页 viewKey=" + pornyViewKey))
                     .map(videoResult -> {
                         if (videoResult == null || TextUtils.isEmpty(videoResult.getVideoUrl())) {
-                            AppLog.e(TAG, "解析失败(空结果) viewKey=" + viewKey + " 源=91porny");
+                            AppLog.e(TAG, "解析失败(空结果) viewKey=" + pornyViewKey + " 源=91porny");
                             throw new VideoException("解析视频链接失败了");
                         }
-                        AppLog.i(TAG, "解析成功 viewKey=" + viewKey + " 源=91porny url=" + shortUrl(videoResult.getVideoUrl()));
+                        AppLog.i(TAG, "解析成功 viewKey=" + pornyViewKey + " 源=91porny url=" + shortUrl(videoResult.getVideoUrl()));
                         return videoResult;
                     })
                     .retryWhen(new RetryWhenProcess(RetryWhenProcess.PROCESS_TIME))

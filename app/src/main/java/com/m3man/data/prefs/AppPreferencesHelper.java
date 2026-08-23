@@ -314,7 +314,20 @@ public class AppPreferencesHelper implements PreferencesHelper {
 
     @Override
     public String getPornyAddress() {
-        return mPrefs.getString(KEY_SP_PORNY_ADDRESS, "https://91porny.com/");
+        String addr = mPrefs.getString(KEY_SP_PORNY_ADDRESS, "https://91porny.com/");
+        if (TextUtils.isEmpty(addr)) {
+            return "https://91porny.com/";
+        }
+        // M65b：与 9mman 同样防护——GitHub 默认域名会导致请求先打 GitHub 再被重定向
+        String normalized = addr.trim().toLowerCase(Locale.US);
+        if ("https://github.com".equals(normalized)
+                || "https://github.com/".equals(normalized)
+                || "http://github.com".equals(normalized)
+                || "http://github.com/".equals(normalized)) {
+            mPrefs.edit().putString(KEY_SP_PORNY_ADDRESS, "https://91porny.com/").apply();
+            return "https://91porny.com/";
+        }
+        return addr;
     }
 
     @Override
