@@ -1,7 +1,7 @@
 {
-  "versionCode": 98,
-  "versionName": "1.0.65",
-  "updateMessage": "修复检查更新报错（SetCookieCache 迭代器 UnsupportedOperationException）：PersistentCookieJar 在清理过期 Cookie 时调用 Iterator.remove()，M62 快照化迭代器后该方法抛异常，导致含过期 Cookie 的域名请求必失败。现迭代器 remove() 在锁内从底层集合删除，兼容库行为。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.65.apk",
-  "sha256": "e34fc2fea05f029543e26c935bf8e3a2fccc8f53b87f619b1db1ed1c9850965b"
+  "versionCode": 99,
+  "versionName": "1.0.66",
+  "updateMessage": "修复91porny源视频播放失败：播放页请求此前先打github.com再被重定向导致400（域名兜底已覆盖porny）；同时修复viewKey带前缀拼入路径导致的解析必败（现按porny契约传裸hex）。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.66.apk",
+  "sha256": "92706f92edbc0c514bda3a54241f7f14abb443d72b14f8f752b57fc9cd53b7c6"
 }
