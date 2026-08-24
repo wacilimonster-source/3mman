@@ -182,7 +182,7 @@ public abstract class BaseAppCompatActivity extends DaggerAppCompatActivity impl
      *
      * @param color color
      */
-    protected void setStatusBarColor(@ColorInt int color) {
+    public void setStatusBarColor(@ColorInt int color) {
         setStatusBarColor(color, StatusBarUtil.DEFAULT_STATUS_BAR_ALPHA);
     }
 

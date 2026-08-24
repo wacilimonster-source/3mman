@@ -7,10 +7,12 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.os.Build;
 import android.content.res.Configuration;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.PagerSnapHelper;
 import android.support.v7.widget.RecyclerView;
@@ -131,6 +133,17 @@ public class RecommendFeedFragment extends BaseFragment
     private boolean landscapeLock = false;
     private ImageView landscapeBackView;
     private int normalContentBottomMargin = -1;
+    /** 横屏锁定时系统栏被系统/用户临时唤出后自动收回，消除顶部紫条与底部留白复发 */
+    private final View.OnSystemUiVisibilityChangeListener sysUiVisibilityListener =
+            new View.OnSystemUiVisibilityChangeListener() {
+                @Override
+                public void onSystemUiVisibilityChange(int visibility) {
+                    if (landscapeLock && getActivity() != null
+                            && (visibility & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0) {
+                        reapplyImmersive();
+                    }
+                }
+            };
 
     public static RecommendFeedFragment getInstance() {
         return new RecommendFeedFragment();
@@ -152,6 +165,8 @@ public class RecommendFeedFragment extends BaseFragment
         }
         if (getActivity() != null) {
             getActivity().getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            getActivity().getWindow().getDecorView()
+                    .setOnSystemUiVisibilityChangeListener(sysUiVisibilityListener);
         }
         engine = RecoEngine.get(context);
         repository = new RecoRepository(dataManager, engine);
@@ -419,15 +434,31 @@ public class RecommendFeedFragment extends BaseFragment
         }
     }
 
+    /**
+     * 进入横屏全屏沉浸式。
+     * <p>
+     * 关键修复：
+     * 1) 设置 {@code JZVideoPlayer.NORMAL_ORIENTATION = LANDSCAPE}，避免翻页时
+     *    {@code JZVideoPlayer.releaseAllVideos()} 内部 onCompletion 把 Activity 强制切回 PORTRAIT（导致“竖屏闪一下”）。
+     * 2) {@code setRequestedOrientation} 仅在方向真正变化时才调用，避免每次翻页重复请求旋转造成的抖动/闪烁。
+     * 3) 隐藏 StatusBarUtil 注入的紫色假状态栏 View，并把状态栏/导航栏颜色设为透明，
+     *    消除横屏顶部紫条与底部留白。
+     */
     private void enterLandscapeFullscreen() {
         if (getActivity() == null) {
             return;
         }
-        appliedPlaybackOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
-        getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        // 让 JZVD 完成/释放时保持横屏，不再回退到竖屏
+        JZVideoPlayer.NORMAL_ORIENTATION = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+
+        // 仅在方向变化时才请求旋转，避免重复 setRequestedOrientation 引发的闪烁
+        if (appliedPlaybackOrientation != ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
+            appliedPlaybackOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+            getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        }
+
         Window window = getActivity().getWindow();
-        window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
         window.getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_FULLSCREEN
                         | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
@@ -435,6 +466,13 @@ public class RecommendFeedFragment extends BaseFragment
                         | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                         | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                         | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.setStatusBarColor(Color.TRANSPARENT);
+            window.setNavigationBarColor(Color.TRANSPARENT);
+        }
+        // 隐藏 StatusBarUtil.setColorForSwipeBack 注入的紫色假状态栏 View
+        hideFakeStatusBarView(window);
+
         if (landscapeBackView != null) {
             landscapeBackView.setVisibility(View.VISIBLE);
         }
@@ -454,31 +492,75 @@ public class RecommendFeedFragment extends BaseFragment
         if (floatingActionButtonView() != null) {
             floatingActionButtonView().setVisibility(View.GONE);
         }
-        // M82：让内容铺满导航栏区域，消除横屏沉浸时的底部留白
+        // 让内容铺满导航栏区域，消除横屏沉浸时的底部留白
         if (getActivity() instanceof BaseAppCompatActivity) {
             ((BaseAppCompatActivity) getActivity()).setNavigationBarOverlap(true);
         }
     }
 
+    /** 仅重新应用沉浸式系统栏（不改动方向），供系统栏被临时唤出后自动收回。 */
+    private void reapplyImmersive() {
+        if (getActivity() == null) {
+            return;
+        }
+        Window window = getActivity().getWindow();
+        window.getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.setStatusBarColor(Color.TRANSPARENT);
+            window.setNavigationBarColor(Color.TRANSPARENT);
+        }
+        hideFakeStatusBarView(window);
+    }
+
+    /** 隐藏 StatusBarUtil 注入的紫色假状态栏 View（顶部横屏区域不再有紫条）。 */
+    private void hideFakeStatusBarView(Window window) {
+        View decor = window.getDecorView();
+        View fake = decor.findViewById(R.id.statusbarutil_fake_status_bar_view);
+        if (fake != null && fake.getVisibility() != View.GONE) {
+            fake.setVisibility(View.GONE);
+        }
+        View translucent = decor.findViewById(R.id.statusbarutil_translucent_view);
+        if (translucent != null && translucent.getVisibility() != View.GONE) {
+            translucent.setVisibility(View.GONE);
+        }
+    }
+
     private void restorePortrait() {
         landscapeLock = false;
-        if (getActivity() != null
-                && appliedPlaybackOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+        if (getActivity() == null) {
+            return;
+        }
+        // 退出横屏后，JZVD 完成/释放应回退到竖屏（恢复默认行为）
+        JZVideoPlayer.NORMAL_ORIENTATION = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+
+        if (appliedPlaybackOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+            appliedPlaybackOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
             getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         }
-        appliedPlaybackOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+        Window window = getActivity().getWindow();
+        window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.setNavigationBarColor(Color.BLACK);
+        }
+        // 恢复紫色状态栏（StatusBarUtil 会重新显示并为假状态栏 View 着色）
+        if (getActivity() instanceof BaseAppCompatActivity) {
+            ((BaseAppCompatActivity) getActivity())
+                    .setStatusBarColor(ContextCompat.getColor(getActivity(), R.color.colorPrimary));
+        }
         if (landscapeBackView != null) {
             landscapeBackView.setVisibility(View.GONE);
-        }
-        if (getActivity() != null) {
-            Window window = getActivity().getWindow();
-            window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
-            window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
         }
         if (bottomNavigationBarView() != null) {
             bottomNavigationBarView().setVisibility(View.VISIBLE);
         }
-        View content = getActivity() == null ? null : getActivity().findViewById(R.id.content);
+        View content = getActivity().findViewById(R.id.content);
         if (content != null && content.getLayoutParams() instanceof android.widget.FrameLayout.LayoutParams
                 && normalContentBottomMargin >= 0) {
             android.widget.FrameLayout.LayoutParams lp =
@@ -486,7 +568,7 @@ public class RecommendFeedFragment extends BaseFragment
             lp.bottomMargin = normalContentBottomMargin;
             content.setLayoutParams(lp);
         }
-        // M82：恢复导航栏默认（不重叠），底部留白回到系统处理
+        // 恢复导航栏默认（不重叠），底部留白回到系统处理
         if (getActivity() instanceof BaseAppCompatActivity) {
             ((BaseAppCompatActivity) getActivity()).setNavigationBarOverlap(false);
         }
@@ -1310,6 +1392,11 @@ public class RecommendFeedFragment extends BaseFragment
         JZVideoPlayer.releaseAllVideos();
         restorePortrait();
         if (getActivity() != null) {
+            try {
+                getActivity().getWindow().getDecorView()
+                        .setOnSystemUiVisibilityChangeListener(null);
+            } catch (Exception ignored) {
+            }
             try {
                 getActivity().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             } catch (Exception ignored) {
