@@ -116,6 +116,10 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
     private Runnable progressTicker;
     /** 用户正在拖动进度条时暂停自动刷新，避免手指被「拽回去」 */
     private boolean userSeeking = false;
+    /** 是否处于横屏全屏模式：手动进入、手动退出，不自动回竖屏 */
+    private boolean isLandscape = false;
+    /** 横屏状态持久化 key（进程被杀后重建时恢复，避免回到不一致的全屏/竖屏状态） */
+    private static final String KEY_IS_LANDSCAPE = "reco_is_landscape";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -594,18 +598,54 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
     @Override
     public void onFullscreenClick(int position) {
         if (position == currentPosition) {
-            try {
-                setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-                getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                        WindowManager.LayoutParams.FLAG_FULLSCREEN);
-                getWindow().getDecorView().setSystemUiVisibility(
-                        View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
-            } catch (Exception ignored) {
+            toggleFullscreen();
+        }
+    }
+
+    /**
+     * 横屏全屏模式开关。
+     * 进入后锁定为横屏 + 沉浸式（隐藏状态栏/导航栏，内容铺满），
+     * 直到再次点击全屏按钮才退出，不会因系统传感器或交互自动回竖屏。
+     */
+    private void toggleFullscreen() {
+        isLandscape = !isLandscape;
+        if (isLandscape) {
+            setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+            // 让内容延伸到导航栏区域，消除横屏底部/右侧空白
+            if (mSwipeBackHelper != null) {
+                mSwipeBackHelper.setIsNavigationBarOverlap(true);
             }
+            hideSystemUi();
+        } else {
+            setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+            if (mSwipeBackHelper != null) {
+                mSwipeBackHelper.setIsNavigationBarOverlap(false);
+            }
+            showSystemUi();
+        }
+    }
+
+    /** 进入沉浸式：隐藏状态栏与导航栏，内容铺满全屏 */
+    private void hideSystemUi() {
+        try {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+            getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** 退出沉浸式：恢复状态栏（黑底）与导航栏 */
+    private void showSystemUi() {
+        try {
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+            setStatusBarColor(Color.BLACK, 0);
+        } catch (Exception ignored) {
         }
     }
 
@@ -958,9 +998,43 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
+        // 横屏模式下：系统可能在回前台/重建后清掉沉浸式标记或丢弃固定横屏请求，
+        // 这里重新断言方向、导航栏重叠与沉浸式，保证「进入横屏后保持横屏」不被动摇。
+        if (isLandscape) {
+            setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+            if (mSwipeBackHelper != null) {
+                mSwipeBackHelper.setIsNavigationBarOverlap(true);
+            }
+            hideSystemUi();
+        }
         // onPause 已经释放底层播放器，回到独立推荐页时从当前候选重新建立播放。
         if (currentPosition >= 0 && adapter != null) {
             startPlay(currentPosition);
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean(KEY_IS_LANDSCAPE, isLandscape);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        if (savedInstanceState != null) {
+            isLandscape = savedInstanceState.getBoolean(KEY_IS_LANDSCAPE, false);
+        }
+    }
+
+    @Override
+    public void onConfigurationChanged(android.content.res.Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        // 旋转时系统 UI 可见性会被重置：按当前模式重新套用沉浸式/普通状态栏
+        if (isLandscape) {
+            hideSystemUi();
+        } else {
+            showSystemUi();
         }
     }
 

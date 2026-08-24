@@ -1,7 +1,7 @@
 {
-  "versionCode": 111,
-  "versionName": "1.0.78",
-  "updateMessage": "M80 播放器增强：修复竖屏列表封面主体遮挡，横屏视频连续播放保持沉浸式全屏，新增返回竖屏、全屏切换与 1x/2x 倍速按钮。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.78.apk",
-  "sha256": "5f4a0191f08c474bf8f955ba3d9b1de894ae15558b1cde795266790868e2e8f5"
+  "versionCode": 112,
+  "versionName": "1.0.79",
+  "updateMessage": "M81 横屏体验修复：全屏按钮改为开关式锁定（进入横屏后保持横屏，需手动退出），并在旋转/回前台后重应用沉浸式；新增横屏专用布局消除底部空白、完整显示右侧操作栏。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.79.apk",
+  "sha256": "672596735eb90a1da5d56d57a74ddc9080d61ed56737e06a07cb6724bf4e440c"
 }
