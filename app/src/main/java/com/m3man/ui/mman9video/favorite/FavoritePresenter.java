@@ -269,6 +269,12 @@ public class FavoritePresenter extends MvpBasePresenter<FavoriteView> implements
             @Override
             public String apply(List<V9MmanItem> v9MmanItems) throws Exception {
                 File file = new File(SDCardUtils.EXPORT_FILE);
+                // M74：确保父目录存在（与下载路径一致）。EXPORT_FILE 位于 /3mman/ 下，
+                // 此前直接 createNewFile 而父目录可能未创建，导致 IOException: No such file or directory。
+                File exportParent = file.getParentFile();
+                if (exportParent != null && !exportParent.exists() && !exportParent.mkdirs()) {
+                    throw new Exception("导出失败,无法创建导出目录");
+                }
                 if (file.exists()) {
                     if (!file.delete()) {
                         throw new Exception("导出失败,因为删除原文件失败了");

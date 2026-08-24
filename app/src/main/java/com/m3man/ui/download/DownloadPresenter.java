@@ -57,6 +57,8 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
     private LifecycleProvider<Lifecycle.Event> provider;
     private Context context;
     private OkHttpClient okHttpClient;
+    // M74：缓存拷贝分支回退到正常下载时，用此标志防止再次命中缓存分支造成递归
+    private volatile boolean bypassCacheCopy = false;
 
     @Inject
     public DownloadPresenter(DataManager dataManager, LifecycleProvider<Lifecycle.Event> provider,
@@ -177,7 +179,8 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
             return;
         }
         //如果已经缓存完成，直接使用缓存代理完成
-        if (dataManager.isVideoCacheByProxy(videoResult.getVideoUrl())) {
+        // M74：缓存拷贝回退场景下置位 bypassCacheCopy，跳过本分支，避免再次进入 copyCacheFile 递归
+        if (!bypassCacheCopy && dataManager.isVideoCacheByProxy(videoResult.getVideoUrl())) {
             AppLog.i("Download", "命中播放缓存，走缓存拷贝路径 viewKey=" + tmp.getViewKey());
             try {
                 copyCacheFile(AppCacheUtils.getVideoCacheDir(context), tmp, downloadListener);
@@ -196,6 +199,8 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
             }
             return;
         }
+        // M74：走到这里说明未走缓存拷贝分支（未命中或 bypassCacheCopy 回退），清除标志
+        bypassCacheCopy = false;
         //检查当前状态
         if (tmp.getStatus() == FileDownloadStatus.progress && tmp.getDownloadId() != 0 && !isForceReDownload) {
             // M68：僵尸任务防护——DB 状态是 progress 但下载器里已没有该任务
@@ -687,7 +692,22 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                 String cacheFileName = myFileNameGenerator.generate(v9MmanItem.getVideoResult().getVideoUrl());
                 File fromFile = new File(videoCacheDir, cacheFileName);
                 if (!fromFile.exists() || fromFile.length() <= 0) {
-                    e.onError(new Exception("缓存文件错误，无法拷贝"));
+                    // M74：代理缓存可能在「命中判断(isCached)」与「实际拷贝」之间被 LRU 淘汰（TOCTOU），
+                    // 命中分支已进、源文件却已消失。不再抛“缓存文件错误”，而是回退到正常重新下载，
+                    // 保证用户最终拿到视频（bypassCacheCopy 防止再次命中缓存分支导致递归）。
+                    AppLog.w("Download", "缓存文件缺失，回退重新下载 viewKey=" + v9MmanItem.getViewKey()
+                            + " cacheFile=" + fromFile.getAbsolutePath());
+                    final V9MmanItem fbItem = v9MmanItem;
+                    final DownloadListener fbListener = downloadListener;
+                    bypassCacheCopy = true;
+                    new android.os.Handler(android.os.Looper.getMainLooper()).post(new Runnable() {
+                        @Override
+                        public void run() {
+                            downloadVideo(fbItem, true, fbListener);
+                        }
+                    });
+                    e.onComplete();
+                    return;
                 }
                 e.onNext(fromFile);
                 e.onComplete();
@@ -695,13 +715,34 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         }).map(new Function<File, V9MmanItem>() {
             @Override
             public V9MmanItem apply(File fromFile) throws Exception {
-                File toFile = new File(v9MmanItem.getDownLoadPath(getCustomDownloadVideoDirPath()));
+                // M74：修复缓存拷贝分支漏掉 ensureDownloadDir 的缺陷——
+                // 常规下载路径(246-248)会先确保父目录，但本分支此前直接 createNewFile，
+                // 当自定义下载目录未物化、或首次即走缓存拷贝分支时，父目录不存在导致
+                // IOException: No such file or directory。此处补齐目录创建（与常规路径一致）。
+                String preferredPath = v9MmanItem.getDownLoadPath(getCustomDownloadVideoDirPath());
+                File toFile = new File(preferredPath);
+                File parent = toFile.getParentFile();
+                if (parent != null && !parent.exists() && !parent.mkdirs()) {
+                    // 父目录创建失败：复用常规下载的 ensureDownloadDir 回退到可写目录
+                    String ensured = SDCardUtils.ensureDownloadDir(preferredPath, context);
+                    if (!TextUtils.isEmpty(ensured)) {
+                        toFile = new File(ensured);
+                    }
+                }
                 if (toFile.exists() && toFile.length() > 0) {
                     throw new Exception("已经下载过了");
-                } else {
-                    if (!toFile.createNewFile()) {
-                        throw new Exception("创建文件失败");
+                }
+                File toParent = toFile.getParentFile();
+                if (toParent == null || !toParent.exists() || !toParent.canWrite()) {
+                    // 仍不可用：再次尝试 ensureDownloadDir 回退；若仍失败给出友好提示而非裸 IOException
+                    String ensured = SDCardUtils.ensureDownloadDir(preferredPath, context);
+                    if (TextUtils.isEmpty(ensured)) {
+                        throw new Exception("下载目录不可写，请检查存储权限或更换下载目录");
                     }
+                    toFile = new File(ensured);
+                }
+                if (!toFile.createNewFile()) {
+                    throw new Exception("创建文件失败");
                 }
                 FileUtils.copyFile(fromFile, toFile);
                 v9MmanItem.setTotalFarBytes((int) fromFile.length());

@@ -1,7 +1,7 @@
 {
-  "versionCode": 104,
-  "versionName": "1.0.71",
-  "updateMessage": "全链路代码评审 M73 修复：①修复所有 Activity 页 Toast 静默失效（漏调 show()）；②修复从数据库读出的 porny 条目下载误判源导致必失败；③播放前增加 DB 缓存直链时效校验，封堵过期直链起播转圈残留入口；④解析层多处判空（video-title/UID段/rvid/paging/搜索）避免坏页面整页崩溃；⑤列表/搜索跳页 totalPage 任意页刷新+在途并发守卫；⑥历史记录与搜索历史 DB 查询切 IO 线程，AppLog 时间格式化线程安全；⑦后台 HLS 下载改 startForegroundService 并履行前台服务契约；⑧网络域名映射防 4xx 毒化、代理地址测试失败回滚；⑨下载管理进度节流落库+假完成二进制嗅探防误删；⑩进程隔离、缓存 ProviderKey 拆分、porny 视频去重键、收藏删除后缓存逐出等多项稳定性修复。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.71.apk",
-  "sha256": "b70a1e44f8f634f53c7229cfe8e691515c6190ad919d0cbab1bb54dca786546f"
+  "versionCode": 105,
+  "versionName": "1.0.72",
+  "updateMessage": "M74 修复：下载功能 IOException(No such file or directory) 根因修复——①缓存拷贝分支(copyCacheFile)补齐目标父目录确保(对齐常规下载路径 ensureDownloadDir)，消除未物化下载目录导致的 ENOENT；②代理 LRU 在命中判断与拷贝之间淘汰源文件(TOCTOU)时，回退到正常重新下载而非抛错，并加 bypassCacheCopy 防递归；③收藏导出(exportData)补 EXPORT_FILE 父目录 /3mman/ 创建；④全库同类「目录未确保即写入」缺陷横向扫描并修复，行为一致无遗漏。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.72.apk",
+  "sha256": "d2a296ea72257535bd0625d4906e05d6d82ec644de4c2403f889c30f847cadbb"
 }
