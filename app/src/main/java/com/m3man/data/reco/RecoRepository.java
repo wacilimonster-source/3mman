@@ -47,6 +47,10 @@ public class RecoRepository {
     private static final Pattern YEAR_PATTERN = Pattern.compile("((?:19|20)\\d{2})[-/.年月]");
     /** 池子里最多缓存多少候选，超出丢弃低分项 */
     private static final int MAX_POOL = 120;
+    /** M77：同一作者在一批里最多出现的条数（打散用） */
+    private static final int MAX_SAME_AUTHOR_PER_BATCH = 2;
+    /** M77：同一主标签在一批里最多出现的条数（打散用） */
+    private static final int MAX_SAME_TAG_PER_BATCH = 2;
 
     private final DataManager dataManager;
     private final RecoEngine engine;
@@ -207,23 +211,16 @@ public class RecoRepository {
             if (item == null || TextUtils.isEmpty(item.getViewKey())) {
                 continue;
             }
-            // 年代过滤：超出可推荐年限（默认 10 年）的老片直接跳过；解析不出年份的保留
-            RecoParams params = engine.getParams();
-            if (params.maxAgeYears > 0) {
-                int year = parseAddYear(item.getInfo());
-                if (year > 0) {
-                    int curYear = Calendar.getInstance().get(Calendar.YEAR);
-                    if (curYear - year > params.maxAgeYears) {
-                        continue;
-                    }
-                }
-            }
+            // M77：年代「超过 maxAgeYears 一刀切」改为软策略——把 info 里解析出的
+            // 真实发布年份记入候选，由打分器按「越老扣越多」衰减（RecoScorer.computeRecency），
+            // 不再在召回阶段直接跳过；解析不出年份的候选走位置近似兜底。
             String key = item.getViewKey();
             if (servedKeys.contains(key) || store.isSeen(key)) {
                 continue;
             }
             RecoCandidate c = new RecoCandidate(item, categoryValue, from);
             c.tags = engine.getDictionary().tokenize(item.getTitle());
+            c.publishYear = parseAddYear(item.getInfo());
             scorer.score(c, profile, i, size);
             out.add(c);
         }
@@ -275,19 +272,145 @@ public class RecoRepository {
         }
     }
 
+    /**
+     * M77 出队（重写）：
+     * <ul>
+     *   <li>保留坑位式探索：每 {@code want} 条里固定留 want/6 个坑位给池内最好的探索来源
+     *       候选，垫在批次末尾；其余位置严格按分数出队。探索不再靠打分层大噪声挤占前排，
+     *       高分垃圾不会污染正常排序。</li>
+     *   <li>打散：同一作者 / 同一主标签在一批里最多 MAX_SAME_*_PER_BATCH 条，
+     *       超额候选先延后，凑不满时再放宽补齐——避免连刷六条同作者/同题材。</li>
+     * </ul>
+     */
     private List<RecoCandidate> take(int want) {
         List<RecoCandidate> out = new ArrayList<>();
+        if (pool.isEmpty() || want <= 0) {
+            return out;
+        }
         RecoScorer.sortByScoreDesc(pool);
-        while (!pool.isEmpty() && out.size() < want) {
-            RecoCandidate c = pool.remove(0);
+
+        // 1) 探索坑位：按分数顺序取前 exploreQuota 个探索来源的有效候选
+        int exploreQuota = Math.max(0, want / 6);
+        List<RecoCandidate> explorePick = new ArrayList<>();
+        Set<String> picked = new HashSet<>();
+        if (exploreQuota > 0) {
+            for (RecoCandidate c : pool) {
+                if (explorePick.size() >= exploreQuota) {
+                    break;
+                }
+                String key = c.viewKey();
+                if (c.from == RecoCandidate.FROM_EXPLORE && !TextUtils.isEmpty(key)
+                        && !servedKeys.contains(key)) {
+                    explorePick.add(c);
+                    picked.add(key);
+                }
+            }
+        }
+
+        // 2) 正片位：按分数顺序出队，受「同作者/同主标签」限额约束
+        Map<String, Integer> authorCnt = new HashMap<>();
+        Map<String, Integer> tagCnt = new HashMap<>();
+        List<RecoCandidate> mainPick = new ArrayList<>();
+        List<RecoCandidate> overflow = new ArrayList<>();
+        int need = want - explorePick.size();
+        for (RecoCandidate c : pool) {
+            if (mainPick.size() >= need) {
+                break;
+            }
             String key = c.viewKey();
-            if (TextUtils.isEmpty(key) || servedKeys.contains(key)) {
+            if (TextUtils.isEmpty(key) || servedKeys.contains(key) || picked.contains(key)) {
                 continue;
             }
-            servedKeys.add(key);
-            out.add(c);
+            String ak = diversityAuthorKey(c);
+            String tk = diversityTopTag(c);
+            boolean tooSame = (ak != null && countOf(authorCnt, ak) >= MAX_SAME_AUTHOR_PER_BATCH)
+                    || (tk != null && countOf(tagCnt, tk) >= MAX_SAME_TAG_PER_BATCH);
+            if (tooSame) {
+                overflow.add(c);
+                continue;
+            }
+            mainPick.add(c);
+            picked.add(key);
+            bump(authorCnt, ak);
+            bump(tagCnt, tk);
+        }
+        // 打散约束太紧凑导致凑不满时，用被延后的候选放宽补齐
+        if (mainPick.size() < need) {
+            for (RecoCandidate c : overflow) {
+                if (mainPick.size() >= need) {
+                    break;
+                }
+                String key = c.viewKey();
+                if (TextUtils.isEmpty(key) || servedKeys.contains(key) || picked.contains(key)) {
+                    continue;
+                }
+                mainPick.add(c);
+                picked.add(key);
+            }
+        }
+
+        // 3) 组批：正片按分数在前，探索坑位固定垫在批次末尾
+        out.addAll(mainPick);
+        out.addAll(explorePick);
+        for (RecoCandidate c : out) {
+            String key = c.viewKey();
+            if (!TextUtils.isEmpty(key)) {
+                servedKeys.add(key);
+            }
+        }
+        // 从池子里移除已出队的候选
+        java.util.Iterator<RecoCandidate> it = pool.iterator();
+        while (it.hasNext()) {
+            if (picked.contains(it.next().viewKey())) {
+                it.remove();
+            }
         }
         return out;
+    }
+
+    /** 打散用的作者键：优先解析出的作者 id，其次列表页提取的作者名；都没有返回 null */
+    private static String diversityAuthorKey(RecoCandidate c) {
+        if (!TextUtils.isEmpty(c.authorKey)) {
+            return "i:" + c.authorKey.trim();
+        }
+        V9MmanItem item = c.item;
+        if (item != null && !TextUtils.isEmpty(item.getAuthorText())) {
+            return "n:" + item.getAuthorText().trim();
+        }
+        return null;
+    }
+
+    /** 打散用的主标签：取画像权重 * idf 最高的那个标签，代表该视频的「题材」 */
+    private String diversityTopTag(RecoCandidate c) {
+        List<String> tags = c.tags;
+        if (tags == null || tags.isEmpty()) {
+            return null;
+        }
+        RecoProfile profile = engine.getProfile();
+        RecoTagDictionary dictionary = engine.getDictionary();
+        String best = null;
+        double bestW = Double.NEGATIVE_INFINITY;
+        for (String t : tags) {
+            double w = profile.tag(t) * dictionary.idf(t);
+            if (w > bestW) {
+                bestW = w;
+                best = t;
+            }
+        }
+        return best;
+    }
+
+    private static int countOf(Map<String, Integer> map, String key) {
+        Integer v = map.get(key);
+        return v == null ? 0 : v.intValue();
+    }
+
+    private static void bump(Map<String, Integer> map, String key) {
+        if (key == null) {
+            return;
+        }
+        Integer v = map.get(key);
+        map.put(key, Integer.valueOf(v == null ? 1 : v.intValue() + 1));
     }
 
     // ==================== 分类采样 ====================

@@ -26,6 +26,11 @@ public class RecoCandidate {
     /** 已知作者（仅当本地库里已解析过该视频时才有） */
     public String authorKey;
     public String authorName;
+    /**
+     * M77：从 info 里解析出的真实发布年份（解析不到为 -1）。
+     * 新鲜度改用它做「越老扣越多」的软衰减，不再用列表位置近似。
+     */
+    public int publishYear = -1;
 
     public double score;
     public double tagScore;

@@ -12,14 +12,16 @@ import java.util.regex.Pattern;
 /**
  * 内容式（content-based）打分器。
  * <p>
- * 分数 = 标签得分 + 分类得分 + 作者得分 + 新鲜度加成 + 探索噪声
+ * 分数 = 标签得分 + 分类得分 + 作者得分 + 新鲜度加成 + 同分抖动
  * <ul>
  *   <li>标签得分：Σ profile.tag(t) * idf(t) / sqrt(标签数)。长度归一化避免长标题天然占优。</li>
  *   <li>分类得分：profile.category(c) * categoryCoef。</li>
  *   <li>作者得分：只有当本地已知作者（该视频解析过）时才生效。</li>
- *   <li>新鲜度：分类页天然按时间倒序，用列表内位置近似"新"，越靠前加成越高。</li>
- *   <li>探索噪声：ε-greedy，以 explorationRate 的概率给候选注入较大随机量，
- *       保证画像不会把用户锁死在一个小圈子里。</li>
+ *   <li>新鲜度（M77）：优先用候选上记录的真实发布年份做「越老扣越多」的软衰减；
+ *       解析不出年份时退回旧的列表位置近似（分类页天然按时间倒序）。</li>
+ *   <li>探索（M77）：打分层不再注入大噪声（会挤占正常排序位），
+ *       改为出队时每批保留固定坑位给探索内容，见 {@code RecoRepository.take}。
+ *       这里只保留极小随机抖动用于打散同分项。</li>
  * </ul>
  *
  * @author 3mman
@@ -63,7 +65,7 @@ public class RecoScorer {
         candidate.authorScore = TextUtils.isEmpty(candidate.authorKey)
                 ? 0.0d
                 : profile.author(candidate.authorKey) * params.authorCoef;
-        candidate.recencyScore = computeRecency(positionInList, listSize) * params.recencyBias;
+        candidate.recencyScore = computeRecency(candidate, positionInList, listSize) * params.recencyBias;
         candidate.noise = computeNoise();
 
         // 作者召回来的内容天然更贴合画像，给一点固定加成，避免被分类召回淹没
@@ -92,23 +94,42 @@ public class RecoScorer {
         return sum / Math.sqrt(tags.size());
     }
 
-    private double computeRecency(int positionInList, int listSize) {
+    /**
+     * M77：新鲜度优先用真实发布年份（候选上由仓库层解析好）算「越老扣越多」的软分数；
+     * 解析不出年份时退回旧的列表位置近似（位置 0 视为最新）。
+     */
+    private double computeRecency(RecoCandidate candidate, int positionInList, int listSize) {
+        if (candidate != null && candidate.publishYear > 0) {
+            int curYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR);
+            int age = curYear - candidate.publishYear;
+            // 新片 ≈ +1.0；每年线性衰减，到 maxAgeYears 年约 -0.3，
+            // 之后继续往下扣但封底 -0.8，避免老片被无限惩罚到永不可见
+            double step = 1.3d / Math.max(1, params.maxAgeYears);
+            double f = 1.0d - age * step;
+            if (f > 1.0d) {
+                f = 1.0d;
+            } else if (f < -0.8d) {
+                f = -0.8d;
+            }
+            return f;
+        }
+        return computeRecencyByPosition(positionInList, listSize);
+    }
+
+    /** 旧逻辑兜底：列表内位置的线性衰减，第 0 位 +1.0，末位 0 */
+    private double computeRecencyByPosition(int positionInList, int listSize) {
         if (listSize <= 1) {
             return 0.0d;
         }
         int pos = positionInList < 0 ? 0 : positionInList;
-        // 线性衰减：第 0 位 +1.0，末位 0
         return 1.0d - ((double) pos / (double) (listSize - 1));
     }
 
     /**
-     * ε-greedy：以 explorationRate 的概率给出一个较大的正噪声（把非最优内容顶上来），
-     * 其余时候只给极小抖动打散同分项。
+     * M77：探索改为「保留坑位」式（见 RecoRepository.take），打分层不再注入大噪声——
+     * 高分垃圾挤占正常排序位且用户无感知的问题随之消除。只保留极小抖动打散同分项。
      */
     private double computeNoise() {
-        if (params.explorationRate > 0f && random.nextFloat() < params.explorationRate) {
-            return 3.0d + random.nextDouble() * 3.0d;
-        }
         return random.nextDouble() * 0.05d;
     }
 

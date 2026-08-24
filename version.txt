@@ -1,7 +1,7 @@
 {
-  "versionCode": 107,
-  "versionName": "1.0.74",
-  "updateMessage": "M76 修复：推荐流信息栏作者重复显示两次——①展示作者改为以列表页 info 原文提取的 authorText 为准（首屏即显，不再等详情页异步回填），详情页权威 ownerName 仅作兜底；②「添加时间」段截断表补入 作者/From/时长/Duration 标签，修复字段顺序为「添加时间…From:xx」时 added 段吞入作者导致 @作者 显示两次的问题。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.74.apk",
-  "sha256": "d7eb8b2d89e4c998edc8d4c6e30effc09c60dca27ce52bef40daf12a3d2a898d"
+  "versionCode": 108,
+  "versionName": "1.0.75",
+  "updateMessage": "M77 推荐引擎三项优化 + 分词词典 v3：①批内打散——同一作者/同一题材每批最多出现 2 条，强制混着推，不再连刷同款；②探索改保留坑位式——每批固定留 1 条位置给探索内容垫底，不再用大噪声挤占正常排序；③新鲜度改用真实发布年份软衰减（越老扣越多），去掉「超 10 年一刀切」；④分词词典升级到 v3（词条 1861→4000，语料 45270 篇），启动时自动重置旧画像重新学习。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.75.apk",
+  "sha256": "635325135cd308ec16439d80060c4ae8060af789733c5ec723644bd2b8b08362"
 }
