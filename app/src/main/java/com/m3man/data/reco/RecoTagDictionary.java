@@ -23,8 +23,9 @@ import java.util.Set;
  * 文档频率（df）后产出，随包放在 assets/reco/tag_dictionary.json。
  * <p>
  * 运行时不做中文分词模型加载（体积/性能考虑），而是用「词典正向最大匹配」把标题切成标签：
- * 命中词典的词才成为标签；对完全未命中的中文片段，退化为相邻二元组（bigram），
- * 保证即使词典很小算法也能工作。
+ * 命中词典的词才成为标签。M78 起完全未命中的中文碎片直接丢弃，不再退化为相邻二元组
+ * （bigram）——「啥玩/在响/意在」这类无意义组合会以高 idf 混入画像、污染学习记录与打分；
+ * 口语化长句标题切不出标签时，该视频仍可靠分类/作者/新鲜度信号参与推荐。
  * <p>
  * 词典格式：
  * <pre>
@@ -42,12 +43,10 @@ public class RecoTagDictionary {
 
     public static final String ASSET_PATH = "reco/tag_dictionary.json";
 
-    /** 词典未命中（bigram）标签的兜底 df：取较大值压低噪声标签的 idf（噪声不应高于主题词） */
+    /** 词典未登记标签的兜底 df：取较大值压低噪声标签的 idf（噪声不应高于主题词） */
     private static final int FALLBACK_DF = 500;
     private static final int DEFAULT_TOTAL_DOCS = 20000;
     private static final int MAX_TAGS_PER_TITLE = 12;
-    /** 未命中片段只有足够长（>=4 字）才切成相邻二元组，2~3 字碎片直接丢弃（多为连接词/无意义组合） */
-    private static final int MIN_BIGRAM_RUN = 4;
     /** 无信息量的常见 ASCII 短词（丢弃，不进标签） */
     private static final java.util.Set<String> STOP_ASCII = new java.util.HashSet<>(java.util.Arrays.asList(
             "hd", "4k", "2k", "8k", "av", "sub", "tv", "dvd", "vip", "app",
@@ -125,7 +124,7 @@ public class RecoTagDictionary {
                 }
             }
         } catch (Exception e) {
-            // 词表缺失不应导致功能不可用：退化为纯 bigram 模式
+            // 词表缺失不应导致功能不可用：中文标签将不命中，ASCII 标签仍按规则处理。
             tagDf.clear();
         } finally {
             closeQuietly(reader);
@@ -177,40 +176,37 @@ public class RecoTagDictionary {
     /**
      * 把标题切成标签集合（去重、有序、限量）。
      * <p>
-     * 词典命中的词（含有效 ASCII 词）排在最前，未命中片段的 bigram 兜底排最后，
-     * 避免噪声标签占满名额。bigram 标签可用 {@link #isDictionaryWord(String)} 区分。
+     * 只保留词典命中的词（含有效 ASCII 词）；未命中片段直接丢弃，不产生噪声标签。
      */
     public List<String> tokenize(String title) {
         List<String> out = new ArrayList<>();
         if (TextUtils.isEmpty(title)) {
             return out;
         }
-        List<String> dictTags = new ArrayList<>();
-        List<String> fallbackTags = new ArrayList<>();
-        Set<String> seenDict = new HashSet<>();
-        Set<String> seenFallback = new HashSet<>();
+        Set<String> seen = new HashSet<>();
         String text = normalize(title);
         int n = text.length();
         int i = 0;
-        StringBuilder pending = new StringBuilder();
         while (i < n) {
             char c = text.charAt(i);
             if (isSeparator(c)) {
-                flushPending(pending, seenFallback, fallbackTags);
                 i++;
                 continue;
             }
             if (isCjk(c)) {
                 int matchedLen = longestMatch(text, i);
                 if (matchedLen > 0) {
-                    flushPending(pending, seenFallback, fallbackTags);
                     String w = text.substring(i, i + matchedLen);
-                    if (seenDict.add(w)) {
-                        dictTags.add(w);
+                    if (seen.add(w)) {
+                        out.add(w);
+                        if (out.size() >= MAX_TAGS_PER_TITLE) {
+                            return out;
+                        }
                     }
                     i += matchedLen;
                 } else {
-                    pending.append(c);
+                    // M78：词典未命中的碎片直接丢弃——bigram 兜底产出的
+                    // 「啥玩/在响/意在」类组合会污染画像与学习记录，不再生成
                     i++;
                 }
                 continue;
@@ -220,55 +216,24 @@ public class RecoTagDictionary {
                 while (j < n && isAsciiWord(text.charAt(j))) {
                     j++;
                 }
-                flushPending(pending, seenFallback, fallbackTags);
                 String word = text.substring(i, j);
-                if (isUsefulAsciiWord(word) && seenDict.add(word)) {
-                    dictTags.add(word);
+                if (isUsefulAsciiWord(word) && seen.add(word)) {
+                    out.add(word);
+                    if (out.size() >= MAX_TAGS_PER_TITLE) {
+                        return out;
+                    }
                 }
                 i = j;
                 continue;
             }
-            flushPending(pending, seenFallback, fallbackTags);
             i++;
-        }
-        flushPending(pending, seenFallback, fallbackTags);
-
-        for (String s : dictTags) {
-            out.add(s);
-            if (out.size() >= MAX_TAGS_PER_TITLE) {
-                return out;
-            }
-        }
-        for (String s : fallbackTags) {
-            out.add(s);
-            if (out.size() >= MAX_TAGS_PER_TITLE) {
-                break;
-            }
         }
         return out;
     }
 
-    /** 该标签是否为词典中的正式词（false = bigram 兜底噪声标签） */
+    /** 该标签是否为词典中的正式词 */
     public boolean isDictionaryWord(String tag) {
         return !TextUtils.isEmpty(tag) && tagDf.containsKey(tag);
-    }
-
-    /** 未命中词典的中文片段 → 足够长才切相邻二元组兜底（短碎片丢弃） */
-    private void flushPending(StringBuilder pending, Set<String> seen, List<String> fallbackTags) {
-        if (pending.length() == 0) {
-            return;
-        }
-        String s = pending.toString();
-        pending.setLength(0);
-        if (s.length() < MIN_BIGRAM_RUN) {
-            return;
-        }
-        for (int k = 0; k + 2 <= s.length(); k++) {
-            String bg = s.substring(k, k + 2);
-            if (seen.add(bg)) {
-                fallbackTags.add(bg);
-            }
-        }
     }
 
     /** 正向最大匹配 */

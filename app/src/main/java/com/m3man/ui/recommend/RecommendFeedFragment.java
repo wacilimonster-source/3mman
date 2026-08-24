@@ -177,6 +177,8 @@ public class RecommendFeedFragment extends BaseFragment
 
         initViews();
         loadMore(true);
+        // 推荐流是整屏视频流：竖屏也保持状态栏透明（视频满铺），不要紫色状态栏。
+        applyFeedPortraitStatusBar();
     }
 
     private void initViews() {
@@ -539,6 +541,61 @@ public class RecommendFeedFragment extends BaseFragment
         // 退出横屏后，JZVD 完成/释放应回退到竖屏（恢复默认行为）
         JZVideoPlayer.NORMAL_ORIENTATION = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
 
+        if (appliedPlaybackOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+            appliedPlaybackOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+            getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        }
+        Window window = getActivity().getWindow();
+        window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.setNavigationBarColor(Color.BLACK);
+        }
+        // 退出横屏但仍在推荐流内：保持状态栏透明（视频满铺），不再回退到紫色状态栏。
+        applyFeedPortraitStatusBar();
+        if (landscapeBackView != null) {
+            landscapeBackView.setVisibility(View.GONE);
+        }
+        if (bottomNavigationBarView() != null) {
+            bottomNavigationBarView().setVisibility(View.VISIBLE);
+        }
+        View content = getActivity().findViewById(R.id.content);
+        if (content != null && content.getLayoutParams() instanceof android.widget.FrameLayout.LayoutParams
+                && normalContentBottomMargin >= 0) {
+            android.widget.FrameLayout.LayoutParams lp =
+                    (android.widget.FrameLayout.LayoutParams) content.getLayoutParams();
+            lp.bottomMargin = normalContentBottomMargin;
+            content.setLayoutParams(lp);
+        }
+        // 恢复导航栏默认（不重叠），底部留白回到系统处理
+        if (getActivity() instanceof BaseAppCompatActivity) {
+            ((BaseAppCompatActivity) getActivity()).setNavigationBarOverlap(false);
+        }
+    }
+
+    /** 推荐流竖屏也保持状态栏透明 + 隐藏 StatusBarUtil 紫色假状态栏 View，让视频满铺到顶部。 */
+    private void applyFeedPortraitStatusBar() {
+        if (getActivity() == null) {
+            return;
+        }
+        Window window = getActivity().getWindow();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.setStatusBarColor(Color.TRANSPARENT);
+        }
+        hideFakeStatusBarView(window);
+    }
+
+    /**
+     * 离开推荐流（切到其它 Tab / Fragment 销毁）时恢复 App 默认紫色状态栏，
+     * 保证其它页面外观正确；同时解除横屏锁、清沉浸式、恢复底部导航。
+     */
+    private void restoreAppStatusBar() {
+        landscapeLock = false;
+        if (getActivity() == null) {
+            return;
+        }
+        // 退出推荐流后，JZVD 完成/释放应回退到竖屏（恢复默认行为）
+        JZVideoPlayer.NORMAL_ORIENTATION = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
         if (appliedPlaybackOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
             appliedPlaybackOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
             getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
@@ -1347,7 +1404,8 @@ public class RecommendFeedFragment extends BaseFragment
             stopPlaybackForLeavingPage();
             recordWatchRatio(currentPosition);
             persistAsync(true);
-            restorePortrait();
+            // 切到其它 Tab：恢复 App 默认紫色状态栏（推荐流内才透明）
+            restoreAppStatusBar();
         } else if (isResumed()) {
             if (currentPosition >= 0 && adapter != null) {
                 applyAutoRotation(adapter.getItem(currentPosition));
@@ -1390,7 +1448,8 @@ public class RecommendFeedFragment extends BaseFragment
             prefetcher.release();
         }
         JZVideoPlayer.releaseAllVideos();
-        restorePortrait();
+        // Fragment 销毁（离开推荐流）：恢复 App 默认紫色状态栏
+        restoreAppStatusBar();
         if (getActivity() != null) {
             try {
                 getActivity().getWindow().getDecorView()

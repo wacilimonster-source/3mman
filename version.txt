@@ -1,7 +1,7 @@
 {
-  "versionCode": 114,
-  "versionName": "1.0.81",
-  "updateMessage": "M83 横屏体验彻底修复：① 翻页不再闪竖屏（修复 JZVideoPlayer.releaseAllVideos 内部 onCompletion 强制回退竖屏，锁定期间保持横屏）；② 横屏顶部紫色状态栏与底部留白彻底消除（隐藏 StatusBarUtil 注入的紫色假状态栏 View，状态栏/导航栏透明 + IMMERSIVE_STICKY 沉浸式，系统栏被唤出自动收回）；③ 右侧快捷操作栏与底部进度条完整可见。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.81.apk",
-  "sha256": "22a6d0077500e29a55fe0b09f3481384f8a32ffdb688ca190ed8849f027b0655"
+  "versionCode": 115,
+  "versionName": "1.0.82",
+  "updateMessage": "M83 横屏体验彻底修复（补充 v1.0.81 漏掉的竖屏紫条）：① 横屏翻页不再闪竖屏（修复 JZVideoPlayer.releaseAllVideos 内部 onCompletion 强制回退竖屏，锁定时保持横屏）；② 横屏顶部紫色状态栏与底部留白彻底消除（隐藏 StatusBarUtil 注入的紫色假状态栏 View，状态栏/导航栏透明 + IMMERSIVE_STICKY 沉浸式，系统栏被唤出自动收回）；③ 退出横屏回到竖屏后也保持视频满铺、不再残留紫色状态栏——竖屏推荐流同样状态栏透明、隐藏紫色假状态栏 View，仅切到其它 Tab / 退出推荐流才恢复 App 默认紫色。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.82.apk",
+  "sha256": "ed9922cfa8e16afcb7a8cf6c5e410672a7eba0b8b5b7a003780cb442b8e84b06"
 }

@@ -32,6 +32,14 @@ public interface ISetting {
 
     void setOpenNightMode(boolean openNightMode);
 
+    boolean isOpenHttpProxy();
+
+    void setOpenHttpProxy(boolean openHttpProxy);
+
+    String getProxyIpAddress();
+
+    int getProxyPort();
+
     boolean isHaveUnFinishDownloadVideo();
 
     boolean isHaveFinishDownloadVideoFile();

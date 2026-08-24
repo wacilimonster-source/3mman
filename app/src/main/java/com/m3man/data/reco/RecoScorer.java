@@ -166,7 +166,7 @@ public class RecoScorer {
             // 标签数越多，单个标签分到的信号越弱（避免长标题污染画像）
             double per = delta / Math.sqrt(tags.size());
             for (String t : tags) {
-                // 真词正常学习；bigram 兜底标签只学三成，避免噪声主导画像
+                // 当前中文标签均来自词典；保留统一判断，兼容有效 ASCII 标签。
                 double learn = dictionary.isDictionaryWord(t) ? 1.0d : 0.3d;
                 // idf 高（冷门）的词学习得更快
                 double scaled = per * (dictionary.idf(t) / 3.0d) * learn;

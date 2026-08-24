@@ -22,11 +22,16 @@ import com.qmuiteam.qmui.widget.grouplist.QMUIGroupListView;
 import com.sdsmdg.tastytoast.TastyToast;
 import com.m3man.R;
 import com.m3man.constants.Constants;
+import com.m3man.data.DataManager;
 import com.m3man.data.network.Api;
 import com.m3man.data.db.entity.AutoCompleteEntity;
 import com.m3man.data.prefs.AppPreferencesHelper;
+import com.m3man.data.reco.RecoEngine;
+import com.m3man.data.reco.RecoParams;
 import com.m3man.ui.MvpActivity;
 import com.m3man.ui.mman9video.user.UserLoginActivity;
+import com.m3man.ui.proxy.ProxySettingActivity;
+import com.m3man.ui.recommend.RecoSettingsDialog;
 import com.m3man.utils.DialogUtils;
 import com.m3man.utils.PlaybackEngine;
 import com.m3man.utils.SDCardUtils;
@@ -64,6 +69,7 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
     private AlertDialog moveOldDirDownloadVideoToNewDirDiaog;
     private boolean isTestSuccess = false;
     private String testBaseUrl;
+    private QMUICommonListItemView openProxyItemWithSwitch;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -92,6 +98,37 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
 
     private void initListener() {
         btSettingExitAccount.setOnClickListener(this);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 从代理设置页返回后刷新开关与详情
+        if (openProxyItemWithSwitch != null && presenter != null) {
+            String host = presenter.getProxyIpAddress();
+            int port = presenter.getProxyPort();
+            if (!TextUtils.isEmpty(host) && port > 0) {
+                openProxyItemWithSwitch.setDetailText(host + " : " + port);
+            }
+            openProxyItemWithSwitch.getSwitch().setChecked(presenter.isOpenHttpProxy());
+        }
+    }
+
+    /** 推荐调参弹窗（从「我的」迁入）。 */
+    private void showRecoTuneDialog() {
+        final RecoEngine engine = RecoEngine.get(this);
+        new RecoSettingsDialog(this, engine, presenter.getDataManager(), new RecoSettingsDialog.OnParamsChangedListener() {
+            @Override
+            public void onParamsChanged(RecoParams params) {
+                showMessage("推荐参数已保存", TastyToast.SUCCESS);
+            }
+
+            @Override
+            public void onMemoryCleared() {
+                engine.resetMemory();
+                showMessage("推荐记忆已清除", TastyToast.SUCCESS);
+            }
+        }).show();
     }
 
 
@@ -129,6 +166,55 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
             }
         });
         tsec.addTo(qmuiGroupListView);
+
+        // HTTP 代理（从「我的」迁入：开关 + 长按进入详细设置页）
+        openProxyItemWithSwitch = qmuiGroupListView.createItemView(getString(R.string.proxy_setting));
+        openProxyItemWithSwitch.setOrientation(QMUICommonListItemView.VERTICAL);
+        String proxyHost = presenter.getProxyIpAddress();
+        int proxyPort = presenter.getProxyPort();
+        if (TextUtils.isEmpty(proxyHost) || proxyPort == 0) {
+            openProxyItemWithSwitch.setDetailText("长按设置");
+        } else {
+            openProxyItemWithSwitch.setDetailText(proxyHost + " : " + proxyPort);
+        }
+        openProxyItemWithSwitch.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_SWITCH);
+        openProxyItemWithSwitch.getSwitch().setChecked(presenter.isOpenHttpProxy());
+        openProxyItemWithSwitch.getSwitch().setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                // 每次以当前配置为准，避免从代理设置页返回后仍使用创建列表项时的旧地址。
+                String currentHost = presenter.getProxyIpAddress();
+                int currentPort = presenter.getProxyPort();
+                if (TextUtils.isEmpty(currentHost) || currentPort == 0) {
+                    buttonView.setChecked(false);
+                    presenter.setOpenHttpProxy(false);
+                    return;
+                }
+                presenter.setOpenHttpProxy(isChecked);
+            }
+        });
+        QMUIGroupListView.newSection(this)
+                .addItemView(openProxyItemWithSwitch, null, new View.OnLongClickListener() {
+                    @Override
+                    public boolean onLongClick(View v) {
+                        Intent intent = new Intent(SettingActivity.this, ProxySettingActivity.class);
+                        startActivityWithAnimation(intent);
+                        return false;
+                    }
+                })
+                .addTo(qmuiGroupListView);
+
+        // 推荐调参（从「我的」迁入）
+        QMUICommonListItemView recoTuneItemWithChevron = qmuiGroupListView.createItemView(getString(R.string.reco_tune));
+        recoTuneItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
+        QMUIGroupListView.newSection(this)
+                .addItemView(recoTuneItemWithChevron, new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        showRecoTuneDialog();
+                    }
+                })
+                .addTo(qmuiGroupListView);
 
         //播放引擎
         QMUICommonListItemView playEngineItemWithChevron = qmuiGroupListView.createItemView(getString(R.string.playback_engine));

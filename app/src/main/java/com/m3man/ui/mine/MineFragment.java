@@ -32,13 +32,9 @@ import com.m3man.ui.mman9video.favorite.FavoriteActivity;
 import com.m3man.ui.mman9video.author.AuthorFavoriteActivity;
 import com.m3man.ui.mman9video.history.HistoryActivity;
 import com.m3man.ui.mman9video.user.UserLoginActivity;
-import com.m3man.ui.proxy.ProxySettingActivity;
-import com.m3man.data.DataManager;
-import com.m3man.data.reco.RecoEngine;
-import com.m3man.data.reco.RecoParams;
-import com.m3man.ui.recommend.RecoSettingsDialog;
 import com.m3man.ui.setting.SettingActivity;
 import com.m3man.utils.AppLog;
+import com.m3man.utils.PlayUiPrefs;
 import com.m3man.utils.UserHelper;
 import com.m3man.widget.ObservableScrollView;
 
@@ -74,18 +70,15 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
     @BindView(R.id.ov_setting_wrapper)
     ObservableScrollView observableScrollView;
     private String myFavoriteStr;
-    private String proxyStr;
     public String myDownloadStr;
     private String viewHistoryStr;
     private String aboutMeStr;
     private String moreSettingStr;
     private String viewLogStr;
-    private String recoTuneStr;
 
     private QMUICommonListItemView logoutItemView;
 
     private int scrollYPosition = 0;
-    private QMUICommonListItemView openProxyItemWithSwitch;
 
     /**
      * 恢复滚动位置的延迟任务，需要在onDestroyView中移除，避免Fragment销毁后回调造成内存泄漏/空指针
@@ -94,8 +87,6 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
 
     @Inject
     protected MinePresenter minePresenter;
-    @Inject
-    protected DataManager dataManager;
 
     public MineFragment() {
 
@@ -161,9 +152,6 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
         if (logoutItemView != null) {
             logoutItemView.setVisibility(presenter.isUserLogin() ? View.VISIBLE : View.GONE);
         }
-        String proxyStr = presenter.getProxyIpAddress();
-        int proxyPort = presenter.getProxyPort();
-        updateProxySetUI(proxyStr, proxyPort);
     }
 
     @Override
@@ -174,41 +162,14 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
 
     private void initStr() {
         myFavoriteStr = getString(R.string.my_collect);
-        proxyStr = getString(R.string.proxy_setting);
         myDownloadStr = getString(R.string.my_download);
         viewHistoryStr = getString(R.string.history_views);
         aboutMeStr = getString(R.string.about_me);
         moreSettingStr = getString(R.string.more_setting);
         viewLogStr = "查看日志";
-        recoTuneStr = "推荐调参";
     }
 
     private void initMineSection() {
-
-        boolean openProxy = presenter.isOpenHttpProxy();
-        openProxyItemWithSwitch = mineList.createItemView(proxyStr);
-        openProxyItemWithSwitch.setOrientation(QMUICommonListItemView.VERTICAL);
-        final String proxyHost = presenter.getProxyIpAddress();
-        final int port = presenter.getProxyPort();
-        if (TextUtils.isEmpty(proxyHost) || port == 0) {
-            openProxyItemWithSwitch.setDetailText("长按设置");
-        } else {
-            openProxyItemWithSwitch.setDetailText(proxyHost + " : " + port);
-        }
-
-        openProxyItemWithSwitch.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_SWITCH);
-        openProxyItemWithSwitch.getSwitch().setChecked(openProxy);
-        openProxyItemWithSwitch.getSwitch().setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                if (TextUtils.isEmpty(proxyHost) || port == 0) {
-                    buttonView.setChecked(false);
-                    presenter.setOpenHttpProxy(false);
-                    return;
-                }
-                presenter.setOpenHttpProxy(isChecked);
-            }
-        });
 
         QMUICommonListItemView favoriteItemWithChevron = mineList.createItemView(myFavoriteStr);
         favoriteItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
@@ -243,27 +204,31 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
                 .addTo(mineList);
 
         QMUIGroupListView.newSection(context)
-                .addItemView(openProxyItemWithSwitch, null, new View.OnLongClickListener() {
-                    @Override
-                    public boolean onLongClick(View v) {
-                        Intent intent = new Intent(context, ProxySettingActivity.class);
-                        startActivityWithAnimation(intent);
-                        return false;
-                    }
-                })
+                .setTitle("播放界面")
+                .addItemView(createPlayUiSwitchItem(getString(R.string.reco_auto_rotate_landscape),
+                        PlayUiPrefs.isAutoRotateLandscape(context), new CompoundButton.OnCheckedChangeListener() {
+                            @Override
+                            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                                PlayUiPrefs.setAutoRotateLandscape(context, isChecked);
+                            }
+                        }), null)
+                .addItemView(createPlayUiSwitchItem(getString(R.string.reco_hide_action_bar),
+                        PlayUiPrefs.isHideActionBar(context), new CompoundButton.OnCheckedChangeListener() {
+                            @Override
+                            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                                PlayUiPrefs.setHideActionBar(context, isChecked);
+                            }
+                        }), null)
                 .addTo(mineList);
 
         QMUICommonListItemView moreSettingItemWithChevron = mineList.createItemView(moreSettingStr);
         moreSettingItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
 
-        QMUICommonListItemView recoTuneItemWithChevron = mineList.createItemView(recoTuneStr);
-        recoTuneItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
         QMUICommonListItemView viewLogItemWithChevron = mineList.createItemView(viewLogStr);
         viewLogItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
 
         QMUIGroupListView.newSection(context)
                 .addItemView(moreSettingItemWithChevron, this)
-                .addItemView(recoTuneItemWithChevron, this)
                 .addItemView(viewLogItemWithChevron, this)
                 .addTo(mineList);
 
@@ -283,16 +248,14 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
         }
     }
 
-    public void updateProxySetUI(String proxyStr, int proxyPort) {
-        //视图可能还未创建（Activity提前调用），做空校验
-        if (openProxyItemWithSwitch == null || presenter == null) {
-            return;
-        }
-        if (!TextUtils.isEmpty(proxyStr) && proxyPort > 0) {
-            openProxyItemWithSwitch.setDetailText(proxyStr + " : " + proxyPort);
-        }
-        boolean openProxy = presenter.isOpenHttpProxy();
-        openProxyItemWithSwitch.getSwitch().setChecked(openProxy);
+    /** 生成一个带开关的列表项（用于「播放界面」分组）。 */
+    private QMUICommonListItemView createPlayUiSwitchItem(String title, boolean checked,
+                                                          CompoundButton.OnCheckedChangeListener listener) {
+        QMUICommonListItemView item = mineList.createItemView(title);
+        item.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_SWITCH);
+        item.getSwitch().setChecked(checked);
+        item.getSwitch().setOnCheckedChangeListener(listener);
+        return item;
     }
 
     private void userImageViewClick() {
@@ -411,8 +374,6 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
         } else if (content.equals(moreSettingStr)) {
             Intent intent = new Intent(context, SettingActivity.class);
             startActivityWithAnimation(intent);
-        } else if (content.equals(recoTuneStr)) {
-            showRecoTuneDialog();
         } else if (content.equals(viewLogStr)) {
             showLogPreviewDialog();
         }
@@ -442,23 +403,6 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
         builder.setPositiveButton("复制全部", (dialog, which) -> copyLogToClipboard());
         builder.setNegativeButton("关闭", null);
         builder.show();
-    }
-
-    /** 推荐调参统一放在“我的”页面。 */
-    private void showRecoTuneDialog() {
-        final RecoEngine engine = RecoEngine.get(context);
-        new RecoSettingsDialog(getActivity(), engine, dataManager, new RecoSettingsDialog.OnParamsChangedListener() {
-            @Override
-            public void onParamsChanged(RecoParams params) {
-                showMessage("推荐参数已保存", TastyToast.SUCCESS);
-            }
-
-            @Override
-            public void onMemoryCleared() {
-                engine.resetMemory();
-                showMessage("推荐记忆已清除", TastyToast.SUCCESS);
-            }
-        }).show();
     }
 
     /** 复制诊断日志到剪贴板 */

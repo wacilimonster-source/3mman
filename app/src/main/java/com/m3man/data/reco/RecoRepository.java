@@ -1,11 +1,16 @@
 package com.m3man.data.reco;
 
+import android.graphics.BitmapFactory;
 import android.text.TextUtils;
 
 import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.model.BaseResult;
+import com.m3man.utils.PlayUiPrefs;
 
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -64,9 +69,86 @@ public class RecoRepository {
     /** 连续拉取失败次数，用于让 UI 提示错误 */
     private int consecutiveFailures = 0;
 
+    /** M78：方向筛选（0=全部 1=仅竖屏 2=仅横屏）；严格过滤，不符合方向的候选会被丢弃 */
+    private int orientationFilter = PlayUiPrefs.FILTER_ALL;
+    /** M78：开启自动横屏时，即使筛选为「全部」也需要探测封面方向。 */
+    private boolean autoRotateLandscape;
+
     public RecoRepository(DataManager dataManager, RecoEngine engine) {
         this.dataManager = dataManager;
         this.engine = engine;
+    }
+
+    public void setOrientationFilter(int filter) {
+        this.orientationFilter = filter;
+    }
+
+    public void setAutoRotateLandscape(boolean enabled) {
+        this.autoRotateLandscape = enabled;
+    }
+
+    /** 该候选是否通过当前方向筛选；筛选开启时未知方向严格不放行。 */
+    private boolean passesOrientation(RecoCandidate c) {
+        if (orientationFilter == PlayUiPrefs.FILTER_ALL) {
+            return true;
+        }
+        if (c.orientation == RecoCandidate.ORIENT_UNKNOWN) {
+            return false;
+        }
+        int target = orientationFilter == PlayUiPrefs.FILTER_PORTRAIT
+                ? RecoCandidate.ORIENT_PORTRAIT : RecoCandidate.ORIENT_LANDSCAPE;
+        return c.orientation == target;
+    }
+
+    private int countPassing() {
+        int n = 0;
+        for (RecoCandidate c : pool) {
+            if (passesOrientation(c)) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** 探测封面尺寸以判定视频方向（同步、短超时，失败则保持 UNKNOWN） */
+    private void probeOrientation(RecoCandidate c) {
+        V9MmanItem item = c.item;
+        if (item == null) {
+            return;
+        }
+        String img = item.getImgUrl();
+        if (TextUtils.isEmpty(img)) {
+            return;
+        }
+        HttpURLConnection conn = null;
+        InputStream is = null;
+        try {
+            URL u = new URL(img);
+            conn = (HttpURLConnection) u.openConnection();
+            conn.setConnectTimeout(3000);
+            conn.setReadTimeout(3000);
+            conn.setDoInput(true);
+            conn.connect();
+            is = conn.getInputStream();
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inJustDecodeBounds = true;
+            BitmapFactory.decodeStream(is, null, opts);
+            if (opts.outWidth > 0 && opts.outHeight > 0) {
+                c.orientation = RecoCandidate.classifyOrientation(opts.outWidth, opts.outHeight);
+            }
+        } catch (Exception ignored) {
+            // 探测失败不影响推荐，保持 UNKNOWN
+        } finally {
+            if (is != null) {
+                try {
+                    is.close();
+                } catch (Exception ignored) {
+                }
+            }
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
     }
 
     public int poolSize() {
@@ -94,7 +176,15 @@ public class RecoRepository {
         return Observable.defer(new java.util.concurrent.Callable<Observable<List<RecoCandidate>>>() {
             @Override
             public Observable<List<RecoCandidate>> call() {
-                if (pool.size() >= want) {
+                // M78：方向筛选开启时先补齐池内未知方向的探测（本调用运行在 IO 线程）
+                if (orientationFilter != PlayUiPrefs.FILTER_ALL || autoRotateLandscape) {
+                    for (RecoCandidate c : pool) {
+                        if (c.orientation == RecoCandidate.ORIENT_UNKNOWN) {
+                            probeOrientation(c);
+                        }
+                    }
+                }
+                if (countPassing() >= want) {
                     return Observable.just(take(want));
                 }
                 return fetchOneSource()
@@ -102,6 +192,14 @@ public class RecoRepository {
                             @Override
                             public List<RecoCandidate> apply(List<RecoCandidate> fetched) {
                                 addToPool(fetched);
+                                // 新入池的候选同样需要方向探测后再出队
+                                if (orientationFilter != PlayUiPrefs.FILTER_ALL || autoRotateLandscape) {
+                                    for (RecoCandidate c : fetched) {
+                                        if (c.orientation == RecoCandidate.ORIENT_UNKNOWN) {
+                                            probeOrientation(c);
+                                        }
+                                    }
+                                }
                                 return take(want);
                             }
                         });
@@ -294,17 +392,17 @@ public class RecoRepository {
         List<RecoCandidate> explorePick = new ArrayList<>();
         Set<String> picked = new HashSet<>();
         if (exploreQuota > 0) {
-            for (RecoCandidate c : pool) {
-                if (explorePick.size() >= exploreQuota) {
-                    break;
-                }
-                String key = c.viewKey();
-                if (c.from == RecoCandidate.FROM_EXPLORE && !TextUtils.isEmpty(key)
-                        && !servedKeys.contains(key)) {
-                    explorePick.add(c);
-                    picked.add(key);
-                }
+        for (RecoCandidate c : pool) {
+            if (explorePick.size() >= exploreQuota) {
+                break;
             }
+            String key = c.viewKey();
+            if (c.from == RecoCandidate.FROM_EXPLORE && !TextUtils.isEmpty(key)
+                    && !servedKeys.contains(key) && passesOrientation(c)) {
+                explorePick.add(c);
+                picked.add(key);
+            }
+        }
         }
 
         // 2) 正片位：按分数顺序出队，受「同作者/同主标签」限额约束
@@ -318,7 +416,8 @@ public class RecoRepository {
                 break;
             }
             String key = c.viewKey();
-            if (TextUtils.isEmpty(key) || servedKeys.contains(key) || picked.contains(key)) {
+            if (TextUtils.isEmpty(key) || servedKeys.contains(key) || picked.contains(key)
+                    || !passesOrientation(c)) {
                 continue;
             }
             String ak = diversityAuthorKey(c);
@@ -341,7 +440,8 @@ public class RecoRepository {
                     break;
                 }
                 String key = c.viewKey();
-                if (TextUtils.isEmpty(key) || servedKeys.contains(key) || picked.contains(key)) {
+                if (TextUtils.isEmpty(key) || servedKeys.contains(key) || picked.contains(key)
+                        || !passesOrientation(c)) {
                     continue;
                 }
                 mainPick.add(c);

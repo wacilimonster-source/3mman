@@ -22,6 +22,27 @@ public class RecoCandidate {
     public final String categoryValue;
     public final int from;
 
+    /** 方向：未知（封面尺寸尚未探测到） */
+    public static final int ORIENT_UNKNOWN = 0;
+    /** 方向：竖屏（宽高比 < 0.9） */
+    public static final int ORIENT_PORTRAIT = 1;
+    /** 方向：横屏（宽高比 > 1.1，方形封面归入横屏） */
+    public static final int ORIENT_LANDSCAPE = 2;
+    /** M78：封面方向，默认未知，由 RecoRepository 探测封面尺寸后填充 */
+    public int orientation = ORIENT_UNKNOWN;
+
+    /** 根据封面宽高比判断方向：<0.9 竖 / >1.1 横 / 其余（含方形）归横屏 */
+    public static int classifyOrientation(int w, int h) {
+        if (w <= 0 || h <= 0) {
+            return ORIENT_UNKNOWN;
+        }
+        float ratio = (float) w / (float) h;
+        if (ratio < 0.9f) {
+            return ORIENT_PORTRAIT;
+        }
+        return ORIENT_LANDSCAPE;
+    }
+
     public List<String> tags;
     /** 已知作者（仅当本地库里已解析过该视频时才有） */
     public String authorKey;

@@ -175,6 +175,31 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
     }
 
     @Override
+    public boolean isOpenHttpProxy() {
+        return dataManager.isOpenHttpProxy();
+    }
+
+    @Override
+    public void setOpenHttpProxy(boolean openHttpProxy) {
+        dataManager.setOpenHttpProxy(openHttpProxy);
+    }
+
+    @Override
+    public String getProxyIpAddress() {
+        return dataManager.getProxyIpAddress();
+    }
+
+    @Override
+    public int getProxyPort() {
+        return dataManager.getProxyPort();
+    }
+
+    /** 供 SettingsActivity 构造 RecoSettingsDialog 使用。 */
+    public DataManager getDataManager() {
+        return dataManager;
+    }
+
+    @Override
     public boolean isHaveUnFinishDownloadVideo() {
         return dataManager.loadDownloadingData().size() != 0;
     }
