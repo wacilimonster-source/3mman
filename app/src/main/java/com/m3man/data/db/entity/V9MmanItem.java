@@ -37,6 +37,9 @@ public class V9MmanItem implements Serializable {
     private String imgUrl;
     private String duration;
     private String info;
+    /** M75：列表页解析出的作者名兜底；@Transient 不落库，详情页回填时以权威值为准 */
+    @Transient
+    private String authorText;
     @Transient
     private String source;
     /** 持久化的来源标记（如 91porny），本地收藏后重启也能识别来源 */
@@ -219,6 +222,15 @@ public class V9MmanItem implements Serializable {
 
     public void setInfo(String info) {
         this.info = info;
+    }
+
+    /** M75：列表页作者兜底（详情页解析失败时推荐流仍显示 @作者） */
+    public String getAuthorText() {
+        return this.authorText;
+    }
+
+    public void setAuthorText(String authorText) {
+        this.authorText = authorText;
     }
 
     public String getSource() {

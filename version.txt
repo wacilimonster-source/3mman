@@ -1,7 +1,7 @@
 {
-  "versionCode": 105,
-  "versionName": "1.0.72",
-  "updateMessage": "M74 修复：下载功能 IOException(No such file or directory) 根因修复——①缓存拷贝分支(copyCacheFile)补齐目标父目录确保(对齐常规下载路径 ensureDownloadDir)，消除未物化下载目录导致的 ENOENT；②代理 LRU 在命中判断与拷贝之间淘汰源文件(TOCTOU)时，回退到正常重新下载而非抛错，并加 bypassCacheCopy 防递归；③收藏导出(exportData)补 EXPORT_FILE 父目录 /3mman/ 创建；④全库同类「目录未确保即写入」缺陷横向扫描并修复，行为一致无遗漏。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.72.apk",
-  "sha256": "d2a296ea72257535bd0625d4906e05d6d82ec644de4c2403f889c30f847cadbb"
+  "versionCode": 106,
+  "versionName": "1.0.73",
+  "updateMessage": "M75 修复：推荐流作者显示兜底与信息栏精简——①列表页解析时顺带提取作者名存入 authorText（@Transient 不落库），详情页解析静默失败时推荐流仍显示 @作者 而非缺段；②信息栏精简为「@作者 · 添加时间」，时长由播放器进度条呈现，不再塞入不完整的第二行。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.73.apk",
+  "sha256": "627515546429203197117d179d1fc77cb7769255a00a3b32533ac342129ba8e1"
 }

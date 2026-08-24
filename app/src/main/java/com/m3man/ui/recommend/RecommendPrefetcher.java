@@ -359,7 +359,10 @@ public class RecommendPrefetcher {
         }
         String msg = throwable == null || TextUtils.isEmpty(throwable.getMessage())
                 ? "解析视频链接失败了" : throwable.getMessage();
-        Logger.t(TAG).d("parse failed " + viewKey + " : " + msg);
+        // M75：升为 AppLog.e（diag 可见），便于定位某条视频详情页 HTTP 200 后静默解析失败的根因
+        // （如 c48a0932f2e2d58d7fa4 反复重打详情页却无成功日志）。
+        AppLog.e("RecoPrefetcher", "推荐解析异常 viewKey=" + viewKey + " : "
+                + (throwable == null ? "null" : throwable.getClass().getSimpleName() + ": " + msg));
         for (ResolveCallback cb : drainWaiting(viewKey)) {
             try {
                 cb.onFailed(viewKey, msg);

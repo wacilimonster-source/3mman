@@ -236,6 +236,14 @@ public class ParseV9MmanVideo {
 
             String allInfo = item.text();
 
+            // M75：列表页顺带提取作者名作兜底，存到 authorText。
+            // 详情页解析失败时（如 c48a0932 类静默失败），推荐流仍能显示 @作者，
+            // 而不是直接缺段（此前缺段是因为 authorName 唯一来源是详情页成功解析）。
+            String listAuthor = extractAuthor(allInfo);
+            if (!TextUtils.isEmpty(listAuthor)) {
+                v9MmanItem.setAuthorText(listAuthor);
+            }
+
             // Added: / 添加時間: / 添加时间:
 
             int start = allInfo.indexOf("添加时间:");
@@ -265,6 +273,45 @@ public class ParseV9MmanVideo {
 
 
         return v9MmanItemList;
+    }
+
+    /**
+     * M75：从列表项整段文本里抽取作者名，作为「详情页解析失败时」的兜底。
+     * 列表项文本形如「... 作者:xxx 时长:xx 添加时间:... 热度:...」，作者段可能出现在
+     * 添加时间之前；站点还可能用英文 From: / 中文 来自:。截到下一个已知字段标签为止。
+     */
+    private static String extractAuthor(String text) {
+        if (text == null || text.isEmpty()) {
+            return null;
+        }
+        String[] labels = {"作者:", "作者：", "From:", "From", "来自:", "來自:"};
+        int start = -1;
+        for (String l : labels) {
+            int i = text.indexOf(l);
+            if (i >= 0) {
+                start = i + l.length();
+                break;
+            }
+        }
+        if (start < 0 || start >= text.length()) {
+            return null;
+        }
+        String rest = text.substring(start).trim();
+        if (rest.isEmpty()) {
+            return null;
+        }
+        // 截到下一个已知字段标签（防止把 时长/添加时间 等一并吃进来）
+        String[] stop = {"时长", "添加时间", "Added", "热度", "收藏", "查看",
+                "留言", "评论", "积分", "Point", "From", "作者", "来自", "來自"};
+        int end = rest.length();
+        for (String s : stop) {
+            int i = rest.indexOf(s);
+            if (i >= 0 && i < end) {
+                end = i;
+            }
+        }
+        String name = rest.substring(0, end).trim();
+        return name.isEmpty() ? null : name;
     }
 
 
@@ -356,6 +403,12 @@ public class ParseV9MmanVideo {
             v9MmanItem.setDuration(duration);
 
             String allInfo = element.text();
+
+            // M75：列表页作者兜底（同 parserByDivContainer）
+            String listAuthor = extractAuthor(allInfo);
+            if (!TextUtils.isEmpty(listAuthor)) {
+                v9MmanItem.setAuthorText(listAuthor);
+            }
 
             int start = allInfo.indexOf("添加时间");
             // M62：start==-1 时直接 substring 会越界并拖垮整页列表
@@ -709,6 +762,12 @@ public class ParseV9MmanVideo {
             }
 
             String allInfo = item.text();
+
+            // M75：列表页作者兜底（同 parserByDivContainer）
+            String listAuthor = extractAuthor(allInfo);
+            if (!TextUtils.isEmpty(listAuthor)) {
+                v9MmanItem.setAuthorText(listAuthor);
+            }
 
             // Added: / 添加時間: / 添加时间:
 

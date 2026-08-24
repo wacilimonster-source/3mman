@@ -306,68 +306,55 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
             return "";
         }
         StringBuilder sb = new StringBuilder();
-        if (!TextUtils.isEmpty(candidate.authorName)) {
-            sb.append('@').append(candidate.authorName);
+        // 作者：优先详情页回填的 authorName，缺省时回退列表页解析的 authorText（M75）。
+        // 这样即便某条详情页解析静默失败（如 c48a0932 类），推荐流仍显示 @作者 而非缺段。
+        String author = candidate.authorName;
+        if (TextUtils.isEmpty(author) && item.getAuthorText() != null) {
+            author = item.getAuthorText();
         }
-        if (!TextUtils.isEmpty(item.getDuration())) {
+        if (!TextUtils.isEmpty(author)) {
+            sb.append('@').append(author.trim());
+        }
+        // M75：meta 行只保留「添加时间」。时长由播放器底部进度条呈现，热度/收藏在详情页查看，
+        // 不再塞进推荐流信息栏（此前第二行展示不完整）。
+        String added = extractAddedTime(item.getInfo());
+        if (!TextUtils.isEmpty(added)) {
             if (sb.length() > 0) {
                 sb.append("  ·  ");
             }
-            sb.append(item.getDuration());
-        }
-        if (!TextUtils.isEmpty(item.getInfo())) {
-            if (sb.length() > 0) {
-                sb.append("  ·  ");
-            }
-            // M71：info 原文自带 "From: 作者名"（列表页字段），前缀已有 @作者 时会重复展示；
-            // 且 authorName 异步回填前后 info 里有无 From 会造成"顺序变化"的观感，统一剥掉。
-            sb.append(stripFromField(item.getInfo()));
+            sb.append(added);
         }
         return sb.toString();
     }
 
-    /** M72：从 info 文本里移除作者字段（中文站「作者:」/英文站「From:」），避免与 @作者 前缀重复 */
-    private static String stripFromField(String info) {
+    /** M75：从 info 文本里只截取「添加时间」段；时长/热度/收藏/留言等不再展示 */
+    private static String extractAddedTime(String info) {
         if (info == null || info.isEmpty()) {
-            return info;
+            return "";
         }
-        // 已知字段名列表（中英文实测变体），按 "字段名:" 定位切分后丢弃作者段、重新拼接
-        String[] keys = {"添加时间", "Added", "Added:", "作者", "From", "來自", "来自",
-                "热度", "Views", "查看", "收藏", "Favorites", "留言", "Comments", "评论",
-                "积分", "Point"};
-        java.util.TreeMap<Integer, String> marks = new java.util.TreeMap<>();
-        for (String k : keys) {
-            String needle = k.endsWith(":") ? k : k + ":";
-            int idx = info.indexOf(needle);
-            while (idx >= 0) {
-                if (!marks.containsKey(idx)) {
-                    marks.put(idx, k);
-                }
-                idx = info.indexOf(needle, idx + 1);
+        String[] starts = {"添加时间:", "添加時間:", "Added:", "Added"};
+        int start = -1;
+        for (String s : starts) {
+            int i = info.indexOf(s);
+            if (i >= 0) {
+                start = i;
+                break;
             }
         }
-        if (marks.isEmpty()) {
-            return info;
+        if (start < 0) {
+            return "";
         }
-        StringBuilder sb = new StringBuilder();
-        java.util.List<Integer> positions = new java.util.ArrayList<>(marks.keySet());
-        for (int i = 0; i < positions.size(); i++) {
-            int start = positions.get(i);
-            String key = marks.get(start);
-            int end = (i + 1 < positions.size()) ? positions.get(i + 1).intValue() : info.length();
-            // 作者字段丢弃（前缀 @作者 已展示）
-            if ("作者".equals(key) || "From".equals(key) || "来自".equals(key) || "來自".equals(key)) {
-                continue;
-            }
-            String seg = info.substring(start, end).trim();
-            if (seg.length() > 0) {
-                if (sb.length() > 0) {
-                    sb.append(' ');
-                }
-                sb.append(seg);
+        // 截到下一个已知字段标签为止
+        String[] ends = {"热度:", "Views:", "查看:", "收藏:", "Favorites:", "留言:",
+                "Comments:", "评论:", "积分:", "Point:", "来自:", "來自:"};
+        int end = info.length();
+        for (String e : ends) {
+            int i = info.indexOf(e, start + 1);
+            if (i >= 0 && i < end) {
+                end = i;
             }
         }
-        return sb.toString();
+        return info.substring(start, end).trim();
     }
 
     @Override
