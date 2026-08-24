@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.content.res.Configuration;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
@@ -39,6 +40,7 @@ import com.m3man.parser.Parse91PornyVideo;
 import com.m3man.service.DownloadVideoService;
 import com.m3man.utils.PornyFallbackResolver;
 import com.m3man.ui.BaseFragment;
+import com.m3man.ui.BaseAppCompatActivity;
 import com.m3man.utils.AppLog;
 import com.m3man.utils.DownloadDiag;
 import com.m3man.utils.DownloadManager;
@@ -125,10 +127,8 @@ public class RecommendFeedFragment extends BaseFragment
     private TextView orientationFilterView;
     /** M79：最近一次向 Activity 应用的播放方向，避免横屏→横屏重复触发旋转。 */
     private int appliedPlaybackOrientation = -1;
-    /** M80：当前是否由播放器按钮进入横屏全屏。 */
-    private boolean manualFullscreen = false;
-    /** 用户点“返回竖屏”后，当前候选不再被自动横屏立即拉回去。 */
-    private boolean manualPortraitOverride = false;
+    /** M82：横屏锁。一旦进入横屏（全屏按钮或自动旋转），除非手动退出，否则始终横屏。 */
+    private boolean landscapeLock = false;
     private ImageView landscapeBackView;
     private int normalContentBottomMargin = -1;
 
@@ -146,6 +146,10 @@ public class RecommendFeedFragment extends BaseFragment
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        // M82：进程重建后恢复横屏锁，避免回到竖屏
+        if (savedInstanceState != null) {
+            landscapeLock = savedInstanceState.getBoolean("reco_landscape_lock", false);
+        }
         if (getActivity() != null) {
             getActivity().getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
@@ -170,7 +174,6 @@ public class RecommendFeedFragment extends BaseFragment
         landscapeBackView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                manualPortraitOverride = true;
                 restorePortrait();
             }
         });
@@ -362,9 +365,7 @@ public class RecommendFeedFragment extends BaseFragment
         // 离开上一页时结算观看比例（隐式反馈）
         recordWatchRatio(currentPosition);
         currentPosition = position;
-        // “返回竖屏”只覆盖当前视频；切换到下一条后重新按新视频方向判断。
-        manualPortraitOverride = false;
-
+        // 横屏锁只在手动退出时解除；翻到新视频不自动回竖屏。
         RecoCandidate candidate = adapter.getItem(position);
         if (candidate != null) {
             engine.markSeen(candidate.viewKey());
@@ -381,15 +382,16 @@ public class RecommendFeedFragment extends BaseFragment
         persistAsync(false);
     }
 
-    /** M79：只有方向类别发生变化时才请求 Activity 旋转，横屏连续翻页保持横屏。 */
+    /** M79：只有方向类别发生变化时才请求 Activity 旋转，横屏连续翻页保持横屏。
+     *  M82：处于横屏即锁 —— 一旦 landscapeLock 为真，翻页、旋转重算、回前台都只重断言横屏，绝不回竖屏。 */
     private void applyAutoRotation(RecoCandidate candidate) {
         if (getActivity() == null || candidate == null) {
             return;
         }
-        // 手动全屏期间不因推荐流内的封面方向改变而打断用户选择。
-        // 必须放在自动横屏开关判断之前：全屏按钮是显式用户操作，
-        // 即使“横屏视频自动横屏播放”关闭，也不能在翻页时被立即恢复竖屏。
-        if (manualFullscreen || manualPortraitOverride) {
+        // 横屏锁：重断言横屏 + 沉浸式（覆盖导航栏状态），不打回竖屏。
+        // 不论是全屏按钮进入，还是自动旋转进入的横屏，锁定时都保持横屏直到手动退出。
+        if (landscapeLock) {
+            enterLandscapeFullscreen();
             return;
         }
         if (!PlayUiPrefs.isAutoRotateLandscape(context)) {
@@ -399,6 +401,7 @@ public class RecommendFeedFragment extends BaseFragment
         int targetOrientation;
         if (candidate.orientation == RecoCandidate.ORIENT_LANDSCAPE) {
             targetOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+            landscapeLock = true; // 进入横屏即锁
         } else if (candidate.orientation == RecoCandidate.ORIENT_PORTRAIT) {
             targetOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
         } else {
@@ -411,7 +414,7 @@ public class RecommendFeedFragment extends BaseFragment
         getActivity().setRequestedOrientation(targetOrientation);
         if (targetOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
             enterLandscapeFullscreen();
-        } else if (!manualFullscreen) {
+        } else {
             restorePortrait();
         }
     }
@@ -451,10 +454,14 @@ public class RecommendFeedFragment extends BaseFragment
         if (floatingActionButtonView() != null) {
             floatingActionButtonView().setVisibility(View.GONE);
         }
+        // M82：让内容铺满导航栏区域，消除横屏沉浸时的底部留白
+        if (getActivity() instanceof BaseAppCompatActivity) {
+            ((BaseAppCompatActivity) getActivity()).setNavigationBarOverlap(true);
+        }
     }
 
     private void restorePortrait() {
-        manualFullscreen = false;
+        landscapeLock = false;
         if (getActivity() != null
                 && appliedPlaybackOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
             getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
@@ -478,6 +485,10 @@ public class RecommendFeedFragment extends BaseFragment
                     (android.widget.FrameLayout.LayoutParams) content.getLayoutParams();
             lp.bottomMargin = normalContentBottomMargin;
             content.setLayoutParams(lp);
+        }
+        // M82：恢复导航栏默认（不重叠），底部留白回到系统处理
+        if (getActivity() instanceof BaseAppCompatActivity) {
+            ((BaseAppCompatActivity) getActivity()).setNavigationBarOverlap(false);
         }
     }
 
@@ -813,8 +824,7 @@ public class RecommendFeedFragment extends BaseFragment
         if (position != currentPosition || getActivity() == null) {
             return;
         }
-        manualFullscreen = true;
-        manualPortraitOverride = false;
+        landscapeLock = true;
         enterLandscapeFullscreen();
     }
 
@@ -1306,5 +1316,20 @@ public class RecommendFeedFragment extends BaseFragment
             }
         }
         super.onDestroyView();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        // M82：横屏锁状态下，系统重算方向（旋转 / 切后台返回）后重新断言横屏 + 沉浸，避免被拉回竖屏。
+        if (landscapeLock) {
+            enterLandscapeFullscreen();
+        }
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean("reco_landscape_lock", landscapeLock);
     }
 }

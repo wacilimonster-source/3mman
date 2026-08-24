@@ -196,6 +196,16 @@ public abstract class BaseAppCompatActivity extends DaggerAppCompatActivity impl
         StatusBarUtil.setColorForSwipeBack(this, color, statusBarAlpha);
     }
 
+    /**
+     * 横屏全屏时让内容铺满导航栏区域，消除底部留白；退出时传 false 恢复默认。
+     * 供非本包的 Fragment（如推荐页）通过宿主 Activity 调用。
+     */
+    public void setNavigationBarOverlap(boolean overlap) {
+        if (mSwipeBackHelper != null) {
+            mSwipeBackHelper.setIsNavigationBarOverlap(overlap);
+        }
+    }
+
     protected void showMessage(String msg, int type) {
         //因为时在onDestroy 才取消的请求，初步断定又可能就是在那么微妙的一瞬间发生了
         //android.view.WindowManager$BadTokenException · Unable to add window -- token android.os.BinderProxy@53d6ca9 is not valid; is your activity running? 如果activity正在销毁则可能引发

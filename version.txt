@@ -1,7 +1,7 @@
 {
-  "versionCode": 112,
-  "versionName": "1.0.79",
-  "updateMessage": "M81 横屏体验修复：全屏按钮改为开关式锁定（进入横屏后保持横屏，需手动退出），并在旋转/回前台后重应用沉浸式；新增横屏专用布局消除底部空白、完整显示右侧操作栏。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.79.apk",
-  "sha256": "672596735eb90a1da5d56d57a74ddc9080d61ed56737e06a07cb6724bf4e440c"
+  "versionCode": 113,
+  "versionName": "1.0.80",
+  "updateMessage": "M82 横屏锁定增强：进入横屏（全屏按钮或自动旋转）后即锁定，翻页/旋转/回前台/进程重建均保持横屏，仅手动退出才回竖屏；并修复横屏底部空白（内容铺满导航栏区）与右侧操作栏显示。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.80.apk",
+  "sha256": "47dd48f867d370bc56fd89d6f077fce8ca8cadae0fac4c9ab44112c879592466"
 }
