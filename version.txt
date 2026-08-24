@@ -1,7 +1,7 @@
 {
-  "versionCode": 106,
-  "versionName": "1.0.73",
-  "updateMessage": "M75 修复：推荐流作者显示兜底与信息栏精简——①列表页解析时顺带提取作者名存入 authorText（@Transient 不落库），详情页解析静默失败时推荐流仍显示 @作者 而非缺段；②信息栏精简为「@作者 · 添加时间」，时长由播放器进度条呈现，不再塞入不完整的第二行。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.73.apk",
-  "sha256": "627515546429203197117d179d1fc77cb7769255a00a3b32533ac342129ba8e1"
+  "versionCode": 107,
+  "versionName": "1.0.74",
+  "updateMessage": "M76 修复：推荐流信息栏作者重复显示两次——①展示作者改为以列表页 info 原文提取的 authorText 为准（首屏即显，不再等详情页异步回填），详情页权威 ownerName 仅作兜底；②「添加时间」段截断表补入 作者/From/时长/Duration 标签，修复字段顺序为「添加时间…From:xx」时 added 段吞入作者导致 @作者 显示两次的问题。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.74.apk",
+  "sha256": "d7eb8b2d89e4c998edc8d4c6e30effc09c60dca27ce52bef40daf12a3d2a898d"
 }

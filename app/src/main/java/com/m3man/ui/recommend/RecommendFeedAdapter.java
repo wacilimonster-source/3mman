@@ -306,17 +306,20 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
             return "";
         }
         StringBuilder sb = new StringBuilder();
-        // 作者：优先详情页回填的 authorName，缺省时回退列表页解析的 authorText（M75）。
-        // 这样即便某条详情页解析静默失败（如 c48a0932 类），推荐流仍显示 @作者 而非缺段。
-        String author = candidate.authorName;
-        if (TextUtils.isEmpty(author) && item.getAuthorText() != null) {
-            author = item.getAuthorText();
+        // M76：展示以列表页解析的 authorText（info 原文提取）为准——首屏即显，不等详情回填，
+        // 消除"滑回来才出现 @作者"的跳变；authorText 提取失败时仍用详情页权威 ownerName 兜底。
+        // 注意 candidate.authorName/authorKey 仍是作者召回与作者收藏的数据来源，此处只调整展示优先级。
+        String author = item.getAuthorText();
+        if (TextUtils.isEmpty(author)) {
+            author = candidate.authorName;
         }
         if (!TextUtils.isEmpty(author)) {
             sb.append('@').append(author.trim());
         }
         // M75：meta 行只保留「添加时间」。时长由播放器底部进度条呈现，热度/收藏在详情页查看，
         // 不再塞进推荐流信息栏（此前第二行展示不完整）。
+        // M76：截断表补入 作者/From/时长/Duration——否则字段顺序为「添加时间…From:xx」时，
+        // added 段会把作者一并吞进来，与前缀 @作者 重复显示两次。
         String added = extractAddedTime(item.getInfo());
         if (!TextUtils.isEmpty(added)) {
             if (sb.length() > 0) {
@@ -344,9 +347,10 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         if (start < 0) {
             return "";
         }
-        // 截到下一个已知字段标签为止
+        // M76：截到下一个已知字段标签为止（补入 作者/From/时长/Duration，防止吞进作者段造成重复）
         String[] ends = {"热度:", "Views:", "查看:", "收藏:", "Favorites:", "留言:",
-                "Comments:", "评论:", "积分:", "Point:", "来自:", "來自:"};
+                "Comments:", "评论:", "积分:", "Point:", "来自:", "來自:",
+                "作者:", "作者：", "From:", "时长:", "時長:", "Duration:"};
         int end = info.length();
         for (String e : ends) {
             int i = info.indexOf(e, start + 1);
