@@ -426,6 +426,8 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
         // 标题以「真正被起播的这条」为准，杜绝画面与文案对不上
         holder.title.setText(title);
         holder.progressContainer.setVisibility(View.VISIBLE);
+        holder.speed.setText("1x");
+        holder.player.setPlaybackSpeed(1.0f);
         bindSeekBar(position, holder);
         startProgressTicker(position);
         prefetcher.markWatched(candidate.item);
@@ -590,6 +592,41 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
     // ==================== 交互回调 ====================
 
     @Override
+    public void onFullscreenClick(int position) {
+        if (position == currentPosition) {
+            try {
+                setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+                getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                        WindowManager.LayoutParams.FLAG_FULLSCREEN);
+                getWindow().getDecorView().setSystemUiVisibility(
+                        View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    @Override
+    public void onSpeedClick(int position) {
+        if (position != currentPosition) {
+            return;
+        }
+        RecommendFeedAdapter.PageHolder holder = findHolder(position);
+        if (holder == null) {
+            return;
+        }
+        boolean toDouble = "1x".contentEquals(holder.speed.getText());
+        if (holder.player.setPlaybackSpeed(toDouble ? 2.0f : 1.0f)) {
+            holder.speed.setText(toDouble ? "2x" : "1x");
+        } else {
+            showMessage(getString(R.string.reco_speed_unsupported), TastyToast.INFO);
+        }
+    }
+
+    @Override
     public void onLikeClick(int position) {
         RecoCandidate candidate = adapter.getItem(position);
         if (candidate == null) {
@@ -603,19 +640,29 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
     }
 
     @Override
-    public void onDoubleTap(int position) {
-        RecoCandidate candidate = adapter.getItem(position);
-        if (candidate == null) {
+    public void onDoubleTap(int position, float normalizedX) {
+        RecommendFeedAdapter.PageHolder holder = findHolder(position);
+        if (holder == null) {
             return;
         }
-        // 双击只点赞，不取消赞（与短视频流的习惯一致）
-        if (engine.actionOf(candidate.viewKey()) == RecoStore.ACTION_LIKE) {
+        // 旧版独立推荐 Activity 与 Fragment 保持同一手势语义。
+        if (normalizedX >= 0f && normalizedX < 1f / 3f) {
+            RecoCandidate candidate = adapter.getItem(position);
+            if (candidate == null || engine.actionOf(candidate.viewKey()) == RecoStore.ACTION_LIKE) {
+                return;
+            }
+            engine.toggleLike(candidate);
+            adapter.refreshActionState(recyclerView, position);
+            showMessage(getString(R.string.reco_liked), TastyToast.SUCCESS);
+            persistAsync(true);
             return;
         }
-        engine.toggleLike(candidate);
-        adapter.refreshActionState(recyclerView, position);
-        showMessage(getString(R.string.reco_liked), TastyToast.SUCCESS);
-        persistAsync(true);
+        long actual = holder.player.seekForwardOneEighth();
+        if (actual > 0L) {
+            holder.seekFeedback.setText("+" + Math.max(1L, actual / 1000L) + "秒");
+            holder.seekFeedback.setVisibility(View.VISIBLE);
+            handler.postDelayed(() -> holder.seekFeedback.setVisibility(View.GONE), 900L);
+        }
     }
 
     @Override
@@ -911,15 +958,24 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
-        JZVideoPlayer.goOnPlayOnResume();
+        // onPause 已经释放底层播放器，回到独立推荐页时从当前候选重新建立播放。
+        if (currentPosition >= 0 && adapter != null) {
+            startPlay(currentPosition);
+        }
     }
 
     @Override
     protected void onPause() {
-        super.onPause();
-        JZVideoPlayer.goOnPlayOnPause();
+        // 不使用 goOnPlayOnPause：它只暂停并保留 MediaPlayer，离开页面后可能继续输出音频。
+        try {
+            JZVideoPlayer.releaseAllVideos();
+        } catch (Exception ignored) {
+        }
+        stopCoverWatcher();
+        stopProgressTicker();
         recordWatchRatio(currentPosition);
         persistAsync(true);
+        super.onPause();
     }
 
     @Override

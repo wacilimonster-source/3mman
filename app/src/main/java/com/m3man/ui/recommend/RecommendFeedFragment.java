@@ -17,6 +17,7 @@ import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -124,6 +125,12 @@ public class RecommendFeedFragment extends BaseFragment
     private TextView orientationFilterView;
     /** M79：最近一次向 Activity 应用的播放方向，避免横屏→横屏重复触发旋转。 */
     private int appliedPlaybackOrientation = -1;
+    /** M80：当前是否由播放器按钮进入横屏全屏。 */
+    private boolean manualFullscreen = false;
+    /** 用户点“返回竖屏”后，当前候选不再被自动横屏立即拉回去。 */
+    private boolean manualPortraitOverride = false;
+    private ImageView landscapeBackView;
+    private int normalContentBottomMargin = -1;
 
     public static RecommendFeedFragment getInstance() {
         return new RecommendFeedFragment();
@@ -159,6 +166,14 @@ public class RecommendFeedFragment extends BaseFragment
         emptyLayout = getView().findViewById(R.id.ll_recommend_empty);
         emptyText = getView().findViewById(R.id.tv_recommend_empty);
         retryButton = getView().findViewById(R.id.btn_recommend_retry);
+        landscapeBackView = getView().findViewById(R.id.iv_reco_landscape_back);
+        landscapeBackView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                manualPortraitOverride = true;
+                restorePortrait();
+            }
+        });
 
         layoutManager = new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false);
         recyclerView.setLayoutManager(layoutManager);
@@ -347,6 +362,8 @@ public class RecommendFeedFragment extends BaseFragment
         // 离开上一页时结算观看比例（隐式反馈）
         recordWatchRatio(currentPosition);
         currentPosition = position;
+        // “返回竖屏”只覆盖当前视频；切换到下一条后重新按新视频方向判断。
+        manualPortraitOverride = false;
 
         RecoCandidate candidate = adapter.getItem(position);
         if (candidate != null) {
@@ -369,6 +386,12 @@ public class RecommendFeedFragment extends BaseFragment
         if (getActivity() == null || candidate == null) {
             return;
         }
+        // 手动全屏期间不因推荐流内的封面方向改变而打断用户选择。
+        // 必须放在自动横屏开关判断之前：全屏按钮是显式用户操作，
+        // 即使“横屏视频自动横屏播放”关闭，也不能在翻页时被立即恢复竖屏。
+        if (manualFullscreen || manualPortraitOverride) {
+            return;
+        }
         if (!PlayUiPrefs.isAutoRotateLandscape(context)) {
             restorePortrait();
             return;
@@ -386,14 +409,84 @@ public class RecommendFeedFragment extends BaseFragment
         }
         appliedPlaybackOrientation = targetOrientation;
         getActivity().setRequestedOrientation(targetOrientation);
+        if (targetOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
+            enterLandscapeFullscreen();
+        } else if (!manualFullscreen) {
+            restorePortrait();
+        }
+    }
+
+    private void enterLandscapeFullscreen() {
+        if (getActivity() == null) {
+            return;
+        }
+        appliedPlaybackOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+        getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        Window window = getActivity().getWindow();
+        window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        window.getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        if (landscapeBackView != null) {
+            landscapeBackView.setVisibility(View.VISIBLE);
+        }
+        if (bottomNavigationBarView() != null) {
+            bottomNavigationBarView().setVisibility(View.GONE);
+        }
+        View content = getActivity().findViewById(R.id.content);
+        if (content != null && content.getLayoutParams() instanceof android.widget.FrameLayout.LayoutParams) {
+            android.widget.FrameLayout.LayoutParams lp =
+                    (android.widget.FrameLayout.LayoutParams) content.getLayoutParams();
+            if (normalContentBottomMargin < 0) {
+                normalContentBottomMargin = lp.bottomMargin;
+            }
+            lp.bottomMargin = 0;
+            content.setLayoutParams(lp);
+        }
+        if (floatingActionButtonView() != null) {
+            floatingActionButtonView().setVisibility(View.GONE);
+        }
     }
 
     private void restorePortrait() {
+        manualFullscreen = false;
         if (getActivity() != null
                 && appliedPlaybackOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
             getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         }
         appliedPlaybackOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+        if (landscapeBackView != null) {
+            landscapeBackView.setVisibility(View.GONE);
+        }
+        if (getActivity() != null) {
+            Window window = getActivity().getWindow();
+            window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+            window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+        }
+        if (bottomNavigationBarView() != null) {
+            bottomNavigationBarView().setVisibility(View.VISIBLE);
+        }
+        View content = getActivity() == null ? null : getActivity().findViewById(R.id.content);
+        if (content != null && content.getLayoutParams() instanceof android.widget.FrameLayout.LayoutParams
+                && normalContentBottomMargin >= 0) {
+            android.widget.FrameLayout.LayoutParams lp =
+                    (android.widget.FrameLayout.LayoutParams) content.getLayoutParams();
+            lp.bottomMargin = normalContentBottomMargin;
+            content.setLayoutParams(lp);
+        }
+    }
+
+    private View bottomNavigationBarView() {
+        return getActivity() == null ? null : getActivity().findViewById(R.id.bottom_navigation_bar);
+    }
+
+    private View floatingActionButtonView() {
+        return getActivity() == null ? null : getActivity().findViewById(R.id.fab_search);
     }
 
     private void recordWatchRatio(int position) {
@@ -550,6 +643,8 @@ public class RecommendFeedFragment extends BaseFragment
         // 标题以「真正被起播的这条」为准，杜绝画面与文案对不上
         holder.title.setText(title);
         holder.progressContainer.setVisibility(View.VISIBLE);
+        holder.speed.setText("1x");
+        holder.player.setPlaybackSpeed(1.0f);
         bindSeekBar(position, holder);
         startProgressTicker(position);
         prefetcher.markWatched(candidate.item);
@@ -712,6 +807,33 @@ public class RecommendFeedFragment extends BaseFragment
     }
 
     // ==================== 交互回调 ====================
+
+    @Override
+    public void onFullscreenClick(int position) {
+        if (position != currentPosition || getActivity() == null) {
+            return;
+        }
+        manualFullscreen = true;
+        manualPortraitOverride = false;
+        enterLandscapeFullscreen();
+    }
+
+    @Override
+    public void onSpeedClick(int position) {
+        if (position != currentPosition) {
+            return;
+        }
+        RecommendFeedAdapter.PageHolder holder = findHolder(position);
+        if (holder == null) {
+            return;
+        }
+        final boolean toDouble = "1x".contentEquals(holder.speed.getText());
+        if (holder.player.setPlaybackSpeed(toDouble ? 2.0f : 1.0f)) {
+            holder.speed.setText(toDouble ? "2x" : "1x");
+        } else {
+            showMessage(getString(R.string.reco_speed_unsupported), TastyToast.INFO);
+        }
+    }
 
     @Override
     public void onLikeClick(int position) {

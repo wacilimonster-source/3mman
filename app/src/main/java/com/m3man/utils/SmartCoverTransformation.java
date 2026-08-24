@@ -98,6 +98,9 @@ public class SmartCoverTransformation extends BitmapTransformation {
         }
 
         // 最后绘制清晰前景，确保主体完全不受模糊和白色遮罩影响。
+        // 明确恢复 Paint 的不透明度，避免前面绘制遮罩后的状态泄漏到主体。
+        paint.setAlpha(255);
+        paint.setColor(Color.WHITE);
         canvas.drawBitmap(source, null, foreground, paint);
         return out;
     }

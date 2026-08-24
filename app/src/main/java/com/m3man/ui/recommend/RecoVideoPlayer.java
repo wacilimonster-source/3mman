@@ -2,10 +2,14 @@ package com.m3man.ui.recommend;
 
 import android.content.Context;
 import android.graphics.Rect;
+import android.media.MediaPlayer;
+import android.media.PlaybackParams;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
 import android.view.View;
 
 import cn.jzvd.JZMediaManager;
@@ -31,8 +35,8 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
     private static final long DOUBLE_TAP_TIMEOUT = 260L;
 
     public interface OnTapListener {
-        /** 双击（一般用于点赞） */
-        void onDoubleTap(RecoVideoPlayer player);
+        /** 双击（传入本次双击的横坐标，用于左 1/3 点赞 / 其余区域快进） */
+        void onDoubleTap(RecoVideoPlayer player, float x);
 
         /** 单击（一般用于播放 / 暂停） */
         void onSingleTap(RecoVideoPlayer player);
@@ -41,6 +45,7 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
     private final Handler tapHandler = new Handler(Looper.getMainLooper());
     private OnTapListener tapListener;
     private long lastTapTime;
+    private float pendingTapX;
     /** 是否循环播放 */
     private boolean loopEnabled = true;
 
@@ -194,13 +199,77 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
             lastTapTime = 0;
             tapHandler.removeCallbacks(singleTapRunnable);
             if (tapListener != null) {
-                tapListener.onDoubleTap(this);
+                tapListener.onDoubleTap(this, pendingTapX);
             }
             return;
         }
         lastTapTime = now;
+        pendingTapX = getLastTouchX();
         tapHandler.removeCallbacks(singleTapRunnable);
         tapHandler.postDelayed(singleTapRunnable, DOUBLE_TAP_TIMEOUT);
+    }
+
+    private float lastTouchX = -1f;
+
+    private float getLastTouchX() {
+        return lastTouchX < 0f ? getWidth() / 2f : lastTouchX;
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (event != null && event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+            lastTouchX = event.getX();
+        }
+        return super.onTouchEvent(event);
+    }
+
+    /** 双击快进：总时长的 1/8，贴尾钳制到 duration-1s，返回实际跳过毫秒数。 */
+    /** 设置当前 MediaPlayer 倍速；推荐流每次绑定新视频时由外部恢复为 1x。 */
+    public boolean setPlaybackSpeed(float speed) {
+        if (!isCurrentPlayer() || Build.VERSION.SDK_INT < Build.VERSION_CODES.M
+                || speed <= 0f) {
+            return false;
+        }
+        try {
+            if (!(JZMediaManager.instance().jzMediaInterface instanceof cn.jzvd.JZMediaSystem)) {
+                return false;
+            }
+            MediaPlayer mediaPlayer = ((cn.jzvd.JZMediaSystem)
+                    JZMediaManager.instance().jzMediaInterface).mediaPlayer;
+            if (mediaPlayer == null) {
+                return false;
+            }
+            PlaybackParams params = mediaPlayer.getPlaybackParams();
+            params.setSpeed(speed);
+            mediaPlayer.setPlaybackParams(params);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    public long seekForwardOneEighth() {
+        if (!isSeekable()) {
+            return 0L;
+        }
+        long duration = safeDuration();
+        long current = safePosition();
+        if (duration <= 0L) {
+            return 0L;
+        }
+        long step = Math.max(1000L, duration / 8L);
+        long target = Math.min(Math.max(0L, duration - 1000L), current + step);
+        long actual = Math.max(0L, target - current);
+        if (actual <= 0L) {
+            return 0L;
+        }
+        try {
+            JZMediaManager.seekTo(target);
+            startProgressTimer();
+            return actual;
+        } catch (Exception e) {
+            return 0L;
+        }
     }
 
     // ==================== 循环播放 ====================

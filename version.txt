@@ -1,7 +1,7 @@
 {
-  "versionCode": 110,
-  "versionName": "1.0.77",
-  "updateMessage": "M79 推荐页体验修复：竖屏列表封面主体保持清晰、方向筛选弹窗提升对比度、横屏视频连续切换保持横屏，并扩大横屏点赞/收藏等操作按钮与右缘把手的点击区域。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.77.apk",
-  "sha256": "1de091035891e6f659a11b699c406285b61830149a54034309411059bd03629c"
+  "versionCode": 111,
+  "versionName": "1.0.78",
+  "updateMessage": "M80 播放器增强：修复竖屏列表封面主体遮挡，横屏视频连续播放保持沉浸式全屏，新增返回竖屏、全屏切换与 1x/2x 倍速按钮。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.78.apk",
+  "sha256": "5f4a0191f08c474bf8f955ba3d9b1de894ae15558b1cde795266790868e2e8f5"
 }

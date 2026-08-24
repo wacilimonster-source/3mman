@@ -1,6 +1,8 @@
 package com.m3man.ui.recommend;
 
 import android.graphics.Color;
+import android.os.Handler;
+import android.os.Looper;
 import android.support.v7.widget.RecyclerView;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
@@ -17,6 +19,7 @@ import com.m3man.data.reco.RecoCandidate;
 import com.m3man.data.reco.RecoEngine;
 import com.m3man.data.reco.RecoStore;
 import com.m3man.utils.GlideApp;
+import com.m3man.utils.PlayUiPrefs;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,9 +56,13 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
 
         void onDownloadClick(int position);
 
-        void onDoubleTap(int position);
+        void onDoubleTap(int position, float x);
 
         void onSingleTap(int position);
+
+        void onFullscreenClick(int position);
+
+        void onSpeedClick(int position);
     }
 
     private final List<RecoCandidate> data = new ArrayList<>();
@@ -160,10 +167,12 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         holder.loading.setVisibility(View.VISIBLE);
         holder.player.setVisibility(View.INVISIBLE);
         holder.progressContainer.setVisibility(View.GONE);
+        holder.seekFeedback.setVisibility(View.GONE);
         holder.progress.setOnSeekBarChangeListener(null);
         holder.progress.setProgress(0);
         holder.curTime.setText("00:00");
         holder.durTime.setText("00:00");
+        holder.speed.setText("1x");
         // 未成为当前页之前不允许循环续播，防止旧页抢解码器
         holder.player.setLoopEnabled(false);
         String imgUrl = item == null ? null : item.getImgUrl();
@@ -176,6 +185,9 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         }
 
         bindActionState(holder, candidate);
+
+        // M78：按「隐藏播放页操作栏」偏好决定初始显隐
+        holder.applyHidePolicy(PlayUiPrefs.isHideActionBar(holder.itemView.getContext()));
 
         holder.like.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -213,10 +225,26 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
                 dispatch(holder, 7);
             }
         });
+        holder.fullscreen.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dispatch(holder, 8);
+            }
+        });
+        holder.speed.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dispatch(holder, 9);
+            }
+        });
         holder.player.setOnTapListener(new RecoVideoPlayer.OnTapListener() {
             @Override
-            public void onDoubleTap(RecoVideoPlayer player) {
-                dispatch(holder, 5);
+            public void onDoubleTap(RecoVideoPlayer player, float x) {
+                int pos = holder.getAdapterPosition();
+                if (pos == RecyclerView.NO_POSITION || callback == null) {
+                    return;
+                }
+                callback.onDoubleTap(pos, x / Math.max(1f, player.getWidth()));
             }
 
             @Override
@@ -253,8 +281,14 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
             case 7:
                 callback.onDownloadClick(pos);
                 break;
+            case 8:
+                callback.onFullscreenClick(pos);
+                break;
+            case 9:
+                callback.onSpeedClick(pos);
+                break;
             case 5:
-                callback.onDoubleTap(pos);
+                callback.onDoubleTap(pos, 0.5f);
                 break;
             case 6:
                 callback.onSingleTap(pos);
@@ -375,7 +409,10 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         holder.player.setLoopEnabled(false);
         holder.progress.setOnSeekBarChangeListener(null);
         holder.progressContainer.setVisibility(View.GONE);
+        holder.seekFeedback.setVisibility(View.GONE);
         holder.boundKey = null;
+        // M78：清掉可能存在的自动收起计时，避免回收后误触发到别的视频
+        holder.hideHandler.removeCallbacks(holder.hideRunnable);
         if (holder.player.isCurrentPlayer()) {
             try {
                 holder.player.release();
@@ -390,6 +427,7 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         final ImageView cover;
         final ProgressBar loading;
         final TextView error;
+        final TextView seekFeedback;
         final ImageView like;
         final TextView likeText;
         final ImageView favorite;
@@ -401,7 +439,13 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         final SeekBar progress;
         final TextView curTime;
         final TextView durTime;
+        final ImageView fullscreen;
+        final TextView speed;
         final View progressContainer;
+        final View actionsContainer;
+        final View handle;
+        final Handler hideHandler;
+        final Runnable hideRunnable;
         /** 当前绑定的视频 key，供起播时做一致性校验 */
         String boundKey;
 
@@ -411,6 +455,7 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
             cover = itemView.findViewById(R.id.iv_reco_cover);
             loading = itemView.findViewById(R.id.pb_reco_loading);
             error = itemView.findViewById(R.id.tv_reco_error);
+            seekFeedback = itemView.findViewById(R.id.tv_reco_seek_feedback);
             like = itemView.findViewById(R.id.iv_reco_like);
             likeText = itemView.findViewById(R.id.tv_reco_like);
             favorite = itemView.findViewById(R.id.iv_reco_favorite);
@@ -422,7 +467,58 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
             progress = itemView.findViewById(R.id.sb_reco_progress);
             curTime = itemView.findViewById(R.id.tv_reco_cur);
             durTime = itemView.findViewById(R.id.tv_reco_dur);
+            fullscreen = itemView.findViewById(R.id.iv_reco_fullscreen);
+            speed = itemView.findViewById(R.id.tv_reco_speed);
             progressContainer = itemView.findViewById(R.id.ll_reco_progress);
+            actionsContainer = itemView.findViewById(R.id.ll_reco_actions);
+            handle = itemView.findViewById(R.id.v_reco_handle);
+            hideHandler = new Handler(Looper.getMainLooper());
+            hideRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    collapseActions();
+                }
+            };
+            handle.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    toggleActions();
+                }
+            });
+        }
+
+        /** M78：根据「隐藏播放页操作栏」偏好设置初始状态。 */
+        void applyHidePolicy(boolean hide) {
+            hideHandler.removeCallbacks(hideRunnable);
+            if (hide) {
+                collapseActions();
+            } else {
+                actionsContainer.setVisibility(View.VISIBLE);
+                handle.setVisibility(View.GONE);
+            }
+        }
+
+        /** 收起操作栏、显示右缘把手 */
+        void collapseActions() {
+            actionsContainer.setVisibility(View.GONE);
+            handle.setVisibility(View.VISIBLE);
+            hideHandler.removeCallbacks(hideRunnable);
+        }
+
+        /** 呼出操作栏、隐藏把手，并启动 5 秒无操作自动收起 */
+        void expandActions() {
+            actionsContainer.setVisibility(View.VISIBLE);
+            handle.setVisibility(View.GONE);
+            hideHandler.removeCallbacks(hideRunnable);
+            hideHandler.postDelayed(hideRunnable, 5000);
+        }
+
+        void toggleActions() {
+            if (actionsContainer.getVisibility() == View.VISIBLE) {
+                collapseActions();
+            } else {
+                expandActions();
+            }
         }
     }
 }

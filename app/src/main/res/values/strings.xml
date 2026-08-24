@@ -52,6 +52,13 @@
     <string name="author_favorite_off">☆</string>
     <string name="author_favorite_on">★</string>
     <string name="proxy_setting">HTTP代理</string>
+    <string name="reco_auto_rotate_landscape">横屏视频自动横屏播放</string>
+    <string name="reco_hide_action_bar">隐藏播放页操作栏</string>
+    <string name="reco_show_actions">呼出操作栏</string>
+    <string name="reco_orientation_filter">方向筛选</string>
+    <string name="reco_filter_all">全部 ▾</string>
+    <string name="reco_filter_portrait">竖屏 ▾</string>
+    <string name="reco_filter_landscape">横屏 ▾</string>
     <string name="night_mode">夜间模式</string>
     <string name="point">.</string>
 
@@ -117,7 +124,12 @@
     <string name="reco_detail">详情</string>
     <string name="reco_empty">暂时没有推荐内容</string>
     <string name="reco_retry">重试</string>
-    <string name="reco_back">返回</string>
+    <string name="reco_back">返回竖屏</string>
+    <string name="reco_fullscreen">全屏</string>
+    <string name="reco_speed">倍速</string>
+    <string name="reco_speed_1x">1x</string>
+    <string name="reco_speed_2x">2x</string>
+    <string name="reco_speed_unsupported">当前设备不支持倍速播放</string>
     <string name="reco_tune">调参</string>
     <string name="reco_loading_more">正在加载更多…</string>
     <string name="reco_no_more">没有更多了</string>
