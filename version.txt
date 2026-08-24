@@ -1,7 +1,7 @@
 {
-  "versionCode": 109,
-  "versionName": "1.0.76",
-  "updateMessage": "M78 列表封面智能变换：新增 SmartCoverTransformation——近似 16:9 封面直接填满，竖版/异形封面自动画模糊底+原图居中，彻底消除首页/收藏/历史/下载四个列表的封面拉伸变形与细条留白；下载列表图片 scaleType 由 fitXY 改为 centerCrop。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.76.apk",
-  "sha256": "30936f6527e53f9842247c13a6c40cab4f1c07cd61ff08f2c74ed36f5d15aeae"
+  "versionCode": 110,
+  "versionName": "1.0.77",
+  "updateMessage": "M79 推荐页体验修复：竖屏列表封面主体保持清晰、方向筛选弹窗提升对比度、横屏视频连续切换保持横屏，并扩大横屏点赞/收藏等操作按钮与右缘把手的点击区域。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.77.apk",
+  "sha256": "1de091035891e6f659a11b699c406285b61830149a54034309411059bd03629c"
 }

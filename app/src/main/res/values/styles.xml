@@ -53,6 +53,17 @@
         <item name="android:windowBackground">@drawable/background_dialog</item>
     </style>
 
+    <!-- M79：推荐方向筛选专用高对比度弹窗，不影响其他共用 MyDialogTheme 的弹窗。 -->
+    <style name="RecoOrientationDialogTheme" parent="Theme.AppCompat.Dialog.Alert">
+        <item name="colorControlNormal">@color/common_black_white_text_color</item>
+        <item name="colorControlActivated">@color/colorAccent</item>
+        <item name="textColorAlertDialogListItem">@color/common_black_white_text_color</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:textColorPrimary">@color/common_black_white_text_color</item>
+        <item name="android:textColorSecondary">@color/common_black_white_text_color</item>
+        <item name="android:windowBackground">@drawable/background_dialog</item>
+    </style>
+
     <style name="LoadingDialogStyle" parent="Theme.AppCompat.Dialog">
         <item name="android:windowBackground">@drawable/dialog_corner_bg</item>
     </style>

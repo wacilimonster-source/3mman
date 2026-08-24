@@ -1,6 +1,7 @@
 package com.m3man.ui.recommend;
 
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
@@ -40,11 +41,13 @@ import com.m3man.ui.BaseFragment;
 import com.m3man.utils.AppLog;
 import com.m3man.utils.DownloadDiag;
 import com.m3man.utils.DownloadManager;
+import com.m3man.utils.PlayUiPrefs;
 import com.m3man.utils.SDCardUtils;
 import com.orhanobut.logger.Logger;
 import com.sdsmdg.tastytoast.TastyToast;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -117,6 +120,11 @@ public class RecommendFeedFragment extends BaseFragment
     /** 用户正在拖动进度条时暂停自动刷新，避免手指被「拽回去」 */
     private boolean userSeeking = false;
 
+    /** M78：方向筛选（0=全部 1=仅竖屏 2=仅横屏） */
+    private TextView orientationFilterView;
+    /** M79：最近一次向 Activity 应用的播放方向，避免横屏→横屏重复触发旋转。 */
+    private int appliedPlaybackOrientation = -1;
+
     public static RecommendFeedFragment getInstance() {
         return new RecommendFeedFragment();
     }
@@ -137,6 +145,9 @@ public class RecommendFeedFragment extends BaseFragment
         engine = RecoEngine.get(context);
         repository = new RecoRepository(dataManager, engine);
         prefetcher = new RecommendPrefetcher(context, dataManager);
+        // M78：恢复持久化的方向筛选 / 自动横屏开关
+        repository.setOrientationFilter(PlayUiPrefs.getOrientationFilter(context));
+        repository.setAutoRotateLandscape(PlayUiPrefs.isAutoRotateLandscape(context));
 
         initViews();
         loadMore(true);
@@ -186,6 +197,75 @@ public class RecommendFeedFragment extends BaseFragment
                 loadMore(true);
             }
         });
+
+        initOrientationFilterPill();
+    }
+
+    // ==================== 方向筛选（M78） ====================
+
+    private void initOrientationFilterPill() {
+        orientationFilterView = getView().findViewById(R.id.tv_reco_orientation_filter);
+        updateOrientationPill(PlayUiPrefs.getOrientationFilter(context));
+        orientationFilterView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showOrientationFilterMenu();
+            }
+        });
+    }
+
+    private void updateOrientationPill(int filter) {
+        if (orientationFilterView == null) {
+            return;
+        }
+        int label = filter == PlayUiPrefs.FILTER_PORTRAIT ? R.string.reco_filter_portrait
+                : filter == PlayUiPrefs.FILTER_LANDSCAPE ? R.string.reco_filter_landscape
+                : R.string.reco_filter_all;
+        orientationFilterView.setText(label);
+    }
+
+    /** 右上角胶囊三选菜单：全部 / 仅竖屏 / 仅横屏 */
+    private void showOrientationFilterMenu() {
+        final int current = PlayUiPrefs.getOrientationFilter(context);
+        final String[] items = {"全部", "仅竖屏", "仅横屏"};
+        new android.support.v7.app.AlertDialog.Builder(getActivity(), R.style.RecoOrientationDialogTheme)
+                .setTitle(getString(R.string.reco_orientation_filter))
+                .setSingleChoiceItems(items, current, new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                        if (which == current) {
+                            return;
+                        }
+                        applyOrientationFilter(which);
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    /**
+     * 切换方向筛选：严格过滤——立即重置会话并重新拉取，不符合方向的候选直接丢弃；
+     * 池子被筛空时给出提示，用户可点「重试」或切回「全部」恢复。
+     */
+    private void applyOrientationFilter(int filter) {
+        PlayUiPrefs.setOrientationFilter(context, filter);
+        repository.setOrientationFilter(filter);
+        updateOrientationPill(filter);
+        // 严格过滤：清空当前流与已服务标记，从头按新方向拉取
+        adapter.setData(new ArrayList<RecoCandidate>());
+        currentPosition = -1;
+        noMore = false;
+        emptyRetryCount = 0;
+        JZVideoPlayer.releaseAllVideos();
+        stopCoverWatcher();
+        stopProgressTicker();
+        repository.resetSession();
+        loadMore(true);
+        showMessage(filter == PlayUiPrefs.FILTER_PORTRAIT ? "已切换：仅竖屏"
+                        : filter == PlayUiPrefs.FILTER_LANDSCAPE ? "已切换：仅横屏"
+                        : "已切换：全部",
+                TastyToast.INFO);
     }
 
     // ==================== 数据 ====================
@@ -271,6 +351,7 @@ public class RecommendFeedFragment extends BaseFragment
         RecoCandidate candidate = adapter.getItem(position);
         if (candidate != null) {
             engine.markSeen(candidate.viewKey());
+            applyAutoRotation(candidate);
         }
         startPlay(position);
 
@@ -281,6 +362,38 @@ public class RecommendFeedFragment extends BaseFragment
             loadMore(false);
         }
         persistAsync(false);
+    }
+
+    /** M79：只有方向类别发生变化时才请求 Activity 旋转，横屏连续翻页保持横屏。 */
+    private void applyAutoRotation(RecoCandidate candidate) {
+        if (getActivity() == null || candidate == null) {
+            return;
+        }
+        if (!PlayUiPrefs.isAutoRotateLandscape(context)) {
+            restorePortrait();
+            return;
+        }
+        int targetOrientation;
+        if (candidate.orientation == RecoCandidate.ORIENT_LANDSCAPE) {
+            targetOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+        } else if (candidate.orientation == RecoCandidate.ORIENT_PORTRAIT) {
+            targetOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+        } else {
+            return;
+        }
+        if (appliedPlaybackOrientation == targetOrientation) {
+            return;
+        }
+        appliedPlaybackOrientation = targetOrientation;
+        getActivity().setRequestedOrientation(targetOrientation);
+    }
+
+    private void restorePortrait() {
+        if (getActivity() != null
+                && appliedPlaybackOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+            getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+        }
+        appliedPlaybackOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
     }
 
     private void recordWatchRatio(int position) {
@@ -358,9 +471,31 @@ public class RecommendFeedFragment extends BaseFragment
         });
     }
 
-    /** fragment 是否仍可用（替代原 Activity 的 isFinishing()） */
+    /** fragment 是否仍可用（替代原 Activity 的 isFinishing()）。隐藏或暂停后禁止异步回调起播。 */
     private boolean isUsable() {
-        return isAdded() && getActivity() != null;
+        return isAdded() && getActivity() != null && !isHidden() && isResumed();
+    }
+
+    /** 离开推荐播放页面时彻底释放底层播放器，不能只暂停，否则 MediaPlayer 可能继续持有音频输出。 */
+    private void stopPlaybackForLeavingPage() {
+        stopCoverWatcher();
+        stopProgressTicker();
+        try {
+            JZVideoPlayer.releaseAllVideos();
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** 页面重新可见时，从当前候选重新建立播放；离页期间已经释放，不调用全局 resume。 */
+    private void resumeCurrentPlaybackIfNeeded() {
+        if (!isUsable() || currentPosition < 0 || adapter == null) {
+            return;
+        }
+        RecommendFeedAdapter.PageHolder holder = findHolder(currentPosition);
+        if (holder != null && holder.player.isCurrentPlayer()) {
+            return;
+        }
+        startPlay(currentPosition);
     }
 
     /** 除 keepPosition 外，其余已 attach 的页一律禁止循环续播 */
@@ -592,19 +727,41 @@ public class RecommendFeedFragment extends BaseFragment
     }
 
     @Override
-    public void onDoubleTap(int position) {
-        RecoCandidate candidate = adapter.getItem(position);
-        if (candidate == null) {
+    public void onDoubleTap(int position, float normalizedX) {
+        RecommendFeedAdapter.PageHolder holder = findHolder(position);
+        if (holder == null) {
             return;
         }
-        // 双击只点赞，不取消赞（与短视频流的习惯一致）
-        if (engine.actionOf(candidate.viewKey()) == RecoStore.ACTION_LIKE) {
+        // 左 1/3 双击点赞；其余区域双击快进视频总时长的 1/8。
+        if (normalizedX >= 0f && normalizedX < 1f / 3f) {
+            RecoCandidate candidate = adapter.getItem(position);
+            if (candidate == null) {
+                return;
+            }
+            if (engine.actionOf(candidate.viewKey()) == RecoStore.ACTION_LIKE) {
+                return;
+            }
+            engine.toggleLike(candidate);
+            adapter.refreshActionState(recyclerView, position);
+            showMessage(getString(R.string.reco_liked), TastyToast.SUCCESS);
+            persistAsync(true);
             return;
         }
-        engine.toggleLike(candidate);
-        adapter.refreshActionState(recyclerView, position);
-        showMessage(getString(R.string.reco_liked), TastyToast.SUCCESS);
-        persistAsync(true);
+
+        long actual = holder.player.seekForwardOneEighth();
+        if (actual > 0L) {
+            long seconds = Math.max(1L, actual / 1000L);
+            holder.seekFeedback.setText("+" + seconds + "秒");
+            holder.seekFeedback.setVisibility(View.VISIBLE);
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (holder.seekFeedback != null) {
+                        holder.seekFeedback.setVisibility(View.GONE);
+                    }
+                }
+            }, 900L);
+        }
     }
 
     @Override
@@ -947,27 +1104,41 @@ public class RecommendFeedFragment extends BaseFragment
     @Override
     public void onResume() {
         super.onResume();
-        JZVideoPlayer.goOnPlayOnResume();
+        if (repository != null && context != null) {
+            repository.setAutoRotateLandscape(PlayUiPrefs.isAutoRotateLandscape(context));
+            repository.setOrientationFilter(PlayUiPrefs.getOrientationFilter(context));
+            updateOrientationPill(PlayUiPrefs.getOrientationFilter(context));
+        }
+        if (currentPosition >= 0 && adapter != null) {
+            applyAutoRotation(adapter.getItem(currentPosition));
+        }
+        // onPause/onHiddenChanged 已经释放底层播放器，回到页面时只恢复当前候选。
+        resumeCurrentPlaybackIfNeeded();
     }
 
     @Override
     public void onPause() {
-        super.onPause();
-        JZVideoPlayer.goOnPlayOnPause();
+        // 不使用 goOnPlayOnPause：它只暂停并保留 MediaPlayer，切换页面后仍可能有音频输出。
+        stopPlaybackForLeavingPage();
         recordWatchRatio(currentPosition);
         persistAsync(true);
+        super.onPause();
     }
 
     @Override
     public void onHiddenChanged(boolean hidden) {
         super.onHiddenChanged(hidden);
-        // hide/show 切换（切到其它 Tab）时同步播放器状态，避免切回时黑屏/声画残留
+        // hide/show 切换（切到其它 Tab）时必须释放底层播放器，不能只暂停。
         if (hidden) {
-            JZVideoPlayer.goOnPlayOnPause();
+            stopPlaybackForLeavingPage();
             recordWatchRatio(currentPosition);
             persistAsync(true);
+            restorePortrait();
         } else if (isResumed()) {
-            JZVideoPlayer.goOnPlayOnResume();
+            if (currentPosition >= 0 && adapter != null) {
+                applyAutoRotation(adapter.getItem(currentPosition));
+            }
+            resumeCurrentPlaybackIfNeeded();
         }
     }
 
@@ -1005,6 +1176,7 @@ public class RecommendFeedFragment extends BaseFragment
             prefetcher.release();
         }
         JZVideoPlayer.releaseAllVideos();
+        restorePortrait();
         if (getActivity() != null) {
             try {
                 getActivity().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);

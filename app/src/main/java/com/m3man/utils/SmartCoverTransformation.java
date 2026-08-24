@@ -2,6 +2,7 @@ package com.m3man.utils;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.RectF;
@@ -31,13 +32,15 @@ import java.security.MessageDigest;
  */
 public class SmartCoverTransformation extends BitmapTransformation {
 
-    private static final String ID = "com.m3man.utils.SmartCoverTransformation.v1";
+    private static final String ID = "com.m3man.utils.SmartCoverTransformation.v2";
     private static final byte[] ID_BYTES = ID.getBytes(CHARSET);
 
     /** 源图与目标框比例相对偏差 ≤ 该值时视为“接近”，直接填满 */
     private static final float SIMILAR_RATIO_TOLERANCE = 0.20f;
     /** 模糊强度：背景层源图的降采样倍数（越大越糊、越省内存） */
-    private static final int BLUR_DOWNSCALE = 14;
+    private static final int BLUR_DOWNSCALE = 36;
+    /** 白色雾化遮罩透明度（0~1）：盖在模糊底上进一步融化细节，与列表浅色底融合 */
+    private static final float SCRIM_ALPHA = 0.25f;
 
     @Override
     protected Bitmap transform(@NonNull BitmapPool pool,
@@ -71,9 +74,30 @@ public class SmartCoverTransformation extends BitmapTransformation {
         canvas.drawBitmap(small, null, coverRect, paint);
         small.recycle();
 
-        // 前景层：原图完整居中（fitCenter 语义），主体不裁不变形
+        // 前景层的目标区域：原图完整居中（fitCenter 语义），主体不裁不变形。
         RectF foreground = fitCenterRect(source.getWidth(), source.getHeight(),
                 outWidth, outHeight);
+
+        // 白色雾化遮罩只覆盖背景区域，不能盖住中间清晰主体。
+        // 通过绘制主体四周的四块区域实现“背景有雾、主体无雾”，兼容旧版 Android。
+        if (SCRIM_ALPHA > 0f) {
+            paint.setColor(Color.argb(Math.round(SCRIM_ALPHA * 255f), 255, 255, 255));
+            if (foreground.top > 0f) {
+                canvas.drawRect(0f, 0f, outWidth, foreground.top, paint);
+            }
+            if (foreground.bottom < outHeight) {
+                canvas.drawRect(0f, foreground.bottom, outWidth, outHeight, paint);
+            }
+            if (foreground.left > 0f) {
+                canvas.drawRect(0f, foreground.top, foreground.left, foreground.bottom, paint);
+            }
+            if (foreground.right < outWidth) {
+                canvas.drawRect(foreground.right, foreground.top, outWidth,
+                        foreground.bottom, paint);
+            }
+        }
+
+        // 最后绘制清晰前景，确保主体完全不受模糊和白色遮罩影响。
         canvas.drawBitmap(source, null, foreground, paint);
         return out;
     }
