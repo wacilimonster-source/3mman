@@ -178,7 +178,7 @@ public class RecommendFeedFragment extends BaseFragment
         initViews();
         loadMore(true);
         // 推荐流是整屏视频流：竖屏也保持状态栏透明（视频满铺），不要紫色状态栏。
-        applyFeedPortraitStatusBar();
+        applyFeedContentFullBleed();
     }
 
     private void initViews() {
@@ -473,7 +473,7 @@ public class RecommendFeedFragment extends BaseFragment
             window.setNavigationBarColor(Color.TRANSPARENT);
         }
         // 隐藏 StatusBarUtil.setColorForSwipeBack 注入的紫色假状态栏 View
-        hideFakeStatusBarView(window);
+        applyFeedContentFullBleed();
 
         if (landscapeBackView != null) {
             landscapeBackView.setVisibility(View.VISIBLE);
@@ -517,19 +517,33 @@ public class RecommendFeedFragment extends BaseFragment
             window.setStatusBarColor(Color.TRANSPARENT);
             window.setNavigationBarColor(Color.TRANSPARENT);
         }
-        hideFakeStatusBarView(window);
+        applyFeedContentFullBleed();
     }
 
-    /** 隐藏 StatusBarUtil 注入的紫色假状态栏 View（顶部横屏区域不再有紫条）。 */
-    private void hideFakeStatusBarView(Window window) {
-        View decor = window.getDecorView();
-        View fake = decor.findViewById(R.id.statusbarutil_fake_status_bar_view);
-        if (fake != null && fake.getVisibility() != View.GONE) {
-            fake.setVisibility(View.GONE);
+    /**
+     * 推荐流满铺到顶部。
+     * <p>
+     * <b>真正的根因</b>（已被反编译 StatusBarUtil 1.5.1 的 {@code setColorForSwipeBack} 确认）：
+     * 该方法通过 {@code findViewById(android.R.id.content)} 拿到系统 contentParent（不是 decorView），
+     * 给它 {@code setBackgroundColor(紫)} 并 {@code setPadding(0, statusBarHeight, 0, 0)}，
+     * 让出顶部一片紫色看起来像状态栏。<b>并没有</b> {@code addView} 任何假状态栏 View，
+     * 所以 {@code hideFakeStatusBarView(findViewById(R.id.statusbarutil_fake_status_bar_view))}
+     * 永远返回 null，等于 no-op——这是 v1.0.81 / v1.0.82 紫条修不掉的原因。
+     * <p>
+     * 正确做法是撤销 contentParent 的 background 和 paddingTop。
+     */
+    private void applyFeedContentFullBleed() {
+        if (getActivity() == null) {
+            return;
         }
-        View translucent = decor.findViewById(R.id.statusbarutil_translucent_view);
-        if (translucent != null && translucent.getVisibility() != View.GONE) {
-            translucent.setVisibility(View.GONE);
+        Window window = getActivity().getWindow();
+        ViewGroup contentParent = (ViewGroup) getActivity().findViewById(android.R.id.content);
+        if (contentParent != null) {
+            contentParent.setBackground(null);
+            contentParent.setPadding(0, 0, 0, 0);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.setStatusBarColor(Color.TRANSPARENT);
         }
     }
 
@@ -552,7 +566,7 @@ public class RecommendFeedFragment extends BaseFragment
             window.setNavigationBarColor(Color.BLACK);
         }
         // 退出横屏但仍在推荐流内：保持状态栏透明（视频满铺），不再回退到紫色状态栏。
-        applyFeedPortraitStatusBar();
+        applyFeedContentFullBleed();
         if (landscapeBackView != null) {
             landscapeBackView.setVisibility(View.GONE);
         }
@@ -571,18 +585,6 @@ public class RecommendFeedFragment extends BaseFragment
         if (getActivity() instanceof BaseAppCompatActivity) {
             ((BaseAppCompatActivity) getActivity()).setNavigationBarOverlap(false);
         }
-    }
-
-    /** 推荐流竖屏也保持状态栏透明 + 隐藏 StatusBarUtil 紫色假状态栏 View，让视频满铺到顶部。 */
-    private void applyFeedPortraitStatusBar() {
-        if (getActivity() == null) {
-            return;
-        }
-        Window window = getActivity().getWindow();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.setStatusBarColor(Color.TRANSPARENT);
-        }
-        hideFakeStatusBarView(window);
     }
 
     /**

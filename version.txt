@@ -1,7 +1,7 @@
 {
-  "versionCode": 115,
-  "versionName": "1.0.82",
-  "updateMessage": "M83 横屏体验彻底修复（补充 v1.0.81 漏掉的竖屏紫条）：① 横屏翻页不再闪竖屏（修复 JZVideoPlayer.releaseAllVideos 内部 onCompletion 强制回退竖屏，锁定时保持横屏）；② 横屏顶部紫色状态栏与底部留白彻底消除（隐藏 StatusBarUtil 注入的紫色假状态栏 View，状态栏/导航栏透明 + IMMERSIVE_STICKY 沉浸式，系统栏被唤出自动收回）；③ 退出横屏回到竖屏后也保持视频满铺、不再残留紫色状态栏——竖屏推荐流同样状态栏透明、隐藏紫色假状态栏 View，仅切到其它 Tab / 退出推荐流才恢复 App 默认紫色。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.82.apk",
-  "sha256": "ed9922cfa8e16afcb7a8cf6c5e410672a7eba0b8b5b7a003780cb442b8e84b06"
+  "versionCode": 116,
+  "versionName": "1.0.83",
+  "updateMessage": "M83 横屏紫条/状态栏彻底修复（v1.0.81/v1.0.82 漏修的真正根因）：反编译 StatusBarUtil 1.5.1 的 setColorForSwipeBack 发现它根本没 addView 假状态栏 View——而是 findViewById(android.R.id.content) 拿到系统 contentParent，给它 setBackgroundColor(紫) + setPadding(0, statusBarHeight, 0, 0)。所以之前所有 hideFakeStatusBarView(findViewById(R.id.statusbarutil_fake_status_bar_view)) 都是 no-op，紫色条一直没被处理。v1.0.83 改为 applyFeedContentFullBleed()：撤销 contentParent 的紫色背景和 paddingTop，并保留 window 状态栏透明 + 沉浸式全屏 + IMMERSIVE_STICKY + 导航栏 overlap。竖屏推荐流顶部彻底干净；切回其他 Tab 时 restoreAppStatusBar 通过 setStatusBarColor(colorPrimary) 让 StatusBarUtil 重新着色 contentParent，恢复紫色假状态栏（不破坏其他页面）。横屏下方白条可能是导航栏未被 IMMERSIVE 完全隐藏/进度条 SeekBar，请真机反馈。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.83.apk",
+  "sha256": "820c56cc6c5d36a9dfdef2d9e8d3f02b3671e8b19a56b9138d9d43f224795c71"
 }
