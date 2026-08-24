@@ -81,7 +81,13 @@ public class ParseV9MmanVideo {
         // get page info
         int totalPage = 1;
         Element paging = body.getElementById("paging");
-        Elements a = paging.select("a");
+        // M73：paging 缺失（拦截页/改版）时按单页处理，不 NPE
+        Elements a;
+        if (paging == null) {
+            a = new Elements();
+        } else {
+            a = paging.select("a");
+        }
         if (a.size() > 2) {
             String ppp = a.get(a.size() - 2).text();
             if (TextUtils.isDigitsOnly(ppp)) {
@@ -134,7 +140,13 @@ public class ParseV9MmanVideo {
         }
         //总页数
         Element pagingnav = body.getElementById("paging");
-        Elements a = pagingnav.select("a");
+        // M73：paging 缺失（拦截页/改版）时按单页处理，不 NPE
+        Elements a;
+        if (pagingnav == null) {
+            a = new Elements();
+        } else {
+            a = pagingnav.select("a");
+        }
         if (a.size() > 2) {
             String ppp = a.get(a.size() - 2).text();
             if (TextUtils.isDigitsOnly(ppp)) {
@@ -174,7 +186,13 @@ public class ParseV9MmanVideo {
             }
             V9MmanItem v9MmanItem = new V9MmanItem();
 
-            String title = a.getElementsByClass("video-title").first().text().trim();
+            // M73：video-title 缺失时跳过该条目，避免 NPE 炸掉整页列表
+            Element titleEle = a.getElementsByClass("video-title").first();
+            if (titleEle == null) {
+                Logger.w(TAG, "parserByDivContainer: 条目缺 video-title，跳过 class=" + item.className());
+                continue;
+            }
+            String title = titleEle.text().trim();
             v9MmanItem.setTitle(title);
 
             Element imgEle = a.selectFirst("img.img-responsive");
@@ -301,7 +319,13 @@ public class ParseV9MmanVideo {
         Elements listchannel = body.getElementsByClass("listchannel");
         for (Element element : listchannel) {
             V9MmanItem v9MmanItem = new V9MmanItem();
-            String contentUrl = element.select("a").first().attr("href");
+            // M73：a/img 缺失时跳过该条目，避免 NPE 炸掉整个搜索结果页
+            Element firstA = element.select("a").first();
+            if (firstA == null) {
+                continue;
+            }
+            Element imgInA = firstA.select("img").first();
+            String contentUrl = firstA.attr("href");
             //Logger.d(contentUrl);
             // M34：href 可能为空或不含 &，直接 substring(0, indexOf("&")) 会在空串上抛
             // StringIndexOutOfBoundsException（begin 0, end -1, length 0）
@@ -320,7 +344,7 @@ public class ParseV9MmanVideo {
             v9MmanItem.setSourceName("mman9");
             //Logger.d(viewKey);
 
-            String imgUrl = element.select("a").first().select("img").first().attr("src");
+            String imgUrl = imgInA != null ? imgInA.attr("src") : "";
             //Logger.d(imgUrl);
             v9MmanItem.setImgUrl(imgUrl);
 
@@ -343,7 +367,13 @@ public class ParseV9MmanVideo {
         }
         //总页数
         Element pagingnav = body.getElementById("paging");
-        Elements a = pagingnav.select("a");
+        // M73：paging 缺失（拦截页/改版）时按单页处理，不 NPE
+        Elements a;
+        if (pagingnav == null) {
+            a = new Elements();
+        } else {
+            a = pagingnav.select("a");
+        }
         if (a.size() > 2) {
             String ppp = a.get(a.size() - 2).text();
             if (TextUtils.isDigitsOnly(ppp)) {
@@ -440,24 +470,30 @@ public class ParseV9MmanVideo {
         if (addToFavLink != null) {
             Element favorite = addToFavLink.getElementById("favorite");
             if (favorite != null) {
-                String uid = favorite.getElementById("UID").text();
-                String vid = favorite.getElementById("VID").text();
-                String vuid = favorite.getElementById("VUID").text();
+                // M73：UID/VID/VUID 任一元素缺失时跳过收藏信息提取，
+                // 不让 NPE 拖垮整个 map——直链已提取成功，不应因此"播放失败"
+                try {
+                    String uid = favorite.getElementById("UID").text();
+                    String vid = favorite.getElementById("VID").text();
+                    String vuid = favorite.getElementById("VUID").text();
 
-                Logger.t(TAG).d("userId:::" + uid);
-                // 登录后页面才返回 uid；解析失败（站点改版等）时保留原有 uid，
-                // 避免把已有 uid 重置成 0 导致收藏接口报错
-                if (!TextUtils.isEmpty(uid)) {
-                    try {
-                        user.setUserId(Integer.parseInt(uid));
-                    } catch (NumberFormatException e) {
-                        Logger.t(TAG).d("解析用户uid失败，保留原有uid");
+                    Logger.t(TAG).d("userId:::" + uid);
+                    // 登录后页面才返回 uid；解析失败（站点改版等）时保留原有 uid，
+                    // 避免把已有 uid 重置成 0 导致收藏接口报错
+                    if (!TextUtils.isEmpty(uid)) {
+                        try {
+                            user.setUserId(Integer.parseInt(uid));
+                        } catch (NumberFormatException e) {
+                            Logger.t(TAG).d("解析用户uid失败，保留原有uid");
+                        }
                     }
-                }
 
-                //原始纯数字作者id，用于收藏接口
-                Logger.t(TAG).d("authorId:::" + vuid);
-                videoResult.setAuthorId(vuid);
+                    //原始纯数字作者id，用于收藏接口
+                    Logger.t(TAG).d("authorId:::" + vuid);
+                    videoResult.setAuthorId(vuid);
+                } catch (Exception e) {
+                    Logger.t(TAG).e(TAG + ": 收藏信息元素缺失，跳过(不影响播放) " + e.getMessage());
+                }
             }
         }
 
@@ -638,7 +674,13 @@ public class ParseV9MmanVideo {
             }
             V9MmanItem v9MmanItem = new V9MmanItem();
 
-            String title = a.getElementsByClass("video-title").first().text().trim();
+            // M73：video-title 缺失时跳过该条目，避免 NPE 炸掉整页列表（parserByDivContainer 同步修复）
+            Element titleEle = a.getElementsByClass("video-title").first();
+            if (titleEle == null) {
+                Logger.w(TAG, "parseMyFavorite: 条目缺 video-title，跳过 class=" + item.className());
+                continue;
+            }
+            String title = titleEle.text().trim();
             v9MmanItem.setTitle(title);
 
             Element imgEle = a.selectFirst("img.img-responsive");
@@ -691,19 +733,32 @@ public class ParseV9MmanVideo {
             }
             v9MmanItem.setInfo(info);
             // Logger.d(info);
-            String rvid = item.select("input").first().attr("value");
-            Logger.t(TAG).d("rvid::" + rvid);
-            VideoResult videoResult = new VideoResult();
-            videoResult.setId(VideoResult.OUT_OF_WATCH_TIMES);
-            videoResult.setVideoId(rvid);
-            v9MmanItem.setVideoResult(videoResult);
+            // M73：input 元素缺失时跳过 rvid 提取（保留条目，仅 videoId 为空），
+            // 避免 NPE 炸掉整个"我的收藏"页
+            Element rvidInput = item.select("input").first();
+            if (rvidInput != null) {
+                String rvid = rvidInput.attr("value");
+                Logger.t(TAG).d("rvid::" + rvid);
+                VideoResult videoResult = new VideoResult();
+                videoResult.setId(VideoResult.OUT_OF_WATCH_TIMES);
+                videoResult.setVideoId(rvid);
+                v9MmanItem.setVideoResult(videoResult);
+            } else {
+                Logger.w(TAG, "parseMyFavorite: 条目缺 input(rvid)，跳过该字段 title=" + title);
+            }
             v9MmanItemList.add(v9MmanItem);
 
         }
         // get page info
         int totalPage = 1;
         Element paging = body.getElementById("paging");
-        Elements a = paging.select("a");
+        // M73：paging 缺失（拦截页/改版）时按单页处理，不 NPE
+        Elements a;
+        if (paging == null) {
+            a = new Elements();
+        } else {
+            a = paging.select("a");
+        }
         if (a.size() > 2) {
             String ppp = a.get(a.size() - 2).text();
             if (TextUtils.isDigitsOnly(ppp)) {

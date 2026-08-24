@@ -115,6 +115,8 @@ public class UpdateDownloadService extends Service {
             file.delete();
         }
         Logger.t(TAG).d(path);
+        // M73：GO_ON（暂停后继续）时 FileDownloader 对同 URL+同 path 的任务天然支持断点续传，
+        // 直接重新 create+start 即可从已下载字节处继续（FileDownloader 1.7.4 按 url+path 匹配）。
         downloadId = FileDownloader.getImpl().create(updateVersion.getApkDownloadUrl()).setPath(path).setListener(new FileDownloadListener() {
             @Override
             protected void pending(BaseDownloadTask task, int soFarBytes, int totalBytes) {
@@ -134,8 +136,9 @@ public class UpdateDownloadService extends Service {
                 // S1：安装前校验完整性（version.txt 提供了 sha256 才校验），失败则拒绝安装
                 String expected = updateVersion != null ? updateVersion.getSha256() : null;
                 if (!TextUtils.isEmpty(expected) && !verifySha256(new File(path), expected)) {
+                    // M73：补 .show()
                     TastyToast.makeText(UpdateDownloadService.this,
-                            "安装包校验失败，可能已被篡改", TastyToast.LENGTH_LONG, TastyToast.ERROR);
+                            "安装包校验失败，可能已被篡改", TastyToast.LENGTH_LONG, TastyToast.ERROR).show();
                     stopForeground(true);
                     return;
                 }
@@ -156,7 +159,27 @@ public class UpdateDownloadService extends Service {
 
             @Override
             protected void error(BaseDownloadTask task, Throwable e) {
-
+                // M73：错误回调此前为空——下载失败后前台通知残留且用户无感知。
+                // 现在发失败通知并停止前台服务，用户可重新进入应用内重试。
+                Logger.t(TAG).e("APK 下载失败 url=" + (task == null ? "null" : task.getUrl())
+                        + " err=" + (e == null ? "null" : e.getMessage()));
+                try {
+                    NotificationCompat.Builder builder =
+                            new NotificationCompat.Builder(UpdateDownloadService.this, NotificationChannelHelper.CHANNEL_ID_FOR_UPDATE)
+                                    .setSmallIcon(android.R.drawable.stat_notify_error)
+                                    .setContentTitle("升级包下载失败")
+                                    .setContentText("请检查网络后重试")
+                                    .setAutoCancel(true);
+                    // M73：直接用系统服务发通知（本 Service 此前未持有 NotificationManager 字段）
+                    android.app.NotificationManager nm =
+                            (android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                    if (nm != null) {
+                        nm.notify(Constants.APK_DOWNLOAD_NOTIFICATION_ID + 1, builder.build());
+                    }
+                } catch (Exception ignored) {
+                }
+                stopForeground(true);
+                stopSelf();
             }
 
             @Override
@@ -183,7 +206,8 @@ public class UpdateDownloadService extends Service {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 boolean hasInstallPermission = getPackageManager().canRequestPackageInstalls();
                 if (!hasInstallPermission) {
-                    TastyToast.makeText(getApplicationContext(), "请在设置中打开允许安装未知来源", TastyToast.LENGTH_LONG,TastyToast.ERROR);
+                    // M73：补 .show()
+                    TastyToast.makeText(getApplicationContext(), "请在设置中打开允许安装未知来源", TastyToast.LENGTH_LONG,TastyToast.ERROR).show();
                     startInstallPermissionSettingActivity();
                     return;
                 }

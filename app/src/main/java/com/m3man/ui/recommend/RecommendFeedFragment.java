@@ -809,7 +809,9 @@ public class RecommendFeedFragment extends BaseFragment
                 DownloadDiag.append(viewKey, "91porny=直链异常(" + (e.getMessage() == null ? e.toString() : e.getMessage()) + ") → 退回原直链");
             }
         }
-        if (!Parse91PornyVideo.SOURCE.equals(target.getSource())) {
+        // M73：与 Activity 同位置(785行)对齐，用权威判源 isPornySource（持久化 sourceName），
+        // 此前依赖 transient 的 target.getSource()，DB 读出的 porny 条目该字段为空会被误走 9mman 解析必失败
+        if (!com.m3man.ui.mman9video.play.PlayVideoPresenter.isPornySource(target)) {
             try {
                 VideoResult fresh = dataManager.loadMman9VideoUrl(viewKey).blockingFirst();
                 if (fresh != null && !TextUtils.isEmpty(fresh.getVideoUrl())) {

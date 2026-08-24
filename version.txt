@@ -1,7 +1,7 @@
 {
-  "versionCode": 103,
-  "versionName": "1.0.70",
-  "updateMessage": "修复推荐流视频起播转圈：过期签名直链（DB/内存缓存的历史URL）导致本地代理建流失败，现起播前校验直链时效（提前5分钟），过期自动重新解析；顺带补上DB有效直链秒开路径。另修复推荐流信息栏作者名重复显示（中文站字段「作者:」此前未被剥离）。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.70.apk",
-  "sha256": "24d4f3b3bca5cb4f7cd02906a12dc7e3632414ce91fd1258c36d25987c743312"
+  "versionCode": 104,
+  "versionName": "1.0.71",
+  "updateMessage": "全链路代码评审 M73 修复：①修复所有 Activity 页 Toast 静默失效（漏调 show()）；②修复从数据库读出的 porny 条目下载误判源导致必失败；③播放前增加 DB 缓存直链时效校验，封堵过期直链起播转圈残留入口；④解析层多处判空（video-title/UID段/rvid/paging/搜索）避免坏页面整页崩溃；⑤列表/搜索跳页 totalPage 任意页刷新+在途并发守卫；⑥历史记录与搜索历史 DB 查询切 IO 线程，AppLog 时间格式化线程安全；⑦后台 HLS 下载改 startForegroundService 并履行前台服务契约；⑧网络域名映射防 4xx 毒化、代理地址测试失败回滚；⑨下载管理进度节流落库+假完成二进制嗅探防误删；⑩进程隔离、缓存 ProviderKey 拆分、porny 视频去重键、收藏删除后缓存逐出等多项稳定性修复。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.71.apk",
+  "sha256": "b70a1e44f8f634f53c7229cfe8e691515c6190ad919d0cbab1bb54dca786546f"
 }

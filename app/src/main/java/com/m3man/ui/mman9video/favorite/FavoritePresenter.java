@@ -149,6 +149,8 @@ public class FavoritePresenter extends MvpBasePresenter<FavoriteView> implements
                     public List<V9MmanItem> apply(BaseResult<List<V9MmanItem>> baseResult) throws Exception {
                         if (page == 1) {
                             totalPage = baseResult.getTotalPage();
+                            // M73：本次已绕过缓存，后续页恢复走缓存
+                            cleanCache = false;
                         }
                         return baseResult.getData();
                     }
@@ -234,10 +236,11 @@ public class FavoritePresenter extends MvpBasePresenter<FavoriteView> implements
                                 //顺序很重要，涉及缓存
                                 view.setFavoriteData(v9MmanItemList);
                                 view.deleteFavoriteSucc("删除成功");
-
                             }
                         });
-
+                        // M73：删除成功后强制逐出收藏页缓存（cleanCache=true 触发 EvictDynamicKey），
+                        // 否则 15 分钟内重新进入收藏页会从 RxCache 磁盘缓存读到已删条目
+                        loadRemoteFavoriteData(true);
                     }
 
                     @Override

@@ -46,8 +46,21 @@ public class AppDbHelper implements DbHelper {
         MigrationHelper.DEBUG = BuildConfig.DEBUG;
         Database db = helper.getWritableDb();
         this.mDaoSession = new DaoMaster(db).newSession();
-        initCategory(Category.TYPE_91PORN, Category.CATEGORY_DEFAULT_91PORN_VALUE, Category.CATEGORY_DEFAULT_91PORN_NAME);
-        repairMisflaggedPornyRows();
+        // M73：启动时的写库与全表扫描修复移到后台线程执行——
+        // 构造发生在主线程（Dagger 初始化），数据量大时拖慢冷启动
+        java.util.concurrent.ExecutorService io = java.util.concurrent.Executors.newSingleThreadExecutor();
+        io.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    initCategory(Category.TYPE_91PORN, Category.CATEGORY_DEFAULT_91PORN_VALUE, Category.CATEGORY_DEFAULT_91PORN_NAME);
+                    repairMisflaggedPornyRows();
+                } catch (Exception ignored) {
+                } finally {
+                    io.shutdown();
+                }
+            }
+        });
     }
 
     /**

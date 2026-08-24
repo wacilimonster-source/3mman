@@ -48,6 +48,14 @@ public class MyApplication extends DaggerApplication {
     public void onCreate() {
         super.onCreate();
         myApplication = this;
+        // M73：进程隔离——FileDownloader 会派生 :filedownloader 进程，该进程中重复执行
+        // ProxySelector 注入/Bugly/夜间模式等主进程初始化会引发难复现的线上问题。
+        // 非主进程只保留最基础的初始化后直接返回。
+        if (!isMainProcess()) {
+            AppLogger.initLogger();
+            NotificationChannelHelper.initChannel(this);
+            return;
+        }
         // 将应用代理选择器注册为全局默认，使 filedownloader 等直接使用 HttpURLConnection 的模块（如下载）
         // 也能统一走 Http 代理，解决“下载一直卡住”的问题。
         // 先捕获系统原始默认选择器（含设备全局代理/VPN），交给 MyProxySelector 作为回退，
@@ -69,6 +77,32 @@ public class MyApplication extends DaggerApplication {
         }
         CrashReport.initCrashReport(getApplicationContext(), "e426041d83", BuildConfig.DEBUG);
         BGASwipeBackHelper.init(this, null);
+    }
+
+    /** M73：当前进程是否为主进程（无冒号后缀） */
+    private boolean isMainProcess() {
+        String processName = getProcessNameSafely();
+        return processName == null || getPackageName().equals(processName);
+    }
+
+    private String getProcessNameSafely() {
+        try {
+            int pid = android.os.Process.myPid();
+            android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE);
+            if (am == null) {
+                return null;
+            }
+            java.util.List<android.app.ActivityManager.RunningAppProcessInfo> list = am.getRunningAppProcesses();
+            if (list != null) {
+                for (android.app.ActivityManager.RunningAppProcessInfo info : list) {
+                    if (info.pid == pid && info.processName != null) {
+                        return info.processName;
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     /**

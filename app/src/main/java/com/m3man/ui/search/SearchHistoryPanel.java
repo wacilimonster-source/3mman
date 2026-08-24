@@ -81,31 +81,42 @@ public class SearchHistoryPanel {
         });
     }
 
-    /** 加载并展示历史；无历史时自动隐藏 */
+    /** 加载并展示历史；无历史时自动隐藏。M73：查询切 IO 线程后回主线程更新 UI */
     public void show() {
-        List<String> list = dm.getSearchHistory(TYPE, LIMIT);
-        if (list == null || list.isEmpty()) {
-            container.setVisibility(View.GONE);
-            return;
-        }
-        adapter.setNewData(list);
-        container.setVisibility(View.VISIBLE);
+        io.reactivex.Observable.just(1)
+                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
+                .subscribe(o -> {
+                    List<String> list = dm.getSearchHistory(TYPE, LIMIT);
+                    if (list == null || list.isEmpty()) {
+                        container.setVisibility(View.GONE);
+                        return;
+                    }
+                    adapter.setNewData(list);
+                    container.setVisibility(View.VISIBLE);
+                });
     }
 
     public void hide() {
         container.setVisibility(View.GONE);
     }
 
-    /** 搜索提交后调用：记录该关键词（自动去重 + 更新最近使用时间） */
+    /** 搜索提交后调用：记录该关键词（自动去重 + 更新最近使用时间）。M73：写库切 IO 线程 */
     public void onKeywordSubmitted(String keyword) {
         if (TextUtils.isEmpty(keyword)) {
             return;
         }
-        dm.saveAutoComplete(keyword.trim(), TYPE);
+        final String kw = keyword.trim();
+        io.reactivex.Observable.just(1)
+                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                .subscribe(o -> dm.saveAutoComplete(kw, TYPE));
     }
 
+    /** M73：清空历史切 IO 线程，避免主线程直写 DB */
     private void clearAll() {
-        dm.clearSearchHistory(TYPE);
+        io.reactivex.Observable.just(1)
+                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                .subscribe(o -> dm.clearSearchHistory(TYPE));
         adapter.setNewData(new ArrayList<String>());
         container.setVisibility(View.GONE);
     }
@@ -117,8 +128,14 @@ public class SearchHistoryPanel {
                 .setPositiveButton(R.string.clean, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        dm.deleteSearchHistory(keyword, TYPE);
-                        show();
+                        // M73：删除切 IO 线程，完成后回主线程刷新面板
+                        io.reactivex.Observable.just(1)
+                                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                                .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
+                                .subscribe(o -> {
+                                    dm.deleteSearchHistory(keyword, TYPE);
+                                    show();
+                                });
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)

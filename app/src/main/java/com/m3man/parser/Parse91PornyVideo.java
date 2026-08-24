@@ -174,7 +174,14 @@ public class Parse91PornyVideo {
         videoResult.setVideoUrl(videoUrl);
         // 91porny 元数据：作者链接与名称（/author/xxx）
         String[] author = findAuthorInPlayPage(doc);
-        videoResult.setVideoId("");
+        // M73：以 m3u8 路径中的视频 id 作为 videoId 去重键——此前恒存空串，
+        // 空 videoId 绕过 saveVideoResult 的去重逻辑，VIDEO_RESULT 表对 porny 源无限膨胀。
+        // data-src 形如 https://cdn2.xxx/hls/1018639/index.m3u8?t=...，取 /hls/<id>/ 段。
+        String pornyVideoId = extractPornyVideoId(videoUrl);
+        if (TextUtils.isEmpty(pornyVideoId)) {
+            pornyVideoId = author[0]; // 兜底：作者页路径里的标识
+        }
+        videoResult.setVideoId(pornyVideoId == null ? "" : "porny_" + pornyVideoId);
         videoResult.setOwnerId(author[0]);
         videoResult.setAuthorId(author[0]);
         videoResult.setVideoName("");
@@ -187,7 +194,20 @@ public class Parse91PornyVideo {
     /**
      * 从播放页提取作者信息：返回 [作者标识, 作者显示名]
      * 结构：<a href="/author/liguvipa">liguvipa</a>
+     * M73：从 m3u8 直链提取 porny 视频 id（/hls/<数字>/ 段），作为 DB 去重键。
      */
+    private static String extractPornyVideoId(String videoUrl) {
+        if (TextUtils.isEmpty(videoUrl)) {
+            return null;
+        }
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("/hls/([A-Za-z0-9_-]+)/").matcher(videoUrl);
+        if (m.find()) {
+            return m.group(1);
+        }
+        return null;
+    }
+
     private static String[] findAuthorInPlayPage(Document doc) {
         String[] result = new String[]{"", ""};
         try {

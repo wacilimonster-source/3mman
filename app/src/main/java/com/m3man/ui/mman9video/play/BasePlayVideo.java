@@ -259,6 +259,24 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         }
         boolean isPornySource = PlayVideoPresenter.isPornySource(v9MmanItem);
         V9MmanItem tmp = presenter.findV9MmanItemByViewKey(v9MmanItem.getViewKey());
+        // M73：DB 命中的 9mman 直链带时效签名（secure=...,unix秒），历史记录可能已过期。
+        // 过期直链交给 videocache 本地代理建流失败 → 播放器连不上 127.0.0.1 无限转圈
+        // （v1.0.70 已修推荐流入口，这里是收藏/历史/作者页等入口的残留路径）。
+        if (tmp != null && tmp.getVideoResultId() != 0 && !isPornySource) {
+            try {
+                VideoResult cachedVr = tmp.getVideoResult();
+                String cachedUrl = cachedVr == null ? null : cachedVr.getVideoUrl();
+                if (com.m3man.ui.recommend.RecommendPrefetcher.isSecureUrlExpired(cachedUrl)) {
+                    AppLog.i(TAG, "initData: DB缓存直链已过期，强制重新解析 viewKey=" + tmp.getViewKey()
+                            + " 过期时间=" + cachedUrl);
+                    presenter.loadVideoUrl(tmp);
+                    return;
+                }
+            } catch (Exception e) {
+                // 校验异常不影响原流程（按未过期处理）
+                AppLog.w(TAG, "initData: 直链时效校验异常 " + AppLog.cause(e));
+            }
+        }
         //登录之后，第一次需要刷新获取uid,否则无法使用收藏功能
         if (tmp == null || tmp.getVideoResultId() == 0 || presenter.isLoadForUid()) {
             if (tmp == null) {

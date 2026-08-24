@@ -109,11 +109,18 @@ public class CommonHeaderInterceptor implements Interceptor {
             HttpUrl oldHttpUrl = HttpUrl.parse(url);
             //如果不相等则可能被重定向了
             if (oldHttpUrl != null && !oldHttpUrl.host().equals(httpUrl.host())) {
-                HttpUrl newHttpUrl = new HttpUrl.Builder().scheme(httpUrl.scheme()).host(httpUrl.host()).build();
-                String urlStr = newHttpUrl.toString();
-                Logger.t(TAG).e("连接被重定向为:" + urlStr);
-                //更新为最新地址
-                RetrofitUrlManager.getInstance().putDomain(Api.PORN9_VIDEO_DOMAIN_NAME, urlStr);
+                // M73：域名毒化防护——只有成功响应（2xx/3xx）才更新全局域名映射。
+                // CDN 错误页/302 到验证页（HTTP 4xx）时若照搬最终 host，会把整个会话的
+                // 视频域名映射污染到错误地址，后续所有请求连锁失败。
+                if (code < 400) {
+                    HttpUrl newHttpUrl = new HttpUrl.Builder().scheme(httpUrl.scheme()).host(httpUrl.host()).build();
+                    String urlStr = newHttpUrl.toString();
+                    Logger.t(TAG).e("连接被重定向为:" + urlStr);
+                    //更新为最新地址
+                    RetrofitUrlManager.getInstance().putDomain(Api.PORN9_VIDEO_DOMAIN_NAME, urlStr);
+                } else {
+                    Logger.t(TAG).e("重定向目标返回 HTTP " + code + "，不更新域名映射(防毒化) host=" + httpUrl.host());
+                }
             }
         }
 

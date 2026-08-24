@@ -161,6 +161,9 @@ public class IndexFragment extends MvpFragment<IndexView, IndexPresenter> implem
     @Override
     public void showError(String message) {
         contentView.setRefreshing(false);
+        // M73：恢复刷新使能——showLoading 里禁用了 contentView，
+        // 错误分支不恢复会导致首次失败后下拉刷新永久失效
+        contentView.setEnabled(true);
         helper.showError();
         showMessage(message, TastyToast.ERROR);
     }

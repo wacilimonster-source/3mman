@@ -343,12 +343,14 @@ public class HlsDownloader {
                 list.add(seg);
             }
         }
-        // 兜底：直接匹配所有非注释行
+        // 兜底：直接匹配所有非注释行。
+        // M73：不再排除 http 开头的绝对 URL——resolveSegmentUrl 本就支持绝对地址分片，
+        // 旧条件会把含绝对 URL 分片的 m3u8 解析成 0 个分片而误报"没有可下载的分片"。
         if (list.isEmpty()) {
             String[] lines = m3u8.split("\\r?\\n");
             for (String line : lines) {
                 String t = line.trim();
-                if (!TextUtils.isEmpty(t) && !t.startsWith("#") && !t.startsWith("http")) {
+                if (!TextUtils.isEmpty(t) && !t.startsWith("#")) {
                     list.add(t);
                 }
             }

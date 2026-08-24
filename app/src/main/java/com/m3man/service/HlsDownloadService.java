@@ -76,6 +76,19 @@ public class HlsDownloadService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        // M73：startForegroundService 启动时系统要求 5 秒内必须调用 startForeground，
+        // 否则 ANR/crash。非 START 动作（PAUSE/CANCEL/null）也需先满足该契约再走业务。
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            try {
+                if (ACTION_START.equals(intent == null ? null : intent.getAction())) {
+                    // START 分支下方原有 startForeground 调用会立即执行，这里不重复
+                } else {
+                    startForeground(NOTIFICATION_ID, buildProgressNotification("处理中", 0, 1));
+                    stopForeground(true);
+                }
+            } catch (Exception ignored) {
+            }
+        }
         if (intent == null) {
             return START_NOT_STICKY;
         }
@@ -92,6 +105,14 @@ public class HlsDownloadService extends Service {
             viewKey = intent.getStringExtra(EXTRA_VIEW_KEY);
             savePath = intent.getStringExtra(EXTRA_SAVE_PATH);
             if (TextUtils.isEmpty(url)) {
+                // M73：startForegroundService 路径下也需先履行 startForeground 契约
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    try {
+                        startForeground(NOTIFICATION_ID, buildProgressNotification("下载中 0%", 0, 1));
+                        stopForeground(true);
+                    } catch (Exception ignored) {
+                    }
+                }
                 stopSelf();
                 return START_NOT_STICKY;
             }
@@ -110,8 +131,10 @@ public class HlsDownloadService extends Service {
             } else {
                 AppLog.e("HlsDownload", "下载目录不可写且无 fallback path=" + targetMp4Path);
             }
-            // 稳定的伪 downloadId，使「我的下载」查询（DownloadId!=0）能命中本记录
-            pseudoDownloadId = Math.abs(url.hashCode());
+            // 稳定的伪 downloadId，使「我的下载」查询（DownloadId!=0）能命中本记录。
+            // M73：Math.abs(hashCode) 对 Integer.MIN_VALUE 会返回负数，且不同 URL 可能碰撞；
+            // 改为拼接 viewKey 哈希的高低位构造正数，并兜底保证 >0。
+            pseudoDownloadId = stablePositiveId(url);
             cancelledByUser = false;
             startForeground(NOTIFICATION_ID, buildProgressNotification("下载中 0%", 0, 1));
             // M62：统一在此落伪 downloadId + status=progress（修复 2.5）——
@@ -166,6 +189,18 @@ public class HlsDownloadService extends Service {
             stopSelf();
         }
         return START_NOT_STICKY;
+    }
+
+    /** M73：构造稳定且恒为正的伪 downloadId（Math.abs 对 MIN_VALUE 返回负数） */
+    static int stablePositiveId(String url) {
+        if (url == null) {
+            return 1;
+        }
+        int h = url.hashCode();
+        // 混入二次哈希减少碰撞；用无符号右移保证正数
+        int mixed = h ^ (h >>> 16);
+        int positive = mixed & 0x7FFFFFFF;
+        return positive == 0 ? 1 : positive;
     }
 
     private void startDownload(String url, String mp4Path,

@@ -52,6 +52,10 @@ public class DownloadManager {
      */
     private final CopyOnWriteArrayList<DownloadStatusUpdater> updaterList = new CopyOnWriteArrayList<>();
 
+    // M73：进度落库节流——记录每个 downloadId 上次落库时的百分比，≥5% 步进才写库
+    private final android.support.v4.util.SimpleArrayMap<Integer, Integer> lastSavedProgress =
+            new android.support.v4.util.SimpleArrayMap<>();
+
 
     /**
      * M61：判断是否 HLS m3u8 地址。m3u8 绝不能交给 FileDownloader：
@@ -81,6 +85,7 @@ public class DownloadManager {
         Logger.t(TAG).d("path::" + path);
         Logger.t(TAG).d("isDownloadNeedWifi::" + isDownloadNeedWifi);
         Logger.t(TAG).d("isForceReDownload::" + isForceReDownload);
+        // M73：进度落库节流的步进记录（真实 id 在 enqueue 后初始化为 -1）
         BaseDownloadTask task = FileDownloader.getImpl().create(url)
                 .addHeader("User-Agent", DOWNLOAD_UA);
         if (!TextUtils.isEmpty(referer)) {
@@ -93,6 +98,7 @@ public class DownloadManager {
                 .setForceReDownload(isForceReDownload)
                 .asInQueueTask()
                 .enqueue();
+        lastSavedProgress.put(id, -1);
         FileDownloader.getImpl().start(lis, false);
         return id;
     }
@@ -131,7 +137,16 @@ public class DownloadManager {
 
         @Override
         protected void progress(BaseDownloadTask task, int soFarBytes, int totalBytes) {
-            saveDownloadInfo(task);
+            // M73：进度回调节流——每个回调都全量查库+写库会产生海量同步 DB IO（大文件下载数千次），
+            // 改为按百分比步进落库（≥5% 或首次），UI 进度条仍由内存 updater 实时刷新
+            Integer lastPct = lastSavedProgress.get(task.getId());
+            int pct = totalBytes > 0 ? (int) (((float) soFarBytes / totalBytes) * 100) : 0;
+            if (lastPct == null || lastPct < 0 || pct - lastPct >= 5) {
+                if (lastPct != null) {
+                    lastSavedProgress.put(task.getId(), pct);
+                }
+                saveDownloadInfo(task);
+            }
         }
 
         @Override
@@ -216,12 +231,13 @@ public class DownloadManager {
         }
         if (task.getStatus() == FileDownloadStatus.completed) {
             v9MmanItem.setFinishedDownloadDate(new Date());
-            // M61：假完成防护——m3u8 播放列表/错误页被当 mp4 下完时只有几百字节，
-            // 判定为无效文件：删除并标记 error，避免污染「下载完成」列表。
+            // M61/M73：假完成防护——m3u8 播放列表/错误页被当 mp4 下完时只有几百字节。
+            // M73 收紧判定：①文件头必须是文本（m3u8/#EXTM3U/HTML），排除合法的小体积视频；
+            // ②或 URL 本身就是 m3u8。纯大小阈值会误删 <100KB 的合法短视频。
             try {
                 File done = new File(task.getPath());
-                if (done.exists() && done.length() < 100 * 1024) {
-                    AppLog.e(TAG, "疑似假完成文件(" + done.length() + "B)已删除 url.host="
+                if (done.exists() && done.length() < 100 * 1024 && looksLikeTextFile(done)) {
+                    AppLog.e(TAG, "疑似假完成文件(" + done.length() + "B, 文本内容)已删除 url.host="
                             + AppLog.hostOf(task.getUrl()));
                     done.delete();
                     v9MmanItem.setStatus(FileDownloadStatus.error);
@@ -245,6 +261,40 @@ public class DownloadManager {
         //CopyOnWriteArrayList 的迭代器本身是快照，无需再clone
         for (DownloadStatusUpdater downloadStatusUpdater : updaterList) {
             downloadStatusUpdater.complete(task);
+        }
+    }
+
+    /**
+     * M73：判断文件是否文本内容（m3u8 播放列表/HTML 错误页）。
+     * 视频文件（mp4 等）头部含大量二进制控制字节；文本文件几乎全是可打印字符。
+     * 只读前 512 字节判断，避免大文件全量 IO。
+     */
+    private static boolean looksLikeTextFile(File f) {
+        java.io.FileInputStream fis = null;
+        try {
+            byte[] buf = new byte[512];
+            fis = new java.io.FileInputStream(f);
+            int n = fis.read(buf);
+            if (n <= 0) {
+                return true; // 空文件按文本处理（必然无效）
+            }
+            for (int i = 0; i < n; i++) {
+                byte b = buf[i];
+                // 控制字符（除 \t \n \r）出现即视为二进制
+                if ((b < 0x20 && b != 0x09 && b != 0x0A && b != 0x0D) || b == 0) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (Exception e) {
+            return false;
+        } finally {
+            if (fis != null) {
+                try {
+                    fis.close();
+                } catch (Exception ignored) {
+                }
+            }
         }
     }
 

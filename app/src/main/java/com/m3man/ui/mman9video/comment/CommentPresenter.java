@@ -115,7 +115,11 @@ public class CommentPresenter extends MvpBasePresenter<CommentView> implements I
     public void commentVideo(String comment, String uid, String vid, String viewKey) {
         String cpaintFunction = "process_comments";
         String responseType = "json";
-        String comments = "\"" + comment + "\"";
+        // M73：转义内容中的引号与反斜杠——此前裸拼引号，评论含引号会被截断/提交失败
+        String escaped = comment
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"");
+        String comments = "\"" + escaped + "\"";
         Logger.t(TAG).d(comments);
         dataManager.commentMman9Video(cpaintFunction, comments, uid, vid, viewKey, responseType)
                 .retryWhen(new RetryWhenProcess(RetryWhenProcess.PROCESS_TIME))

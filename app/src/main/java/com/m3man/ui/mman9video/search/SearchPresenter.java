@@ -53,7 +53,8 @@ public class SearchPresenter extends MvpBasePresenter<SearchView> implements ISe
                         if (baseResult.getCode() == BaseResult.ERROR_CODE) {
                             throw new MessageException(baseResult.getMessage());
                         }
-                        if (page == 1) {
+                        // M73：任意页响应都刷新 totalPage，避免首屏后站点总页数变化/初始为 null 时误判
+                        if (baseResult.getTotalPage() != null && baseResult.getTotalPage() > 0) {
                             totalPage = baseResult.getTotalPage();
                         }
                         return baseResult.getData();

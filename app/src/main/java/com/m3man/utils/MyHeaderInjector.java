@@ -11,7 +11,10 @@ import javax.inject.Singleton;
 @Singleton
 public class MyHeaderInjector implements HeaderInjector {
 
-    private HashMap<String,String> hashMap;
+    // M73：该 map 由 UI 线程写入、videocache 代理线程读取（addHeaders），
+    // 非 volatile 的引用替换在代理线程可能看到半初始化/旧引用。改为 volatile 引用 +
+    // 不可变快照式更新，读侧始终拿到完整一致的 map。
+    private volatile HashMap<String,String> hashMap;
 
     @Inject
     public MyHeaderInjector() {

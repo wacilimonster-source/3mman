@@ -122,7 +122,14 @@ public class PornyFallbackResolver {
         i.putExtra(HlsDownloadService.EXTRA_VIEW_KEY, item.getViewKey());
         i.putExtra(HlsDownloadService.EXTRA_SAVE_PATH, savePath);
         try {
-            ctx.startService(i);
+            // M73：Android 8+ 后台 startService 静默失败（IllegalStateException 被吞），
+            // 应用退后台后 HLS 兜底下载不会启动。HlsDownloadService onStartCommand 会
+            // startForeground，用 startForegroundService 保证后台也能拉起。
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                ctx.startForegroundService(i);
+            } else {
+                ctx.startService(i);
+            }
         } catch (Exception ignored) {
         }
     }

@@ -62,6 +62,8 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
                         }
                         if (page == 1) {
                             totalPage = baseResult.getTotalPage();
+                            // M73：本次刷新已绕过缓存，后续页恢复走缓存
+                            cleanCache = false;
                         }
                         return baseResult.getData();
                     }
@@ -131,13 +133,9 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
         String type = "public";
         if (pullToRefresh) {
             page = 1;
+            // M73：cleanCache 只在本次刷新生效一次——此前置 true 永不复位，
+            // 导致后续加载更多全部强制绕过缓存
             cleanCache = true;
-            pullCount++;
-            if (pullCount % 2 == 1) {
-                type = "public";
-            } else {
-                type = "private";
-            }
         }
         dataManager.loadMman9authorVideos(uid, type, page, cleanCache)
                 .map(new Function<BaseResult<List<V9MmanItem>>, List<V9MmanItem>>() {
@@ -148,6 +146,8 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
                         }
                         if (page == 1) {
                             totalPage = baseResult.getTotalPage();
+                            // M73：本次刷新已绕过缓存，后续页恢复走缓存
+                            cleanCache = false;
                         }
                         return baseResult.getData();
                     }

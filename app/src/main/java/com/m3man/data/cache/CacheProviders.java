@@ -119,17 +119,21 @@ public interface CacheProviders {
 
 
 
-    @ProviderKey("cache_v113")
+    // M73：四个方法此前共用 @ProviderKey("cache_v113")，RxCache 按 providerKey+dynamicKey
+    // 组合存盘，DynamicKey 相同时不同方法会互相读到对方的缓存（污染）。拆分为独立 key。
+    // 注：cacheWith* 系列当前无调用方（AppApiHelper 只用上面具名方法），属防御性修复。
+
+    @ProviderKey("cache_with_limit_time_dynamic")
     @LifeCache(duration = CACHE_TIME, timeUnit = TimeUnit.MINUTES)
     Observable<Reply<String>> cacheWithLimitTime(Observable<String> observable, DynamicKey dynamicKey, EvictDynamicKey evictDynamicKey);
 
-    @ProviderKey("cache_v113")
+    @ProviderKey("cache_no_limit_time_dynamic")
     Observable<Reply<String>> cacheWithNoLimitTime(Observable<String> observable, DynamicKey dynamicKey, EvictDynamicKey evictDynamicKey);
 
-    @ProviderKey("cache_v113")
+    @ProviderKey("cache_with_limit_time_group")
     @LifeCache(duration = CACHE_TIME, timeUnit = TimeUnit.MINUTES)
     Observable<Reply<String>> cacheWithLimitTime(Observable<String> observable, DynamicKeyGroup dynamicKeyGroup, EvictDynamicKeyGroup evictDynamicKeyGroup);
 
-    @ProviderKey("cache_v113")
+    @ProviderKey("cache_no_limit_time_group")
     Observable<Reply<String>> cacheWithNoLimitTime(Observable<String> observable, DynamicKeyGroup dynamicKeyGroup, EvictDynamicKeyGroup evictDynamicKeyGroup);
 }

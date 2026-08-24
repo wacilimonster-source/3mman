@@ -30,7 +30,14 @@ public class AppLog {
     private static final String TAG = "AppLog";
 
     private static final List<String> ENTRIES = Collections.synchronizedList(new ArrayList<String>(MAX_ENTRIES));
-    private static final SimpleDateFormat TIME_FMT = new SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.getDefault());
+    // M73：SimpleDateFormat 非线程安全，静态共享实例在多线程 format 时会产生错误时间戳
+    // 甚至 ArrayIndexOutOfBoundsException。改用 ThreadLocal 隔离。
+    private static final ThreadLocal<SimpleDateFormat> TIME_FMT = new ThreadLocal<SimpleDateFormat>() {
+        @Override
+        protected SimpleDateFormat initialValue() {
+            return new SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.getDefault());
+        }
+    };
 
     private AppLog() {
     }
@@ -54,7 +61,7 @@ public class AppLog {
         if (msg == null) {
             return;
         }
-        String line = TIME_FMT.format(new Date()) + " " + level + "/" + tag + ": " + msg;
+        String line = TIME_FMT.get().format(new Date()) + " " + level + "/" + tag + ": " + msg;
         synchronized (ENTRIES) {
             ENTRIES.add(line);
             while (ENTRIES.size() > MAX_ENTRIES) {

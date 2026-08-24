@@ -131,6 +131,11 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
 
                     @Override
                     public void onSuccess(final Boolean s) {
+                        // M73：测试返回 false（能访问但数据不对）同样视为失败，回滚域名映射——
+                        // 此前只有异常分支回滚，"测试失败但可访问"时毒化的映射会残留整个会话
+                        if (!s && !TextUtils.isEmpty(oldPornyAddress)) {
+                            RetrofitUrlManager.getInstance().putDomain(Api.PORNY_DOMAIN_NAME, oldPornyAddress);
+                        }
                         ifViewAttached(new ViewAction<SettingView>() {
                             @Override
                             public void run(@NonNull SettingView view) {

@@ -29,6 +29,8 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
     private static final String TAG = VideoListFragment.class.getSimpleName();
     private Integer totalPage = 1;
     private int page = 1;
+    // M73：请求在途标志，防刷新/加载更多/跳页并发乱序
+    private volatile boolean isLoading = false;
     private LifecycleProvider<Lifecycle.Event> provider;
     /**
      * 本次强制刷新过那下面的请求也一起刷新
@@ -55,11 +57,18 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
         if (skipPage > 0) {
             page = skipPage;
         }
+        // M73：请求在途守卫——刷新/加载更多/跳页并发时响应乱序会错插数据、页码错乱
+        if (isLoading) {
+            return;
+        }
+        isLoading = true;
         if ("watch".equalsIgnoreCase(category)) {
             //最近更新
             action(dataManager.loadMman9VideoRecentUpdates(category, page, cleanCache, isLoadMoreCleanCache)
                     .map(baseResult -> {
-                        if (page == 1) {
+                        // M73：totalPage 不再只在 page==1 时更新——首次进入即跳第 N 页时
+                        // 旧逻辑 totalPage 保持 1，page>=totalPage 恒成立误判"没有更多"
+                        if (baseResult.getTotalPage() != null && baseResult.getTotalPage() > 0) {
                             totalPage = baseResult.getTotalPage();
                         }
                         return baseResult.getData();
@@ -75,7 +84,8 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
             }
             Observable<List<V9MmanItem>> ob = dataManager.loadMman9VideoByCategory(category, viewType, page, m, cleanCache, isLoadMoreCleanCache)
                     .map(baseResult -> {
-                        if (page == 1) {
+                        // M73：同上，任意页响应都刷新 totalPage（含跳页场景）
+                        if (baseResult.getTotalPage() != null && baseResult.getTotalPage() > 0) {
                             totalPage = baseResult.getTotalPage();
                         }
                         return baseResult.getData();
@@ -109,6 +119,7 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
 
                     @Override
                     public void onSuccess(final List<V9MmanItem> v9MmanItems) {
+                        isLoading = false;
                         ifViewAttached(view -> {
                             if (page == 1 || skipPage > 0) {
                                 view.setData(v9MmanItems);
@@ -136,6 +147,7 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
 
                     @Override
                     public void onError(final String msg, int code) {
+                        isLoading = false;
                         //首次加载失败，显示重试页
                         ifViewAttached(view -> {
                             if (page == 1) {

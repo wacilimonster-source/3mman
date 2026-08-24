@@ -1,9 +1,12 @@
 package com.m3man.ui.mman9video.history;
 
+import android.arch.lifecycle.Lifecycle;
+
 import com.hannesdorfmann.mosby3.mvp.MvpBasePresenter;
 import com.orhanobut.logger.Logger;
 import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.V9MmanItem;
+import com.trello.rxlifecycle2.LifecycleProvider;
 
 import java.util.List;
 
@@ -22,10 +25,12 @@ public class HistoryPresenter extends MvpBasePresenter<HistoryView> implements I
     private DataManager dataManager;
     private int page = 1;
     private int pageSize = 10;
+    private final LifecycleProvider<Lifecycle.Event> provider;
 
     @Inject
-    public HistoryPresenter(DataManager dataManager) {
+    public HistoryPresenter(DataManager dataManager, LifecycleProvider<Lifecycle.Event> provider) {
         this.dataManager = dataManager;
+        this.provider = provider;
     }
 
     @Override
@@ -34,22 +39,29 @@ public class HistoryPresenter extends MvpBasePresenter<HistoryView> implements I
         if (pullToRefresh) {
             page = 1;
         }
-        final List<V9MmanItem> v9MmanItemList = dataManager.loadHistoryData(page, pageSize);
-        ifViewAttached(view -> {
-            if (page == 1) {
-                Logger.t(TAG).d("加载首页");
-                view.setData(v9MmanItemList);
-            } else {
-                Logger.t(TAG).d("加载更多");
-                view.setMoreData(v9MmanItemList);
-                view.loadMoreDataComplete();
-            }
-            page++;
-            if (v9MmanItemList.size() == 0 || v9MmanItemList.size() < pageSize) {
-                Logger.t(TAG).d("没有更多");
-                view.noMoreData();
-            }
-        });
+        // M73：DB 查询切到 IO 线程，历史记录多时避免主线程卡顿/ANR
+        io.reactivex.Observable.just(1)
+                .map(integer -> dataManager.loadHistoryData(page, pageSize))
+                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
+                .compose(provider.<List<V9MmanItem>>bindUntilEvent(Lifecycle.Event.ON_DESTROY))
+                .subscribe(v9MmanItemList -> {
+                    ifViewAttached(view -> {
+                        if (page == 1) {
+                            Logger.t(TAG).d("加载首页");
+                            view.setData(v9MmanItemList);
+                        } else {
+                            Logger.t(TAG).d("加载更多");
+                            view.setMoreData(v9MmanItemList);
+                            view.loadMoreDataComplete();
+                        }
+                        page++;
+                        if (v9MmanItemList.size() == 0 || v9MmanItemList.size() < pageSize) {
+                            Logger.t(TAG).d("没有更多");
+                            view.noMoreData();
+                        }
+                    });
+                });
     }
 
     @Override

@@ -341,6 +341,8 @@ public class AppApiHelper implements ApiHelper {
                     if (baseResult.getCode() != BaseResult.SUCCESS_CODE || TextUtils.isEmpty(baseResult.getMessage())) {
                         throw new FavoriteException("删除失败了");
                     }
+                    // M73：缓存逐出改由 Presenter 在删除成功后以 cleanCache=true
+                    // 重载收藏列表完成（EvictDynamicKey 需匹配 userName+page，此处无该上下文）
                     return baseResult.getData();
                 });
     }
