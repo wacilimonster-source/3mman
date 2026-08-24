@@ -14,6 +14,7 @@ import com.m3man.R;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.ui.mman9video.play.PlayVideoPresenter;
 import com.m3man.utils.GlideApp;
+import com.m3man.utils.SmartCoverTransformation;
 
 import java.util.List;
 
@@ -33,7 +34,11 @@ public class DownloadVideoAdapter extends BaseQuickAdapter<V9MmanItem, BaseViewH
         helper.setText(R.id.tv_91mman_item_title, item.getTitleWithDuration());
         ImageView simpleDraweeView = helper.getView(R.id.iv_91mman_item_img);
         Uri uri = Uri.parse(item.getImgUrl());
-        GlideApp.with(helper.itemView).load(uri).placeholder(R.drawable.placeholder).transition(new DrawableTransitionOptions().crossFade(300)).into(simpleDraweeView);
+        // M77：智能封面变换，配合布局 centerCrop 彻底消除下载列表的拉伸变形
+        GlideApp.with(helper.itemView).load(uri).placeholder(R.drawable.placeholder)
+                .transition(new DrawableTransitionOptions().crossFade(300))
+                .transform(new SmartCoverTransformation())
+                .into(simpleDraweeView);
         helper.setProgress(R.id.progressBar_download, item.getProgress());
         helper.setText(R.id.tv_download_progress, String.valueOf(item.getProgress()) + "%");
         helper.setText(R.id.tv_download_filesize, Formatter.formatFileSize(helper.itemView.getContext(), item.getSoFarBytes()).replace("MB", "") + "/ " + Formatter.formatFileSize(helper.itemView.getContext(), item.getTotalFarBytes()));

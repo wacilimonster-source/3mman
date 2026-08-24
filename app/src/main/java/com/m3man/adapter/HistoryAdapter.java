@@ -10,6 +10,7 @@ import com.chad.library.adapter.base.BaseViewHolder;
 import com.m3man.R;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.utils.GlideApp;
+import com.m3man.utils.SmartCoverTransformation;
 
 import java.util.List;
 
@@ -31,7 +32,11 @@ public class HistoryAdapter extends BaseQuickAdapter<V9MmanItem,BaseViewHolder>{
         helper.setText(R.id.tv_91mman_item_info, item.getInfo());
         ImageView simpleDraweeView = helper.getView(R.id.iv_91mman_item_img);
         Uri uri = Uri.parse(item.getImgUrl());
-        GlideApp.with(helper.itemView).load(uri).placeholder(R.drawable.placeholder).transition(new DrawableTransitionOptions().crossFade(300)).into(simpleDraweeView);
+        // M77：智能封面变换（同 V91MmanAdapter），竖版封面不再缩成细条
+        GlideApp.with(helper.itemView).load(uri).placeholder(R.drawable.placeholder)
+                .transition(new DrawableTransitionOptions().crossFade(300))
+                .transform(new SmartCoverTransformation())
+                .into(simpleDraweeView);
 
         helper.addOnClickListener(R.id.right_menu_delete);
     }
