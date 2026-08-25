@@ -180,8 +180,56 @@ public class RecommendFeedFragment extends BaseFragment
 
         initViews();
         loadMore(true);
-        // 推荐流是整屏视频流：竖屏也保持状态栏透明（视频满铺），不要紫色状态栏。
-        applyFeedContentFullBleed();
+        // M89: 顶部胶囊/返回键必须避开状态栏区域，避免加载时「全部」胶囊侵入
+        // 状态栏导致 12:05 / 右侧系统图标被遮挡；状态栏高度用系统资源反射读取，兼容各 ROM。
+        applyTopBarInsets();
+        // M89: 加载时（数据未到）保持紫色不透明状态栏，避免黑底覆盖状态栏区域后系统文字看不清。
+        // 推迟到 RecyclerView 首个 item layout 之后再做满铺透明化。
+        final RecyclerView rv = recyclerView;
+        rv.post(new Runnable() {
+            @Override
+            public void run() {
+                if (isAdded() && getActivity() != null) {
+                    applyFeedContentFullBleed();
+                }
+            }
+        });
+    }
+
+    /**
+     * M89: 让 fragment_recommend_feed.xml 里顶部的「全部」胶囊和横屏返回箭头避开状态栏区域。
+     * 读取系统 status_bar_height 资源；横屏时（landscapeLock）状态栏会被 SYSTEM_UI_FLAG_FULLSCREEN 隐藏，
+     * 此处仍把竖屏作为基线，横屏下顶部会多 ~24dp 留白（无功能影响）。
+     */
+    private void applyTopBarInsets() {
+        if (getActivity() == null) {
+            return;
+        }
+        int statusBarHeight = 0;
+        try {
+            int id = getResources().getIdentifier("status_bar_height", "dimen", "android");
+            if (id > 0) {
+                statusBarHeight = getResources().getDimensionPixelSize(id);
+            }
+        } catch (Exception ignored) {
+        }
+        if (orientationFilterView != null) {
+            ViewGroup.LayoutParams raw = orientationFilterView.getLayoutParams();
+            if (raw instanceof ViewGroup.MarginLayoutParams) {
+                ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) raw;
+                lp.topMargin = statusBarHeight + dp(14);
+                lp.topMargin = Math.max(lp.topMargin, dp(14));
+                orientationFilterView.setLayoutParams(lp);
+            }
+        }
+        // landscapeBackView 仅在横屏才 VISIBLE，留原始 6dp topMargin 即可，不强制改
+    }
+
+    private int dp(int value) {
+        if (getResources() == null) {
+            return value;
+        }
+        return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
     }
 
     private void initViews() {

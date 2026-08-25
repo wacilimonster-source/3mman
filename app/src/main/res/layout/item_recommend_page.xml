@@ -54,7 +54,8 @@
         android:textStyle="bold"
         android:visibility="gone" />
 
-    <!-- 右侧操作栏 -->
+    <!-- 右侧操作栏（竖屏）：与横屏保持统一的「小图标+无文字」风格，
+         不再依赖 applyOrientationUi 动态改图标尺寸和文字显隐，杜绝翻页/回竖屏时的残留 bug。 -->
     <LinearLayout
         android:id="@+id/ll_reco_actions"
         android:layout_width="wrap_content"
@@ -72,8 +73,8 @@
 
         <ImageView
             android:id="@+id/iv_reco_like"
-            android:layout_width="42dp"
-            android:layout_height="42dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:contentDescription="@string/reco_like"
             android:src="@drawable/ic_thumb_up_white_24dp" />
 
@@ -86,13 +87,14 @@
             android:shadowRadius="3"
             android:text="@string/reco_like"
             android:textColor="#FFFFFFFF"
-            android:textSize="11sp" />
+            android:textSize="11sp"
+            android:visibility="gone" />
 
         <ImageView
             android:id="@+id/iv_reco_favorite"
-            android:layout_width="42dp"
-            android:layout_height="42dp"
-            android:layout_marginTop="16dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginTop="12dp"
             android:contentDescription="@string/reco_favorite"
             android:src="@drawable/ic_favorite_white_32dp" />
 
@@ -104,13 +106,14 @@
             android:shadowRadius="3"
             android:text="@string/reco_favorite"
             android:textColor="#FFFFFFFF"
-            android:textSize="11sp" />
+            android:textSize="11sp"
+            android:visibility="gone" />
 
         <ImageView
             android:id="@+id/iv_reco_dislike"
-            android:layout_width="42dp"
-            android:layout_height="42dp"
-            android:layout_marginTop="16dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginTop="12dp"
             android:contentDescription="@string/reco_dislike"
             android:src="@drawable/ic_thumb_down_white_24dp" />
 
@@ -122,13 +125,14 @@
             android:shadowRadius="3"
             android:text="@string/reco_dislike"
             android:textColor="#FFFFFFFF"
-            android:textSize="11sp" />
+            android:textSize="11sp"
+            android:visibility="gone" />
 
         <ImageView
             android:id="@+id/iv_reco_detail"
-            android:layout_width="42dp"
-            android:layout_height="42dp"
-            android:layout_marginTop="16dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginTop="12dp"
             android:contentDescription="@string/reco_detail"
             android:src="@drawable/ic_slow_motion_video_black_24dp"
             android:tint="#FFFFFFFF" />
@@ -141,13 +145,14 @@
             android:shadowRadius="3"
             android:text="@string/reco_detail"
             android:textColor="#FFFFFFFF"
-            android:textSize="11sp" />
+            android:textSize="11sp"
+            android:visibility="gone" />
 
         <ImageView
             android:id="@+id/iv_reco_download"
-            android:layout_width="42dp"
-            android:layout_height="42dp"
-            android:layout_marginTop="16dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginTop="12dp"
             android:contentDescription="@string/reco_download"
             android:src="@drawable/ic_file_download_black_24dp"
             android:tint="#FFFFFFFF" />
@@ -160,7 +165,8 @@
             android:shadowRadius="3"
             android:text="@string/reco_download"
             android:textColor="#FFFFFFFF"
-            android:textSize="11sp" />
+            android:textSize="11sp"
+            android:visibility="gone" />
     </LinearLayout>
 
     <!-- 右缘半透明把手：开启「隐藏播放页操作栏」后用于临时呼出操作栏 -->

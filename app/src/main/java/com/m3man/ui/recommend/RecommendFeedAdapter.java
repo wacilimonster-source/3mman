@@ -508,7 +508,19 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         /** M78：根据「隐藏播放页操作栏」偏好设置初始状态。 */
         /**
          * 在 configChanges 旋转场景下，已存在的 ViewHolder 不会重新 inflate 横屏 XML。
-         * 这里直接重设当前 Holder 的操作栏和底部控制条，保证首个视频立即跟随方向切换。
+         * 这里只重设**位置参数**（margin / gravity / padding / speed width）。
+         * <p>
+         * 图标尺寸与文字显隐已由 item_recommend_page.xml / layout-land/item_recommend_page.xml
+         * 静态统一为「小图标 + 无文字」，本方法不再触碰子 View，杜绝翻页/回竖屏时的残留 bug。
+         * <p>
+         * 数值与两份 XML 100% 对齐：
+         * <ul>
+         *   <li>竖屏 actionsContainer: rightMargin=18dp, bottomMargin=40dp, padding(6,8,6,8)</li>
+         *   <li>横屏 actionsContainer: rightMargin=112dp, bottomMargin=0,   padding(4,4,4,4)</li>
+         *   <li>竖屏 progressContainer: rightMargin=12dp, bottomMargin=12dp</li>
+         *   <li>横屏 progressContainer: rightMargin=96dp, bottomMargin=16dp</li>
+         *   <li>横屏 speed: width=40dp；竖屏 speed: WRAP_CONTENT</li>
+         * </ul>
          */
         void applyOrientationUi(boolean landscape) {
             orientationLandscape = landscape;
@@ -519,9 +531,13 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
                     margins.width = ViewGroup.LayoutParams.WRAP_CONTENT;
                     margins.height = ViewGroup.LayoutParams.WRAP_CONTENT;
                     if (landscape) {
-                        margins.setMargins(margins.leftMargin, 0, dp(112), 0);
+                        margins.setMargins(margins.leftMargin, 0,
+                                dp(STD_ACTIONS_RIGHT_MARGIN_LANDSCAPE),
+                                dp(STD_ACTIONS_BOTTOM_MARGIN_LANDSCAPE));
                     } else {
-                        margins.setMargins(margins.leftMargin, 0, dp(18), dp(40));
+                        margins.setMargins(margins.leftMargin, 0,
+                                dp(STD_ACTIONS_RIGHT_MARGIN_PORTRAIT),
+                                dp(STD_ACTIONS_BOTTOM_MARGIN_PORTRAIT));
                     }
                     if (rawParams instanceof android.widget.FrameLayout.LayoutParams) {
                         ((android.widget.FrameLayout.LayoutParams) rawParams).gravity =
@@ -529,47 +545,52 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
                     }
                     actionsContainer.setLayoutParams(rawParams);
                 }
-                actionsContainer.setPadding(dp(landscape ? 4 : 6), dp(landscape ? 4 : 8),
-                        dp(landscape ? 4 : 6), dp(landscape ? 4 : 8));
-                if (actionsContainer instanceof ViewGroup) {
-                    ViewGroup actionsGroup = (ViewGroup) actionsContainer;
-                    for (int i = 0; i < actionsGroup.getChildCount(); i++) {
-                        View child = actionsGroup.getChildAt(i);
-                        if (child instanceof TextView) {
-                            child.setVisibility(landscape ? View.GONE : View.VISIBLE);
-                        } else if (child instanceof ImageView) {
-                            ViewGroup.LayoutParams childParams = child.getLayoutParams();
-                            if (childParams instanceof ViewGroup.MarginLayoutParams) {
-                                ViewGroup.MarginLayoutParams childMargins =
-                                        (ViewGroup.MarginLayoutParams) childParams;
-                                childMargins.width = dp(landscape ? 36 : 42);
-                                childMargins.height = dp(landscape ? 36 : 42);
-                                childMargins.topMargin = landscape ? (i == 0 ? 0 : dp(8))
-                                        : (i == 0 ? 0 : dp(16));
-                                child.setLayoutParams(childMargins);
-                            }
-                        }
-                    }
-                }
+                int padH = dp(landscape ? STD_ACTIONS_PADDING_LANDSCAPE
+                        : STD_ACTIONS_PADDING_H_PORTRAIT);
+                int padV = dp(landscape ? STD_ACTIONS_PADDING_LANDSCAPE
+                        : STD_ACTIONS_PADDING_V_PORTRAIT);
+                actionsContainer.setPadding(padH, padV, padH, padV);
                 actionsContainer.requestLayout();
             }
             if (progressContainer != null) {
                 ViewGroup.LayoutParams rawParams = progressContainer.getLayoutParams();
                 if (rawParams instanceof ViewGroup.MarginLayoutParams) {
                     ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) rawParams;
-                    margins.rightMargin = dp(landscape ? 96 : 12);
-                    margins.setMarginEnd(dp(landscape ? 96 : 12));
-                    margins.bottomMargin = dp(landscape ? 16 : 12);
+                    int right = dp(landscape ? STD_PROGRESS_RIGHT_MARGIN_LANDSCAPE
+                            : STD_PROGRESS_RIGHT_MARGIN_PORTRAIT);
+                    int bottom = dp(landscape ? STD_PROGRESS_BOTTOM_MARGIN_LANDSCAPE
+                            : STD_PROGRESS_BOTTOM_MARGIN_PORTRAIT);
+                    margins.rightMargin = right;
+                    margins.setMarginEnd(right);
+                    margins.bottomMargin = bottom;
                     progressContainer.setLayoutParams(rawParams);
                 }
             }
             if (speed != null) {
                 ViewGroup.LayoutParams speedParams = speed.getLayoutParams();
-                speedParams.width = landscape ? dp(40) : ViewGroup.LayoutParams.WRAP_CONTENT;
-                speed.setLayoutParams(speedParams);
+                if (speedParams != null) {
+                    speedParams.width = landscape
+                            ? dp(STD_SPEED_WIDTH_LANDSCAPE)
+                            : ViewGroup.LayoutParams.WRAP_CONTENT;
+                    speed.setLayoutParams(speedParams);
+                }
             }
             itemView.requestLayout();
         }
+
+        // 标准参数（与两份 XML 100% 对齐，dp 值）
+        private static final int STD_ACTIONS_RIGHT_MARGIN_PORTRAIT = 18;
+        private static final int STD_ACTIONS_BOTTOM_MARGIN_PORTRAIT = 40;
+        private static final int STD_ACTIONS_PADDING_H_PORTRAIT = 6;
+        private static final int STD_ACTIONS_PADDING_V_PORTRAIT = 8;
+        private static final int STD_ACTIONS_RIGHT_MARGIN_LANDSCAPE = 112;
+        private static final int STD_ACTIONS_BOTTOM_MARGIN_LANDSCAPE = 0;
+        private static final int STD_ACTIONS_PADDING_LANDSCAPE = 4;
+        private static final int STD_PROGRESS_RIGHT_MARGIN_PORTRAIT = 12;
+        private static final int STD_PROGRESS_BOTTOM_MARGIN_PORTRAIT = 12;
+        private static final int STD_PROGRESS_RIGHT_MARGIN_LANDSCAPE = 96;
+        private static final int STD_PROGRESS_BOTTOM_MARGIN_LANDSCAPE = 16;
+        private static final int STD_SPEED_WIDTH_LANDSCAPE = 40;
 
         private int dp(int value) {
             return (int) (value * itemView.getResources().getDisplayMetrics().density + 0.5f);

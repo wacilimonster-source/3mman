@@ -54,7 +54,8 @@
         android:textStyle="bold"
         android:visibility="gone" />
 
-    <!-- 右侧操作栏（横屏专用）：为系统横屏安全区域预留右侧空间，避免按钮被裁切；间距收窄以适配宽屏 -->
+    <!-- 右侧操作栏（横屏专用）：为系统横屏安全区域预留右侧空间，避免按钮被裁切；间距收窄以适配宽屏。
+         图标尺寸、文字显隐与竖屏完全统一，全部由静态 XML 决定，applyOrientationUi 只调整位置参数。 -->
     <LinearLayout
         android:id="@+id/ll_reco_actions"
         android:layout_width="wrap_content"
@@ -71,8 +72,8 @@
 
         <ImageView
             android:id="@+id/iv_reco_like"
-            android:layout_width="42dp"
-            android:layout_height="42dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:contentDescription="@string/reco_like"
             android:src="@drawable/ic_thumb_up_white_24dp" />
 
@@ -90,8 +91,8 @@
 
         <ImageView
             android:id="@+id/iv_reco_favorite"
-            android:layout_width="42dp"
-            android:layout_height="42dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_marginTop="12dp"
             android:contentDescription="@string/reco_favorite"
             android:src="@drawable/ic_favorite_white_32dp" />
@@ -109,8 +110,8 @@
 
         <ImageView
             android:id="@+id/iv_reco_dislike"
-            android:layout_width="42dp"
-            android:layout_height="42dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_marginTop="12dp"
             android:contentDescription="@string/reco_dislike"
             android:src="@drawable/ic_thumb_down_white_24dp" />
@@ -128,8 +129,8 @@
 
         <ImageView
             android:id="@+id/iv_reco_detail"
-            android:layout_width="42dp"
-            android:layout_height="42dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_marginTop="12dp"
             android:contentDescription="@string/reco_detail"
             android:src="@drawable/ic_slow_motion_video_black_24dp"
@@ -148,8 +149,8 @@
 
         <ImageView
             android:id="@+id/iv_reco_download"
-            android:layout_width="42dp"
-            android:layout_height="42dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_marginTop="12dp"
             android:contentDescription="@string/reco_download"
             android:src="@drawable/ic_file_download_black_24dp"

@@ -1,7 +1,7 @@
 {
-  "versionCode": 121,
-  "versionName": "1.0.88",
-  "updateMessage": "M88 修复横竖屏切换后推荐操作栏错位/裁切，并优化横屏按钮：旋转时立即对当前已存在的首个 ViewHolder 重新应用方向布局，避免第一个视频仍使用竖屏操作栏；回竖屏时恢复原位置和中文标签。横屏下载、点赞、收藏、不喜欢、详情仅保留缩小后的图标并隐藏中文，底部倍速按钮保持完整显示。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.88.apk",
-  "sha256": "1d28c0cbd83cd38db9a1febdca103321fef09d32619f4710103251a376eb7b5b"
+  "versionCode": 122,
+  "versionName": "1.0.89",
+  "updateMessage": "M89 彻底解决推荐流横竖屏按钮反复改不好的问题：竖屏/横屏两份 XML 静态统一为「36dp 小图标 + 隐藏中文」，applyOrientationUi 不再触碰图标尺寸和文字显隐，只改位置参数且用与 XML 100% 对齐的标准值，杜绝残留；修复从视频切回推荐流时「全部」胶囊和状态栏互相遮挡的问题（顶部控件加 statusBarHeight topMargin，加载时推迟状态栏透明化）。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.89.apk",
+  "sha256": "c7f4e2a1ddc88d6bba49a0f54c99c7b1749b5f3efd81d3aa521bb9576d92f25e"
 }
