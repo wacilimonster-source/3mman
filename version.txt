@@ -1,7 +1,7 @@
 {
-  "versionCode": 125,
-  "versionName": "1.0.92",
-  "updateMessage": "M92 播放器交互增强（推荐流/JiaoZi/Exo 三引擎）：①横屏隐藏全屏按钮（applyOrientationUi GONE、startWindowFullscreen/clearFullscreenLayout 隐藏恢复、Exo goFullScreen/exitFullScreen 隐藏恢复）；②倍速功能（JiaoZi 新增 1x→1.5x→2x→2.5x→3x 速度按钮，推荐流/Exo 原有速控保留）；③双击快进（推荐流全区域双击跳 1/8、JiaoZi 全区域双击跳 1/8、Exo onDoubleTap 跳 1/8）；④长按左半屏 2x 快进（三引擎统一 400ms 触发，且修复松手速度被错误复位为 1x 的 bug——现恢复长按前真实倍速）；⑤全屏按钮进横屏（原有）。同时清理遗留调试日志。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.92.apk",
-  "sha256": "e0799c57f4b0952dec0a5e16f2a4dcd71ccc47f9239af691dbdd193d12165e24"
+  "versionCode": 126,
+  "versionName": "1.0.93",
+  "updateMessage": "M93 作者收藏与搜索增强 + 作者页404自愈：①作者收藏文字对比度（新增 author_favorite_item_text 日间#353C46/夜间#ADB4BE，item 两行文本改用该色，夜间可读性提升）；②搜索提示改名（strings.xml 及 SearchPorny/PornyFavorite 等“分分钟”统一改“搜索”）；③横屏进度条右留白修复（RecommendFeedAdapter 横屏进度条 right margin 96→16）；④作者收藏增强（AuthorFavorite 实体新增 videoCount/topViewKey/lastRefreshTime/lastNewTime/hasNew/coverUrl 六字段并打通 DbHelper→AppDbHelper→AppDataManager 持久化链路；AuthorFavoriteActivity 支持刷新/相对时间/NEW角标/空列表容错；item 重设计为 52dp 封面+三行+NEW角标）；⑤作者页404自愈（ParseV9MmanVideo 按 ?key=/&key= 边界取值且 ownerLink 优先 a[href*=uvideos.php]；AuthorPresenter.reloadOwnerThenAuthorVideos 自愈、AuthorFragment.healingUid 防循环）。附带：播放页作者收藏星标改金色 #FFBA00。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.93.apk",
+  "sha256": "8168f7d701be972204b96382cbc3dec1ee941d870ceaf545135fd8c7865b9ae3"
 }

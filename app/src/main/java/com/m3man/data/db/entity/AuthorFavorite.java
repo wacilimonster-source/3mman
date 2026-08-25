@@ -32,6 +32,22 @@ public class AuthorFavorite {
     @NotNull
     private String authorName;
     private Date favoriteDate;
+
+    // ==================== v11：作者摘要缓存（全部可空，未刷新过为 null） ====================
+
+    /** 作品总数（刷新时由 totalPage 与末页条数精确推算；失败时用首页估算） */
+    private Integer videoCount;
+    /** 最新一部作品的标识（viewKey），用于变更检测发现新作品 */
+    private String topViewKey;
+    /** 上次成功刷新摘要的时刻（6 小时节流依据） */
+    private Date lastRefreshTime;
+    /** 最近一次检测到「有新作品」的时刻（≈更新时间，列表页无发布日期只能变更检测） */
+    private Date lastNewTime;
+    /** 是否有未读新作品（进作者页后清除） */
+    private Boolean hasNew;
+    /** 作者最新作品的封面图 URL（条目缩略图） */
+    private String coverUrl;
+
     @Generated(hash = 1546271591)
     public AuthorFavorite(Long id, @NotNull String authorKey,
             @NotNull String source, @NotNull String authorName, Date favoriteDate) {
@@ -73,5 +89,41 @@ public class AuthorFavorite {
     }
     public void setFavoriteDate(Date favoriteDate) {
         this.favoriteDate = favoriteDate;
+    }
+    public Integer getVideoCount() {
+        return this.videoCount;
+    }
+    public void setVideoCount(Integer videoCount) {
+        this.videoCount = videoCount;
+    }
+    public String getTopViewKey() {
+        return this.topViewKey;
+    }
+    public void setTopViewKey(String topViewKey) {
+        this.topViewKey = topViewKey;
+    }
+    public Date getLastRefreshTime() {
+        return this.lastRefreshTime;
+    }
+    public void setLastRefreshTime(Date lastRefreshTime) {
+        this.lastRefreshTime = lastRefreshTime;
+    }
+    public Date getLastNewTime() {
+        return this.lastNewTime;
+    }
+    public void setLastNewTime(Date lastNewTime) {
+        this.lastNewTime = lastNewTime;
+    }
+    public Boolean getHasNew() {
+        return this.hasNew;
+    }
+    public void setHasNew(Boolean hasNew) {
+        this.hasNew = hasNew;
+    }
+    public String getCoverUrl() {
+        return this.coverUrl;
+    }
+    public void setCoverUrl(String coverUrl) {
+        this.coverUrl = coverUrl;
     }
 }

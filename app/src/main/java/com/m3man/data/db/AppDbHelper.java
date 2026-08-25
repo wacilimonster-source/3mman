@@ -366,6 +366,14 @@ public class AppDbHelper implements DbHelper {
     }
 
     @Override
+    public void updateAuthorFavorite(AuthorFavorite authorFavorite) {
+        if (authorFavorite == null || authorFavorite.getId() == null) {
+            return;
+        }
+        mDaoSession.getAuthorFavoriteDao().update(authorFavorite);
+    }
+
+    @Override
     public void deleteAuthorFavorite(AuthorFavorite authorFavorite) {
         mDaoSession.getAuthorFavoriteDao().delete(authorFavorite);
     }

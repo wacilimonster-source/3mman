@@ -575,6 +575,11 @@ public class AppDataManager implements DataManager {
     }
 
     @Override
+    public void updateAuthorFavorite(AuthorFavorite authorFavorite) {
+        mDbHelper.updateAuthorFavorite(authorFavorite);
+    }
+
+    @Override
     public void deleteAuthorFavorite(AuthorFavorite authorFavorite) {
         mDbHelper.deleteAuthorFavorite(authorFavorite);
     }

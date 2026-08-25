@@ -2,6 +2,7 @@ package com.m3man.ui.mman9video.author;
 
 import android.arch.lifecycle.Lifecycle;
 import android.support.annotation.NonNull;
+import android.text.TextUtils;
 
 import com.hannesdorfmann.mosby3.mvp.MvpBasePresenter;
 import com.orhanobut.logger.Logger;
@@ -9,6 +10,7 @@ import com.trello.rxlifecycle2.LifecycleProvider;
 import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.AuthorFavorite;
 import com.m3man.data.db.entity.V9MmanItem;
+import com.m3man.data.db.entity.VideoResult;
 import com.m3man.data.model.BaseResult;
 import com.m3man.exception.MessageException;
 import com.m3man.rxjava.CallBackWrapper;
@@ -202,6 +204,66 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
                                 } else {
                                     view.loadMoreFailed();
                                 }
+                            }
+                        });
+                    }
+                });
+    }
+
+    /**
+     * M92：UID 过期自愈——9mman 的作者 UID 是加密临时 token（DB 里缓存的会过期，
+     * 请求 uvideos.php 返回 404）。重拉视频详情页获取新 ownerId，回写 DB 后重试作者列表。
+     * 仅 9mman 源调用；由 Fragment 在首页加载失败时触发一次。
+     */
+    public void reloadOwnerThenAuthorVideos(V9MmanItem item, final boolean pullToRefresh) {
+        if (item == null || TextUtils.isEmpty(item.getViewKey())) {
+            ifViewAttached(new ViewAction<AuthorView>() {
+                @Override
+                public void run(@NonNull AuthorView view) {
+                    view.showError("作者视频加载失败");
+                }
+            });
+            return;
+        }
+        final String viewKey = item.getViewKey();
+        dataManager.loadMman9VideoUrl(viewKey)
+                .map(new Function<VideoResult, VideoResult>() {
+                    @Override
+                    public VideoResult apply(VideoResult fresh) throws Exception {
+                        if (fresh == null || TextUtils.isEmpty(fresh.getOwnerId())) {
+                            throw new IllegalStateException("详情页未取得作者 UID");
+                        }
+                        return fresh;
+                    }
+                })
+                .compose(RxSchedulersHelper.<VideoResult>ioMainThread())
+                .compose(provider.<VideoResult>bindUntilEvent(Lifecycle.Event.ON_DESTROY))
+                .subscribe(new CallBackWrapper<VideoResult>() {
+                    @Override
+                    public void onBegin(Disposable d) {
+                    }
+
+                    @Override
+                    public void onSuccess(VideoResult fresh) {
+                        // 新 ownerId 回写持久化，后续进入不再用过期 token
+                        try {
+                            dataManager.saveVideoResult(fresh);
+                            item.setVideoResult(fresh);
+                            dataManager.saveV9MmanItem(item);
+                            Logger.t(TAG).d("自愈成功：新 ownerId=" + fresh.getOwnerId());
+                        } catch (Exception e) {
+                            Logger.t(TAG).e(TAG + ": 回写新 ownerId 失败 " + e.getMessage());
+                        }
+                        authorVideos(fresh.getOwnerId(), pullToRefresh);
+                    }
+
+                    @Override
+                    public void onError(final String msg, int code) {
+                        Logger.t(TAG).e(TAG + ": 自愈刷新 ownerId 失败 viewKey=" + viewKey + " msg=" + msg);
+                        ifViewAttached(new ViewAction<AuthorView>() {
+                            @Override
+                            public void run(@NonNull AuthorView view) {
+                                view.showError("作者视频加载失败，请下拉重试");
                             }
                         });
                     }

@@ -46,4 +46,5 @@
     <color name="item_3mman_comment_message_text_color">@color/qmui_config_color_gray_7</color>
     <color name="item_3mman_comment_info_text_color">@color/qmui_config_color_gray_6</color>
     <color name="sort_category_drag_color">@color/colorPrimary</color>
+    <color name="author_favorite_item_text">@color/qmui_config_color_gray_7</color>
 </resources>

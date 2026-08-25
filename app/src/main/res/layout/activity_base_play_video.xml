@@ -79,7 +79,7 @@
                     android:paddingBottom="5dp"
                     android:paddingStart="14dp"
                     android:text="@string/author_favorite_off"
-                    android:textColor="@color/white"
+                    android:textColor="@color/yeloo"
                     android:textSize="18sp"
                     app:layout_constraintLeft_toRightOf="@+id/tv_play_video_author"
                     app:layout_constraintRight_toRightOf="parent"

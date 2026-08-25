@@ -356,12 +356,12 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                             PornyFallbackResolver.applyPornyResult(dataManager, tmp, pornyResult);
                             PornyFallbackResolver.enqueueHlsDownload(context, tmp, pornyResult.getVideoUrl(), path);
                             if (listener != null) {
-                                listener.onSuccess("源站受限，已改用分分钟源下载");
+                                listener.onSuccess("源站受限，已改用 91porny 源下载");
                             } else {
                                 ifViewAttached(new ViewAction<DownloadView>() {
                                     @Override
                                     public void run(@NonNull DownloadView view) {
-                                        view.showMessage("源站受限，已改用分分钟源下载", TastyToast.SUCCESS);
+                                        view.showMessage("源站受限，已改用 91porny 源下载", TastyToast.SUCCESS);
                                     }
                                 });
                             }

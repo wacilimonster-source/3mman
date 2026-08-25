@@ -889,7 +889,7 @@ public class RecommendFeedActivity extends BaseAppCompatActivity
                         PornyFallbackResolver.applyPornyResult(dataManager, target, porny);
                         PornyFallbackResolver.enqueueHlsDownload(RecommendFeedActivity.this,
                                 target, porny.getVideoUrl(), path);
-                        return new DownloadResult(true, "源站受限，已改用分分钟源下载");
+                        return new DownloadResult(true, "源站受限，已改用 91porny 源下载");
                     }
                 } catch (Exception ignored) {
                 }

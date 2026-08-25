@@ -106,7 +106,7 @@ public class SearchPornyActivity extends MvpActivity<SearchView, SearchPornyPres
 
     private void init() {
         initToolBar(toolbar);
-        searchView.setQueryHint("搜索 分分钟 视频");
+        searchView.setQueryHint("搜索视频");
         // M42：搜索框默认收起（点击放大镜才展开），避免进入页面/从详情页返回时自动弹出输入法
         searchView.setIconified(true);
 

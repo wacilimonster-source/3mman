@@ -349,6 +349,31 @@ public class ParseV9MmanVideo {
         return "viewkey=" + fallback;
     }
 
+    /**
+     * 从 URL 查询串中取指定参数值（只取到下一个 & 为止）。
+     * 按 "?key=" / "&key=" 边界匹配，避免 VUID= 被当成 UID= 命中。
+     */
+    private static String extractQueryParam(String url, String key) {
+        if (TextUtils.isEmpty(url) || TextUtils.isEmpty(key)) {
+            return "";
+        }
+        int p1 = url.indexOf("?" + key + "=");
+        int p2 = url.indexOf("&" + key + "=");
+        int start;
+        if (p1 >= 0) {
+            start = p1 + key.length() + 2;
+        } else if (p2 >= 0) {
+            start = p2 + key.length() + 2;
+        } else {
+            return "";
+        }
+        if (start > url.length()) {
+            return "";
+        }
+        int end = url.indexOf('&', start);
+        return (end > start) ? url.substring(start, end) : url.substring(start);
+    }
+
     public static BaseResult<List<V9MmanItem>> parseSearchVideos(String html) {
         int totalPage = 1;
         List<V9MmanItem> v9MmanItemList = new ArrayList<>();
@@ -504,19 +529,25 @@ public class ParseV9MmanVideo {
         videoResult.setVideoId(videoId);
         Logger.t(TAG).d("视频Id：" + videoId);
 
-        //这里解析的作者id已经变了，非纯数字了
-        //        Document doc = Jsoup.parse(html);
-        Element ownerLink = doc.select("a[href*=UID]").first();
+        //这里解析的作者id已经变了，非纯数字了（加密临时 token，会过期，见 AuthorPresenter 自愈逻辑）
+        // M92：优先精确匹配作者页链接（uvideos.php），避免抓到导航栏「我的视频」等同样含 UID 的链接；
+        // 并只取 UID= 到下一个 & 之间的值——旧写法 substring(eq+1) 会把后续参数一起带进 ownerId
+        Element ownerLink = doc.select("a[href*=uvideos.php]").first();
+        if (ownerLink == null) {
+            ownerLink = doc.select("a[href*=UID]").first();
+        }
         if (ownerLink != null) {
             String ownerUrl = ownerLink.attr("href");
-            int eq = ownerUrl.indexOf("=");
-            if (eq >= 0 && eq + 1 <= ownerUrl.length()) {
-                String ownerId = ownerUrl.substring(eq + 1);
+            String ownerId = extractQueryParam(ownerUrl, "UID");
+            if (!TextUtils.isEmpty(ownerId)) {
                 videoResult.setOwnerId(ownerId);
                 Logger.t(TAG).d("作者Id：" + ownerId);
             }
-            videoResult.setOwnerName(ownerLink.text());
-            Logger.t(TAG).d("作者：" + ownerLink.text());
+            String ownerName = ownerLink.text();
+            if (!TextUtils.isEmpty(ownerName)) {
+                videoResult.setOwnerName(ownerName);
+                Logger.t(TAG).d("作者：" + ownerName);
+            }
         }
 
         Element addToFavLink = doc.getElementById("addToFavLink");

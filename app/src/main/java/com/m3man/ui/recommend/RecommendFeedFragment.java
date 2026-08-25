@@ -1380,7 +1380,7 @@ public class RecommendFeedFragment extends BaseFragment
                     }
                     PornyFallbackResolver.enqueueHlsDownload(context,
                             target, porny.getVideoUrl(), hlsPath);
-                    return new DownloadResult(true, "已改用分分钟源下载");
+                    return new DownloadResult(true, "已改用 91porny 源下载");
                 }
                 DownloadDiag.append(viewKey, "91porny=直链m3u8为空 → 退回原直链");
             } catch (Exception e) {
@@ -1422,7 +1422,7 @@ public class RecommendFeedFragment extends BaseFragment
                         } catch (Exception ignored) {}
                         PornyFallbackResolver.enqueueHlsDownload(context,
                                 target, porny.getVideoUrl(), hlsPath2);
-                        return new DownloadResult(true, "源站受限，已改用分分钟源下载");
+                        return new DownloadResult(true, "源站受限，已改用 91porny 源下载");
                     }
                     DownloadDiag.append(viewKey, "91porny=未命中 → 退回原直链");
                 } catch (Exception e) {

@@ -326,8 +326,9 @@ public class ExoVideoControlsMobile extends ExoVideoControls {
 
         RelativeLayout parent = (RelativeLayout) controlsContainer.getParent();
         ViewGroup.LayoutParams layoutParams = parent.getLayoutParams();
-        //旋转之后有虚拟导航栏的话可能布局会铺不满，强制加长
-        layoutParams.width = getWidth() + 1000;
+        // 修复：旧逻辑 width=getWidth()+1000 用的是旋转前的竖屏宽度，横屏后比窗口窄，
+        // 导致进度条右侧空出一截。改为 MATCH_PARENT 跟随窗口，旋转前后都能铺满。
+        layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
         parent.setLayoutParams(layoutParams);
     }
 

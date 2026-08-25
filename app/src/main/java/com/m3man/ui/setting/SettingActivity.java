@@ -313,7 +313,7 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 presenter.setLocalFavoriteMode(isChecked);
-                showMessage(isChecked ? "已切换为本地收藏（与分分钟合并展示）" : "已切换为服务器收藏", TastyToast.INFO);
+                showMessage(isChecked ? "已切换为本地收藏" : "已切换为服务器收藏", TastyToast.INFO);
             }
         });
 

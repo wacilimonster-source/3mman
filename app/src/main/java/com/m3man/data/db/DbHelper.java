@@ -54,6 +54,9 @@ public interface DbHelper {
 
     long saveAuthorFavorite(AuthorFavorite authorFavorite);
 
+    /** 更新已有作者收藏（摘要刷新用），按主键更新，不做查重 */
+    void updateAuthorFavorite(AuthorFavorite authorFavorite);
+
     void deleteAuthorFavorite(AuthorFavorite authorFavorite);
 
     boolean isAuthorFavorited(String authorKey, String source);

@@ -119,7 +119,7 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
                 .subscribe(items -> {
                     if (items == null || items.isEmpty()) {
                         helper.showEmpty();
-                        LoadHelperUtils.setEmptyText(helper.getLoadEmpty(), R.id.tv_empty_info, "还没有本地收藏，去分分钟搜索收藏吧");
+                        LoadHelperUtils.setEmptyText(helper.getLoadEmpty(), R.id.tv_empty_info, "还没有本地收藏，去搜索页收藏吧");
                         mAdapter.setNewData(new ArrayList<>());
                     } else {
                         helper.showContent();

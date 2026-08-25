@@ -180,7 +180,7 @@
         android:contentDescription="@string/reco_show_actions"
         android:visibility="gone" />
 
-    <!-- 底部可拖动进度条 + 时间（横屏贴边，导航栏已隐藏） -->
+    <!-- 底部可拖动进度条 + 时间（横屏左右对称贴边，导航栏已隐藏） -->
     <LinearLayout
         android:id="@+id/ll_reco_progress"
         android:layout_width="match_parent"
@@ -189,7 +189,7 @@
         android:layout_marginBottom="16dp"
         android:layout_marginEnd="16dp"
         android:layout_marginLeft="16dp"
-        android:layout_marginRight="96dp"
+        android:layout_marginRight="16dp"
         android:layout_marginStart="16dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"

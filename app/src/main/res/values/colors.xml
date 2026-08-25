@@ -51,4 +51,6 @@
     <color name="item_3mman_comment_message_text_color">@color/qmui_config_color_gray_1</color>
     <color name="item_3mman_comment_info_text_color">@color/qmui_config_color_gray_4</color>
     <color name="sort_category_drag_color">@color/green</color>
+    <!-- 作者收藏列表条目文字：日间深色 / 夜间浅色 -->
+    <color name="author_favorite_item_text">@color/qmui_config_color_gray_1</color>
 </resources>

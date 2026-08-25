@@ -134,7 +134,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         initToolBar(toolbar);
         // 恢复上次持久化的搜索筛选项，使下次搜索自动套用（无需重新打开筛选弹窗）
         restoreSearchFilters();
-        searchView.setQueryHint("搜索 分分钟 视频");
+        searchView.setQueryHint("搜索视频");
         // M42：搜索框默认收起（点击放大镜才展开），避免进入页面/从详情页返回时自动弹出输入法
         searchView.setIconified(true);
 

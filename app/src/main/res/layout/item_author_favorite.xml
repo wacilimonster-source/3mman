@@ -2,7 +2,7 @@
 <com.aitsuki.swipe.SwipeItemLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/swipe_layout"
     android:layout_width="match_parent"
-    android:layout_height="72dp">
+    android:layout_height="76dp">
 
     <TextView
         android:id="@+id/right_menu_delete"
@@ -23,26 +23,83 @@
         android:layout_height="match_parent"
         android:background="@color/common_background"
         android:gravity="center_vertical"
-        android:orientation="vertical"
+        android:orientation="horizontal"
         android:paddingStart="16dp"
         android:paddingEnd="16dp">
 
-        <TextView
-            android:id="@+id/tv_author_name"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="@color/common_always_white_text_color"
-            android:textSize="16sp" />
+        <!-- 作者最新作品封面缩略图 -->
+        <ImageView
+            android:id="@+id/iv_author_cover"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:contentDescription="@string/author_favorite"
+            android:scaleType="centerCrop"
+            android:src="@color/qmui_config_color_gray_9" />
 
-        <TextView
-            android:id="@+id/tv_author_source"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textColor="@color/common_always_white_text_color"
-            android:textSize="12sp"
-            android:alpha="0.6" />
+            android:layout_marginStart="12dp"
+            android:layout_marginLeft="12dp"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tv_author_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/author_favorite_item_text"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/tv_author_new_badge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_marginLeft="6dp"
+                    android:background="@drawable/badge_new_bg"
+                    android:paddingBottom="1dp"
+                    android:paddingLeft="4dp"
+                    android:paddingRight="4dp"
+                    android:paddingTop="1dp"
+                    android:text="NEW"
+                    android:textColor="@color/white"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_author_meta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/author_favorite_item_text"
+                android:textSize="12sp"
+                android:alpha="0.85"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tv_author_source"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/author_favorite_item_text"
+                android:textSize="11sp"
+                android:alpha="0.6" />
+        </LinearLayout>
     </LinearLayout>
 </com.aitsuki.swipe.SwipeItemLayout>

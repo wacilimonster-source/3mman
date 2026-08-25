@@ -637,7 +637,8 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         private static final int STD_PROGRESS_RIGHT_MARGIN_PORTRAIT = 12;
         private static final int STD_PROGRESS_LEFT_MARGIN_PORTRAIT = 12;
         private static final int STD_PROGRESS_BOTTOM_MARGIN_PORTRAIT = 12;
-        private static final int STD_PROGRESS_RIGHT_MARGIN_LANDSCAPE = 96;
+        /** 横屏左右对称贴边（全屏按钮已隐藏，不再需要为它预留右侧空间） */
+        private static final int STD_PROGRESS_RIGHT_MARGIN_LANDSCAPE = 16;
         private static final int STD_PROGRESS_LEFT_MARGIN_LANDSCAPE = 16;
         private static final int STD_PROGRESS_BOTTOM_MARGIN_LANDSCAPE = 16;
         private static final int STD_SPEED_WIDTH_LANDSCAPE = 40;

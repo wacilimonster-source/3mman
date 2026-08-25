@@ -56,6 +56,11 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
 
     private V91MmanAdapter mV91MmanAdapter;
 
+    /** M92：UID 过期自愈状态——首页失败后重拉详情页换新 ownerId，成功前只自愈一次 */
+    private boolean healingUid;
+    /** 记录最近一次加载的下拉刷新标记（自愈重试时沿用） */
+    private boolean lastPullToRefresh;
+
     @Inject
     protected AuthorPresenter authorPresenter;
 
@@ -150,6 +155,11 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
             showError("数据错误，无法加载作者视频");
             return;
         }
+        lastPullToRefresh = pullToRefresh;
+        // 手动下拉刷新视为用户主动重试，允许再次触发自愈
+        if (pullToRefresh) {
+            healingUid = false;
+        }
         String ownerId = v9MmanItem.getVideoResult().getOwnerId();
         // M66b：ownerId 形态防御——9mman 的加密 UID（含 _/- 或超长）绝不能走 porny /author/，
         // 否则站点 404（作者其他作品加载失败）
@@ -209,6 +219,7 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
         mV91MmanAdapter.setNewData(data);
         recyclerView.smoothScrollToPosition(0);
         swipeLayout.setRefreshing(false);
+        healingUid = false;
     }
 
     @Override
@@ -229,6 +240,20 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
     @Override
     public void showError(String message) {
         showMessage(message, TastyToast.ERROR);
+        tryHealStaleOwner();
+    }
+
+    /**
+     * M92：9mman 作者 UID 是加密临时 token，DB 缓存的旧 token 请求 uvideos.php 会 404。
+     * 首页加载失败时重拉视频详情页换取新 ownerId 并重试（每次数据会话仅一次）。
+     */
+    private void tryHealStaleOwner() {
+        if (healingUid || !canLoadAuthorVideos() || isPornySource()) {
+            return;
+        }
+        healingUid = true;
+        swipeLayout.setRefreshing(true);
+        presenter.reloadOwnerThenAuthorVideos(v9MmanItem, lastPullToRefresh);
     }
 
     @Override
