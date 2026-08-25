@@ -506,6 +506,10 @@ public class RecommendFeedFragment extends BaseFragment
         if (getActivity() instanceof BaseAppCompatActivity) {
             ((BaseAppCompatActivity) getActivity()).setNavigationBarOverlap(true);
         }
+        // MainActivity 使用 configChanges，首个已存在的 ViewHolder 不会自动换成 layout-land。
+        if (adapter != null) {
+            adapter.applyOrientationUi(recyclerView, true);
+        }
     }
 
     /** 仅重新应用沉浸式系统栏（不改动方向），供系统栏被临时唤出后自动收回。 */
@@ -627,6 +631,9 @@ public class RecommendFeedFragment extends BaseFragment
         // 恢复导航栏默认（不重叠），底部留白回到系统处理
         if (getActivity() instanceof BaseAppCompatActivity) {
             ((BaseAppCompatActivity) getActivity()).setNavigationBarOverlap(false);
+        }
+        if (adapter != null) {
+            adapter.applyOrientationUi(recyclerView, false);
         }
     }
 

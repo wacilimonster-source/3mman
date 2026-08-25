@@ -1,7 +1,7 @@
 {
-  "versionCode": 120,
-  "versionName": "1.0.87",
-  "updateMessage": "M87 修复推荐全屏横屏右侧操作栏和底部倍速按钮显示不完整：为横屏下载/点赞/收藏/不喜欢/详情操作栏预留 112dp 右侧安全区域，为底部进度条预留 96dp 右侧空间，并将倍速按钮固定为 40dp 宽，避免系统横屏手势/导航区域裁切按钮和 1x/2x 文本。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.87.apk",
-  "sha256": "118896e7f40049142b16450d6094054099d92ddc20f9c87e4196e18e4499255e"
+  "versionCode": 121,
+  "versionName": "1.0.88",
+  "updateMessage": "M88 修复横竖屏切换后推荐操作栏错位/裁切，并优化横屏按钮：旋转时立即对当前已存在的首个 ViewHolder 重新应用方向布局，避免第一个视频仍使用竖屏操作栏；回竖屏时恢复原位置和中文标签。横屏下载、点赞、收藏、不喜欢、详情仅保留缩小后的图标并隐藏中文，底部倍速按钮保持完整显示。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.88.apk",
+  "sha256": "1d28c0cbd83cd38db9a1febdca103321fef09d32619f4710103251a376eb7b5b"
 }

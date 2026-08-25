@@ -395,6 +395,23 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         return info.substring(start, end).trim();
     }
 
+    /**
+     * 旋转时 Activity 使用 configChanges，不会重新 inflate 已存在的 ViewHolder。
+     * 对当前已挂载的页面立即套用对应方向的操作栏/进度条参数，避免第一个视频仍沿用竖屏布局。
+     */
+    public void applyOrientationUi(RecyclerView recyclerView, boolean landscape) {
+        if (recyclerView == null) {
+            return;
+        }
+        for (int i = 0; i < recyclerView.getChildCount(); i++) {
+            View child = recyclerView.getChildAt(i);
+            RecyclerView.ViewHolder viewHolder = recyclerView.getChildViewHolder(child);
+            if (viewHolder instanceof PageHolder) {
+                ((PageHolder) viewHolder).applyOrientationUi(landscape);
+            }
+        }
+    }
+
     @Override
     public int getItemCount() {
         return data.size();
@@ -448,6 +465,7 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         final Runnable hideRunnable;
         /** 当前绑定的视频 key，供起播时做一致性校验 */
         String boundKey;
+        private boolean orientationLandscape;
 
         PageHolder(View itemView) {
             super(itemView);
@@ -488,6 +506,75 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         }
 
         /** M78：根据「隐藏播放页操作栏」偏好设置初始状态。 */
+        /**
+         * 在 configChanges 旋转场景下，已存在的 ViewHolder 不会重新 inflate 横屏 XML。
+         * 这里直接重设当前 Holder 的操作栏和底部控制条，保证首个视频立即跟随方向切换。
+         */
+        void applyOrientationUi(boolean landscape) {
+            orientationLandscape = landscape;
+            if (actionsContainer != null) {
+                ViewGroup.LayoutParams rawParams = actionsContainer.getLayoutParams();
+                if (rawParams instanceof ViewGroup.MarginLayoutParams) {
+                    ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) rawParams;
+                    margins.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+                    margins.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+                    if (landscape) {
+                        margins.setMargins(margins.leftMargin, 0, dp(112), 0);
+                    } else {
+                        margins.setMargins(margins.leftMargin, 0, dp(18), dp(40));
+                    }
+                    if (rawParams instanceof android.widget.FrameLayout.LayoutParams) {
+                        ((android.widget.FrameLayout.LayoutParams) rawParams).gravity =
+                                android.view.Gravity.END | android.view.Gravity.CENTER_VERTICAL;
+                    }
+                    actionsContainer.setLayoutParams(rawParams);
+                }
+                actionsContainer.setPadding(dp(landscape ? 4 : 6), dp(landscape ? 4 : 8),
+                        dp(landscape ? 4 : 6), dp(landscape ? 4 : 8));
+                if (actionsContainer instanceof ViewGroup) {
+                    ViewGroup actionsGroup = (ViewGroup) actionsContainer;
+                    for (int i = 0; i < actionsGroup.getChildCount(); i++) {
+                        View child = actionsGroup.getChildAt(i);
+                        if (child instanceof TextView) {
+                            child.setVisibility(landscape ? View.GONE : View.VISIBLE);
+                        } else if (child instanceof ImageView) {
+                            ViewGroup.LayoutParams childParams = child.getLayoutParams();
+                            if (childParams instanceof ViewGroup.MarginLayoutParams) {
+                                ViewGroup.MarginLayoutParams childMargins =
+                                        (ViewGroup.MarginLayoutParams) childParams;
+                                childMargins.width = dp(landscape ? 36 : 42);
+                                childMargins.height = dp(landscape ? 36 : 42);
+                                childMargins.topMargin = landscape ? (i == 0 ? 0 : dp(8))
+                                        : (i == 0 ? 0 : dp(16));
+                                child.setLayoutParams(childMargins);
+                            }
+                        }
+                    }
+                }
+                actionsContainer.requestLayout();
+            }
+            if (progressContainer != null) {
+                ViewGroup.LayoutParams rawParams = progressContainer.getLayoutParams();
+                if (rawParams instanceof ViewGroup.MarginLayoutParams) {
+                    ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) rawParams;
+                    margins.rightMargin = dp(landscape ? 96 : 12);
+                    margins.setMarginEnd(dp(landscape ? 96 : 12));
+                    margins.bottomMargin = dp(landscape ? 16 : 12);
+                    progressContainer.setLayoutParams(rawParams);
+                }
+            }
+            if (speed != null) {
+                ViewGroup.LayoutParams speedParams = speed.getLayoutParams();
+                speedParams.width = landscape ? dp(40) : ViewGroup.LayoutParams.WRAP_CONTENT;
+                speed.setLayoutParams(speedParams);
+            }
+            itemView.requestLayout();
+        }
+
+        private int dp(int value) {
+            return (int) (value * itemView.getResources().getDisplayMetrics().density + 0.5f);
+        }
+
         void applyHidePolicy(boolean hide) {
             hideHandler.removeCallbacks(hideRunnable);
             if (hide) {

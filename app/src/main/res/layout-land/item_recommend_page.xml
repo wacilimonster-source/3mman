@@ -85,6 +85,7 @@
             android:shadowRadius="3"
             android:text="@string/reco_like"
             android:textColor="#FFFFFFFF"
+            android:visibility="gone"
             android:textSize="11sp" />
 
         <ImageView
@@ -103,6 +104,7 @@
             android:shadowRadius="3"
             android:text="@string/reco_favorite"
             android:textColor="#FFFFFFFF"
+            android:visibility="gone"
             android:textSize="11sp" />
 
         <ImageView
@@ -121,6 +123,7 @@
             android:shadowRadius="3"
             android:text="@string/reco_dislike"
             android:textColor="#FFFFFFFF"
+            android:visibility="gone"
             android:textSize="11sp" />
 
         <ImageView
@@ -140,6 +143,7 @@
             android:shadowRadius="3"
             android:text="@string/reco_detail"
             android:textColor="#FFFFFFFF"
+            android:visibility="gone"
             android:textSize="11sp" />
 
         <ImageView
@@ -159,6 +163,7 @@
             android:shadowRadius="3"
             android:text="@string/reco_download"
             android:textColor="#FFFFFFFF"
+            android:visibility="gone"
             android:textSize="11sp" />
     </LinearLayout>
 
