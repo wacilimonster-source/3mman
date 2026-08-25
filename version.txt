@@ -1,7 +1,7 @@
 {
-  "versionCode": 117,
-  "versionName": "1.0.84",
-  "updateMessage": "M84 修复推荐全屏横屏底部白条：横屏使用黑色导航栏背景，关闭 Android 10+ 导航栏对比度强制，补充 Android 11+ WindowInsetsController 隐藏导航栏，并监听导航栏单独被系统唤出后自动重新沉浸；同时将横屏窗口根背景设为黑色，避免系统区域露出白色背景。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.84.apk",
-  "sha256": "fab1ffa0cd5444048a00af200f7734d53f5e2501a3c8b17d14fe911cc5fd1ccd"
+  "versionCode": 119,
+  "versionName": "1.0.86",
+  "updateMessage": "M86 修复推荐全屏横屏底部白条的真实根因：MainActivity 将 content_main 放在 CoordinatorLayout 中，横屏原代码却用 FrameLayout.LayoutParams 判断，导致底部导航预留 margin 永远没有清除，白色根布局因此露出。现改用 ViewGroup.MarginLayoutParams，横屏真正将内容 bottomMargin 设为 0；同时保留黑色根布局、黑色导航栏、沉浸式导航栏隐藏及导航栏对比度处理。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.86.apk",
+  "sha256": "41998183d4e08adf05526b3ea3b1c393b5c394e93e17a071d244b7ac0ed5dab5"
 }

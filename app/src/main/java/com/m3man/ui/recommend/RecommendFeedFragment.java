@@ -477,10 +477,9 @@ public class RecommendFeedFragment extends BaseFragment
             window.setNavigationBarColor(Color.BLACK);
         }
         applyImmersiveNavigationBar(window);
-        // 隐藏 StatusBarUtil.setColorForSwipeBack 注入的紫色假状态栏 View
+        // 撤销 StatusBarUtil 的 contentParent 紫色背景，并把 activity_main.xml 实际根 View 设为黑色。
+        // 白条来自 activity_main.xml 最外层 FrameLayout 的白色背景，不是视频 item 背景。
         applyFeedContentFullBleed();
-        // 把窗口根布局背景设为黑色（消除底部白条：activity_main.xml 根 FrameLayout 白色背景在导航栏隐藏后露出）
-        getActivity().getWindow().getDecorView().setBackgroundColor(Color.BLACK);
 
         if (landscapeBackView != null) {
             landscapeBackView.setVisibility(View.VISIBLE);
@@ -489,9 +488,11 @@ public class RecommendFeedFragment extends BaseFragment
             bottomNavigationBarView().setVisibility(View.GONE);
         }
         View content = getActivity().findViewById(R.id.content);
-        if (content != null && content.getLayoutParams() instanceof android.widget.FrameLayout.LayoutParams) {
-            android.widget.FrameLayout.LayoutParams lp =
-                    (android.widget.FrameLayout.LayoutParams) content.getLayoutParams();
+        // content_main 被放在 CoordinatorLayout 中，实际参数是 CoordinatorLayout.LayoutParams，
+        // 不能用 FrameLayout.LayoutParams 判断，否则横屏底部 margin 永远清不掉，白条就会露出。
+        if (content != null && content.getLayoutParams() instanceof ViewGroup.MarginLayoutParams) {
+            ViewGroup.MarginLayoutParams lp =
+                    (ViewGroup.MarginLayoutParams) content.getLayoutParams();
             if (normalContentBottomMargin < 0) {
                 normalContentBottomMargin = lp.bottomMargin;
             }
@@ -568,11 +569,19 @@ public class RecommendFeedFragment extends BaseFragment
         Window window = getActivity().getWindow();
         ViewGroup contentParent = (ViewGroup) getActivity().findViewById(android.R.id.content);
         if (contentParent != null) {
-            contentParent.setBackground(null);
+            contentParent.setBackgroundColor(Color.BLACK);
             contentParent.setPadding(0, 0, 0, 0);
+            // contentParent 的第一个子 View 就是 setContentView(activity_main.xml) 的最外层 FrameLayout。
+            // 必须改这个实际根 View，单改 DecorView 对横屏底部露白无效。
+            if (contentParent.getChildCount() > 0) {
+                View activityRoot = contentParent.getChildAt(0);
+                activityRoot.setBackgroundColor(Color.BLACK);
+                activityRoot.setPadding(0, 0, 0, 0);
+            }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.setStatusBarColor(Color.TRANSPARENT);
+            window.setNavigationBarColor(Color.BLACK);
         }
     }
 
@@ -596,8 +605,11 @@ public class RecommendFeedFragment extends BaseFragment
         }
         // 退出横屏但仍在推荐流内：保持状态栏透明（视频满铺），不再回退到紫色状态栏。
         applyFeedContentFullBleed();
-        // 恢复窗口根布局背景为白色（activity_main.xml 默认白色背景）
-        getActivity().getWindow().getDecorView().setBackgroundColor(Color.WHITE);
+        // 恢复 activity_main.xml 实际根 View 的白色背景。
+        ViewGroup contentParent = (ViewGroup) getActivity().findViewById(android.R.id.content);
+        if (contentParent != null && contentParent.getChildCount() > 0) {
+            contentParent.getChildAt(0).setBackgroundColor(Color.WHITE);
+        }
         if (landscapeBackView != null) {
             landscapeBackView.setVisibility(View.GONE);
         }
@@ -605,10 +617,10 @@ public class RecommendFeedFragment extends BaseFragment
             bottomNavigationBarView().setVisibility(View.VISIBLE);
         }
         View content = getActivity().findViewById(R.id.content);
-        if (content != null && content.getLayoutParams() instanceof android.widget.FrameLayout.LayoutParams
+        if (content != null && content.getLayoutParams() instanceof ViewGroup.MarginLayoutParams
                 && normalContentBottomMargin >= 0) {
-            android.widget.FrameLayout.LayoutParams lp =
-                    (android.widget.FrameLayout.LayoutParams) content.getLayoutParams();
+            ViewGroup.MarginLayoutParams lp =
+                    (ViewGroup.MarginLayoutParams) content.getLayoutParams();
             lp.bottomMargin = normalContentBottomMargin;
             content.setLayoutParams(lp);
         }
@@ -639,6 +651,10 @@ public class RecommendFeedFragment extends BaseFragment
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.setNavigationBarColor(Color.BLACK);
         }
+        ViewGroup contentParent = (ViewGroup) getActivity().findViewById(android.R.id.content);
+        if (contentParent != null && contentParent.getChildCount() > 0) {
+            contentParent.getChildAt(0).setBackgroundColor(Color.WHITE);
+        }
         // 恢复紫色状态栏（StatusBarUtil 会重新显示并为假状态栏 View 着色）
         if (getActivity() instanceof BaseAppCompatActivity) {
             ((BaseAppCompatActivity) getActivity())
@@ -651,10 +667,10 @@ public class RecommendFeedFragment extends BaseFragment
             bottomNavigationBarView().setVisibility(View.VISIBLE);
         }
         View content = getActivity().findViewById(R.id.content);
-        if (content != null && content.getLayoutParams() instanceof android.widget.FrameLayout.LayoutParams
+        if (content != null && content.getLayoutParams() instanceof ViewGroup.MarginLayoutParams
                 && normalContentBottomMargin >= 0) {
-            android.widget.FrameLayout.LayoutParams lp =
-                    (android.widget.FrameLayout.LayoutParams) content.getLayoutParams();
+            ViewGroup.MarginLayoutParams lp =
+                    (ViewGroup.MarginLayoutParams) content.getLayoutParams();
             lp.bottomMargin = normalContentBottomMargin;
             content.setLayoutParams(lp);
         }
