@@ -1,7 +1,7 @@
 {
-  "versionCode": 116,
-  "versionName": "1.0.83",
-  "updateMessage": "M83 横屏紫条/状态栏彻底修复（v1.0.81/v1.0.82 漏修的真正根因）：反编译 StatusBarUtil 1.5.1 的 setColorForSwipeBack 发现它根本没 addView 假状态栏 View——而是 findViewById(android.R.id.content) 拿到系统 contentParent，给它 setBackgroundColor(紫) + setPadding(0, statusBarHeight, 0, 0)。所以之前所有 hideFakeStatusBarView(findViewById(R.id.statusbarutil_fake_status_bar_view)) 都是 no-op，紫色条一直没被处理。v1.0.83 改为 applyFeedContentFullBleed()：撤销 contentParent 的紫色背景和 paddingTop，并保留 window 状态栏透明 + 沉浸式全屏 + IMMERSIVE_STICKY + 导航栏 overlap。竖屏推荐流顶部彻底干净；切回其他 Tab 时 restoreAppStatusBar 通过 setStatusBarColor(colorPrimary) 让 StatusBarUtil 重新着色 contentParent，恢复紫色假状态栏（不破坏其他页面）。横屏下方白条可能是导航栏未被 IMMERSIVE 完全隐藏/进度条 SeekBar，请真机反馈。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.83.apk",
-  "sha256": "820c56cc6c5d36a9dfdef2d9e8d3f02b3671e8b19a56b9138d9d43f224795c71"
+  "versionCode": 117,
+  "versionName": "1.0.84",
+  "updateMessage": "M84 修复推荐全屏横屏底部白条：横屏使用黑色导航栏背景，关闭 Android 10+ 导航栏对比度强制，补充 Android 11+ WindowInsetsController 隐藏导航栏，并监听导航栏单独被系统唤出后自动重新沉浸；同时将横屏窗口根背景设为黑色，避免系统区域露出白色背景。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.84.apk",
+  "sha256": "fab1ffa0cd5444048a00af200f7734d53f5e2501a3c8b17d14fe911cc5fd1ccd"
 }

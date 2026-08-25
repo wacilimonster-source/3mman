@@ -22,6 +22,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
@@ -139,7 +141,8 @@ public class RecommendFeedFragment extends BaseFragment
                 @Override
                 public void onSystemUiVisibilityChange(int visibility) {
                     if (landscapeLock && getActivity() != null
-                            && (visibility & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0) {
+                            && ((visibility & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0
+                            || (visibility & View.SYSTEM_UI_FLAG_HIDE_NAVIGATION) == 0)) {
                         reapplyImmersive();
                     }
                 }
@@ -470,10 +473,14 @@ public class RecommendFeedFragment extends BaseFragment
                         | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.setStatusBarColor(Color.TRANSPARENT);
-            window.setNavigationBarColor(Color.TRANSPARENT);
+            // 不使用透明导航栏：Android 10+ 可能为透明导航栏强制绘制白色对比度背景。
+            window.setNavigationBarColor(Color.BLACK);
         }
+        applyImmersiveNavigationBar(window);
         // 隐藏 StatusBarUtil.setColorForSwipeBack 注入的紫色假状态栏 View
         applyFeedContentFullBleed();
+        // 把窗口根布局背景设为黑色（消除底部白条：activity_main.xml 根 FrameLayout 白色背景在导航栏隐藏后露出）
+        getActivity().getWindow().getDecorView().setBackgroundColor(Color.BLACK);
 
         if (landscapeBackView != null) {
             landscapeBackView.setVisibility(View.VISIBLE);
@@ -515,9 +522,31 @@ public class RecommendFeedFragment extends BaseFragment
                         | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.setStatusBarColor(Color.TRANSPARENT);
-            window.setNavigationBarColor(Color.TRANSPARENT);
+            window.setNavigationBarColor(Color.BLACK);
         }
+        applyImmersiveNavigationBar(window);
         applyFeedContentFullBleed();
+    }
+
+    /**
+     * 强制隐藏导航栏，并关闭 Android 10+ 透明导航栏的对比度遮罩。
+     * 部分系统即使设置了 SYSTEM_UI_FLAG_HIDE_NAVIGATION，也会单独恢复导航栏；
+     * 使用 WindowInsetsController 再补一次，避免底部露出白色系统栏。
+     */
+    private void applyImmersiveNavigationBar(Window window) {
+        if (window == null) {
+            return;
+        }
+        View decor = window.getDecorView();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.setNavigationBarContrastEnforced(false);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            WindowInsetsController controller = decor.getWindowInsetsController();
+            if (controller != null) {
+                controller.hide(WindowInsets.Type.navigationBars());
+            }
+        }
     }
 
     /**
@@ -567,6 +596,8 @@ public class RecommendFeedFragment extends BaseFragment
         }
         // 退出横屏但仍在推荐流内：保持状态栏透明（视频满铺），不再回退到紫色状态栏。
         applyFeedContentFullBleed();
+        // 恢复窗口根布局背景为白色（activity_main.xml 默认白色背景）
+        getActivity().getWindow().getDecorView().setBackgroundColor(Color.WHITE);
         if (landscapeBackView != null) {
             landscapeBackView.setVisibility(View.GONE);
         }
