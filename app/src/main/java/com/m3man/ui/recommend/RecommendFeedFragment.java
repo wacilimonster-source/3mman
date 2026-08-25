@@ -171,15 +171,33 @@ public class RecommendFeedFragment extends BaseFragment
             getActivity().getWindow().getDecorView()
                     .setOnSystemUiVisibilityChangeListener(sysUiVisibilityListener);
         }
-        engine = RecoEngine.get(context);
-        repository = new RecoRepository(dataManager, engine);
-        prefetcher = new RecommendPrefetcher(context, dataManager);
-        // M78：恢复持久化的方向筛选 / 自动横屏开关
-        repository.setOrientationFilter(PlayUiPrefs.getOrientationFilter(context));
-        repository.setAutoRotateLandscape(PlayUiPrefs.isAutoRotateLandscape(context));
-
         initViews();
-        loadMore(true);
+
+        // M91：RecoEngine 初始化含磁盘 I/O（assets JSON 词典 + SharedPreferences 画像），
+        // 移到后台线程执行，避免阻塞主线程导致进入推荐页时黑屏转圈过久。
+        // globalLoading 已默认 VISIBLE，引擎就绪后再发起首次拉取。
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                RecoEngine e = RecoEngine.get(context);
+                if (!isUsable()) {
+                    return;
+                }
+                engine = e;
+                repository = new RecoRepository(dataManager, engine);
+                prefetcher = new RecommendPrefetcher(context, dataManager);
+                repository.setOrientationFilter(PlayUiPrefs.getOrientationFilter(context));
+                repository.setAutoRotateLandscape(PlayUiPrefs.isAutoRotateLandscape(context));
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (isUsable()) {
+                            loadMore(true);
+                        }
+                    }
+                });
+            }
+        }, "reco-engine-init").start();
         // M89: 顶部胶囊/返回键必须避开状态栏区域，避免加载时「全部」胶囊侵入
         // 状态栏导致 12:05 / 右侧系统图标被遮挡；状态栏高度用系统资源反射读取，兼容各 ROM。
         applyTopBarInsets();
@@ -336,6 +354,9 @@ public class RecommendFeedFragment extends BaseFragment
      */
     private void applyOrientationFilter(int filter) {
         PlayUiPrefs.setOrientationFilter(context, filter);
+        if (repository == null) {
+            return;
+        }
         repository.setOrientationFilter(filter);
         updateOrientationPill(filter);
         // 严格过滤：清空当前流与已服务标记，从头按新方向拉取
@@ -357,7 +378,7 @@ public class RecommendFeedFragment extends BaseFragment
     // ==================== 数据 ====================
 
     private void loadMore(final boolean first) {
-        if (loading || (noMore && !first)) {
+        if (loading || (noMore && !first) || repository == null) {
             return;
         }
         loading = true;
@@ -435,14 +456,16 @@ public class RecommendFeedFragment extends BaseFragment
         currentPosition = position;
         // 横屏锁只在手动退出时解除；翻到新视频不自动回竖屏。
         RecoCandidate candidate = adapter.getItem(position);
-        if (candidate != null) {
+        if (candidate != null && engine != null) {
             engine.markSeen(candidate.viewKey());
             applyAutoRotation(candidate);
         }
         startPlay(position);
 
-        RecoParams params = engine.getParams();
-        prefetcher.prefetch(adapter.getData(), position + 1, params.prefetchAhead);
+        if (engine != null && prefetcher != null) {
+            RecoParams params = engine.getParams();
+            prefetcher.prefetch(adapter.getData(), position + 1, params.prefetchAhead);
+        }
 
         if (position >= adapter.getItemCount() - LOAD_MORE_THRESHOLD) {
             loadMore(false);
@@ -762,7 +785,7 @@ public class RecommendFeedFragment extends BaseFragment
     }
 
     private void recordWatchRatio(int position) {
-        if (position < 0 || adapter == null) {
+        if (position < 0 || adapter == null || engine == null) {
             return;
         }
         RecoCandidate candidate = adapter.getItem(position);
@@ -778,7 +801,7 @@ public class RecommendFeedFragment extends BaseFragment
 
     private void startPlay(final int position) {
         final RecoCandidate candidate = adapter.getItem(position);
-        if (candidate == null) {
+        if (candidate == null || prefetcher == null) {
             return;
         }
         final RecommendFeedAdapter.PageHolder holder = findHolder(position);
@@ -821,7 +844,9 @@ public class RecommendFeedFragment extends BaseFragment
                     Logger.t(TAG).d("resolve key mismatch, drop: " + viewKey + " != " + expectKey);
                     return;
                 }
-                engine.attachAuthor(candidate, item);
+                if (engine != null) {
+                    engine.attachAuthor(candidate, item);
+                }
                 doStart(position, candidate, playUrl);
             }
 
@@ -1109,7 +1134,7 @@ public class RecommendFeedFragment extends BaseFragment
     @Override
     public void onLikeClick(int position) {
         RecoCandidate candidate = adapter.getItem(position);
-        if (candidate == null) {
+        if (candidate == null || engine == null) {
             return;
         }
         boolean liked = engine.toggleLike(candidate);
@@ -1129,6 +1154,9 @@ public class RecommendFeedFragment extends BaseFragment
         if (normalizedX >= 0f && normalizedX < 1f / 3f) {
             RecoCandidate candidate = adapter.getItem(position);
             if (candidate == null) {
+                return;
+            }
+            if (engine == null) {
                 return;
             }
             if (engine.actionOf(candidate.viewKey()) == RecoStore.ACTION_LIKE) {
@@ -1168,7 +1196,7 @@ public class RecommendFeedFragment extends BaseFragment
     @Override
     public void onFavoriteClick(final int position) {
         final RecoCandidate candidate = adapter.getItem(position);
-        if (candidate == null || candidate.item == null) {
+        if (candidate == null || candidate.item == null || engine == null) {
             return;
         }
         final boolean wasFavorited = isFavorited(candidate);
@@ -1197,7 +1225,7 @@ public class RecommendFeedFragment extends BaseFragment
     @Override
     public void onDislikeClick(int position) {
         RecoCandidate candidate = adapter.getItem(position);
-        if (candidate == null) {
+        if (candidate == null || engine == null) {
             return;
         }
         boolean disliked = engine.toggleDislike(candidate);
@@ -1452,7 +1480,7 @@ public class RecommendFeedFragment extends BaseFragment
     }
 
     private boolean isFavorited(RecoCandidate candidate) {
-        if (engine.actionOf(candidate.viewKey()) == RecoStore.ACTION_FAVORITE) {
+        if (engine != null && engine.actionOf(candidate.viewKey()) == RecoStore.ACTION_FAVORITE) {
             return true;
         }
         return candidate.item != null && Boolean.TRUE.equals(candidate.item.getIsLocalFavorite());
@@ -1488,7 +1516,7 @@ public class RecommendFeedFragment extends BaseFragment
         lastPersistTime = now;
         disposables.add(Observable.just(1)
                 .subscribeOn(Schedulers.io())
-                .subscribe(i -> engine.persist(),
+                .subscribe(i -> { if (engine != null) engine.persist(); },
                         throwable -> Logger.t(TAG).d("persist failed: " + throwable.getMessage())));
     }
 

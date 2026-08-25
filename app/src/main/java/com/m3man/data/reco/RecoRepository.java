@@ -56,6 +56,8 @@ public class RecoRepository {
     private static final int MAX_SAME_AUTHOR_PER_BATCH = 2;
     /** M77：同一主标签在一批里最多出现的条数（打散用） */
     private static final int MAX_SAME_TAG_PER_BATCH = 2;
+    /** M91：每批方向探测上限，避免首批串行 HTTP 探测阻塞推荐页加载 */
+    private static final int MAX_PROBES_PER_BATCH = 3;
 
     private final DataManager dataManager;
     private final RecoEngine engine;
@@ -178,9 +180,13 @@ public class RecoRepository {
             public Observable<List<RecoCandidate>> call() {
                 // M78：方向筛选开启时先补齐池内未知方向的探测（本调用运行在 IO 线程）
                 if (orientationFilter != PlayUiPrefs.FILTER_ALL || autoRotateLandscape) {
+                    int probes = 0;
                     for (RecoCandidate c : pool) {
                         if (c.orientation == RecoCandidate.ORIENT_UNKNOWN) {
                             probeOrientation(c);
+                            if (++probes >= MAX_PROBES_PER_BATCH) {
+                                break;
+                            }
                         }
                     }
                 }
@@ -194,9 +200,13 @@ public class RecoRepository {
                                 addToPool(fetched);
                                 // 新入池的候选同样需要方向探测后再出队
                                 if (orientationFilter != PlayUiPrefs.FILTER_ALL || autoRotateLandscape) {
+                                    int probes = 0;
                                     for (RecoCandidate c : fetched) {
                                         if (c.orientation == RecoCandidate.ORIENT_UNKNOWN) {
                                             probeOrientation(c);
+                                            if (++probes >= MAX_PROBES_PER_BATCH) {
+                                                break;
+                                            }
                                         }
                                     }
                                 }

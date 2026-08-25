@@ -574,15 +574,13 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
                     ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) rawParams;
                     margins.width = ViewGroup.LayoutParams.WRAP_CONTENT;
                     margins.height = ViewGroup.LayoutParams.WRAP_CONTENT;
-                    if (landscape) {
-                        margins.setMargins(margins.leftMargin, 0,
-                                dp(STD_ACTIONS_RIGHT_MARGIN_LANDSCAPE),
-                                dp(STD_ACTIONS_BOTTOM_MARGIN_LANDSCAPE));
-                    } else {
-                        margins.setMargins(margins.leftMargin, 0,
-                                dp(STD_ACTIONS_RIGHT_MARGIN_PORTRAIT),
-                                dp(STD_ACTIONS_BOTTOM_MARGIN_PORTRAIT));
-                    }
+                    int right = dp(landscape ? STD_ACTIONS_RIGHT_MARGIN_LANDSCAPE
+                            : STD_ACTIONS_RIGHT_MARGIN_PORTRAIT);
+                    int bottom = dp(landscape ? STD_ACTIONS_BOTTOM_MARGIN_LANDSCAPE
+                            : STD_ACTIONS_BOTTOM_MARGIN_PORTRAIT);
+                    margins.setMargins(margins.leftMargin, 0, right, bottom);
+                    margins.setMarginEnd(right);
+                    margins.setMarginStart(0);
                     if (rawParams instanceof android.widget.FrameLayout.LayoutParams) {
                         ((android.widget.FrameLayout.LayoutParams) rawParams).gravity =
                                 android.view.Gravity.END | android.view.Gravity.CENTER_VERTICAL;
@@ -606,6 +604,9 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
                             : STD_PROGRESS_BOTTOM_MARGIN_PORTRAIT);
                     margins.rightMargin = right;
                     margins.setMarginEnd(right);
+                    margins.leftMargin = dp(landscape ? STD_PROGRESS_LEFT_MARGIN_LANDSCAPE
+                            : STD_PROGRESS_LEFT_MARGIN_PORTRAIT);
+                    margins.setMarginStart(margins.leftMargin);
                     margins.bottomMargin = bottom;
                     progressContainer.setLayoutParams(rawParams);
                 }
@@ -631,8 +632,10 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         private static final int STD_ACTIONS_BOTTOM_MARGIN_LANDSCAPE = 0;
         private static final int STD_ACTIONS_PADDING_LANDSCAPE = 4;
         private static final int STD_PROGRESS_RIGHT_MARGIN_PORTRAIT = 12;
+        private static final int STD_PROGRESS_LEFT_MARGIN_PORTRAIT = 12;
         private static final int STD_PROGRESS_BOTTOM_MARGIN_PORTRAIT = 12;
         private static final int STD_PROGRESS_RIGHT_MARGIN_LANDSCAPE = 96;
+        private static final int STD_PROGRESS_LEFT_MARGIN_LANDSCAPE = 16;
         private static final int STD_PROGRESS_BOTTOM_MARGIN_LANDSCAPE = 16;
         private static final int STD_SPEED_WIDTH_LANDSCAPE = 40;
 

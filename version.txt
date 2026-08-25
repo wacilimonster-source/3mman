@@ -1,7 +1,7 @@
 {
-  "versionCode": 123,
-  "versionName": "1.0.90",
-  "updateMessage": "M90 修复横屏部分视频缺按钮、回竖屏按钮偏移到屏幕中央的时序竞态：Adapter 持有 landscapeMode 状态作为方向事实来源，onBindViewHolder 末尾按当前方向应用布局（兜底新滑入/复用 ViewHolder），onViewAttachedToWindow 在转屏后 ViewHolder 重新 attach 时立即重设（覆盖 detach/reattach 竞态），Fragment 在 enter/restore 时立即遍历 + recyclerView.post 二次遍历（覆盖转屏动画期间挂载 Holder 不可见的窗口）。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.90.apk",
-  "sha256": "bd35d8d6d7b17603c755377d3bddb3eb44f8a64f9a88111c097fe6b9e850c42c"
+  "versionCode": 124,
+  "versionName": "1.0.91",
+  "updateMessage": "M91 修复推荐流横竖屏两个顽固问题：①横屏操作栏偏移 + 回竖屏按钮偏移到屏幕中央——根因为 applyOrientationUi 仅 setMargins 更新 rightMargin 而未同步 marginEnd（API17+ 布局引擎取 marginEnd），现改为 setMargins 后补 setMarginEnd/setMarginStart 与进度条容器写法一致，横竖屏 margin 完全同步；②进入推荐页黑屏转圈很久——根因为 RecoEngine 构造在主线程做磁盘 I/O（读 4000 标签 JSON + 画像 + 衰减）且首批串行 HTTP 探测 20+ 封面（3s 超时），现改为引擎初始化移入后台线程、就绪后再 loadMore，且每批方向探测上限 3 个。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.91.apk",
+  "sha256": "6c1ee191084acee1ddd7c56f05eb72b17d18de22cfe79ee385f45c5aa5c4a35a"
 }
