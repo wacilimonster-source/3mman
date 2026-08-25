@@ -54,15 +54,14 @@
         android:textStyle="bold"
         android:visibility="gone" />
 
-    <!-- 右侧操作栏（横屏专用）：去掉竖屏的 40dp 底部偏移，改为整体垂直居中，
-         避免较短的横屏高度下顶部按钮被裁切；间距收窄以适配宽屏 -->
+    <!-- 右侧操作栏（横屏专用）：为系统横屏安全区域预留右侧空间，避免按钮被裁切；间距收窄以适配宽屏 -->
     <LinearLayout
         android:id="@+id/ll_reco_actions"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="end|center_vertical"
-        android:layout_marginEnd="20dp"
-        android:layout_marginRight="20dp"
+        android:layout_marginEnd="112dp"
+        android:layout_marginRight="112dp"
         android:paddingBottom="8dp"
         android:paddingLeft="6dp"
         android:paddingRight="6dp"
@@ -184,7 +183,7 @@
         android:layout_marginBottom="16dp"
         android:layout_marginEnd="16dp"
         android:layout_marginLeft="16dp"
-        android:layout_marginRight="16dp"
+        android:layout_marginRight="96dp"
         android:layout_marginStart="16dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
@@ -232,7 +231,7 @@
 
         <TextView
             android:id="@+id/tv_reco_speed"
-            android:layout_width="wrap_content"
+            android:layout_width="40dp"
             android:layout_height="36dp"
             android:gravity="center"
             android:layout_marginLeft="2dp"

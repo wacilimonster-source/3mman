@@ -1,7 +1,7 @@
 {
-  "versionCode": 119,
-  "versionName": "1.0.86",
-  "updateMessage": "M86 修复推荐全屏横屏底部白条的真实根因：MainActivity 将 content_main 放在 CoordinatorLayout 中，横屏原代码却用 FrameLayout.LayoutParams 判断，导致底部导航预留 margin 永远没有清除，白色根布局因此露出。现改用 ViewGroup.MarginLayoutParams，横屏真正将内容 bottomMargin 设为 0；同时保留黑色根布局、黑色导航栏、沉浸式导航栏隐藏及导航栏对比度处理。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.86.apk",
-  "sha256": "41998183d4e08adf05526b3ea3b1c393b5c394e93e17a071d244b7ac0ed5dab5"
+  "versionCode": 120,
+  "versionName": "1.0.87",
+  "updateMessage": "M87 修复推荐全屏横屏右侧操作栏和底部倍速按钮显示不完整：为横屏下载/点赞/收藏/不喜欢/详情操作栏预留 112dp 右侧安全区域，为底部进度条预留 96dp 右侧空间，并将倍速按钮固定为 40dp 宽，避免系统横屏手势/导航区域裁切按钮和 1x/2x 文本。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.87.apk",
+  "sha256": "118896e7f40049142b16450d6094054099d92ddc20f9c87e4196e18e4499255e"
 }
