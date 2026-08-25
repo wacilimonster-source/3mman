@@ -192,6 +192,12 @@ public class RecommendFeedFragment extends BaseFragment
                     @Override
                     public void run() {
                         if (isUsable()) {
+                            // M92c：Adapter 构造时 engine 还是 null（后台初始化），
+                            // 必须回填并刷新已挂载页，否则点赞/踩/收藏选中态永远不显示
+                            if (adapter != null) {
+                                adapter.setEngine(engine);
+                                adapter.refreshAttachedActionStates(recyclerView);
+                            }
                             loadMore(true);
                         }
                     }

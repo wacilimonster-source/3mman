@@ -19,6 +19,8 @@ public class Keys {
     public final static String KEY_INTENT_UID = "key_intent_uid";
     public final static String KEY_INTENT_SOURCE = "key_intent_source";
     public final static String KEY_INTENT_AUTHOR_NAME = "key_intent_author_name";
+    /** M92g：作者关联的任一作品 viewKey（加密 UID 过期时供作者页自愈，可空） */
+    public final static String KEY_INTENT_AUTHOR_LAST_VIEW_KEY = "key_intent_author_last_view_key";
     public final static String KEY_INTENT_BROWSE_FORUM_9PORN_ITEM = "key_intent_browse_forum_9mman_item";
     public final static String KEY_INTENT_PICTURE_VIEWER_IMAGE_ARRAY_LIST = "key_intent_picture_viewer_image_array_list";
     public final static String KEY_INTENT_PICTURE_VIEWER_CURRENT_IMAGE_POSITION = "key_intent_picture_viewer_current_image_position";

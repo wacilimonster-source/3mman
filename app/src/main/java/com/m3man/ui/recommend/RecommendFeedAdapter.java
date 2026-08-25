@@ -66,7 +66,12 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
     }
 
     private final List<RecoCandidate> data = new ArrayList<>();
-    private final RecoEngine engine;
+    /**
+     * M92c：引擎在后台线程异步初始化（M91），构造 Adapter 时可能尚为 null。
+     * 初始化完成后由 Fragment 调 {@link #setEngine(RecoEngine)} 回填——
+     * 否则 bindActionState 的 actionOf 永远返回 0，点赞/踩/收藏的选中态全部失效。
+     */
+    private RecoEngine engine;
     private final Callback callback;
     /**
      * 当前方向模式（由 Fragment 在横竖屏切换时更新）。
@@ -82,6 +87,32 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         this.engine = engine;
         this.callback = callback;
         setHasStableIds(true);
+    }
+
+    /** 引擎后台初始化完成后回填引用（见字段注释 M92c） */
+    public void setEngine(RecoEngine engine) {
+        this.engine = engine;
+    }
+
+    /** 刷新当前所有已挂载页的操作态（引擎回填后调用，避免整页 notifyDataSetChanged 打断播放） */
+    public void refreshAttachedActionStates(RecyclerView recyclerView) {
+        if (recyclerView == null) {
+            return;
+        }
+        for (int i = 0; i < recyclerView.getChildCount(); i++) {
+            RecyclerView.ViewHolder vh = recyclerView.getChildViewHolder(recyclerView.getChildAt(i));
+            if (!(vh instanceof PageHolder)) {
+                continue;
+            }
+            int pos = vh.getAdapterPosition();
+            if (pos == RecyclerView.NO_POSITION || pos >= getItemCount()) {
+                continue;
+            }
+            RecoCandidate candidate = getItem(pos);
+            if (candidate != null) {
+                bindActionState((PageHolder) vh, candidate);
+            }
+        }
     }
 
     public List<RecoCandidate> getData() {
@@ -568,16 +599,17 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
          */
         void applyOrientationUi(boolean landscape) {
             orientationLandscape = landscape;
+            // M92d：参数唯一来源是 dimens_reco（values / values-land 各一份），
+            // 这里按当前配置读取，杜绝 Java 常量与 XML 双份维护漂移
+            android.content.res.Resources res = itemView.getResources();
             if (actionsContainer != null) {
                 ViewGroup.LayoutParams rawParams = actionsContainer.getLayoutParams();
                 if (rawParams instanceof ViewGroup.MarginLayoutParams) {
                     ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) rawParams;
                     margins.width = ViewGroup.LayoutParams.WRAP_CONTENT;
                     margins.height = ViewGroup.LayoutParams.WRAP_CONTENT;
-                    int right = dp(landscape ? STD_ACTIONS_RIGHT_MARGIN_LANDSCAPE
-                            : STD_ACTIONS_RIGHT_MARGIN_PORTRAIT);
-                    int bottom = dp(landscape ? STD_ACTIONS_BOTTOM_MARGIN_LANDSCAPE
-                            : STD_ACTIONS_BOTTOM_MARGIN_PORTRAIT);
+                    int right = res.getDimensionPixelSize(R.dimen.reco_actions_margin_end);
+                    int bottom = res.getDimensionPixelSize(R.dimen.reco_actions_margin_bottom);
                     margins.setMargins(margins.leftMargin, 0, right, bottom);
                     margins.setMarginEnd(right);
                     margins.setMarginStart(0);
@@ -587,10 +619,8 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
                     }
                     actionsContainer.setLayoutParams(rawParams);
                 }
-                int padH = dp(landscape ? STD_ACTIONS_PADDING_LANDSCAPE
-                        : STD_ACTIONS_PADDING_H_PORTRAIT);
-                int padV = dp(landscape ? STD_ACTIONS_PADDING_LANDSCAPE
-                        : STD_ACTIONS_PADDING_V_PORTRAIT);
+                int padH = res.getDimensionPixelSize(R.dimen.reco_actions_padding_h);
+                int padV = res.getDimensionPixelSize(R.dimen.reco_actions_padding_v);
                 actionsContainer.setPadding(padH, padV, padH, padV);
                 actionsContainer.requestLayout();
             }
@@ -598,14 +628,11 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
                 ViewGroup.LayoutParams rawParams = progressContainer.getLayoutParams();
                 if (rawParams instanceof ViewGroup.MarginLayoutParams) {
                     ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) rawParams;
-                    int right = dp(landscape ? STD_PROGRESS_RIGHT_MARGIN_LANDSCAPE
-                            : STD_PROGRESS_RIGHT_MARGIN_PORTRAIT);
-                    int bottom = dp(landscape ? STD_PROGRESS_BOTTOM_MARGIN_LANDSCAPE
-                            : STD_PROGRESS_BOTTOM_MARGIN_PORTRAIT);
+                    int right = res.getDimensionPixelSize(R.dimen.reco_progress_margin_right);
+                    int bottom = res.getDimensionPixelSize(R.dimen.reco_progress_margin_bottom);
                     margins.rightMargin = right;
                     margins.setMarginEnd(right);
-                    margins.leftMargin = dp(landscape ? STD_PROGRESS_LEFT_MARGIN_LANDSCAPE
-                            : STD_PROGRESS_LEFT_MARGIN_PORTRAIT);
+                    margins.leftMargin = res.getDimensionPixelSize(R.dimen.reco_progress_margin_left);
                     margins.setMarginStart(margins.leftMargin);
                     margins.bottomMargin = bottom;
                     progressContainer.setLayoutParams(rawParams);
@@ -615,7 +642,7 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
                 ViewGroup.LayoutParams speedParams = speed.getLayoutParams();
                 if (speedParams != null) {
                     speedParams.width = landscape
-                            ? dp(STD_SPEED_WIDTH_LANDSCAPE)
+                            ? res.getDimensionPixelSize(R.dimen.reco_speed_width)
                             : ViewGroup.LayoutParams.WRAP_CONTENT;
                     speed.setLayoutParams(speedParams);
                 }
@@ -626,26 +653,7 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
             itemView.requestLayout();
         }
 
-        // 标准参数（与两份 XML 100% 对齐，dp 值）
-        private static final int STD_ACTIONS_RIGHT_MARGIN_PORTRAIT = 18;
-        private static final int STD_ACTIONS_BOTTOM_MARGIN_PORTRAIT = 40;
-        private static final int STD_ACTIONS_PADDING_H_PORTRAIT = 6;
-        private static final int STD_ACTIONS_PADDING_V_PORTRAIT = 8;
-        private static final int STD_ACTIONS_RIGHT_MARGIN_LANDSCAPE = 112;
-        private static final int STD_ACTIONS_BOTTOM_MARGIN_LANDSCAPE = 0;
-        private static final int STD_ACTIONS_PADDING_LANDSCAPE = 4;
-        private static final int STD_PROGRESS_RIGHT_MARGIN_PORTRAIT = 12;
-        private static final int STD_PROGRESS_LEFT_MARGIN_PORTRAIT = 12;
-        private static final int STD_PROGRESS_BOTTOM_MARGIN_PORTRAIT = 12;
-        /** 横屏左右对称贴边（全屏按钮已隐藏，不再需要为它预留右侧空间） */
-        private static final int STD_PROGRESS_RIGHT_MARGIN_LANDSCAPE = 16;
-        private static final int STD_PROGRESS_LEFT_MARGIN_LANDSCAPE = 16;
-        private static final int STD_PROGRESS_BOTTOM_MARGIN_LANDSCAPE = 16;
-        private static final int STD_SPEED_WIDTH_LANDSCAPE = 40;
-
-        private int dp(int value) {
-            return (int) (value * itemView.getResources().getDisplayMetrics().density + 0.5f);
-        }
+        // M92d：原 STD_* 双份常量组已删除，参数唯一来源见 values(-land)/dimens_reco.xml
 
         void applyHidePolicy(boolean hide) {
             hideHandler.removeCallbacks(hideRunnable);

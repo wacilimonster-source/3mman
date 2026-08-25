@@ -61,6 +61,10 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
     private String uid;
     private String source;
     private String authorName;
+    /** M92g：收藏行携带的关联作品 viewKey（UID 过期自愈用，可空） */
+    private String lastViewKey;
+    /** M92g：自愈状态——每次数据会话只自动尝试一次 */
+    private boolean healingUid;
     private boolean isFavorited;
 
     /** R2：收藏相关裸订阅统一回收 */
@@ -90,6 +94,7 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
         if (TextUtils.isEmpty(authorName)) {
             authorName = uid;
         }
+        lastViewKey = getIntent().getStringExtra(Keys.KEY_INTENT_AUTHOR_LAST_VIEW_KEY);
         toolbar.setTitle(authorName);
         initFavoriteMenu();
         init();
@@ -256,6 +261,7 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
         recyclerView.smoothScrollToPosition(0);
         swipeLayout.setEnabled(true);
         swipeLayout.setRefreshing(false);
+        healingUid = false;
     }
 
     @Override
@@ -287,11 +293,25 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
     @Override
     public void showError(String message) {
         showMessage(message, TastyToast.ERROR);
+        tryHealStaleUid();
         if (helper == null) {
             return;
         }
         helper.showError();
         LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, "加载数据失败了，点击重试");
+    }
+
+    /**
+     * M92g：mman9 作者 UID 是加密临时 token，收藏行的旧 token 请求 uvideos.php 会 404。
+     * 若收藏行携带了关联作品的 viewKey，则重拉该作品详情换取新 ownerId 并重试（仅一次）。
+     */
+    private void tryHealStaleUid() {
+        if (healingUid || isPorny() || TextUtils.isEmpty(lastViewKey)) {
+            return;
+        }
+        healingUid = true;
+        swipeLayout.setRefreshing(true);
+        presenter.reloadOwnerFromViewKey(lastViewKey, uid, source, false);
     }
 
     @Override

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M92d：推荐流操作栏/进度条参数唯一事实来源（竖屏值）。
+     Java 侧 RecommendFeedAdapter.applyOrientationUi 直接读取本资源，
+     横屏值见 values-land/dimens_reco.xml——禁止在代码中再写死一份。 -->
+<resources>
+    <dimen name="reco_actions_margin_end">18dp</dimen>
+    <dimen name="reco_actions_margin_bottom">40dp</dimen>
+    <dimen name="reco_actions_padding_h">6dp</dimen>
+    <dimen name="reco_actions_padding_v">8dp</dimen>
+    <dimen name="reco_progress_margin_left">12dp</dimen>
+    <dimen name="reco_progress_margin_right">12dp</dimen>
+    <dimen name="reco_progress_margin_bottom">12dp</dimen>
+</resources>

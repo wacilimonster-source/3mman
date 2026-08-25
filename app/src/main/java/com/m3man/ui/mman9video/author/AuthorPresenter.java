@@ -226,6 +226,9 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
             return;
         }
         final String viewKey = item.getViewKey();
+        // M92g：记录旧 ownerId，自愈成功后同步收藏行
+        currentHealStaleKey = item.getVideoResult() != null
+                ? item.getVideoResult().getOwnerId() : null;
         dataManager.loadMman9VideoUrl(viewKey)
                 .map(new Function<VideoResult, VideoResult>() {
                     @Override
@@ -250,6 +253,8 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
                             dataManager.saveVideoResult(fresh);
                             item.setVideoResult(fresh);
                             dataManager.saveV9MmanItem(item);
+                            // M92g：同步刷新收藏行的 authorKey（若该作者已被收藏），收藏直进不再失效
+                            syncFavoriteAuthorKey(fresh.getOwnerId(), sourceOf(item));
                             Logger.t(TAG).d("自愈成功：新 ownerId=" + fresh.getOwnerId());
                         } catch (Exception e) {
                             Logger.t(TAG).e(TAG + ": 回写新 ownerId 失败 " + e.getMessage());
@@ -268,6 +273,88 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
                         });
                     }
                 });
+    }
+
+    /**
+     * M92g：作者收藏列表路径的自愈——无 V9MmanItem 实体，直接用关联作品 viewKey
+     * 重拉详情换取新 ownerId；成功后同步收藏行 authorKey 再重试作者列表。
+     */
+    public void reloadOwnerFromViewKey(final String viewKey, final String staleAuthorKey,
+                                       final String source, final boolean pullToRefresh) {
+        if (TextUtils.isEmpty(viewKey)) {
+            ifViewAttached(new ViewAction<AuthorView>() {
+                @Override
+                public void run(@NonNull AuthorView view) {
+                    view.showError("作者视频加载失败");
+                }
+            });
+            return;
+        }
+        currentHealStaleKey = staleAuthorKey;
+        dataManager.loadMman9VideoUrl(viewKey)
+                .map(new Function<VideoResult, VideoResult>() {
+                    @Override
+                    public VideoResult apply(VideoResult fresh) throws Exception {
+                        if (fresh == null || TextUtils.isEmpty(fresh.getOwnerId())) {
+                            throw new IllegalStateException("详情页未取得作者 UID");
+                        }
+                        return fresh;
+                    }
+                })
+                .compose(RxSchedulersHelper.<VideoResult>ioMainThread())
+                .compose(provider.<VideoResult>bindUntilEvent(Lifecycle.Event.ON_DESTROY))
+                .subscribe(new CallBackWrapper<VideoResult>() {
+                    @Override
+                    public void onBegin(Disposable d) {
+                    }
+
+                    @Override
+                    public void onSuccess(VideoResult fresh) {
+                        try {
+                            syncFavoriteAuthorKey(fresh.getOwnerId(), source);
+                            Logger.t(TAG).d("收藏路径自愈成功：新 ownerId=" + fresh.getOwnerId());
+                        } catch (Exception e) {
+                            Logger.t(TAG).e(TAG + ": 收藏行 authorKey 同步失败 " + e.getMessage());
+                        }
+                        authorVideos(fresh.getOwnerId(), pullToRefresh);
+                    }
+
+                    @Override
+                    public void onError(final String msg, int code) {
+                        Logger.t(TAG).e(TAG + ": 收藏路径自愈失败 viewKey=" + viewKey + " msg=" + msg);
+                        ifViewAttached(new ViewAction<AuthorView>() {
+                            @Override
+                            public void run(@NonNull AuthorView view) {
+                                view.showError("作者视频加载失败，请下拉重试");
+                            }
+                        });
+                    }
+                });
+    }
+
+    /** 把（可能过期的）authorKey 对应的收藏行更新为新 token；未收藏则跳过。IO 线程调用 */
+    private void syncFavoriteAuthorKey(String newAuthorKey, String source) {
+        if (TextUtils.isEmpty(newAuthorKey) || TextUtils.isEmpty(currentHealStaleKey)) {
+            return;
+        }
+        AuthorFavorite row = dataManager.findAuthorFavorite(currentHealStaleKey, source);
+        if (row != null && !newAuthorKey.equals(row.getAuthorKey())) {
+            row.setAuthorKey(newAuthorKey);
+            dataManager.updateAuthorFavorite(row);
+        }
+    }
+
+    /** 播放页自愈路径的旧 key 传递（reloadOwnerThenAuthorVideos 调用前赋值） */
+    private String currentHealStaleKey;
+
+    /** 条目来源归一化：sourceName 优先，source 兜底，默认按 mman9 处理 */
+    private static String sourceOf(V9MmanItem item) {
+        String sn = item != null ? item.getSourceName() : null;
+        if (TextUtils.isEmpty(sn) && item != null) {
+            sn = item.getSource();
+        }
+        return AuthorFavorite.SOURCE_PORNY.equals(sn)
+                ? AuthorFavorite.SOURCE_PORNY : AuthorFavorite.SOURCE_MMAN9;
     }
 
     @Override

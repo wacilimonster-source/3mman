@@ -80,6 +80,10 @@ public class AuthorFavoriteActivity extends BaseAppCompatActivity {
                 intent.putExtra(Keys.KEY_INTENT_UID, item.getAuthorKey());
                 intent.putExtra(Keys.KEY_INTENT_SOURCE, item.getSource());
                 intent.putExtra(Keys.KEY_INTENT_AUTHOR_NAME, item.getAuthorName());
+                // M92g：带上关联作品的 viewKey，作者页 UID 过期 404 时可自愈
+                if (!TextUtils.isEmpty(item.getLastViewKey())) {
+                    intent.putExtra(Keys.KEY_INTENT_AUTHOR_LAST_VIEW_KEY, item.getLastViewKey());
+                }
                 startActivityWithAnimation(intent);
             }
         });
@@ -121,7 +125,29 @@ public class AuthorFavoriteActivity extends BaseAppCompatActivity {
         loadData();
     }
 
+    /** 是否已完成过一次加载（决定 onResume 重查是否显示加载圈） */
+    private boolean firstLoadDone;
+
     private void loadData() {
+        // M92h：返回本页的静默重查不再闪全屏加载圈（作者页内可切换收藏，数据仍需刷新）
+        if (firstLoadDone) {
+            mDisposables.add(Observable.just(1)
+                    .map(integer -> dataManager.loadAuthorFavorites())
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(items -> {
+                        if (items == null || items.isEmpty()) {
+                            helper.showEmpty();
+                            LoadHelperUtils.setEmptyText(helper.getLoadEmpty(), R.id.tv_empty_info, "还没有收藏作者，去作者页收藏吧");
+                            mAdapter.setNewData(new ArrayList<>());
+                        } else {
+                            helper.showContent();
+                            mAdapter.setNewData(items);
+                            refreshAuthorSummaries(items);
+                        }
+                    }, throwable -> { /* 静默失败：保留旧列表 */ }));
+            return;
+        }
         helper.showLoading();
         LoadHelperUtils.setLoadingText(helper.getLoadIng(), R.id.tv_loading_text, "加载中...");
         mDisposables.add(Observable.just(1)
@@ -129,6 +155,7 @@ public class AuthorFavoriteActivity extends BaseAppCompatActivity {
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(items -> {
+                    firstLoadDone = true;
                     if (items == null || items.isEmpty()) {
                         helper.showEmpty();
                         LoadHelperUtils.setEmptyText(helper.getLoadEmpty(), R.id.tv_empty_info, "还没有收藏作者，去作者页收藏吧");
@@ -229,6 +256,8 @@ public class AuthorFavoriteActivity extends BaseAppCompatActivity {
         fav.setVideoCount(count);
         if (!TextUtils.isEmpty(newTopKey)) {
             fav.setTopViewKey(newTopKey);
+            // M92g：顺手回填自愈用 viewKey（首页第一条即该作者作品，老收藏首次刷新即获得自愈能力）
+            fav.setLastViewKey(newTopKey);
         }
         if (!TextUtils.isEmpty(top.getImgUrl())) {
             fav.setCoverUrl(top.getImgUrl());

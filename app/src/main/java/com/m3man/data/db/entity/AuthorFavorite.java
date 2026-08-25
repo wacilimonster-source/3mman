@@ -47,6 +47,8 @@ public class AuthorFavorite {
     private Boolean hasNew;
     /** 作者最新作品的封面图 URL（条目缩略图） */
     private String coverUrl;
+    /** M92g：该作者任一作品的 viewKey——加密 UID 过期时，作者页用它重拉详情换取新 ownerId */
+    private String lastViewKey;
 
     @Generated(hash = 1546271591)
     public AuthorFavorite(Long id, @NotNull String authorKey,
@@ -125,5 +127,11 @@ public class AuthorFavorite {
     }
     public void setCoverUrl(String coverUrl) {
         this.coverUrl = coverUrl;
+    }
+    public String getLastViewKey() {
+        return this.lastViewKey;
+    }
+    public void setLastViewKey(String lastViewKey) {
+        this.lastViewKey = lastViewKey;
     }
 }

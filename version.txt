@@ -1,7 +1,7 @@
 {
-  "versionCode": 126,
-  "versionName": "1.0.93",
-  "updateMessage": "M93 作者收藏与搜索增强 + 作者页404自愈：①作者收藏文字对比度（新增 author_favorite_item_text 日间#353C46/夜间#ADB4BE，item 两行文本改用该色，夜间可读性提升）；②搜索提示改名（strings.xml 及 SearchPorny/PornyFavorite 等“分分钟”统一改“搜索”）；③横屏进度条右留白修复（RecommendFeedAdapter 横屏进度条 right margin 96→16）；④作者收藏增强（AuthorFavorite 实体新增 videoCount/topViewKey/lastRefreshTime/lastNewTime/hasNew/coverUrl 六字段并打通 DbHelper→AppDbHelper→AppDataManager 持久化链路；AuthorFavoriteActivity 支持刷新/相对时间/NEW角标/空列表容错；item 重设计为 52dp 封面+三行+NEW角标）；⑤作者页404自愈（ParseV9MmanVideo 按 ?key=/&key= 边界取值且 ownerLink 优先 a[href*=uvideos.php]；AuthorPresenter.reloadOwnerThenAuthorVideos 自愈、AuthorFragment.healingUid 防循环）。附带：播放页作者收藏星标改金色 #FFBA00。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.93.apk",
-  "sha256": "8168f7d701be972204b96382cbc3dec1ee941d870ceaf545135fd8c7865b9ae3"
+  "versionCode": 127,
+  "versionName": "1.0.94",
+  "updateMessage": "M94 已修复清单（其他agent改动评审后发版，H1 核实无需改动）：H2 ExoPlayer引擎补齐错误自愈三件套（20s准备看门狗超时触发自愈 + OkHttp直链诊断403/404/连接失败分类提示带系统代理 + 自动重新解析一次限一次防死循环每次起播重置计数），与JiaoZi引擎能力对齐；H3 作者收藏自愈闭环（DB schema 11→12 新增可空 lastViewKey 字段，摘要刷新自动回填首页首条 viewKey，收藏列表透传作者页，作者页 mman9 加载失败用该 viewKey 重拉详情换新 ownerId 并回写收藏行 authorKey 自动重试，播放页 Tab 路径同步 authorKey，MigrationHelper 已含该实体升级不丢数据）；H4 AuthorFavoriteActivity 返回不再闪加载圈（首次加载才 showLoading，之后 onResume 静默重查 DB 直更列表失败静默保留旧列表）；M1 推荐流横屏参数三源归一（新建 values/dimens_reco.xml + values-land/dimens_reco.xml 唯一事实来源，applyOrientationUi 改读资源删除整套 STD_* 常量，两份 item_recommend_page.xml 同步改 @dimen 引用，横屏 padding 漂移 6/8→4dp 已统一，并修复引擎初始化完成后点赞/踩/收藏选中态不显示 bug）；M4 播放页悬浮返回按钮改为横屏专属（竖屏 GONE 横屏 VISIBLE，onCreate 按当前方向初始化 + onConfigurationChanged 跟随）；M6 观看上限提示改为可行动引导（“请到『我的→设置』更换线路地址或代理后重试”）；C2 jiaozi 倍速钮补 contentDescription。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.94.apk",
+  "sha256": "502bac9c3fbf533d400886280b6caec79f169e7cd1663855a7ac90fa32087db3"
 }

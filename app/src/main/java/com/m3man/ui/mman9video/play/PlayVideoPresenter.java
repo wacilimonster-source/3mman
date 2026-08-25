@@ -122,7 +122,7 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
                             //尝试强行重置，并上报异常
                             dataManager.resetMman91VideoWatchTime(true);
                             AppLog.w(TAG, "观看次数达上限，已重置cookie viewKey=" + viewKey);
-                            throw new VideoException("观看次数达到上限了,请更换地址或者代理服务器！");
+                            throw new VideoException("观看次数达上限，请到「我的 → 设置」更换线路地址或代理后重试");
                         } else {
                             AppLog.e(TAG, "9mman解析失败(空结果) viewKey=" + viewKey);
                             throw new VideoException("解析视频链接失败了");

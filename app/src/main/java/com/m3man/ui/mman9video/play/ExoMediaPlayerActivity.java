@@ -2,9 +2,12 @@ package com.m3man.ui.mman9video.play;
 
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.Toast;
 
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
 import com.devbrackets.android.exomedia.listener.OnErrorListener;
@@ -16,12 +19,24 @@ import com.m3man.R;
 import com.m3man.utils.AppLog;
 import com.m3man.utils.GlideApp;
 
+import java.io.IOException;
+import java.net.ProxySelector;
+import java.util.concurrent.TimeUnit;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+
 /**
  * @author flymegoc
  */
 public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedListener {
 
     private static final String TAG = ExoMediaPlayerActivity.class.getSimpleName();
+    /** M92f：准备阶段看门狗阈值（与 JiaoZi 引擎 Mman9VideoPlayer 对齐） */
+    private static final long PREPARE_TIMEOUT_MS = 20_000L;
     private ExoVideoView videoPlayer;
     private ExoVideoControlsMobile videoControlsMobile;
     private boolean isPauseByActivityEvent = false;
@@ -29,6 +44,21 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
     private String currentPlayUrl = "";
     /** M70：缓冲 0% 只打一次日志的节流标记 */
     private boolean bufferZeroLogged = false;
+
+    // ==================== M92f：错误自愈（与 JiaoZi 引擎能力对齐） ====================
+
+    private final Handler watchdog = new Handler(Looper.getMainLooper());
+    /** 直链诊断探测客户端（带系统代理，避免把代理可达误判为源站不可达） */
+    private OkHttpClient probeClient;
+    /** 本次播放是否已做过一次「重新解析」自愈，防止失败→解析→失败死循环 */
+    private boolean healAttempted;
+
+    private final Runnable prepareTimeoutTask = new Runnable() {
+        @Override
+        public void run() {
+            onPrepareTimeout();
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,6 +86,10 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
                         + " err=" + e.getClass().getName()
                         + " msg=" + e.getMessage()
                         + " stack=" + stack.substring(0, Math.min(800, stack.length())));
+                cancelWatchdog();
+                // M92f：错误时先诊断直链真实状态，再尝试自动重新解析一次
+                diagnose(currentPlayUrl);
+                attemptReparseOnce("播放出错");
                 return false; // 不消费，交给库默认处理（弹窗/停止）
             }
         });
@@ -84,6 +118,109 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
         }
     }
 
+    // ==================== M92f：看门狗 / 诊断 / 自动重新解析 ====================
+
+    private void startWatchdog() {
+        cancelWatchdog();
+        watchdog.postDelayed(prepareTimeoutTask, PREPARE_TIMEOUT_MS);
+    }
+
+    private void cancelWatchdog() {
+        watchdog.removeCallbacks(prepareTimeoutTask);
+    }
+
+    private void onPrepareTimeout() {
+        AppLog.e("Player", "起播看门狗超时(20s) viewKey=" + getViewKeyForLog()
+                + " url=" + currentPlayUrl + " 已尝试自愈=" + healAttempted);
+        diagnose(currentPlayUrl);
+        attemptReparseOnce("加载超时");
+    }
+
+    /**
+     * 自动重新解析视频地址拿新直链（每次播放至多一次）。
+     * 解析成功后 BasePlayVideo 流程会回调 playVideo(...) 重设播放器。
+     */
+    private void attemptReparseOnce(final String reason) {
+        if (healAttempted || v9MmanItem == null || playVideoPresenter == null) {
+            return;
+        }
+        healAttempted = true;
+        Toast.makeText(this, reason + "，正在重新解析视频地址…", Toast.LENGTH_SHORT).show();
+        watchdog.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                AppLog.i("Player", "自愈：重新解析 viewKey=" + getViewKeyForLog() + " 原因=" + reason);
+                playVideoPresenter.loadVideoUrl(v9MmanItem);
+            }
+        }, 800L);
+    }
+
+    /** OkHttp 探测直链真实 HTTP 状态并 Toast 用户（403 过期 / 404 不存在 / 连接失败等） */
+    private void diagnose(final String url) {
+        if (TextUtils.isEmpty(url) || url.startsWith("file://")) {
+            return;
+        }
+        getProbeClient().newCall(new Request.Builder()
+                .url(url)
+                .header("Range", "bytes=0-1")
+                .build())
+                .enqueue(new Callback() {
+                    @Override
+                    public void onFailure(Call call, IOException e) {
+                        showToast("无法连接视频服务器（" + e.getClass().getSimpleName() + "），已自动重新解析");
+                    }
+
+                    @Override
+                    public void onResponse(Call call, Response response) {
+                        int code = response.code();
+                        response.close();
+                        String msg;
+                        if (code == 200 || code == 206) {
+                            msg = "视频地址有效（HTTP " + code + "），正在自动重新解析";
+                        } else if (code == 403) {
+                            msg = "视频地址已过期（HTTP 403），正在获取新地址";
+                        } else if (code == 404) {
+                            msg = "视频文件不存在（HTTP 404）";
+                        } else {
+                            msg = "视频地址异常 HTTP " + code + "，正在重新解析";
+                        }
+                        showToast(msg);
+                    }
+                });
+    }
+
+    private void showToast(final String msg) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+        } else {
+            watchdog.post(new Runnable() {
+                @Override
+                public void run() {
+                    if (!isFinishing() && !isDestroyed()) {
+                        Toast.makeText(ExoMediaPlayerActivity.this, msg, Toast.LENGTH_LONG).show();
+                    }
+                }
+            });
+        }
+    }
+
+    private OkHttpClient getProbeClient() {
+        if (probeClient == null) {
+            OkHttpClient.Builder builder = new OkHttpClient.Builder()
+                    .connectTimeout(8, TimeUnit.SECONDS)
+                    .readTimeout(8, TimeUnit.SECONDS);
+            ProxySelector selector = ProxySelector.getDefault();
+            if (selector != null) {
+                builder.proxySelector(selector);
+            }
+            probeClient = builder.build();
+        }
+        return probeClient;
+    }
+
     @Override
     public void playVideo(String title, String videoUrl, String name, String thumImgUrl) {
 
@@ -105,11 +242,15 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
         // M70：记录本次播放 URL + 起播日志，配合错误/缓冲埋点定位转圈问题
         currentPlayUrl = videoUrl;
         bufferZeroLogged = false;
+        // M92f：每次新起播重置自愈标记并启动准备看门狗
+        healAttempted = false;
+        startWatchdog();
         AppLog.i("Player", "起播请求 viewKey=" + getViewKeyForLog() + " url=" + videoUrl);
     }
 
     @Override
     public void onPrepared() {
+        cancelWatchdog();
         videoPlayer.start();
     }
 

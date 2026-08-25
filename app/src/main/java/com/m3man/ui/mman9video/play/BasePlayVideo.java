@@ -144,6 +144,10 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         // 悬浮返回按钮：点击返回上一页
         if (btnPlayBack != null) {
             btnPlayBack.setOnClickListener(v -> onBackPressed());
+            // M92e：初始方向决定显隐（竖屏隐藏避免与顶栏返回重复；onConfigurationChanged 只管后续变化）
+            boolean landscapeNow = getResources().getConfiguration().orientation
+                    == Configuration.ORIENTATION_LANDSCAPE;
+            updateFloatingBackVisibility(landscapeNow);
         }
 
         initTab();
@@ -709,8 +713,20 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         if (newConfig.orientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE || newConfig.orientation == ActivityInfo.SCREEN_ORIENTATION_USER) {
             //这里没必要，因为我们使用的是setColorForSwipeBack，并不会有这个虚拟的view，而是设置的padding
             StatusBarUtil.hideFakeStatusBarView(this);
+            updateFloatingBackVisibility(true);
         } else if (newConfig.orientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
             setStatusBarColor(ContextCompat.getColor(this, R.color.colorPrimary));
+            updateFloatingBackVisibility(false);
+        }
+    }
+
+    /**
+     * M92e：悬浮返回按钮改为「横屏专属」——竖屏时播放器顶栏/控制栏自带返回入口，
+     * 悬浮按钮属于重复入口且遮挡画面；横屏全屏时顶栏隐藏，才需要它提供退出路径。
+     */
+    private void updateFloatingBackVisibility(boolean landscape) {
+        if (btnPlayBack != null) {
+            btnPlayBack.setVisibility(landscape ? View.VISIBLE : View.GONE);
         }
     }
 
