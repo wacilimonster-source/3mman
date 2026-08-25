@@ -308,7 +308,7 @@ public class ExoVideoControlsMobile extends ExoVideoControls {
 
     protected void goFullScreen() {
         isFullScreen = true;
-        fullScreenImageView.setImageDrawable(ContextCompat.getDrawable(getContext(), R.drawable.discover_video_fs_exit_fullscr));
+        fullScreenImageView.setVisibility(View.GONE);
         setUiFlags(true);
         //hideSystemUI();
         ActivityUtils.setRequestedOrientation(getContext(), ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
@@ -333,6 +333,7 @@ public class ExoVideoControlsMobile extends ExoVideoControls {
 
     protected void exitFullScreen() {
         isFullScreen = false;
+        fullScreenImageView.setVisibility(View.VISIBLE);
         fullScreenImageView.setImageDrawable(ContextCompat.getDrawable(getContext(), R.drawable.discover_video_fullscr));
         setUiFlags(false);
         ActivityUtils.setRequestedOrientation(getContext(), ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);

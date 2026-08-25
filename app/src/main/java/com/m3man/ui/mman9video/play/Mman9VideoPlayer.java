@@ -1,14 +1,22 @@
 package com.m3man.ui.mman9video.play;
 
 import android.content.Context;
+import android.graphics.Rect;
+import android.media.MediaPlayer;
+import android.media.PlaybackParams;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Toast;
 
+import cn.jzvd.JZMediaManager;
 import cn.jzvd.JZVideoPlayer;
+import cn.jzvd.JZVideoPlayerManager;
 import cn.jzvd.JZVideoPlayerStandard;
 
 import java.io.IOException;
@@ -41,6 +49,13 @@ public class Mman9VideoPlayer extends JZVideoPlayerStandard {
     /** 准备阶段超时阈值：超过该时长仍在「准备中」视为加载卡死，主动弹出重试。 */
     private static final long PREPARE_TIMEOUT_MS = 20_000L;
 
+    /** 双击判定窗口（同时也是单击延迟） */
+    private static final long DOUBLE_TAP_TIMEOUT = 260L;
+    /** 长按判定阈值（ms） */
+    private static final long LONG_PRESS_TIMEOUT = 400L;
+    /** 长按快进倍速 */
+    private static final float LONG_PRESS_SPEED = 2.0f;
+
     /** 外部设置：点击重试时执行的动作（一般为重新解析视频地址）。 */
     private Runnable mRetryAction;
 
@@ -61,6 +76,38 @@ public class Mman9VideoPlayer extends JZVideoPlayerStandard {
         }
     };
 
+    // ==================== 双击快进 ====================
+
+    private final Handler tapHandler = new Handler(Looper.getMainLooper());
+    private long lastTapTime;
+
+    // ==================== 长按左1/2快进 ====================
+
+    private long lastTouchDownTime;
+    private float lastTouchX;
+    private boolean longPressTriggered;
+    private float speedBeforeLongPress = 1.0f;
+
+    private final Runnable longPressRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (longPressTriggered) {
+                return;
+            }
+            long elapsed = SystemClock.uptimeMillis() - lastTouchDownTime;
+            if (elapsed < LONG_PRESS_TIMEOUT) {
+                tapHandler.postDelayed(this, LONG_PRESS_TIMEOUT - elapsed);
+                return;
+            }
+            float touchX = lastTouchX;
+            if (touchX < getWidth() / 2f) {
+                longPressTriggered = true;
+                speedBeforeLongPress = readCurrentSpeed();
+                setPlaybackSpeed(LONG_PRESS_SPEED);
+            }
+        }
+    };
+
     public Mman9VideoPlayer(Context context) {
         super(context);
     }
@@ -72,6 +119,196 @@ public class Mman9VideoPlayer extends JZVideoPlayerStandard {
     /** 设置「重试」按钮的回调（重新解析视频地址）。 */
     public void setRetryAction(Runnable action) {
         mRetryAction = action;
+    }
+
+    /** 设置当前 MediaPlayer 倍速。 */
+    public boolean setPlaybackSpeed(float speed) {
+        if (!isCurrentPlayer() || Build.VERSION.SDK_INT < Build.VERSION_CODES.M
+                || speed <= 0f) {
+            return false;
+        }
+        try {
+            if (!(JZMediaManager.instance().jzMediaInterface instanceof cn.jzvd.JZMediaSystem)) {
+                return false;
+            }
+            MediaPlayer mediaPlayer = ((cn.jzvd.JZMediaSystem)
+                    JZMediaManager.instance().jzMediaInterface).mediaPlayer;
+            if (mediaPlayer == null) {
+                return false;
+            }
+            PlaybackParams params = mediaPlayer.getPlaybackParams();
+            params.setSpeed(speed);
+            mediaPlayer.setPlaybackParams(params);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    /** 本实例是否是 JZVD 当前持有解码器的播放器 */
+    private boolean isCurrentPlayer() {
+        return JZVideoPlayerManager.getCurrentJzvd() == this;
+    }
+
+    /** 播放器是否处于可读进度的状态 */
+    private boolean isSeekable() {
+        return isCurrentPlayer()
+                && (currentState == CURRENT_STATE_PLAYING || currentState == CURRENT_STATE_PAUSE);
+    }
+
+    /** 安全取总时长，异常/未就绪返回 0 */
+    private long safeDuration() {
+        if (!isCurrentPlayer()) {
+            return 0L;
+        }
+        try {
+            long d = getDuration();
+            return d > 0 ? d : 0L;
+        } catch (Exception e) {
+            return 0L;
+        }
+    }
+
+    /** 安全取当前进度，异常/未就绪返回 0 */
+    private long safePosition() {
+        if (!isCurrentPlayer()) {
+            return 0L;
+        }
+        try {
+            long p = getCurrentPositionWhenPlaying();
+            return p > 0 ? p : 0L;
+        } catch (Exception e) {
+            return 0L;
+        }
+    }
+
+    /** 读取 MediaPlayer 当前真实播放速度；异常或不支持时返回 1.0f。 */
+    private float readCurrentSpeed() {
+        if (!isCurrentPlayer() || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return 1.0f;
+        }
+        try {
+            if (!(JZMediaManager.instance().jzMediaInterface instanceof cn.jzvd.JZMediaSystem)) {
+                return 1.0f;
+            }
+            MediaPlayer mediaPlayer = ((cn.jzvd.JZMediaSystem)
+                    JZMediaManager.instance().jzMediaInterface).mediaPlayer;
+            if (mediaPlayer == null) {
+                return 1.0f;
+            }
+            return mediaPlayer.getPlaybackParams().getSpeed();
+        } catch (Exception e) {
+            return 1.0f;
+        }
+    }
+
+    /** 双击快进：总时长的 1/8，贴尾钳制到 duration-1s，返回实际跳过毫秒数。 */
+    public long seekForwardOneEighth() {
+        if (!isSeekable()) {
+            return 0L;
+        }
+        long duration = safeDuration();
+        long current = safePosition();
+        if (duration <= 0L) {
+            return 0L;
+        }
+        long step = Math.max(1000L, duration / 8L);
+        long target = Math.min(Math.max(0L, duration - 1000L), current + step);
+        long actual = Math.max(0L, target - current);
+        if (actual <= 0L) {
+            return 0L;
+        }
+        try {
+            JZMediaManager.seekTo(target);
+            startProgressTimer();
+            return actual;
+        } catch (Exception ignored) {
+            return 0L;
+        }
+    }
+
+    // ==================== 手势：双击快进 + 长按左1/2快进 ====================
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (event == null) {
+            return super.onTouchEvent(event);
+        }
+        int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN) {
+            lastTouchDownTime = SystemClock.uptimeMillis();
+            lastTouchX = event.getX();
+            longPressTriggered = false;
+            tapHandler.removeCallbacks(longPressRunnable);
+            tapHandler.postDelayed(longPressRunnable, LONG_PRESS_TIMEOUT);
+        } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            tapHandler.removeCallbacks(longPressRunnable);
+            if (longPressTriggered) {
+                longPressTriggered = false;
+                setPlaybackSpeed(speedBeforeLongPress);
+            }
+        }
+        return super.onTouchEvent(event);
+    }
+
+    @Override
+    public boolean onTouch(View v, MotionEvent event) {
+        if (event != null && event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+            long now = SystemClock.uptimeMillis();
+            float x = event.getX();
+            if (now - lastTapTime < DOUBLE_TAP_TIMEOUT) {
+                doubleTapDetected = true;
+                onDoubleTapFastForward(x);
+                lastTapTime = 0;
+            } else {
+                doubleTapDetected = false;
+                lastTapTime = now;
+            }
+        }
+        return super.onTouch(v, event);
+    }
+
+    private void onDoubleTapFastForward(float x) {
+        long skipped = seekForwardOneEighth();
+        if (skipped > 0) {
+            showFastForwardToast(skipped);
+        }
+    }
+
+    private void showFastForwardToast(long ms) {
+        long sec = ms / 1000;
+        String text = sec > 0 ? "快进 " + sec + " 秒" : "快进";
+        Toast.makeText(getContext(), text, Toast.LENGTH_SHORT).show();
+    }
+
+    /** 双击检测标记：双击时 JZ 自带的 onClickUiToggle 需被抑制，防止同时触发全屏切换 */
+    private boolean doubleTapDetected;
+
+    @Override
+    public void onClickUiToggle() {
+        if (doubleTapDetected) {
+            doubleTapDetected = false;
+            return;
+        }
+        super.onClickUiToggle();
+    }
+
+    // ==================== 全屏：隐藏全屏按钮 ====================
+
+    @Override
+    public void startWindowFullscreen() {
+        super.startWindowFullscreen();
+        if (fullscreenButton != null) {
+            fullscreenButton.setVisibility(View.GONE);
+        }
+    }
+
+    @Override
+    public void clearFullscreenLayout() {
+        super.clearFullscreenLayout();
+        if (fullscreenButton != null) {
+            fullscreenButton.setVisibility(View.VISIBLE);
+        }
     }
 
     // ==================== 拦截重试按钮：改为重新解析 ====================

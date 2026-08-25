@@ -1,7 +1,7 @@
 {
-  "versionCode": 124,
-  "versionName": "1.0.91",
-  "updateMessage": "M91 修复推荐流横竖屏两个顽固问题：①横屏操作栏偏移 + 回竖屏按钮偏移到屏幕中央——根因为 applyOrientationUi 仅 setMargins 更新 rightMargin 而未同步 marginEnd（API17+ 布局引擎取 marginEnd），现改为 setMargins 后补 setMarginEnd/setMarginStart 与进度条容器写法一致，横竖屏 margin 完全同步；②进入推荐页黑屏转圈很久——根因为 RecoEngine 构造在主线程做磁盘 I/O（读 4000 标签 JSON + 画像 + 衰减）且首批串行 HTTP 探测 20+ 封面（3s 超时），现改为引擎初始化移入后台线程、就绪后再 loadMore，且每批方向探测上限 3 个。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.91.apk",
-  "sha256": "6c1ee191084acee1ddd7c56f05eb72b17d18de22cfe79ee385f45c5aa5c4a35a"
+  "versionCode": 125,
+  "versionName": "1.0.92",
+  "updateMessage": "M92 播放器交互增强（推荐流/JiaoZi/Exo 三引擎）：①横屏隐藏全屏按钮（applyOrientationUi GONE、startWindowFullscreen/clearFullscreenLayout 隐藏恢复、Exo goFullScreen/exitFullScreen 隐藏恢复）；②倍速功能（JiaoZi 新增 1x→1.5x→2x→2.5x→3x 速度按钮，推荐流/Exo 原有速控保留）；③双击快进（推荐流全区域双击跳 1/8、JiaoZi 全区域双击跳 1/8、Exo onDoubleTap 跳 1/8）；④长按左半屏 2x 快进（三引擎统一 400ms 触发，且修复松手速度被错误复位为 1x 的 bug——现恢复长按前真实倍速）；⑤全屏按钮进横屏（原有）。同时清理遗留调试日志。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.92.apk",
+  "sha256": "e0799c57f4b0952dec0a5e16f2a4dcd71ccc47f9239af691dbdd193d12165e24"
 }

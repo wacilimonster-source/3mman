@@ -209,16 +209,70 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
         tapHandler.postDelayed(singleTapRunnable, DOUBLE_TAP_TIMEOUT);
     }
 
+    /** 长按判定阈值（ms） */
+    private static final long LONG_PRESS_TIMEOUT = 400L;
+    /** 长按快进倍速 */
+    private static final float LONG_PRESS_SPEED = 2.0f;
+
     private float lastTouchX = -1f;
+    private boolean longPressTriggered;
+    private float speedBeforeLongPress = 1.0f;
+
+    private final Runnable longPressRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (longPressTriggered || tapHandler.hasMessages(0)) {
+                return;
+            }
+            float touchX = getLastTouchX();
+            if (touchX < getWidth() / 2f) {
+                longPressTriggered = true;
+                speedBeforeLongPress = readCurrentSpeed();
+                setPlaybackSpeed(LONG_PRESS_SPEED);
+            }
+        }
+    };
 
     private float getLastTouchX() {
         return lastTouchX < 0f ? getWidth() / 2f : lastTouchX;
     }
 
+    /** 读取 MediaPlayer 当前真实播放速度；异常或不支持时返回 1.0f。 */
+    private float readCurrentSpeed() {
+        if (!isCurrentPlayer() || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return 1.0f;
+        }
+        try {
+            if (!(JZMediaManager.instance().jzMediaInterface instanceof cn.jzvd.JZMediaSystem)) {
+                return 1.0f;
+            }
+            MediaPlayer mediaPlayer = ((cn.jzvd.JZMediaSystem)
+                    JZMediaManager.instance().jzMediaInterface).mediaPlayer;
+            if (mediaPlayer == null) {
+                return 1.0f;
+            }
+            return mediaPlayer.getPlaybackParams().getSpeed();
+        } catch (Exception e) {
+            return 1.0f;
+        }
+    }
+
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if (event != null && event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+        if (event == null) {
+            return super.onTouchEvent(event);
+        }
+        int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN) {
             lastTouchX = event.getX();
+            longPressTriggered = false;
+            tapHandler.postDelayed(longPressRunnable, LONG_PRESS_TIMEOUT);
+        } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            tapHandler.removeCallbacks(longPressRunnable);
+            if (longPressTriggered) {
+                longPressTriggered = false;
+                setPlaybackSpeed(speedBeforeLongPress);
+            }
         }
         return super.onTouchEvent(event);
     }

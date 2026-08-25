@@ -1046,14 +1046,13 @@ public class ExoVideoView extends RelativeLayout {
                     int current = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
                     videoViewImpl.getVolume();
                     stepVolume = ((float) current / max) * 1;
-                    Log.d("AAAAA", "max : " + max + "current : " + stepVolume);
                 }
                 if (stepLight == 0) {
                     stepLight = getScreenBrightness();
                 }
                 int per = getWidth() / 4;
                 int threePer = 3 * per;
-                if (leftPressSpeedEnabled && event.getX() >= 0 && event.getX() <= getWidth() * 0.35f) {
+                if (leftPressSpeedEnabled && event.getX() >= 0 && event.getX() <= getWidth() * 0.5f) {
                     leftSpeedPressed = true;
                     speedBeforeLeftPress = playbackSpeed;
                     setPlaybackSpeed(2.0f);
@@ -1062,7 +1061,6 @@ public class ExoVideoView extends RelativeLayout {
                 } else if (event.getX() >= threePer && event.getX() <= getWidth()) {
                     isVolume = true;
                 }
-                Log.d("AAA", event.getX() + "::::" + per + ":::::" + threePer + "::::::" + getWidth() + ":::::" + isVolume);
             } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
                 if (videoControls == null) {
                     return true;
@@ -1074,7 +1072,6 @@ public class ExoVideoView extends RelativeLayout {
                 } else if (!isblockX && Math.abs(distanceY) > Math.abs(distanceX)) {
                     isblockY = true;
                 }
-                Log.d("AAAAAAAAAA", distanceX + "--------" + distanceY + "-----" + mTouchSlop);
                 if (distanceX > mTouchSlop && isblockX) {
                     oX = event.getX();
                     stepTime = stepTime + 1000;
@@ -1120,8 +1117,26 @@ public class ExoVideoView extends RelativeLayout {
             return true;
         }
 
+        @Override
+        public boolean onDoubleTap(MotionEvent e) {
+            if (videoViewImpl == null) {
+                return false;
+            }
+            long duration = videoViewImpl.getDuration();
+            if (duration <= 0) {
+                return false;
+            }
+            long current = videoViewImpl.getCurrentPosition();
+            long step = Math.max(1000L, duration / 8L);
+            long target = Math.min(duration - 1000L, current + step);
+            if (target < 0) {
+                target = 0;
+            }
+            videoViewImpl.seekTo(target);
+            return true;
+        }
+
         private void updateVolume(@FloatRange(from = 0.0, to = 1.0) float volume) {
-            Log.d("AAAAAAAAA", "::" + String.valueOf(volume));
             if (stepVolume > 1) {
                 stepVolume = 1;
             } else if (stepVolume < 0) {
@@ -1134,7 +1149,6 @@ public class ExoVideoView extends RelativeLayout {
         }
 
         private void updateLight(@FloatRange(from = 0.0, to = 1.0) float lightLevel) {
-            Log.d("AAAAAAAAA", "::" + String.valueOf(lightLevel));
             if (stepLight > 1) {
                 stepLight = 1;
             } else if (stepLight < 0) {

@@ -620,6 +620,9 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
                     speed.setLayoutParams(speedParams);
                 }
             }
+            if (fullscreen != null) {
+                fullscreen.setVisibility(landscape ? View.GONE : View.VISIBLE);
+            }
             itemView.requestLayout();
         }
 
