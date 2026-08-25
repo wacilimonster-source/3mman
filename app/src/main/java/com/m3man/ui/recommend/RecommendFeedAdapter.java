@@ -68,6 +68,15 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
     private final List<RecoCandidate> data = new ArrayList<>();
     private final RecoEngine engine;
     private final Callback callback;
+    /**
+     * 当前方向模式（由 Fragment 在横竖屏切换时更新）。
+     * <p>
+     * M90：作为「方向事实来源」由 Adapter 持有，新 ViewHolder 在 onBindViewHolder
+     * 时立刻按此值布局——即使旋转动画期间旧 ViewHolder 被 detach 导致遍历漏掉，
+     * 新滑入/重新绑定的页面也会带正确的按钮位置，杜绝"部分界面横屏缺按钮、
+     * 回竖屏按钮偏移到屏幕中央"的时序竞态。
+     */
+    private boolean landscapeMode = false;
 
     public RecommendFeedAdapter(RecoEngine engine, Callback callback) {
         this.engine = engine;
@@ -252,6 +261,11 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
                 dispatch(holder, 6);
             }
         });
+
+        // M90：新 ViewHolder（横屏时滑入、或 ViewHolder 复用重新绑定）在绑定瞬间
+        // 就按当前方向布局，即使旋转动画期间旧 Holder 被 detach 导致遍历漏掉，
+        // 新页面也带正确的按钮位置。
+        holder.applyOrientationUi(landscapeMode);
     }
 
     private void dispatch(PageHolder holder, int what) {
@@ -396,6 +410,24 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
     }
 
     /**
+     * M90：切换方向模式。
+     * <p>
+     * 更新 {@link #landscapeMode}（方向事实来源，新 ViewHolder 绑定即生效），
+     * 并立即对当前已挂载的 ViewHolder 应用方向布局。Fragment 应在进入横屏 / 恢复竖屏时
+     * 调用，并在旋转完成后（{@code recyclerView.post{...}}）再调一次，覆盖转屏动画期间
+     * 被 detach、旋转完成后重新 attach 的 ViewHolder —— 这是"部分界面横屏缺按钮、
+     * 回竖屏按钮偏移"时序竞态的根治。
+     */
+    public void setLandscapeMode(RecyclerView recyclerView, boolean landscape) {
+        landscapeMode = landscape;
+        applyOrientationUi(recyclerView, landscape);
+    }
+
+    public boolean isLandscapeMode() {
+        return landscapeMode;
+    }
+
+    /**
      * 旋转时 Activity 使用 configChanges，不会重新 inflate 已存在的 ViewHolder。
      * 对当前已挂载的页面立即套用对应方向的操作栏/进度条参数，避免第一个视频仍沿用竖屏布局。
      */
@@ -415,6 +447,18 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
     @Override
     public int getItemCount() {
         return data.size();
+    }
+
+    /**
+     * M90：ViewHolder 重新 attach（滑入 / 转屏后 detach 再 attach / 复用）时，
+     * 立即按当前方向模式重设按钮位置，覆盖旋转动画期间遍历不到挂载 Holder 的竞态。
+     */
+    @Override
+    public void onViewAttachedToWindow(PageHolder holder) {
+        super.onViewAttachedToWindow(holder);
+        if (holder != null) {
+            holder.applyOrientationUi(landscapeMode);
+        }
     }
 
     @Override

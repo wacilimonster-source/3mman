@@ -1,7 +1,7 @@
 {
-  "versionCode": 122,
-  "versionName": "1.0.89",
-  "updateMessage": "M89 彻底解决推荐流横竖屏按钮反复改不好的问题：竖屏/横屏两份 XML 静态统一为「36dp 小图标 + 隐藏中文」，applyOrientationUi 不再触碰图标尺寸和文字显隐，只改位置参数且用与 XML 100% 对齐的标准值，杜绝残留；修复从视频切回推荐流时「全部」胶囊和状态栏互相遮挡的问题（顶部控件加 statusBarHeight topMargin，加载时推迟状态栏透明化）。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.89.apk",
-  "sha256": "c7f4e2a1ddc88d6bba49a0f54c99c7b1749b5f3efd81d3aa521bb9576d92f25e"
+  "versionCode": 123,
+  "versionName": "1.0.90",
+  "updateMessage": "M90 修复横屏部分视频缺按钮、回竖屏按钮偏移到屏幕中央的时序竞态：Adapter 持有 landscapeMode 状态作为方向事实来源，onBindViewHolder 末尾按当前方向应用布局（兜底新滑入/复用 ViewHolder），onViewAttachedToWindow 在转屏后 ViewHolder 重新 attach 时立即重设（覆盖 detach/reattach 竞态），Fragment 在 enter/restore 时立即遍历 + recyclerView.post 二次遍历（覆盖转屏动画期间挂载 Holder 不可见的窗口）。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.90.apk",
+  "sha256": "bd35d8d6d7b17603c755377d3bddb3eb44f8a64f9a88111c097fe6b9e850c42c"
 }

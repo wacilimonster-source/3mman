@@ -555,8 +555,18 @@ public class RecommendFeedFragment extends BaseFragment
             ((BaseAppCompatActivity) getActivity()).setNavigationBarOverlap(true);
         }
         // MainActivity 使用 configChanges，首个已存在的 ViewHolder 不会自动换成 layout-land。
-        if (adapter != null) {
-            adapter.applyOrientationUi(recyclerView, true);
+        // M90：立即对当前挂载的 ViewHolder 应用横屏布局；转屏动画期间 Holder 可能被 detach，
+        // 旋转完成后（post）再补一次。新滑入的 ViewHolder 由 onBindViewHolder 自动带横屏布局。
+        if (adapter != null && recyclerView != null) {
+            adapter.setLandscapeMode(recyclerView, true);
+            recyclerView.post(new Runnable() {
+                @Override
+                public void run() {
+                    if (adapter != null && recyclerView != null && landscapeLock) {
+                        adapter.applyOrientationUi(recyclerView, true);
+                    }
+                }
+            });
         }
     }
 
@@ -680,8 +690,16 @@ public class RecommendFeedFragment extends BaseFragment
         if (getActivity() instanceof BaseAppCompatActivity) {
             ((BaseAppCompatActivity) getActivity()).setNavigationBarOverlap(false);
         }
-        if (adapter != null) {
-            adapter.applyOrientationUi(recyclerView, false);
+        if (adapter != null && recyclerView != null) {
+            adapter.setLandscapeMode(recyclerView, false);
+            recyclerView.post(new Runnable() {
+                @Override
+                public void run() {
+                    if (adapter != null && recyclerView != null && !landscapeLock) {
+                        adapter.applyOrientationUi(recyclerView, false);
+                    }
+                }
+            });
         }
     }
 
