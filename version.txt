@@ -1,7 +1,7 @@
 {
-  "versionCode": 130,
-  "versionName": "1.0.97",
-  "updateMessage": "M97 回归修复：更新包校验改为严格失败关闭；修复作者 UID 自愈状态、HLS 临时目录误清理、播放器重试回调跨页引用、分分钟备用源持久化、搜索与解析边界问题。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.97.apk",
-  "sha256": "b390a9e31d139c57501087684d587213293ef6eb1435c227f5db8304470bb589"
+  "versionCode": 131,
+  "versionName": "1.0.98",
+  "updateMessage": "M98 回归修复：修复推荐首进生命周期竞态、快进后不恢复播放、下载记录入库竞态，并增加推荐下载重复启动防护。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.98.apk",
+  "sha256": "b7136f7342c27495371979cb219668ca42f7a6a144b86c98b2238b5f60c5cff1"
 }

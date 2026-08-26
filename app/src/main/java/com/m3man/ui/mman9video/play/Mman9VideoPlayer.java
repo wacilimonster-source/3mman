@@ -239,7 +239,13 @@ public class Mman9VideoPlayer extends JZVideoPlayerStandard {
             return 0L;
         }
         try {
+            boolean wasPlaying = currentState == CURRENT_STATE_PLAYING;
             JZMediaManager.seekTo(target);
+            // seekTo 在部分系统实现中会暂停底层 MediaPlayer；双击快进应保持
+            // 原有播放状态。原来就是暂停时则保持暂停。
+            if (wasPlaying && isCurrentPlayer()) {
+                JZMediaManager.start();
+            }
             startProgressTimer();
             return actual;
         } catch (Exception ignored) {

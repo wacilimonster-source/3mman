@@ -120,6 +120,13 @@ public class RecommendFeedFragment extends BaseFragment
 
     private int currentPosition = -1;
     private boolean loading = false;
+    /** 首批请求是否已经真正提交；避免首次生命周期回调被跳过后永久停在 loading。 */
+    private boolean firstLoadStarted = false;
+    private boolean engineInitFailed = false;
+    private boolean engineInitStarted = false;
+    /** 推荐下载的进程内并发闸门，防止双击/重复回调同时创建两个任务。 */
+    private final java.util.Set<String> downloadInFlight =
+            java.util.Collections.synchronizedSet(new java.util.HashSet<String>());
     private boolean noMore = false;
     private int emptyRetryCount = 0;
     /** M98：最近一次加载是否发生过错误（error 不计入空批计数，也不置 noMore，但保留重试入口） */
@@ -186,12 +193,30 @@ public class RecommendFeedFragment extends BaseFragment
         new Thread(new Runnable() {
             @Override
             public void run() {
-                // M98：线程体首行判空 + 可用性检查，页面已不可用直接放弃初始化
-                if (appContext == null || !isUsable()) {
+                // M98：线程体首行只检查 Fragment 是否仍附着，不要求 isResumed()。
+                // 首次进入时 onViewCreated 可能早于 onResume；若把这段合法窗口当作失效，
+                // 初始化线程会直接 return，主线程也不会提交首批请求，页面就会永久转圈。
+                if (appContext == null || !isAdded() || isDetached()) {
                     return;
                 }
-                RecoEngine e = RecoEngine.get(appContext);
-                if (!isUsable()) {
+                final RecoEngine e;
+                try {
+                    e = RecoEngine.get(appContext);
+                } catch (Throwable t) {
+                    AppLog.e(TAG, "推荐引擎初始化失败: " + AppLog.cause(t));
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (getView() != null && isAdded() && !isDetached()) {
+                                engineInitFailed = true;
+                                globalLoading.setVisibility(View.GONE);
+                                showEmpty("推荐初始化失败，点击重试");
+                            }
+                        }
+                    });
+                    return;
+                }
+                if (!isAdded() || isDetached()) {
                     return;
                 }
                 engine = e;
@@ -202,15 +227,18 @@ public class RecommendFeedFragment extends BaseFragment
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
-                        if (isUsable()) {
-                            // M92c：Adapter 构造时 engine 还是 null（后台初始化），
-                            // 必须回填并刷新已挂载页，否则点赞/踩/收藏选中态永远不显示
-                            if (adapter != null) {
-                                adapter.setEngine(engine);
-                                adapter.refreshAttachedActionStates(recyclerView);
-                            }
-                            loadMore(true);
+                        // 回调真正执行时再判断 View 是否仍存在；不能要求 isResumed，
+                        // 否则首进 onViewCreated -> onResume 的时序会丢掉首次 loadMore。
+                        if (getView() == null || !isAdded() || isDetached()) {
+                            return;
                         }
+                        // M92c：Adapter 构造时 engine 还是 null（后台初始化），
+                        // 必须回填并刷新已挂载页，否则点赞/踩/收藏选中态永远不显示
+                        if (adapter != null) {
+                            adapter.setEngine(engine);
+                            adapter.refreshAttachedActionStates(recyclerView);
+                        }
+                        loadMore(true);
                     }
                 });
             }
@@ -316,7 +344,13 @@ public class RecommendFeedFragment extends BaseFragment
                 emptyRetryCount = 0;
                 // M98：手动重试同时清除错误标记并收起提示层
                 lastLoadHadError = false;
+                engineInitFailed = false;
                 emptyLayout.setVisibility(View.GONE);
+                if (repository == null) {
+                    // 初始化线程仍未完成时不提交空请求；onResume/初始化回调会自动补发首批。
+                    globalLoading.setVisibility(View.VISIBLE);
+                    return;
+                }
                 repository.resetSession();
                 loadMore(true);
             }
@@ -400,6 +434,9 @@ public class RecommendFeedFragment extends BaseFragment
     private void loadMore(final boolean first) {
         if (loading || (noMore && !first) || repository == null) {
             return;
+        }
+        if (first) {
+            firstLoadStarted = true;
         }
         loading = true;
         if (first) {
@@ -1329,11 +1366,18 @@ public class RecommendFeedFragment extends BaseFragment
     private void enqueueDownload(RecoCandidate candidate) {
         final String viewKey = candidate.viewKey();
         final V9MmanItem fallback = candidate.item;
+        synchronized (downloadInFlight) {
+            if (!downloadInFlight.add(viewKey)) {
+                showMessage("下载任务正在启动，请勿重复点击", TastyToast.INFO);
+                return;
+            }
+        }
         disposables.add(Observable.just(1)
                 .subscribeOn(Schedulers.io())
                 .map(i -> doEnqueueDownload(viewKey, fallback))
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(result -> {
+                    downloadInFlight.remove(viewKey);
                     showMessage(result.message, result.ok ? TastyToast.SUCCESS : TastyToast.INFO);
                     if (result.ok && getActivity() != null) {
                         // 拉起下载前台服务，保证退出页面后仍继续下载
@@ -1344,8 +1388,10 @@ public class RecommendFeedFragment extends BaseFragment
                             Logger.t(TAG).d("start download service failed: " + e.getMessage());
                         }
                     }
-                }, throwable -> showMessage(getString(R.string.reco_download_failed),
-                        TastyToast.ERROR)));
+                }, throwable -> {
+                    downloadInFlight.remove(viewKey);
+                    showMessage(getString(R.string.reco_download_failed), TastyToast.ERROR);
+                }));
     }
 
     /**
@@ -1384,8 +1430,13 @@ public class RecommendFeedFragment extends BaseFragment
             DownloadDiag.append(viewKey, "enqueue=目标文件已存在(" + file.length() + "B) → 跳过");
             return new DownloadResult(false, "已经下载过了，请查看下载目录");
         }
-        if (target.getStatus() == FileDownloadStatus.progress && target.getDownloadId() != 0) {
-            DownloadDiag.append(viewKey, "enqueue=已在下载(downloadId=" + target.getDownloadId() + ") → 跳过");
+        if ((target.getStatus() == FileDownloadStatus.pending
+                || target.getStatus() == FileDownloadStatus.started
+                || target.getStatus() == FileDownloadStatus.connected
+                || target.getStatus() == FileDownloadStatus.progress)
+                && target.getDownloadId() != 0) {
+            DownloadDiag.append(viewKey, "enqueue=已在下载(status=" + target.getStatus()
+                    + ", downloadId=" + target.getDownloadId() + ") → 跳过");
             return new DownloadResult(false, "已经在下载了");
         }
         // 91mman 视频分类源：直链带时效签名（st/f），预取/库里存的旧 URL 过期会被 CDN 拒绝
@@ -1493,12 +1544,29 @@ public class RecommendFeedFragment extends BaseFragment
             PornyFallbackResolver.enqueueHlsDownload(context, target, url, path);
             return new DownloadResult(true, "已加入后台下载");
         }
+        // FileDownloader 的 pending/started 回调可能在 startDownload 返回前到达。
+        // 先按 URL+实际路径计算稳定 ID并写入 DB，再启动任务，避免回调查不到记录后
+        // 被 saveDownloadInfo 误判为孤儿任务；这也是退出重进后记录消失的关键竞态。
+        int predictedId = DownloadManager.predictDownloadId(url, path);
+        if (predictedId > 0) {
+            if (target.getAddDownloadDate() == null) {
+                target.setAddDownloadDate(new Date());
+            }
+            target.setDownloadId(predictedId);
+            target.setStatus(FileDownloadStatus.pending);
+            target.setProgress(0);
+            dataManager.updateV9MmanItem(target);
+        }
         int id = DownloadManager.getImpl().startDownload(url, path,
                 dataManager.isDownloadVideoNeedWifi(), false, referer);
         if (target.getAddDownloadDate() == null) {
             target.setAddDownloadDate(new Date());
         }
         target.setDownloadId(id);
+        if (target.getStatus() == FileDownloadStatus.error
+                || target.getStatus() == FileDownloadStatus.completed) {
+            target.setStatus(FileDownloadStatus.pending);
+        }
         dataManager.updateV9MmanItem(target);
         return new DownloadResult(true, getString(R.string.reco_download_started));
     }
@@ -1574,6 +1642,11 @@ public class RecommendFeedFragment extends BaseFragment
         }
         if (currentPosition >= 0 && adapter != null) {
             applyAutoRotation(adapter.getItem(currentPosition));
+        }
+        // 首次初始化可能早于 onResume 完成；此处补偿一次被生命周期时序跳过的首批请求。
+        if (!firstLoadStarted && repository != null && adapter != null
+                && adapter.getItemCount() == 0) {
+            loadMore(true);
         }
         // onPause/onHiddenChanged 已经释放底层播放器，回到页面时只恢复当前候选。
         resumeCurrentPlaybackIfNeeded();

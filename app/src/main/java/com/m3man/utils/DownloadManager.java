@@ -6,6 +6,7 @@ import com.liulishuo.filedownloader.BaseDownloadTask;
 import com.liulishuo.filedownloader.FileDownloadListener;
 import com.liulishuo.filedownloader.FileDownloader;
 import com.liulishuo.filedownloader.model.FileDownloadStatus;
+import com.liulishuo.filedownloader.util.FileDownloadUtils;
 import com.orhanobut.logger.Logger;
 import com.m3man.BuildConfig;
 import com.m3man.MyApplication;
@@ -84,6 +85,14 @@ public class DownloadManager {
      * M61：判断是否 HLS m3u8 地址。m3u8 绝不能交给 FileDownloader：
      * 它会把几百字节的播放列表文本当成 mp4「秒下载完成」，产生假完成文件。
      */
+    /** 返回 FileDownloader 按 URL+路径生成的稳定任务 ID，供调用方入队前写库。 */
+    public static int predictDownloadId(String url, String path) {
+        if (TextUtils.isEmpty(url) || TextUtils.isEmpty(path)) {
+            return 0;
+        }
+        return FileDownloadUtils.generateId(url, path);
+    }
+
     public static boolean isHlsUrl(String url) {
         String lower = url == null ? "" : url.toLowerCase(java.util.Locale.US);
         int query = lower.indexOf('?');
@@ -108,7 +117,10 @@ public class DownloadManager {
         Logger.t(TAG).d("path::" + path);
         Logger.t(TAG).d("isDownloadNeedWifi::" + isDownloadNeedWifi);
         Logger.t(TAG).d("isForceReDownload::" + isForceReDownload);
-        // M73：进度落库节流的步进记录（真实 id 在 enqueue 后初始化为 -1）
+        // FileDownloader 的任务 ID 由 URL+path 生成，enqueue 前即可确定。
+        // 调用方应先把这个 ID 写入 V9MmanItem，避免 pending/started 回调早于
+        // 调用方 updateV9MmanItem，saveDownloadInfo 查不到记录后误清除合法任务。
+        int predictedId = FileDownloadUtils.generateId(url, path);
         BaseDownloadTask task = FileDownloader.getImpl().create(url)
                 .addHeader("User-Agent", DOWNLOAD_UA);
         if (!TextUtils.isEmpty(referer)) {
@@ -121,7 +133,7 @@ public class DownloadManager {
                 .setForceReDownload(isForceReDownload)
                 .asInQueueTask()
                 .enqueue();
-        lastSavedProgress.put(id, -1);
+        lastSavedProgress.put(predictedId > 0 ? predictedId : id, -1);
         FileDownloader.getImpl().start(lis, false);
         return id;
     }
@@ -243,10 +255,12 @@ public class DownloadManager {
         }
         V9MmanItem v9MmanItem = dataManager.findV9MmanItemByDownloadId(task.getId());
         if (v9MmanItem == null) {
-            //不存在的任务清除掉
-            FileDownloader.getImpl().clear(task.getId(), task.getPath());
+            // 回调可能早于调用方把预期 downloadId 写入数据库；此时不能 clear，
+            // 否则一个合法的新任务会被首个 pending/started 回调直接杀掉。
+            AppLog.w(TAG, "下载回调暂时找不到数据库记录，保留任务 downloadId="
+                    + task.getId() + " path=" + task.getPath());
             if (!BuildConfig.DEBUG) {
-              //  Bugsnag.notify(new Throwable(TAG + "::save download info failure:" + task.getUrl()), Severity.WARNING);
+              // 仅保留诊断，不在这里清理下载任务。
             }
             return;
         }

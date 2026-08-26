@@ -107,11 +107,14 @@ public class HlsDownloader {
                 }
 
                 // 3. 下载所有分片（M43：优先复用播放缓存——仅当全部分片都已缓存时使用，避免半缓存错位）
-                // M97：临时目录名改为 hls_+URL哈希+_分片总数——同名目录下已存在非空同名分片则跳过下载，
-                // 实现断点续传；旧 System.currentTimeMillis() 命名每次都新建目录，重试必然全部重来
+                // M97/M102：临时目录名必须稳定——hls_+URL哈希+_分片总数。
+                // 此前拼接 System.currentTimeMillis() 导致每次暂停后重试都新建目录、
+                // 已下分片全部作废（“继续下载”实际从头下）。同名目录下已存在非空
+                // 同名分片则跳过下载直接复用，实现断点续传。
+                // 分片总数参与命名：m3u8 更新导致分片数变化时自然换新目录，不会错位复用。
                 File tempDir = new File(context.getCacheDir(),
                         "hls_" + Integer.toHexString(m3u8Url.hashCode()) + "_"
-                                + fullUrls.size() + "_" + System.currentTimeMillis());
+                                + fullUrls.size());
                 workingTempDir = tempDir;
                 if (!tempDir.exists() && !tempDir.mkdirs()) {
                     notifyError(listener, "创建临时目录失败");
@@ -217,11 +220,20 @@ public class HlsDownloader {
         });
     }
 
-    public void cancel() {
+    /**
+     * M102：停止下载。
+     *
+     * @param discardPieces true=删除已下分片（用户取消任务）；
+     *                      false=保留（暂停/被新任务顶替），下次同 m3u8 重启时分片级续传
+     */
+    public void stop(boolean discardPieces) {
         cancelled = true;
-        File dir = workingTempDir;
-        if (dir != null) {
-            deleteQuietly(dir);
+        if (discardPieces) {
+            File dir = workingTempDir;
+            workingTempDir = null;
+            if (dir != null) {
+                deleteQuietly(dir);
+            }
         }
     }
 

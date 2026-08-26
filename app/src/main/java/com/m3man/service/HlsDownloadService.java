@@ -184,7 +184,8 @@ public class HlsDownloadService extends Service {
                 return START_NOT_STICKY;
             }
             cancelledByUser = true;
-            s.downloader.cancel();
+            // M102：暂停≠取消——保留已下分片，下次 ACTION_START 时同目录分片级续传
+            s.downloader.stop(false);
             s.downloader.shutdown();
             state = new TaskState(null, s.viewKey, s.savePath, s.targetMp4Path, s.pseudoDownloadId, s.lastProgress);
             V9MmanItem item = findItem();
@@ -209,10 +210,11 @@ public class HlsDownloadService extends Service {
                 return START_NOT_STICKY;
             }
             cancelledByUser = true;
-            s.downloader.cancel();
+            // M102：取消=彻底丢弃，已下分片一并删除
+            s.downloader.stop(true);
             s.downloader.shutdown();
             state = new TaskState(null, s.viewKey, s.savePath, s.targetMp4Path, s.pseudoDownloadId, s.lastProgress);
-            // 当前 downloader.cancel() 只负责清理本任务临时目录，不再全局删除其他 HLS 任务。
+            // 当前 stop(true) 只清理本任务临时目录，不再全局删除其他 HLS 任务。
             // 复位 DB 记录，使其从「正在下载」列表移除
             resetRecord();
             // M62：取消后清掉半成品 mp4，避免残留不可播文件
@@ -265,8 +267,9 @@ public class HlsDownloadService extends Service {
                                final String replacedViewKey,
                                final int replacedPseudoId) {
         // M25：若已有下载在跑，先取消并释放旧下载器，避免孤儿线程（其上下文已由调用方快照）
+        // M102：被顶替任务保留已下分片——记录置 error 后用户点重试可分片级续传
         if (replacedDownloader != null) {
-            replacedDownloader.cancel();
+            replacedDownloader.stop(false);
             replacedDownloader.shutdown();
         }
         File target = new File(mp4Path);

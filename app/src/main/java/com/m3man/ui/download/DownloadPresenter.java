@@ -202,26 +202,27 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         // M74：走到这里说明未走缓存拷贝分支（未命中或 bypassCacheCopy 回退），清除标志
         bypassCacheCopy = false;
         //检查当前状态
+        // M102：pause 探针判定结果提升为方法级变量——后面的"继续下载续传优先"分支需要知道任务是否真实存在
+        boolean resumedRealTask = false;
         if (tmp.getStatus() == FileDownloadStatus.progress && tmp.getDownloadId() != 0 && !isForceReDownload) {
             // M68：僵尸任务防护——DB 状态是 progress 但下载器里已没有该任务
             //（App 重启后状态残留 / 历史遗留），永远不会再有回调，点下载会被永远封锁。
             // FileDownloader 无公开查询 API，用 pause 探针：pause 返回被暂停的任务数，
             // >0 = 真有任务（已转为暂停态，走下面的重新入队即断点续传）；
             // =0 或服务未连接 = 僵尸记录，清掉状态后照常重新下载。
-            boolean realTask = false;
             try {
                 if (FileDownloader.getImpl().isServiceConnected()) {
                     int pausedCount = FileDownloader.getImpl().pause(tmp.getDownloadId());
-                    realTask = pausedCount > 0;
+                    resumedRealTask = pausedCount > 0;
                     AppLog.i("Download", "pause探针 downloadId=" + tmp.getDownloadId()
-                            + " pausedCount=" + pausedCount + " realTask=" + realTask);
+                            + " pausedCount=" + pausedCount + " realTask=" + resumedRealTask);
                 } else {
                     AppLog.w("Download", "下载服务未连接且DB状态progress，按僵尸处理 downloadId="
                             + tmp.getDownloadId());
                 }
             } catch (Throwable ignored) {
             }
-            if (!realTask) {
+            if (!resumedRealTask) {
                 AppLog.w("Download", "检测到僵尸下载任务(downloadId=" + tmp.getDownloadId()
                         + ")，清除残留后重新下载 viewKey=" + tmp.getViewKey());
                 // M69：用户日志实锤「IOException: No such file or directory」——
@@ -245,7 +246,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                 dataManager.updateV9MmanItem(tmp);
             }
             // 无论真实任务(已暂停)还是僵尸记录，都继续往下走统一重新入队：
-            // 真实任务同路径断点续传；僵尸任务已清残留，从头下不会报错。
+            // 真实任务若旧地址仍有效则断点续传（见下方 M102 分支）；僵尸任务已清残留，从头下不会报错。
         }
         Logger.d("视频连接：" + videoResult.getVideoUrl());
         String path = v9MmanItem.getDownLoadPath(getCustomDownloadVideoDirPath());
@@ -265,6 +266,65 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                 + " 代理=" + (dataManager.isOpenHttpProxy()
                         ? dataManager.getProxyIpAddress() + ":" + dataManager.getProxyPort() : "关"));
         boolean isDownloadNeedWifi = dataManager.isDownloadVideoNeedWifi();
+        // M102：「继续下载」断点续传优先——FileDownloader 以 url+path 哈希生成任务 id，
+        // 换新地址等于新任务、断点全部作废（表现为“继续下载”却从头重下）。
+        // 对有进度的暂停/失败记录（含 pause 探针确认的真实任务）：先探活 DB 旧地址（Range 取 1 字节），
+        // 仍放行则保持旧地址不变直接入队续传；旧地址已过期才重新解析拿新地址
+        // （此时 CDN 连 Range 都拒绝，旧断点本来就无法使用，只能从头下）。
+        // 仅作用于 91mman 直链源；porny 直链地址无时效性，维持原直连逻辑。
+        final V9MmanItem resumeItem = tmp;
+        final String resumePath = path;
+        final String resumeOldUrl = videoResult == null ? null : videoResult.getVideoUrl();
+        final boolean resumeForce = isForceReDownload;
+        final boolean resumeWifi = isDownloadNeedWifi;
+        final DownloadListener resumeListener = downloadListener;
+        if (!resumeForce && !isPornyVideo(resumeItem)
+                && !TextUtils.isEmpty(resumeOldUrl)
+                && resumeItem.getSoFarBytes() > 0
+                && (resumedRealTask
+                || resumeItem.getStatus() == FileDownloadStatus.paused
+                || resumeItem.getStatus() == FileDownloadStatus.error)
+                && hasFileDownloaderCheckpoint(resumePath)) {
+            Observable.create(new ObservableOnSubscribe<Boolean>() {
+                @Override
+                public void subscribe(ObservableEmitter<Boolean> emitter) throws Exception {
+                    emitter.onNext(PornyFallbackResolver.isAlive(okHttpClient, resumeOldUrl));
+                    emitter.onComplete();
+                }
+            })
+                    .compose(RxSchedulersHelper.<Boolean>ioMainThread())
+                    .compose(provider.<Boolean>bindUntilEvent(Lifecycle.Event.ON_DESTROY))
+                    .subscribe(new CallBackWrapper<Boolean>() {
+                        @Override
+                        public void onBegin(Disposable d) {
+                        }
+
+                        @Override
+                        public void onSuccess(Boolean alive) {
+                            if (alive != null && alive) {
+                                AppLog.i("Download", "继续下载：旧地址仍有效，断点续传 viewKey="
+                                        + resumeItem.getViewKey()
+                                        + " 已下=" + resumeItem.getSoFarBytes() + "B");
+                                startDownloadInternal(resumeItem, resumeOldUrl, resumePath,
+                                        resumeWifi, false, resumeListener);
+                            } else {
+                                AppLog.i("Download", "继续下载：旧地址已失效，重解析后下载 viewKey="
+                                        + resumeItem.getViewKey());
+                                reparseThenDownload(resumeItem, resumePath, resumeWifi,
+                                        resumeForce, resumeListener);
+                            }
+                        }
+
+                        @Override
+                        public void onError(String msg, int code) {
+                            AppLog.e("Download", "续传探活失败(" + msg + ")，重解析后下载 viewKey="
+                                    + resumeItem.getViewKey());
+                            reparseThenDownload(resumeItem, resumePath, resumeWifi,
+                                    resumeForce, resumeListener);
+                        }
+                    });
+            return;
+        }
         // 91mman 视频分类源：直链带时效签名（st/f 参数），DB 里存的旧 URL 过期后 CDN 拒绝
         // （表现为进度 0% 无速度）。下载前先重新解析播放页拿新鲜 URL；其它源（91porny 等）直接用。
         // M68：isPornyVideo 已与 PlayVideoPresenter.isPornySource 权威逻辑对齐。
@@ -626,6 +686,18 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                         }
                     });
                 });
+    }
+
+    /**
+     * M102：FileDownloader 的断点临时文件（path + ".fddownload"）是否还在。
+     * 临时文件丢失时续传无从谈起（M69 的 ENOENT 场景），只能走重下/重解析路径。
+     */
+    private static boolean hasFileDownloaderCheckpoint(String targetPath) {
+        if (TextUtils.isEmpty(targetPath)) {
+            return false;
+        }
+        File temp = new File(targetPath + ".fddownload");
+        return temp.exists() && temp.length() > 0;
     }
 
     /**

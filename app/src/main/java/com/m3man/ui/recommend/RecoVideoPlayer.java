@@ -332,7 +332,14 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
             return 0L;
         }
         try {
+            boolean wasPlaying = currentState == CURRENT_STATE_PLAYING;
             JZMediaManager.seekTo(target);
+            // JZMediaManager.seekTo() 在部分 Android/MediaPlayer 版本上会使底层
+            // MediaPlayer 进入暂停态；快进前若正在播放，必须显式恢复，否则表现为
+            // “进度跳过去了但快进后不再播放”。原来就是暂停时则保持暂停。
+            if (wasPlaying && isCurrentPlayer()) {
+                JZMediaManager.start();
+            }
             startProgressTimer();
             return actual;
         } catch (Exception e) {
