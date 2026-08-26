@@ -1,7 +1,7 @@
 {
-  "versionCode": 131,
-  "versionName": "1.0.98",
-  "updateMessage": "M98 回归修复：修复推荐首进生命周期竞态、快进后不恢复播放、下载记录入库竞态，并增加推荐下载重复启动防护。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.98.apk",
-  "sha256": "b7136f7342c27495371979cb219668ca42f7a6a144b86c98b2238b5f60c5cff1"
+  "versionCode": 132,
+  "versionName": "1.0.99",
+  "updateMessage": "下载修复：暂停后「继续下载」改为真正断点续传，不再从头重下（直链/HLS 均生效）；转 91porny 源下载后状态误显示暂停中已修；播放已下载视频时作者作品列表为空已修；「我的」页登录头部精简。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.99.apk",
+  "sha256": "5314820c96dd64d5b4d3662583759a4dfb58d718a2fbcec4ee39d4b0c806f354"
 }

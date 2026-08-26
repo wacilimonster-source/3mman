@@ -72,7 +72,11 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
             if (HlsDownloadService.ACTION_HLS_PROGRESS.equals(intent.getAction())) {
                 String vk = intent.getStringExtra(HlsDownloadService.EXTRA_VIEW_KEY);
                 int p = intent.getIntExtra(HlsDownloadService.EXTRA_PROGRESS, 0);
-                updateHlsItemProgress(vk, p);
+                // M102：running 缺省视为未知（不动状态），兼容旧发送方
+                Boolean running = intent.hasExtra(HlsDownloadService.EXTRA_RUNNING)
+                        ? intent.getBooleanExtra(HlsDownloadService.EXTRA_RUNNING, false)
+                        : null;
+                updateHlsItemProgress(vk, p, running);
             } else if (HlsDownloadService.ACTION_HLS_DONE.equals(intent.getAction())) {
                 // HLS 下载完成会从「正在下载」列表移出
                 presenter.loadDownloadingData();
@@ -372,6 +376,15 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
     }
 
     private void updateHlsItemProgress(String viewKey, int progress) {
+        updateHlsItemProgress(viewKey, progress, null);
+    }
+
+    /**
+     * M102：running 非空时一并同步行状态（true=下载中 / false=已暂停）。
+     * 修复：直链受限兜底转 HLS 后，DB 已是 progress、进度正常刷新，
+     * 但暂停时写入内存行的 paused 状态从未被更新，列表一直显示“暂停中”。
+     */
+    private void updateHlsItemProgress(String viewKey, int progress, Boolean running) {
         if (mV9MmanItemList == null || viewKey == null) {
             return;
         }
@@ -379,6 +392,9 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
             V9MmanItem it = mV9MmanItemList.get(i);
             if (it != null && viewKey.equals(it.getViewKey())) {
                 it.setProgress(progress);
+                if (running != null && it.getStatus() != FileDownloadStatus.completed) {
+                    it.setStatus(running ? FileDownloadStatus.progress : FileDownloadStatus.paused);
+                }
                 mDownloadAdapter.notifyItemChanged(i);
                 break;
             }

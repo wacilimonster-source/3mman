@@ -52,6 +52,8 @@ public class HlsDownloadService extends Service {
     public static final String ACTION_HLS_PROGRESS = "com.m3man.service.action.HLS_PROGRESS";
     public static final String ACTION_HLS_DONE = "com.m3man.service.action.HLS_DONE";
     public static final String EXTRA_PROGRESS = "extra_progress";
+    /** M102：进度广播附带「任务是否正在下载」，接收端据此同步行状态（true=下载中 / false=已暂停） */
+    public static final String EXTRA_RUNNING = "extra_running";
 
     private static final int NOTIFICATION_ID = 10086;
     private static final String CHANNEL_ID = "hls_download";
@@ -194,7 +196,9 @@ public class HlsDownloadService extends Service {
                 getDataManager().updateV9MmanItem(item);
             }
             LocalBroadcastManager.getInstance(this).sendBroadcast(new Intent(ACTION_HLS_PROGRESS)
-                    .putExtra(EXTRA_VIEW_KEY, s.viewKey).putExtra(EXTRA_PROGRESS, s.lastProgress < 0 ? 0 : s.lastProgress));
+                    .putExtra(EXTRA_VIEW_KEY, s.viewKey).putExtra(EXTRA_PROGRESS, s.lastProgress < 0 ? 0 : s.lastProgress)
+                    // M102：暂停后的收尾广播必须带 running=false，接收端不得把刚暂停的行刷回“下载中”
+                    .putExtra(EXTRA_RUNNING, false));
             stopForeground(true);
             stopSelf();
         } else if (ACTION_CANCEL.equals(action)) {
@@ -423,6 +427,8 @@ public class HlsDownloadService extends Service {
         Intent i = new Intent(ACTION_HLS_PROGRESS);
         i.putExtra(EXTRA_VIEW_KEY, state.viewKey);
         i.putExtra(EXTRA_PROGRESS, percent);
+        // M102：真实下载中的进度广播，running=true
+        i.putExtra(EXTRA_RUNNING, true);
         LocalBroadcastManager.getInstance(this).sendBroadcast(i);
     }
 

@@ -229,11 +229,13 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
             // M69：Intent 反序列化出来的 V9MmanItem 已脱离 DaoSession（transient 字段不参与序列化），
             // 直接调 getVideoResult() 会抛 DaoException("Entity is detached")导致本页闪退。
             // 展示信息优先改用 DB 中附着的同 key 实体；拿不到也照常播本地文件。
+            boolean attachedFromDb = false;
             if (v9MmanItem != null && !TextUtils.isEmpty(v9MmanItem.getViewKey())) {
                 try {
                     V9MmanItem attached = presenter.findV9MmanItemByViewKey(v9MmanItem.getViewKey());
                     if (attached != null) {
                         v9MmanItem = attached;
+                        attachedFromDb = true;
                         AppLog.i(TAG, "本地播放：已从DB附着视频信息 viewKey=" + v9MmanItem.getViewKey());
                     }
                 } catch (Exception e) {
@@ -250,6 +252,17 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
             String displayTitle = v9MmanItem == null ? "本地视频" : v9MmanItem.getTitle();
             AppLog.i(TAG, "本地播放开始 标题=" + displayTitle + " path=" + localVideoPath);
             playVideo(displayTitle, "file://" + localVideoPath, "", null);
+            // M102：本地播放也要把视频信息交给「作者」tab——远程路径(304/313/540/550)
+            // 均有接线，唯独本分支此前直接 return，AuthorFragment.v9MmanItem 恒为 null，
+            // canLoadAuthorVideos()=false，下滑到“作者”页永远空白。
+            // 仅在成功附着 DB 实体时接线（detached 实体 getVideoResult() 会抛 DaoException）；
+            // 只调 setV9MmanItem 不直接 loadAuthorVideos：视图未创建时加载回调会触碰
+            // null 的 swipeLayout/recyclerView，交给 onLazyLoadOnce 在视图就绪后触发；
+            // 91mman 记录的旧加密 UID 过期时由 AuthorFragment 的 M92 自愈逻辑兜底换新。
+            if (authorFragment != null && attachedFromDb
+                    && v9MmanItem != null && v9MmanItem.getVideoResultId() != 0) {
+                authorFragment.setV9MmanItem(v9MmanItem);
+            }
             return;
         }
         // C9：入参零校验，避免 v9MmanItem 或 viewKey 为 null 时直接 NPE
@@ -667,6 +680,8 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         // 通知「正在下载」页刷新
         Intent progressIntent = new Intent(HlsDownloadService.ACTION_HLS_PROGRESS);
         progressIntent.putExtra(HlsDownloadService.EXTRA_VIEW_KEY, v9MmanItem.getViewKey());
+        // M102：启动即下载中，running=true 让列表同步状态
+        progressIntent.putExtra(HlsDownloadService.EXTRA_RUNNING, true);
         LocalBroadcastManager.getInstance(this).sendBroadcast(progressIntent);
 
         Intent serviceIntent = new Intent(this, HlsDownloadService.class);
