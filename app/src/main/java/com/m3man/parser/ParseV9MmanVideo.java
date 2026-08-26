@@ -1,5 +1,6 @@
 package com.m3man.parser;
 
+import android.net.Uri;
 import android.text.TextUtils;
 import android.util.Base64;
 
@@ -646,37 +647,57 @@ public class ParseV9MmanVideo {
     }
 
     private static String decodeVideoUrl(String html) {
+        if (TextUtils.isEmpty(html)) {
+            return "";
+        }
 
-        // 找不到的话 解密
-        // M95：三组参数改非贪婪 + 字符集限定（Base64 字符集 [A-Za-z0-9+/=]）。
-        // 旧 (.+) 贪婪匹配会在页面含多段 strencode/引号嵌套时跨段吞并，取错参数导致解密失败。
+        // M96：91porn 当前页面使用 strencode2("%3c%73...") 单参数格式。
+        // 该参数是百分号编码后的 <source ...> HTML，Android 的 Uri.decode 可直接还原。
+        Matcher encoded = Pattern.compile(
+                "document\\.write\\(\\s*strencode2\\(\"([^\"]+)\"\\s*\\)"
+        ).matcher(html);
+        if (encoded.find()) {
+            String decodedHtml = Uri.decode(encoded.group(1));
+            if (!TextUtils.isEmpty(decodedHtml)) {
+                Document decodedDoc = Jsoup.parse(decodedHtml);
+                Element source = decodedDoc.selectFirst("source[src]");
+                if (source != null && !TextUtils.isEmpty(source.attr("src"))) {
+                    Logger.t(TAG).d("strencode2 视频source：" + source.attr("src"));
+                    return source.attr("src");
+                }
+            }
+        }
+
+        // 兼容旧版 strencode 三参数格式，保留 M95 的非贪婪/字符集限制。
         final String reg = "document\\.write\\(strencode\\(\"([A-Za-z0-9+/=]+?)\",\"([A-Za-z0-9+/=]+?)\",\"([A-Za-z0-9+/=]+?)\"";
-        Pattern p = Pattern.compile(reg);
-        Matcher m = p.matcher(html);
-        String param1 = "", param2 = "",param3 = "";
-
+        Matcher m = Pattern.compile(reg).matcher(html);
         if (m.find()) {
-            param1 = m.group(1);
-            param2 = m.group(2);
-            param3 = m.group(3);
-            if(param3.substring(param3.length()-1).equals("2")){
-                String tmp=param1;
-                param1=param2;
-                param2=tmp;
+            String param1 = m.group(1);
+            String param2 = m.group(2);
+            String param3 = m.group(3);
+            if (!TextUtils.isEmpty(param3) && param3.endsWith("2")) {
+                String tmp = param1;
+                param1 = param2;
+                param2 = tmp;
             }
-            param1 = new String(Base64.decode(param1.getBytes(), Base64.DEFAULT));
-            String source_str = "";
-            for (int i = 0, k = 0; i < param1.length(); i++) {
-                k = i % param2.length();
-                source_str += "" + (char) (param1.codePointAt(i) ^ param2.codePointAt(k));
+            if (TextUtils.isEmpty(param2)) {
+                return "";
             }
-            Logger.t(TAG).d("视频source1：" + source_str);
-            source_str = new String(Base64.decode(source_str.getBytes(), Base64.DEFAULT));
-            Logger.t(TAG).d("视频source2：" + source_str);
-            Document source = Jsoup.parse(source_str);
-            // M95：解密产物里可能没有 <source> 标签（站点改版/解密错位），判空返回空串而非 NPE
-            Element sourceEle = source.selectFirst("source");
-            return sourceEle != null ? sourceEle.attr("src") : "";
+            try {
+                param1 = new String(Base64.decode(param1.getBytes(), Base64.DEFAULT));
+                StringBuilder sourceBuilder = new StringBuilder(param1.length());
+                for (int i = 0; i < param1.length(); i++) {
+                    sourceBuilder.append((char) (param1.codePointAt(i)
+                            ^ param2.codePointAt(i % param2.length())));
+                }
+                String sourceHtml = new String(Base64.decode(
+                        sourceBuilder.toString().getBytes(), Base64.DEFAULT));
+                Document sourceDoc = Jsoup.parse(sourceHtml);
+                Element source = sourceDoc.selectFirst("source[src]");
+                return source == null ? "" : source.attr("src");
+            } catch (IllegalArgumentException e) {
+                Logger.t(TAG).w("旧 strencode 解码失败: " + e.getMessage());
+            }
         }
         return "";
     }
