@@ -187,7 +187,6 @@ public class HlsDownloadService extends Service {
             s.downloader.cancel();
             s.downloader.shutdown();
             state = new TaskState(null, s.viewKey, s.savePath, s.targetMp4Path, s.pseudoDownloadId, s.lastProgress);
-            cleanupHlsTemp();
             V9MmanItem item = findItem();
             if (item != null) {
                 item.setStatus(FileDownloadStatus.paused);
@@ -213,8 +212,7 @@ public class HlsDownloadService extends Service {
             s.downloader.cancel();
             s.downloader.shutdown();
             state = new TaskState(null, s.viewKey, s.savePath, s.targetMp4Path, s.pseudoDownloadId, s.lastProgress);
-            // M40：清理下载过程中产生的临时分片（getCacheDir 下的 hls_* 目录）
-            cleanupHlsTemp();
+            // 当前 downloader.cancel() 只负责清理本任务临时目录，不再全局删除其他 HLS 任务。
             // 复位 DB 记录，使其从「正在下载」列表移除
             resetRecord();
             // M62：取消后清掉半成品 mp4，避免残留不可播文件
@@ -495,20 +493,9 @@ public class HlsDownloadService extends Service {
         stopSelf();
     }
 
-    /** M40：取消 HLS 下载时清理 getCacheDir 下的 hls_* 临时分片目录 */
+    /** 临时目录由每个 HlsDownloader 自己按任务唯一目录管理，服务不再全局清理。 */
     private void cleanupHlsTemp() {
-        try {
-            File cache = getCacheDir();
-            File[] files = cache.listFiles();
-            if (files != null) {
-                for (File f : files) {
-                    if (f.isDirectory() && f.getName().startsWith("hls_")) {
-                        deleteRecursively(f);
-                    }
-                }
-            }
-        } catch (Exception ignored) {
-        }
+        // 保留方法兼容历史调用点；当前不扫描并删除其他任务目录。
     }
 
     private static void deleteRecursively(File dir) {

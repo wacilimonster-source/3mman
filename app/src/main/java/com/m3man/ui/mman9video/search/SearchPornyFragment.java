@@ -337,7 +337,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                 if (!TextUtils.isEmpty(query)) {
                     searchHistoryPanel.onKeywordSubmitted(query);
                 }
-                if (query.equals(searchId)) {
+                if (TextUtils.equals(query, searchId)) {
                     searchHistoryPanel.hide();
                     return false;
                 }

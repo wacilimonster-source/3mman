@@ -182,13 +182,17 @@ public class AppApiHelper implements ApiHelper {
         String[] queryMap = normalized.split("&");
         Map<String, String> viewKeyQuery = new LinkedHashMap<>(queryMap.length);
         for (String q : queryMap) {
-            String[] keyValue = q.split("=");
-            if (keyValue.length == 0) {
-                continue;
-            } else if (keyValue.length == 1) {
-                viewKeyQuery.put(keyValue[0], "");
+            int separator = q.indexOf('=');
+            if (separator < 0) {
+                if (!TextUtils.isEmpty(q)) {
+                    viewKeyQuery.put(q, "");
+                }
             } else {
-                viewKeyQuery.put(keyValue[0], keyValue[1]);
+                String key = q.substring(0, separator);
+                String value = q.substring(separator + 1);
+                if (!TextUtils.isEmpty(key)) {
+                    viewKeyQuery.put(key, value);
+                }
             }
         }
 

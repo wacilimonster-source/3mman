@@ -480,6 +480,9 @@ public class ParseV9MmanVideo {
      */
     public static VideoResult parseVideoPlayUrl(String html, User user) {
         VideoResult videoResult = new VideoResult();
+        if (TextUtils.isEmpty(html)) {
+            return videoResult;
+        }
         if (html.contains("你每天只可观看10个视频")) {
             Logger.d("已经超出观看上限了");
             //设置标志位,用于上传日志

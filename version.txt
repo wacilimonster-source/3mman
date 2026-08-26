@@ -1,7 +1,7 @@
 {
-  "versionCode": 129,
-  "versionName": "1.0.96",
-  "updateMessage": "M96 推荐播放解析修复：兼容 91porn 当前播放页 document.write(strencode2(...)) 百分号编码格式，解码并提取 source[src]；保留旧版三参数 strencode 兼容逻辑。基于 M95 全量修复继续构建。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.96.apk",
-  "sha256": "a16ea4e59c2546ff9135c9b5ddc87ea11f027c2680644b36b1f554b41013e93f"
+  "versionCode": 130,
+  "versionName": "1.0.97",
+  "updateMessage": "M97 回归修复：更新包校验改为严格失败关闭；修复作者 UID 自愈状态、HLS 临时目录误清理、播放器重试回调跨页引用、分分钟备用源持久化、搜索与解析边界问题。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.97.apk",
+  "sha256": "b390a9e31d139c57501087684d587213293ef6eb1435c227f5db8304470bb589"
 }

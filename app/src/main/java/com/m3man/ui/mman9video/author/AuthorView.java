@@ -21,4 +21,7 @@ public interface AuthorView extends BaseView{
     void setMoreData(List<V9MmanItem> v9MmanItemList);
 
     void setData(List<V9MmanItem> data);
+
+    /** 作者 UID 自愈成功后同步页面后续请求使用的新 UID。 */
+    void onAuthorUidHealed(String newUid);
 }

@@ -147,10 +147,11 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
         if (released) {
             return;
         }
-        // 若已有文件（上次未完成），删除重下，避免脏数据
+        // 更新包必须重新下载到干净文件，避免复用非空但已损坏的 APK。
         File f = new File(apkPath);
-        if (f.exists() && f.length() == 0) {
-            f.delete();
+        if (f.exists() && !f.delete()) {
+            onDownloadError("无法清理旧安装包，请重试");
+            return;
         }
         setState(State.DOWNLOADING);
         pb.setProgress(0);
@@ -232,11 +233,12 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
         pb.setProgress(100);
         tvPercent.setText("100%");
 
-        // 完整性校验（version.txt 提供 sha256 才校验）；7MB 文件计算耗时，放后台线程避免主线程卡顿
+        // 完整性校验必须 fail-closed；7MB 文件计算耗时，放后台线程避免主线程卡顿
         final String expected = updateVersion.getSha256();
         final File apkFile = new File(apkPath);
-        if (TextUtils.isEmpty(expected)) {
-            proceedInstall(apkFile);
+        if (TextUtils.isEmpty(expected)
+                || !expected.trim().matches("[0-9a-fA-F]{64}")) {
+            onDownloadError("更新信息缺少有效 SHA-256，已阻止安装");
             return;
         }
         new Thread(() -> {
@@ -376,9 +378,9 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
         if (file == null || !file.exists()) {
             return false;
         }
-        // 非标准 64 位十六进制（缺失/占位符/异常字段）视为无校验，避免更新被字段问题卡死
-        if (expectedHex == null || !expectedHex.matches("[0-9a-fA-F]{64}")) {
-            return true;
+        // 非标准 64 位十六进制一律视为校验失败，禁止安装未验证的 APK。
+        if (expectedHex == null || !expectedHex.trim().matches("[0-9a-fA-F]{64}")) {
+            return false;
         }
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

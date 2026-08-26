@@ -144,6 +144,7 @@ public class PornyFallbackResolver {
             dm.saveVideoResult(pornyResult);
             item.setVideoResult(pornyResult);
             item.setSource(Parse91PornyVideo.SOURCE);
+            item.setSourceName(Parse91PornyVideo.SOURCE);
             dm.updateV9MmanItem(item);
             return true;
         } catch (Exception e) {

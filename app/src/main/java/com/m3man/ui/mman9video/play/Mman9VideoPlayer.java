@@ -1,7 +1,6 @@
 package com.m3man.ui.mman9video.play;
 
 import android.content.Context;
-import android.graphics.Rect;
 import android.media.MediaPlayer;
 import android.media.PlaybackParams;
 import android.os.Build;
@@ -59,9 +58,7 @@ public class Mman9VideoPlayer extends JZVideoPlayerStandard {
     /** 外部设置：点击重试时执行的动作（一般为重新解析视频地址）。 */
     private Runnable mRetryAction;
 
-    /** M96：静态兜底——JZ 进入全屏会反射克隆一个新实例，其 mRetryAction 为空，
-     *  必须回退到类级持有的动作，否则全屏内点「重试」无反应。 */
-    private static Runnable sRetryAction;
+    /** 当前播放页的重试回调由宿主在全屏克隆时显式复制，禁止静态持有 Activity 回调。 */
 
     /** 当前正在播放的直链，用于失败时诊断。 */
     private String mCurrentUrl;
@@ -130,8 +127,6 @@ public class Mman9VideoPlayer extends JZVideoPlayerStandard {
     /** 设置「重试」按钮的回调（重新解析视频地址）。 */
     public void setRetryAction(Runnable action) {
         mRetryAction = action;
-        // M96：同时写入静态字段，供全屏克隆实例兜底
-        sRetryAction = action;
     }
 
     /** M96：按当前屏幕形态统一全屏按钮显隐（竖屏可见、全屏隐藏）。 */
@@ -323,6 +318,12 @@ public class Mman9VideoPlayer extends JZVideoPlayerStandard {
     @Override
     public void startWindowFullscreen() {
         super.startWindowFullscreen();
+        // JZVD 会反射创建全屏克隆实例；把当前实例回调复制到克隆实例，
+        // 不使用 static，避免跨页面引用旧 Activity。
+        cn.jzvd.JZVideoPlayer current = JZVideoPlayerManager.getCurrentJzvd();
+        if (current instanceof Mman9VideoPlayer && current != this) {
+            ((Mman9VideoPlayer) current).setRetryAction(mRetryAction);
+        }
         if (fullscreenButton != null) {
             fullscreenButton.setVisibility(View.GONE);
         }
@@ -342,10 +343,9 @@ public class Mman9VideoPlayer extends JZVideoPlayerStandard {
     public void onClick(View v) {
         // mRetryBtn 在 JZVideoPlayerStandard.init() 中设置了点击监听
         if (v == mRetryBtn) {
-            // M96：优先实例动作，克隆实例（无实例动作）回退静态兜底
-            Runnable action = mRetryAction != null ? mRetryAction : sRetryAction;
-            if (action != null) {
-                action.run();
+            // 仅执行当前播放器实例绑定的动作，避免跨页面调用旧 Activity。
+            if (mRetryAction != null) {
+                mRetryAction.run();
             }
             return;
         }

@@ -152,7 +152,7 @@ public class SearchActivity extends MvpActivity<SearchView, SearchPresenter> imp
                 if (!TextUtils.isEmpty(query)) {
                     searchHistoryPanel.onKeywordSubmitted(query);
                 }
-                if (query.equals(searchId)) {
+                if (TextUtils.equals(query, searchId)) {
                     searchHistoryPanel.hide();
                     return false;
                 }

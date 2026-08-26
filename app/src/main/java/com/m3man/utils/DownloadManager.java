@@ -53,8 +53,8 @@ public class DownloadManager {
     private final CopyOnWriteArrayList<DownloadStatusUpdater> updaterList = new CopyOnWriteArrayList<>();
 
     // M73：进度落库节流——记录每个 downloadId 上次落库时的百分比，≥5% 步进才写库
-    private final android.support.v4.util.SimpleArrayMap<Integer, Integer> lastSavedProgress =
-            new android.support.v4.util.SimpleArrayMap<>();
+    private final java.util.concurrent.ConcurrentHashMap<Integer, Integer> lastSavedProgress =
+            new java.util.concurrent.ConcurrentHashMap<>();
 
     // M97：正在被用户删除的任务 id 集合——删除期间迟到的进度回调命中即跳过写库，
     // 防止“正在下载”行被复活成幽灵行。跨线程读写，用同步包装集合。

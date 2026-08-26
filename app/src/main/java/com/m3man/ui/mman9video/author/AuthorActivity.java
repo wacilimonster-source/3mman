@@ -305,6 +305,21 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
      * M92g：mman9 作者 UID 是加密临时 token，收藏行的旧 token 请求 uvideos.php 会 404。
      * 若收藏行携带了关联作品的 viewKey，则重拉该作品详情换取新 ownerId 并重试（仅一次）。
      */
+    @Override
+    public void onAuthorUidHealed(String newUid) {
+        if (TextUtils.isEmpty(newUid)) {
+            return;
+        }
+        String oldUid = uid;
+        uid = newUid;
+        if (TextUtils.isEmpty(authorName) || authorName.equals(oldUid)) {
+            authorName = newUid;
+            toolbar.setTitle(authorName);
+        }
+        // 后续刷新/加载更多/收藏均使用新 UID；收藏态由 toggleFavorite 实时查库确认。
+        updateFavoriteMenu();
+    }
+
     private void tryHealStaleUid() {
         if (healingUid || isPorny() || TextUtils.isEmpty(lastViewKey)) {
             return;

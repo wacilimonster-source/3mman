@@ -223,6 +223,16 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
     }
 
     @Override
+    public void onAuthorUidHealed(String newUid) {
+        if (v9MmanItem == null || v9MmanItem.getVideoResult() == null
+                || TextUtils.isEmpty(newUid)) {
+            return;
+        }
+        v9MmanItem.getVideoResult().setOwnerId(newUid);
+        healingUid = false;
+    }
+
+    @Override
     public void showLoading(boolean pullToRefresh) {
         swipeLayout.setRefreshing(true);
     }

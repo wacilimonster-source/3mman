@@ -61,6 +61,7 @@ public class HlsDownloader {
     private final Context context;
     private final ExecutorService executor;
     private volatile boolean cancelled;
+    private volatile File workingTempDir;
 
     public HlsDownloader(Context context) {
         this.context = context.getApplicationContext();
@@ -109,7 +110,9 @@ public class HlsDownloader {
                 // M97：临时目录名改为 hls_+URL哈希+_分片总数——同名目录下已存在非空同名分片则跳过下载，
                 // 实现断点续传；旧 System.currentTimeMillis() 命名每次都新建目录，重试必然全部重来
                 File tempDir = new File(context.getCacheDir(),
-                        "hls_" + Integer.toHexString(m3u8Url.hashCode()) + "_" + fullUrls.size());
+                        "hls_" + Integer.toHexString(m3u8Url.hashCode()) + "_"
+                                + fullUrls.size() + "_" + System.currentTimeMillis());
+                workingTempDir = tempDir;
                 if (!tempDir.exists() && !tempDir.mkdirs()) {
                     notifyError(listener, "创建临时目录失败");
                     return;
@@ -216,6 +219,10 @@ public class HlsDownloader {
 
     public void cancel() {
         cancelled = true;
+        File dir = workingTempDir;
+        if (dir != null) {
+            deleteQuietly(dir);
+        }
     }
 
     /** M26：关闭内部线程池，避免 4 个工作线程永久泄漏（下载器为单次使用） */
