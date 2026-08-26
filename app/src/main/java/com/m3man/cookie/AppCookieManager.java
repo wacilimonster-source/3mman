@@ -4,7 +4,6 @@ import android.text.TextUtils;
 
 import com.franmontiel.persistentcookiejar.PersistentCookieJar;
 import com.orhanobut.logger.Logger;
-import com.m3man.data.AppDataManager;
 import com.m3man.rxjava.CallBackWrapper;
 import com.m3man.rxjava.RxSchedulersHelper;
 
@@ -18,6 +17,7 @@ import io.reactivex.Observable;
 import io.reactivex.ObservableSource;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
 import io.reactivex.functions.Predicate;
 import io.reactivex.schedulers.Schedulers;
@@ -30,7 +30,8 @@ import okhttp3.Cookie;
 @Singleton
 public class AppCookieManager implements CookieManager {
 
-    private static final String TAG = AppDataManager.class.getSimpleName();
+    // M95：TAG 修正为本类名（旧值误抄 AppDataManager，日志归属混乱）
+    private static final String TAG = AppCookieManager.class.getSimpleName();
     private SharedPrefsCookiePersistor sharedPrefsCookiePersistor;
 
     private SetCookieCache setCookieCache;
@@ -71,16 +72,26 @@ public class AppCookieManager implements CookieManager {
                 }
                 return isDigitsOnly;
             }
-        }).filter(new Predicate<Cookie>() {
+        })
+                // M95：删除副作用统一收敛到 doOnNext 一处。旧实现 filter 的 forceReset 分支
+                // 与 onSuccess 各删一次，同一 cookie 会被 persistor/cache 双删。
+                // 合并后语义不变：强制重置 → 直接删；否则达到阈值(>=10)才删。
+                // 该操作符位于 subscribeOn 上游，随 io 调度器在 io 线程执行。
+                .doOnNext(new Consumer<Cookie>() {
+                    @Override
+                    public void accept(Cookie cookie) throws Exception {
+                        if (forceReset || Integer.parseInt(cookie.value()) >= 10) {
+                            Logger.t(TAG).d("已经观看10次，重置cookies");
+                            sharedPrefsCookiePersistor.delete(cookie);
+                            setCookieCache.delete(cookie);
+                        }
+                    }
+                })
+                .filter(new Predicate<Cookie>() {
             @Override
             public boolean test(Cookie cookie) throws Exception {
                 int watchTime = Integer.parseInt(cookie.value());
                 Logger.t(TAG).d("当前已经看了：" + watchTime + " 次");
-                if (forceReset) {
-                    Logger.t(TAG).d("已经观看10次，重置cookies");
-                    sharedPrefsCookiePersistor.delete(cookie);
-                    setCookieCache.delete(cookie);
-                }
                 return watchTime >= 10;
             }
         }).subscribeOn(Schedulers.io())
@@ -93,9 +104,8 @@ public class AppCookieManager implements CookieManager {
 
                     @Override
                     public void onSuccess(Cookie cookie) {
+                        // M95：删除已统一在 doOnNext 完成，此处仅保留日志，消除双删
                         Logger.t(TAG).d("已经观看10次，重置cookies");
-                        sharedPrefsCookiePersistor.delete(cookie);
-                        setCookieCache.delete(cookie);
                     }
 
                     @Override

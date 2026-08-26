@@ -1,22 +1,28 @@
 package com.m3man;
 
 import android.content.Context;
+import android.support.annotation.NonNull;
 import android.support.multidex.MultiDex;
 import android.support.v7.app.AppCompatDelegate;
 
 import com.helper.loadviewhelper.load.LoadViewHelper;
 import com.liulishuo.filedownloader.FileDownloader;
 import com.tencent.bugly.crashreport.CrashReport;
+import com.m3man.cookie.RulerCookie;
+import com.m3man.cookie.SetCookieCache;
+import com.m3man.cookie.SharedPrefsCookiePersistor;
 import com.m3man.data.DataManager;
 import com.m3man.data.network.okhttp.MyProxySelector;
 import com.m3man.di.component.DaggerAppComponent;
 import com.m3man.eventbus.LowMemoryEvent;
 import com.m3man.utils.AppLog;
 import com.m3man.utils.AppLogger;
+import com.m3man.utils.NetworkClientHolder;
 import com.m3man.utils.NotificationChannelHelper;
 
 import org.greenrobot.eventbus.EventBus;
 
+import java.io.IOException;
 import java.net.ProxySelector;
 
 import javax.inject.Inject;
@@ -24,6 +30,10 @@ import javax.inject.Inject;
 import cn.bingoogolapple.swipebacklayout.BGASwipeBackHelper;
 import dagger.android.AndroidInjector;
 import dagger.android.support.DaggerApplication;
+import okhttp3.Interceptor;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 /**
  * 应用入口
@@ -35,6 +45,8 @@ import dagger.android.support.DaggerApplication;
 public class MyApplication extends DaggerApplication {
 
     private static final String TAG = MyApplication.class.getSimpleName();
+    /** M95：通用 Chrome UA（与 CommonHeaderInterceptor 保持一致），供解析兜底客户端使用 */
+    private static final String FALLBACK_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.84 Safari/537.36";
 
     @Inject
     DataManager dataManager;
@@ -46,11 +58,14 @@ public class MyApplication extends DaggerApplication {
 
     @Override
     public void onCreate() {
+        // M99：DaggerApplication 的 super.onCreate() 内部会完成整张 DI 图的构建与注入
+        // （applicationInjector→DataManager/AppDbHelper 等单例），框架约束下无法把注入
+        // 挪到进程判断之后——该构造成本为已知限制。
         super.onCreate();
         myApplication = this;
-        // M73：进程隔离——FileDownloader 会派生 :filedownloader 进程，该进程中重复执行
+        // M73/M99：进程隔离——FileDownloader 会派生 :filedownloader 进程，该进程中重复执行
         // ProxySelector 注入/Bugly/夜间模式等主进程初始化会引发难复现的线上问题。
-        // 非主进程只保留最基础的初始化后直接返回。
+        // 非主进程只保留最基础的初始化后直接返回；所有重初始化均已在 gate 之后（见下方顺序）。
         if (!isMainProcess()) {
             AppLogger.initLogger();
             NotificationChannelHelper.initChannel(this);
@@ -63,6 +78,8 @@ public class MyApplication extends DaggerApplication {
         ProxySelector systemDefaultSelector = ProxySelector.getDefault();
         ProxySelector.setDefault(myProxySelector);
         myProxySelector.setSystemDefaultSelector(systemDefaultSelector);
+        // M95：为静态解析器（ParseV9MmanVideo 分享链接兜底）注入统一网络客户端
+        initNetworkClientHolder();
         initNightMode();
         AppLogger.initLogger();
         logStartupEnvironment();
@@ -83,6 +100,36 @@ public class MyApplication extends DaggerApplication {
     private boolean isMainProcess() {
         String processName = getProcessNameSafely();
         return processName == null || getPackageName().equals(processName);
+    }
+
+    /**
+     * M95：为静态解析器的兜底请求组装统一 OkHttpClient 并注入 NetworkClientHolder。
+     * 组装参照 ApiServiceModule.providesOkHttpClient 的关键项：
+     *   RulerCookie（视频页请求剥离登录态 cookie）+ MyProxySelector（全局 HTTP 代理）
+     *   + 统一 Chrome UA 头。ApiServiceModule 未直接暴露 OkHttpClient，
+     *   且解析器无法参与 DI，故此处按相同关键件独立组装（持久层与主链路共用同一 SharedPreferences，
+     *   cookie 视图一致）。失败仅记日志，NetworkClientHolder 会回退默认实例。
+     */
+    private void initNetworkClientHolder() {
+        try {
+            RulerCookie rulerCookie = new RulerCookie(new SetCookieCache(), new SharedPrefsCookiePersistor(this));
+            OkHttpClient.Builder builder = new OkHttpClient.Builder();
+            builder.cookieJar(rulerCookie);
+            builder.proxySelector(myProxySelector);
+            builder.addInterceptor(new Interceptor() {
+                @Override
+                public Response intercept(@NonNull Chain chain) throws IOException {
+                    Request original = chain.request();
+                    Request withUa = original.newBuilder()
+                            .header("User-Agent", FALLBACK_UA)
+                            .build();
+                    return chain.proceed(withUa);
+                }
+            });
+            NetworkClientHolder.set(builder.build());
+        } catch (Exception e) {
+            AppLog.e(TAG, "初始化解析兜底网络客户端失败: " + AppLog.cause(e));
+        }
     }
 
     private String getProcessNameSafely() {

@@ -118,11 +118,8 @@
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode|keyboard|layoutDirection"
             android:label="@string/author_favorite"
             android:screenOrientation="portrait" />
-        <activity
-            android:name=".ui.recommend.RecommendFeedActivity"
-            android:configChanges="orientation|screenSize|keyboardHidden|uiMode|keyboard|layoutDirection"
-            android:label="@string/title_recommend"
-            android:windowSoftInputMode="adjustPan" />
+        <!-- M98：独立推荐页 RecommendFeedActivity 已删除（功能并入主界面推荐 Tab 的
+             RecommendFeedFragment），同步移除声明与 Dagger 注入绑定 -->
         <activity
             android:name=".ui.update.UpdateActivity"
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode|keyboard|layoutDirection"
@@ -141,9 +138,7 @@
             android:label="@string/activity_proxy_setting"
             android:screenOrientation="portrait" />
         <!-- M31：API34 起前台服务必须声明 foregroundServiceType，否则启动被系统阻断 -->
-        <service
-            android:name=".service.UpdateDownloadService"
-            android:foregroundServiceType="dataSync" />
+        <!-- M99：UpdateDownloadService 已删除（无任何启动入口引用，升级下载由 UpdateActivity 接管） -->
         <service
             android:name=".service.DownloadVideoService"
             android:foregroundServiceType="dataSync" />

@@ -21,8 +21,9 @@ public class RecoEngine {
     private final Context appContext;
     private final RecoTagDictionary dictionary;
     private final RecoStore store;
-    private RecoParams params;
-    private RecoScorer scorer;
+    /** M98：volatile——打分线程读、设置页写，保证参数与打分器替换后的可见性 */
+    private volatile RecoParams params;
+    private volatile RecoScorer scorer;
 
     private RecoEngine(Context context) {
         this.appContext = context.getApplicationContext();
@@ -30,9 +31,11 @@ public class RecoEngine {
         this.store = new RecoStore(appContext);
         this.params = RecoParams.load(appContext);
         this.scorer = new RecoScorer(dictionary, params);
-        // 启动时先做一次时间衰减
-        store.getProfile().applyDecay(System.currentTimeMillis(), params.decayDays);
-        store.markDirty();
+        // M98：启动时先做一次时间衰减；仅在有实际变更时 markDirty，
+        // 避免每次启动都无条件触发一次全量落盘
+        if (store.getProfile().applyDecay(System.currentTimeMillis(), params.decayDays)) {
+            store.markDirty();
+        }
         // 词典版本升级（标签体系变更）时自动重置旧画像，避免上一代噪声标签残留污染新推荐
         if (store.getDictVersion() != dictionary.getVersion()) {
             store.reset();
@@ -78,8 +81,11 @@ public class RecoEngine {
         }
         newParams.clamp();
         newParams.save(appContext);
+        // M98：先在局部完成打分器构建，再一次性发布两个字段，
+        // 避免读到「新 params + 旧 scorer」的中间组合
+        RecoScorer newScorer = new RecoScorer(dictionary, newParams);
         this.params = newParams;
-        this.scorer = new RecoScorer(dictionary, newParams);
+        this.scorer = newScorer;
     }
 
     public List<String> tagsOf(String title) {

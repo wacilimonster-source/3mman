@@ -31,6 +31,13 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
     @Inject
     protected DataManager dataManager;
 
+    // M97：进度 tick 节流——记录每个任务上次触发查库/写通知时的百分比与状态，
+    // 仅在进度跨越 ≥5% 或状态跃迁时才查库，避免高频回调每 tick 都打 DB
+    private final android.support.v4.util.SimpleArrayMap<Integer, Integer> lastTickProgress =
+            new android.support.v4.util.SimpleArrayMap<>();
+    private final android.support.v4.util.SimpleArrayMap<Integer, Integer> lastTickStatus =
+            new android.support.v4.util.SimpleArrayMap<>();
+
     public DownloadVideoService() {
 
     }
@@ -84,6 +91,9 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
     @Override
     public void onDestroy() {
         DownloadManager.getImpl().removeUpdater(this);
+        // M97：清理节流记录，避免 map 随任务数累积
+        lastTickProgress.clear();
+        lastTickStatus.clear();
         stopForeground(true);
         super.onDestroy();
     }
@@ -101,6 +111,18 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
     private void updateNotification(BaseDownloadTask task, int soFarBytes, int totalBytes) {
         //totalBytes 在文件大小未知时为0，直接相除会得到NaN甚至异常，这里做保护
         int progress = totalBytes > 0 ? (int) (((float) soFarBytes / totalBytes) * 100) : 0;
+        // M97：节流——进度未跨 ≥5% 步进且状态未跃迁时直接返回，不查库、不刷通知。
+        // 进度回退（重试/续传重置）也放行，保证 UI 不会卡在高位百分比
+        Integer lastPct = lastTickProgress.get(task.getId());
+        Integer lastStatus = lastTickStatus.get(task.getId());
+        boolean statusChanged = lastStatus == null || lastStatus != task.getStatus();
+        boolean crossedStep = lastPct == null || progress < lastPct || progress - lastPct >= 5;
+        if (!statusChanged && !crossedStep) {
+            return;
+        }
+        lastTickProgress.put(task.getId(), progress);
+        // M97：FileDownloader 的 getStatus() 返回 byte，装箱为 Integer 存储
+        lastTickStatus.put(task.getId(), (int) task.getStatus());
         String fileSize = Formatter.formatFileSize(DownloadVideoService.this, soFarBytes).replace("MB", "") + "/ " + Formatter.formatFileSize(DownloadVideoService.this, totalBytes);
         V9MmanItem v9MmanItem = dataManager.findV9MmanItemByDownloadId(task.getId());
         if (v9MmanItem != null) {
@@ -108,6 +130,8 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
                 List<V9MmanItem> v9MmanItemList = dataManager.findV9MmanItemByDownloadStatus(FileDownloadStatus.progress);
                 if (v9MmanItemList.size() == 0) {
                     stopForeground(true);
+                    // M97：任务队列空闲时主动结束服务（保留上面的 stopForeground）
+                    stopSelf();
                 }
             } else {
                 startNotification(v9MmanItem.getTitle(), progress, fileSize, task.getSpeed());
@@ -116,6 +140,8 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
             List<V9MmanItem> v9MmanItemList = dataManager.loadDownloadingData();
             if (v9MmanItemList.size() == 0) {
                 stopForeground(true);
+                // M97：任务队列空闲时主动结束服务（保留上面的 stopForeground）
+                stopSelf();
             }
         }
     }

@@ -56,6 +56,29 @@ public class DownloadManager {
     private final android.support.v4.util.SimpleArrayMap<Integer, Integer> lastSavedProgress =
             new android.support.v4.util.SimpleArrayMap<>();
 
+    // M97：正在被用户删除的任务 id 集合——删除期间迟到的进度回调命中即跳过写库，
+    // 防止“正在下载”行被复活成幽灵行。跨线程读写，用同步包装集合。
+    private static final java.util.Set<Long> DELETING_IDS =
+            java.util.Collections.synchronizedSet(new java.util.HashSet<Long>());
+
+    /** M97：标记任务进入删除流程（DownloadPresenter.deleteDownloadingTask 删除开始时调用） */
+    public static void markDeleting(int downloadId) {
+        if (downloadId > 0) {
+            DELETING_IDS.add((long) downloadId);
+        }
+    }
+
+    /** M97：删除流程结束后移除标记（成功/失败都要调用） */
+    public static void unmarkDeleting(int downloadId) {
+        if (downloadId > 0) {
+            DELETING_IDS.remove((long) downloadId);
+        }
+    }
+
+    private static boolean isDeleting(int downloadId) {
+        return DELETING_IDS.contains((long) downloadId);
+    }
+
 
     /**
      * M61：判断是否 HLS m3u8 地址。m3u8 绝不能交给 FileDownloader：
@@ -170,6 +193,10 @@ public class DownloadManager {
         @Override
         protected void error(BaseDownloadTask task, Throwable e) {
             Logger.t(TAG).d("error:" + "--status:" + task.getStatus() + "--:soFarBytes：" + task.getSmallFileSoFarBytes() + "--:totalBytes：" + task.getSmallFileTotalBytes());
+            // M97：删除中的任务直接丢弃回调，防止误判“完成”回写复活幽灵行
+            if (isDeleting(task.getId())) {
+                return;
+            }
             // M40/M41：部分机型/系统下文件已完整下载却误报 error（如末尾 sync/重命名失败、
             // 或 CDN Content-Length 与实际字节数不一致导致 soFar < total）。
             // 若目标文件真实大小已达标，则按“完成”处理，避免“能播放却提示下载失败”。
@@ -181,6 +208,7 @@ public class DownloadManager {
                     if (item != null) {
                         item.setStatus(FileDownloadStatus.completed);
                         item.setProgress(100);
+                        // M99：字段已改 long，去掉 int 强转避免 >2GB 文件尺寸截断
                         item.setSoFarBytes((int) f.length());
                         item.setTotalFarBytes((int) f.length());
                         item.setFinishedDownloadDate(new Date());
@@ -207,6 +235,12 @@ public class DownloadManager {
      * @param task 任务信息
      */
     private void saveDownloadInfo(BaseDownloadTask task) {
+        // M97：删除中的任务命中即整体跳过——迟到的 pending/progress/completed 回调
+        // 不得查库写库，否则刚删掉的行会被回写成“下载中”幽灵行
+        if (isDeleting(task.getId())) {
+            Logger.t(TAG).d("任务删除中，跳过状态回写 downloadId=" + task.getId());
+            return;
+        }
         V9MmanItem v9MmanItem = dataManager.findV9MmanItemByDownloadId(task.getId());
         if (v9MmanItem == null) {
             //不存在的任务清除掉

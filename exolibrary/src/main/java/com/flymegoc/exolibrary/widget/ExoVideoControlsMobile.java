@@ -27,7 +27,6 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.AppCompatSeekBar;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -65,7 +64,6 @@ import java.util.List;
  */
 @SuppressWarnings("unused")
 public class ExoVideoControlsMobile extends ExoVideoControls {
-    private static final String TAG = ExoVideoControlsMobile.class.getSimpleName();
     protected AppCompatSeekBar seekBar;
     protected ImageView fullScreenImageView;
     protected TextView speedTextView;
@@ -141,7 +139,6 @@ public class ExoVideoControlsMobile extends ExoVideoControls {
             videoView.setOnBufferUpdateListener(new OnBufferUpdateListener() {
                 @Override
                 public void onBufferingUpdate(int bufferPercent) {
-                    Log.d(TAG, "------------------------onBufferingUpdate: " + bufferPercent);
                     if (seekBar == null) {
                         return;
                     }

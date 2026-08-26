@@ -149,7 +149,10 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
     public void onResume() {
         super.onResume();
         setUpUserInfo(presenter.getLoginUser());
-        if (logoutItemView != null) {
+        // M97：统一走 rebuildLogoutEntry，未创建过入口时也能补建
+        if (logoutItemView == null) {
+            rebuildLogoutEntry();
+        } else {
             logoutItemView.setVisibility(presenter.isUserLogin() ? View.VISIBLE : View.GONE);
         }
     }
@@ -239,13 +242,25 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
                 .addItemView(aboutItemWithChevron, this)
                 .addTo(mineList);
 
-        if (presenter.isUserLogin()) {
+        // M97：登出入口统一由 rebuildLogoutEntry 创建/显隐
+        rebuildLogoutEntry();
+    }
+
+    /**
+     * M97：构建「退出登录」入口并按登录态显示/隐藏。
+     * 采用「常驻创建 + visibility 切换」最小侵入方案：
+     * QMUI GroupListView 的 section 只能追加无法按需移除，动态重建整组会与既有分组冲突；
+     * 常驻创建后未登录仅 GONE，登录成功（onActivityResult）时无需也无法补建缺失的行。
+     */
+    private void rebuildLogoutEntry() {
+        if (logoutItemView == null) {
             logoutItemView = mineList.createItemView(getString(R.string.exit_login_account));
             logoutItemView.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
             QMUIGroupListView.newSection(context)
                     .addItemView(logoutItemView, v -> logout())
                     .addTo(mineList);
         }
+        logoutItemView.setVisibility(presenter.isUserLogin() ? View.VISIBLE : View.GONE);
     }
 
     /** 生成一个带开关的列表项（用于「播放界面」分组）。 */
@@ -306,7 +321,11 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == Constants.USER_LOGIN_REQUEST_CODE && resultCode == RESULT_OK) {
             setUpUserInfo(presenter.getLoginUser());
-            if (logoutItemView != null) {
+            // M97：登录成功分支——入口此前不存在（logoutItemView == null）则动态补建，
+            // 否则仅切换可见性
+            if (logoutItemView == null) {
+                rebuildLogoutEntry();
+            } else {
                 logoutItemView.setVisibility(presenter.isUserLogin() ? View.VISIBLE : View.GONE);
             }
         }

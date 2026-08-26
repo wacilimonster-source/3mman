@@ -48,10 +48,18 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
     private float pendingTapX;
     /** 是否循环播放 */
     private boolean loopEnabled = true;
+    /**
+     * M98：单击延迟 Runnable 是否已投递。
+     * 原 longPressRunnable 用 tapHandler.hasMessages(0) 做守卫，但 Handler 消息队列里
+     * what==0 的消息不止本类手势（框架/父类也会投），守卫会误判失效；改用显式标志位。
+     */
+    private boolean singleTapPosted;
 
     private final Runnable singleTapRunnable = new Runnable() {
         @Override
         public void run() {
+            // M98：延迟到期真正执行，标志复位
+            singleTapPosted = false;
             if (tapListener != null) {
                 tapListener.onSingleTap(RecoVideoPlayer.this);
             } else {
@@ -198,6 +206,8 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
         if (lastTapTime > 0 && now - lastTapTime < DOUBLE_TAP_TIMEOUT) {
             lastTapTime = 0;
             tapHandler.removeCallbacks(singleTapRunnable);
+            // M98：单击已升级为双击，投递标志复位
+            singleTapPosted = false;
             if (tapListener != null) {
                 tapListener.onDoubleTap(this, pendingTapX);
             }
@@ -206,6 +216,8 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
         lastTapTime = now;
         pendingTapX = getLastTouchX();
         tapHandler.removeCallbacks(singleTapRunnable);
+        // M98：post 前先置位，保证长按守卫能正确看到「有挂起的单击」
+        singleTapPosted = true;
         tapHandler.postDelayed(singleTapRunnable, DOUBLE_TAP_TIMEOUT);
     }
 
@@ -221,7 +233,9 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
     private final Runnable longPressRunnable = new Runnable() {
         @Override
         public void run() {
-            if (longPressTriggered || tapHandler.hasMessages(0)) {
+            // M98：守卫改用 singleTapPosted——hasMessages(0) 会把队列里其它 what==0 的
+            // 消息（框架/父类投递）误判成本类挂起单击，导致长按快进失效
+            if (longPressTriggered || singleTapPosted) {
                 return;
             }
             float touchX = getLastTouchX();
@@ -327,7 +341,6 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
     }
 
     // ==================== 循环播放 ====================
-
     @Override
     public void onAutoCompletion() {
         super.onAutoCompletion();
@@ -369,10 +382,27 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
         return rect.height() * 2 >= height;
     }
 
+    /**
+     * M98：无条件取消所有挂起手势并复位相关标志，但**不** release 播放器。
+     * 供 Adapter 回收 ViewHolder 时对每一页调用（含非当前播放页），
+     * 防止延迟中的单击/长按/双击回调在 Holder 复用后误触发到新视频上。
+     */
+    public void cancelPendingGestures() {
+        tapHandler.removeCallbacksAndMessages(null);
+        lastTapTime = 0;
+        pendingTapX = 0f;
+        longPressTriggered = false;
+        singleTapPosted = false;
+    }
+
     @Override
     public void release() {
         tapHandler.removeCallbacksAndMessages(null);
         lastTapTime = 0;
+        // M98：与 cancelPendingGestures 保持一致，复位全部手势标志
+        pendingTapX = 0f;
+        longPressTriggered = false;
+        singleTapPosted = false;
         super.release();
     }
 }

@@ -3,7 +3,7 @@ package com.m3man.exception;
 import android.net.ParseException;
 
 import com.google.gson.JsonParseException;
-import com.google.gson.JsonSerializer;
+import com.google.gson.JsonSyntaxException;
 import com.orhanobut.logger.Logger;
 import com.m3man.BuildConfig;
 import org.apache.http.conn.ConnectTimeoutException;
@@ -38,8 +38,15 @@ public class ApiException extends Exception {
 
     private final int code;
 
-    public static final int UNKNOWN = 1000;
-    public static final int PARSE_ERROR = 1001;
+    // M95：原 instanceof JsonSerializer 是误写——JsonSerializer 是 Gson 的序列化接口，
+    // 任何 Throwable 都不可能实现它，该分支永远不命中；改为 JsonSyntaxException
+    // （Gson 解析格式错误时实际抛出的异常，是 JsonParseException 子类）。
+    //
+    // M95：以下两个常量与下方 Error.UNKNOWN/Error.PARSE_ERROR 数值重复（历史遗留两套常量，
+    // 1000/1001）。保守起见保留常量但直接指向 Error 内同一值，消除两处维护的漂移风险，
+    // 外部引用不断裂。
+    public static final int UNKNOWN = Error.UNKNOWN;
+    public static final int PARSE_ERROR = Error.PARSE_ERROR;
     private String message;
 
     private ApiException(Throwable throwable, int code) {
@@ -75,7 +82,7 @@ public class ApiException extends Exception {
             return ex;
         } else if (e instanceof JsonParseException
                 || e instanceof JSONException
-                || e instanceof JsonSerializer
+                || e instanceof JsonSyntaxException
                 || e instanceof NotSerializableException
                 || e instanceof ParseException) {
             ex = new ApiException(e, Error.PARSE_ERROR);

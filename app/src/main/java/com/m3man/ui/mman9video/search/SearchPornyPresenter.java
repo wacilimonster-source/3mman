@@ -32,6 +32,8 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
     /** M43：当前展示页（onSuccess 后记录，供底部页码栏高亮/定位） */
     private int currentPageShown = 1;
     private Integer totalPage;
+    /** M100：在途搜索请求，新搜索/跳页发起前先取消，防止旧响应晚到串位覆盖新结果 */
+    private Disposable inFlightSearch;
     private DataManager dataManager;
 
     @Inject
@@ -85,6 +87,8 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
 
     private void doSearch(final int currentPage, String searchId, String sort, String time, String views, final boolean jumpMode) {
         AppLog.i(TAG, "分分钟搜索 page=" + currentPage + " keyword=" + searchId);
+        // M100：串位修复——searchVideos/jumpToPage 均汇入本方法，发起前先取消上一条在途请求（保留 ON_DESTROY 绑定）
+        disposeInFlightSearch();
         dataManager.searchPornyVideos(searchId, currentPage, normalizeFilter(sort), normalizeFilter(time), normalizeFilter(views))
                 .map(new Function<BaseResult<List<V9MmanItem>>, List<V9MmanItem>>() {
                     @Override
@@ -106,6 +110,8 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
                 .subscribe(new CallBackWrapper<List<V9MmanItem>>() {
                     @Override
                     public void onBegin(Disposable d) {
+                        // M100：记录本次在途请求，供下一次搜索/跳页发起前取消
+                        inFlightSearch = d;
                         ifViewAttached(new ViewAction<SearchView>() {
                             @Override
                             public void run(@NonNull SearchView view) {
@@ -223,6 +229,14 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
             return "hot";
         }
         return trimmed;
+    }
+
+    /** M100：取消在途搜索请求（若存在） */
+    private void disposeInFlightSearch() {
+        if (inFlightSearch != null && !inFlightSearch.isDisposed()) {
+            inFlightSearch.dispose();
+        }
+        inFlightSearch = null;
     }
 
     @Override

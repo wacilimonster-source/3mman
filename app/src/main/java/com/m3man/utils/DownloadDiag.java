@@ -3,8 +3,9 @@ package com.m3man.utils;
 import android.text.TextUtils;
 
 import java.net.URL;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 下载诊断日志收集器（进程内单例）。
@@ -15,7 +16,19 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class DownloadDiag {
 
-    private static final Map<String, StringBuilder> MAP = new ConcurrentHashMap<>();
+    /**
+     * M97：MAP 换为同步 LinkedHashMap 并加容量上限（>50 移除最早插入的 key），
+     * 防止 viewKey 无限累积导致内存缓慢增长；比 Hashtable 语义更贴合“按插入序淘汰”。
+     */
+    private static final int MAX_KEYS = 50;
+
+    private static final Map<String, StringBuilder> MAP =
+            Collections.synchronizedMap(new LinkedHashMap<String, StringBuilder>(16, 0.75f, false) {
+                @Override
+                protected boolean removeEldestEntry(Entry<String, StringBuilder> eldest) {
+                    return size() > MAX_KEYS;
+                }
+            });
 
     private DownloadDiag() {
     }
@@ -33,12 +46,18 @@ public final class DownloadDiag {
         if (TextUtils.isEmpty(key)) {
             return;
         }
-        StringBuilder sb = MAP.get(key);
-        if (sb == null) {
-            sb = new StringBuilder();
-            MAP.put(key, sb);
+        StringBuilder sb;
+        synchronized (MAP) {
+            sb = MAP.get(key);
+            if (sb == null) {
+                sb = new StringBuilder();
+                MAP.put(key, sb);
+            }
         }
-        sb.append(line).append("\n");
+        // M97：同一 key 可能被多线程并发追加，StringBuilder 非线程安全，须按实例互斥
+        synchronized (sb) {
+            sb.append(line).append("\n");
+        }
     }
 
     /** 读取该 viewKey 的完整诊断文本（无则空串） */
@@ -47,7 +66,12 @@ public final class DownloadDiag {
             return "";
         }
         StringBuilder sb = MAP.get(key);
-        return sb == null ? "" : sb.toString();
+        if (sb == null) {
+            return "";
+        }
+        synchronized (sb) {
+            return sb.toString();
+        }
     }
 
     /** 安全提取 URL host（用于日志脱敏，只记域名不记完整直链） */

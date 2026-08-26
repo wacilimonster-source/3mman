@@ -13,17 +13,21 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import io.reactivex.Observable;
 import io.reactivex.functions.Function;
+import io.reactivex.schedulers.Schedulers;
 
 /**
  * 推荐候选仓库：负责「召回 → 打分 → 排序 → 出队」。
@@ -56,15 +60,28 @@ public class RecoRepository {
     private static final int MAX_SAME_AUTHOR_PER_BATCH = 2;
     /** M77：同一主标签在一批里最多出现的条数（打散用） */
     private static final int MAX_SAME_TAG_PER_BATCH = 2;
-    /** M91：每批方向探测上限，避免首批串行 HTTP 探测阻塞推荐页加载 */
+    /** M91：每批方向探测上限，避免首批探测阻塞推荐页加载 */
     private static final int MAX_PROBES_PER_BATCH = 3;
+    /** M98：单条方向探测 HTTP 超时（原 3000ms 压到 1500ms，配合并行化降低最坏出批延迟） */
+    private static final int PROBE_HTTP_TIMEOUT_MS = 1500;
 
     private final DataManager dataManager;
     private final RecoEngine engine;
     private final Random random = new Random();
 
     private final List<RecoCandidate> pool = new ArrayList<>();
-    private final Set<String> servedKeys = new HashSet<>();
+    /**
+     * M98：已出队 key 改用容量上限 2000 的 LRU（access-order LinkedHashMap + synchronizedMap），
+     * 替代原无界 HashSet——长会话刷屏时旧 key 自动淘汰，防止内存无界增长。
+     * contains 语义不变（containsKey）。
+     */
+    private final Map<String, Boolean> servedKeys = Collections.synchronizedMap(
+            new LinkedHashMap<String, Boolean>(256, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
+                    return size() > 2000;
+                }
+            });
     private final Map<String, Integer> categoryPage = new HashMap<>();
     private final Map<String, Integer> authorPage = new HashMap<>();
 
@@ -127,8 +144,9 @@ public class RecoRepository {
         try {
             URL u = new URL(img);
             conn = (HttpURLConnection) u.openConnection();
-            conn.setConnectTimeout(3000);
-            conn.setReadTimeout(3000);
+            // M98：连接/读取超时从 3000ms 压到 1500ms（配合并行探测，最坏阻塞显著缩短）
+            conn.setConnectTimeout(PROBE_HTTP_TIMEOUT_MS);
+            conn.setReadTimeout(PROBE_HTTP_TIMEOUT_MS);
             conn.setDoInput(true);
             conn.connect();
             is = conn.getInputStream();
@@ -150,6 +168,54 @@ public class RecoRepository {
             if (conn != null) {
                 conn.disconnect();
             }
+        }
+    }
+
+    /**
+     * M98：对未知方向的候选并行探测后阻塞收集结果（须在 IO 线程调用）。
+     * <p>
+     * 替代原先的串行 probe 循环：并发度 3、单条超时 1500ms、单条失败按 UNKNOWN
+     * 吞掉继续，全部结束后才返回，调用方再继续出批逻辑。
+     * 最坏耗时从「3 条 × 3000ms ≈ 9s」降为「2 轮 × 1500ms = 3s」。
+     */
+    private void probeOrientationsParallel(final List<RecoCandidate> targets) {
+        if (targets == null || targets.isEmpty()) {
+            return;
+        }
+        final List<RecoCandidate> unknown = new ArrayList<>();
+        for (RecoCandidate c : targets) {
+            if (c != null && c.orientation == RecoCandidate.ORIENT_UNKNOWN) {
+                unknown.add(c);
+                // 保留原「每批最多探测 MAX_PROBES_PER_BATCH 条」的上限
+                if (unknown.size() >= MAX_PROBES_PER_BATCH) {
+                    break;
+                }
+            }
+        }
+        if (unknown.isEmpty()) {
+            return;
+        }
+        try {
+            Observable.fromIterable(unknown)
+                    .flatMap(new Function<RecoCandidate, Observable<RecoCandidate>>() {
+                        @Override
+                        public Observable<RecoCandidate> apply(final RecoCandidate c) {
+                            return Observable.fromCallable(
+                                    new java.util.concurrent.Callable<RecoCandidate>() {
+                                        @Override
+                                        public RecoCandidate call() {
+                                            probeOrientation(c);
+                                            return c;
+                                        }
+                                    })
+                                    .subscribeOn(Schedulers.io())
+                                    .timeout(PROBE_HTTP_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                                    .onErrorResumeNext(Observable.<RecoCandidate>empty());
+                        }
+                    }, MAX_PROBES_PER_BATCH)
+                    .blockingSubscribe();
+        } catch (Exception ignored) {
+            // 探测整体失败不影响出批，候选保持 UNKNOWN
         }
     }
 
@@ -180,15 +246,8 @@ public class RecoRepository {
             public Observable<List<RecoCandidate>> call() {
                 // M78：方向筛选开启时先补齐池内未知方向的探测（本调用运行在 IO 线程）
                 if (orientationFilter != PlayUiPrefs.FILTER_ALL || autoRotateLandscape) {
-                    int probes = 0;
-                    for (RecoCandidate c : pool) {
-                        if (c.orientation == RecoCandidate.ORIENT_UNKNOWN) {
-                            probeOrientation(c);
-                            if (++probes >= MAX_PROBES_PER_BATCH) {
-                                break;
-                            }
-                        }
-                    }
+                    // M98：串行循环改为并行探测（并发 3 / 单条超时 1500ms），收齐结果再出批
+                    probeOrientationsParallel(pool);
                 }
                 if (countPassing() >= want) {
                     return Observable.just(take(want));
@@ -200,15 +259,8 @@ public class RecoRepository {
                                 addToPool(fetched);
                                 // 新入池的候选同样需要方向探测后再出队
                                 if (orientationFilter != PlayUiPrefs.FILTER_ALL || autoRotateLandscape) {
-                                    int probes = 0;
-                                    for (RecoCandidate c : fetched) {
-                                        if (c.orientation == RecoCandidate.ORIENT_UNKNOWN) {
-                                            probeOrientation(c);
-                                            if (++probes >= MAX_PROBES_PER_BATCH) {
-                                                break;
-                                            }
-                                        }
-                                    }
+                                    // M98：串行循环改为并行探测（并发 3 / 单条超时 1500ms）
+                                    probeOrientationsParallel(fetched);
                                 }
                                 return take(want);
                             }
@@ -270,11 +322,14 @@ public class RecoRepository {
             public List<RecoCandidate> apply(BaseResult<List<V9MmanItem>> result) {
                 return toCandidates(result, rawCategory, from);
             }
-        }).onErrorReturn(new Function<Throwable, List<RecoCandidate>>() {
+        })
+        // M98：错误不再用 onErrorReturn 吞成空批（空批会驱动「连续空批→noMore」限流，
+        // 把瞬时网络失败误判成「没有更多」）。改为原样向下游传播，由 UI 层走
+        // 失败分支处理：不计数、不置 noMore；仅维护 consecutiveFailures 统计。
+        .doOnError(new io.reactivex.functions.Consumer<Throwable>() {
             @Override
-            public List<RecoCandidate> apply(Throwable throwable) {
+            public void accept(Throwable throwable) {
                 consecutiveFailures++;
-                return new ArrayList<>();
             }
         });
     }
@@ -292,11 +347,11 @@ public class RecoRepository {
                         return list;
                     }
                 })
-                .onErrorReturn(new Function<Throwable, List<RecoCandidate>>() {
+                // M98：同 fetchCategory——错误向下游传播，不再伪装成空批
+                .doOnError(new io.reactivex.functions.Consumer<Throwable>() {
                     @Override
-                    public List<RecoCandidate> apply(Throwable throwable) {
+                    public void accept(Throwable throwable) {
                         consecutiveFailures++;
-                        return new ArrayList<>();
                     }
                 });
     }
@@ -323,7 +378,7 @@ public class RecoRepository {
             // 真实发布年份记入候选，由打分器按「越老扣越多」衰减（RecoScorer.computeRecency），
             // 不再在召回阶段直接跳过；解析不出年份的候选走位置近似兜底。
             String key = item.getViewKey();
-            if (servedKeys.contains(key) || store.isSeen(key)) {
+            if (servedKeys.containsKey(key) || store.isSeen(key)) {
                 continue;
             }
             RecoCandidate c = new RecoCandidate(item, categoryValue, from);
@@ -368,7 +423,7 @@ public class RecoRepository {
         }
         for (RecoCandidate c : fetched) {
             String key = c.viewKey();
-            if (TextUtils.isEmpty(key) || inPool.contains(key) || servedKeys.contains(key)) {
+            if (TextUtils.isEmpty(key) || inPool.contains(key) || servedKeys.containsKey(key)) {
                 continue;
             }
             inPool.add(key);
@@ -408,7 +463,7 @@ public class RecoRepository {
             }
             String key = c.viewKey();
             if (c.from == RecoCandidate.FROM_EXPLORE && !TextUtils.isEmpty(key)
-                    && !servedKeys.contains(key) && passesOrientation(c)) {
+                    && !servedKeys.containsKey(key) && passesOrientation(c)) {
                 explorePick.add(c);
                 picked.add(key);
             }
@@ -426,7 +481,7 @@ public class RecoRepository {
                 break;
             }
             String key = c.viewKey();
-            if (TextUtils.isEmpty(key) || servedKeys.contains(key) || picked.contains(key)
+            if (TextUtils.isEmpty(key) || servedKeys.containsKey(key) || picked.contains(key)
                     || !passesOrientation(c)) {
                 continue;
             }
@@ -450,7 +505,7 @@ public class RecoRepository {
                     break;
                 }
                 String key = c.viewKey();
-                if (TextUtils.isEmpty(key) || servedKeys.contains(key) || picked.contains(key)
+                if (TextUtils.isEmpty(key) || servedKeys.containsKey(key) || picked.contains(key)
                         || !passesOrientation(c)) {
                     continue;
                 }
@@ -465,7 +520,7 @@ public class RecoRepository {
         for (RecoCandidate c : out) {
             String key = c.viewKey();
             if (!TextUtils.isEmpty(key)) {
-                servedKeys.add(key);
+                servedKeys.put(key, Boolean.TRUE);
             }
         }
         // 从池子里移除已出队的候选

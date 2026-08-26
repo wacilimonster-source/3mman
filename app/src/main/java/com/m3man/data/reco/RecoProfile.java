@@ -5,10 +5,10 @@ import android.text.TextUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 本地用户兴趣画像。
@@ -27,9 +27,11 @@ public class RecoProfile {
     private static final int MAX_TAG_ENTRIES = 600;
     private static final int MAX_AUTHOR_ENTRIES = 300;
 
-    public final Map<String, Double> tagWeights = new HashMap<>();
-    public final Map<String, Double> authorWeights = new HashMap<>();
-    public final Map<String, Double> categoryWeights = new HashMap<>();
+    // M98：三张权重表换 ConcurrentHashMap——打分（UI 线程）与衰减/落盘快照（IO 线程）并发读写，
+    // 迭代处（decayMap/topAuthors/外部快照拷贝）天然弱一致安全；JSON 序列化 Map 本就无序，无顺序依赖。
+    public final Map<String, Double> tagWeights = new ConcurrentHashMap<>();
+    public final Map<String, Double> authorWeights = new ConcurrentHashMap<>();
+    public final Map<String, Double> categoryWeights = new ConcurrentHashMap<>();
 
     public long lastDecayTime = 0L;
     public int likeCount = 0;
@@ -103,33 +105,37 @@ public class RecoProfile {
 
     /**
      * 按半衰期衰减全部权重。半衰期 = decayDays 天。
+     * <p>
+     * M98：返回是否有实际变更，供引擎决定是否 markDirty（避免每次启动都触发一次全量落盘）。
      *
      * @param nowMillis 当前时间
      * @param decayDays 半衰期（天）
+     * @return 本次是否发生了真实衰减
      */
-    public void applyDecay(long nowMillis, int decayDays) {
+    public boolean applyDecay(long nowMillis, int decayDays) {
         if (lastDecayTime <= 0L) {
             lastDecayTime = nowMillis;
-            return;
+            return false;
         }
         if (decayDays <= 0) {
             lastDecayTime = nowMillis;
-            return;
+            return false;
         }
         long elapsed = nowMillis - lastDecayTime;
         if (elapsed <= 0) {
-            return;
+            return false;
         }
         double days = elapsed / (24.0d * 3600.0d * 1000.0d);
         if (days < 0.5d) {
             // 不足半天不衰减，避免频繁开关 App 造成的精度损失
-            return;
+            return false;
         }
         double factor = Math.pow(0.5d, days / decayDays);
         decayMap(tagWeights, factor);
         decayMap(authorWeights, factor);
         decayMap(categoryWeights, factor);
         lastDecayTime = nowMillis;
+        return true;
     }
 
     private static void decayMap(Map<String, Double> map, double factor) {

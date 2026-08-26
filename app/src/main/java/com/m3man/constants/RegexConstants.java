@@ -40,9 +40,9 @@ public final class RegexConstants {
      */
     public static final String REGEX_EMAIL         = "^\\w+([-+.]\\w+)*@\\w+([-.]\\w+)*\\.\\w+([-.]\\w+)*$";
     /**
-     * 正则：URL
+     * 正则：URL（M99：修正 [a-zA-z] 笔误——原字符集把数字/符号也当"字母"匹配）
      */
-    public static final String REGEX_URL           = "[a-zA-z]+://[^\\s]*";
+    public static final String REGEX_URL           = "[a-zA-Z]+://[^\\s]*";
     /**
      * 正则：汉字
      */

@@ -50,14 +50,23 @@ public class AuthorFavorite {
     /** M92g：该作者任一作品的 viewKey——加密 UID 过期时，作者页用它重拉详情换取新 ownerId */
     private String lastViewKey;
 
-    @Generated(hash = 1546271591)
+    @Generated(hash = 120087474)
     public AuthorFavorite(Long id, @NotNull String authorKey,
-            @NotNull String source, @NotNull String authorName, Date favoriteDate) {
+            @NotNull String source, @NotNull String authorName, Date favoriteDate,
+            Integer videoCount, String topViewKey, Date lastRefreshTime,
+            Date lastNewTime, Boolean hasNew, String coverUrl, String lastViewKey) {
         this.id = id;
         this.authorKey = authorKey;
         this.source = source;
         this.authorName = authorName;
         this.favoriteDate = favoriteDate;
+        this.videoCount = videoCount;
+        this.topViewKey = topViewKey;
+        this.lastRefreshTime = lastRefreshTime;
+        this.lastNewTime = lastNewTime;
+        this.hasNew = hasNew;
+        this.coverUrl = coverUrl;
+        this.lastViewKey = lastViewKey;
     }
     @Generated(hash = 1432017897)
     public AuthorFavorite() {

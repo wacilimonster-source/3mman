@@ -1,7 +1,6 @@
 package com.m3man.ui.mman9video.play;
 
 import android.content.Intent;
-import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -271,8 +270,9 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
                 VideoResult cachedVr = tmp.getVideoResult();
                 String cachedUrl = cachedVr == null ? null : cachedVr.getVideoUrl();
                 if (com.m3man.ui.recommend.RecommendPrefetcher.isSecureUrlExpired(cachedUrl)) {
+                    // M96：日志脱敏——DB 缓存直链只打 scheme://host/path，不打印签名 query
                     AppLog.i(TAG, "initData: DB缓存直链已过期，强制重新解析 viewKey=" + tmp.getViewKey()
-                            + " 过期时间=" + cachedUrl);
+                            + " 过期直链=" + maskUrl(cachedUrl));
                     presenter.loadVideoUrl(tmp);
                     return;
                 }
@@ -336,6 +336,43 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
             lower = lower.substring(0, query);
         }
         return lower.endsWith(".m3u8") || lower.contains(".m3u8/");
+    }
+
+    /**
+     * M96：日志脱敏——URL 只保留 scheme://host/path（丢弃 query 中的签名/token），
+     * 追加原始长度便于排查；解析失败时兜底去掉 query 再截断，绝不打印完整直链。
+     */
+    private static String maskUrl(String u) {
+        if (TextUtils.isEmpty(u)) {
+            return "";
+        }
+        int len = u.length();
+        String head = u;
+        try {
+            java.net.URI uri = java.net.URI.create(u);
+            StringBuilder sb = new StringBuilder();
+            if (uri.getScheme() != null) {
+                sb.append(uri.getScheme()).append("://");
+            }
+            if (uri.getHost() != null) {
+                sb.append(uri.getHost());
+            }
+            if (uri.getPath() != null) {
+                sb.append(uri.getPath());
+            }
+            if (sb.length() > 0) {
+                head = sb.toString();
+            }
+        } catch (Exception e) {
+            int q = u.indexOf('?');
+            if (q >= 0) {
+                head = u.substring(0, q);
+            }
+        }
+        if (head.length() > 96) {
+            head = head.substring(0, 96) + "...";
+        }
+        return head + "|len=" + len;
     }
 
     private void setToolBarLayoutInfo(final V9MmanItem v9MmanItem) {
@@ -710,11 +747,13 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        if (newConfig.orientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE || newConfig.orientation == ActivityInfo.SCREEN_ORIENTATION_USER) {
+        // M96：修复回归——newConfig.orientation 是 Configuration.ORIENTATION_*（横屏=2/竖屏=1），
+        // 误用 ActivityInfo.SCREEN_ORIENTATION_*（横屏=0）导致横竖屏分支永远判不中。
+        if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
             //这里没必要，因为我们使用的是setColorForSwipeBack，并不会有这个虚拟的view，而是设置的padding
             StatusBarUtil.hideFakeStatusBarView(this);
             updateFloatingBackVisibility(true);
-        } else if (newConfig.orientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+        } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT) {
             setStatusBarColor(ContextCompat.getColor(this, R.color.colorPrimary));
             updateFloatingBackVisibility(false);
         }
@@ -739,6 +778,14 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         // R1：释放收藏相关的裸订阅，避免页面销毁后异步回调操作已销毁的 UI
         if (mDisposables != null && !mDisposables.isDisposed()) {
             mDisposables.clear();
+        }
+        // M96：兜底收起加载框，防止「Activity 已销毁但 Dialog 未关闭」的窗口泄漏
+        // （dismissDialog() 带 isFinishing 保护，在 onDestroy 里会被跳过，故这里直接 dismiss）
+        if (mAlertDialog != null && mAlertDialog.isShowing()) {
+            mAlertDialog.dismiss();
+        }
+        if (favoriteDialog != null && favoriteDialog.isShowing()) {
+            favoriteDialog.dismiss();
         }
         super.onDestroy();
     }

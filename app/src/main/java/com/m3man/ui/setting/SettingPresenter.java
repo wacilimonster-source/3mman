@@ -9,26 +9,25 @@ import com.qmuiteam.qmui.widget.grouplist.QMUICommonListItemView;
 import com.trello.rxlifecycle2.LifecycleProvider;
 import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.AutoCompleteEntity;
+import java.util.ArrayList;
 import java.util.List;
 import com.m3man.data.network.Api;
 import com.m3man.rxjava.CallBackWrapper;
 import com.m3man.rxjava.RxSchedulersHelper;
 import com.m3man.ui.MvpBasePresenter;
-import com.m3man.ui.mman9video.search.SearchPresenter;
 import com.m3man.utils.SDCardUtils;
 
 import java.io.File;
 import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
 
 import javax.inject.Inject;
 
 import cn.qqtheme.framework.util.FileUtils;
 import io.reactivex.Observable;
-import io.reactivex.ObservableSource;
+import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
-import io.reactivex.functions.Function;
-import io.reactivex.functions.Predicate;
+import io.reactivex.functions.Consumer;
+import io.reactivex.schedulers.Schedulers;
 import me.jessyan.retrofiturlmanager.RetrofitUrlManager;
 
 /**
@@ -38,7 +37,8 @@ import me.jessyan.retrofiturlmanager.RetrofitUrlManager;
 
 public class SettingPresenter extends MvpBasePresenter<SettingView> implements ISetting {
 
-    private static final String TAG = SearchPresenter.class.getSimpleName();
+    // M100：TAG 原误用 SearchPresenter 类名，导致日志分组错乱，改回本类名
+    private static final String TAG = SettingPresenter.class.getSimpleName();
     private DataManager dataManager;
 
     @Inject
@@ -199,11 +199,104 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
         return dataManager;
     }
 
+    /** M100：下载项检查结果回调（查询已移出主线程，结果回主线程交付） */
+    public interface DownloadCheckCallback {
+        void onResult(boolean has);
+    }
+
+    /**
+     * M100：原实现主线程直查 DB（loadDownloadingData），改为 IO 线程查询后回调，
+     * 调用方在 onResult 里再禁用/放行入口。
+     */
+    public void checkHaveUnFinishDownloadVideo(final DownloadCheckCallback callback) {
+        Observable.fromCallable(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                return dataManager.loadDownloadingData().size() != 0;
+            }
+        })
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .compose(provider.<Boolean>bindUntilEvent(Lifecycle.Event.ON_DESTROY))
+                .subscribe(new Consumer<Boolean>() {
+                    @Override
+                    public void accept(Boolean has) throws Exception {
+                        if (callback != null) {
+                            callback.onResult(has);
+                        }
+                    }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+                        Logger.t(TAG).e(TAG + ": 查询未完成下载失败 " + throwable.getMessage());
+                        // M100：查询异常时保守按「有未完成下载」处理，拦截入口防误操作
+                        if (callback != null) {
+                            callback.onResult(true);
+                        }
+                    }
+                });
+    }
+
+    /**
+     * M100：原实现主线程扫描文件系统，改为 IO 线程查询后回调。
+     */
+    public void checkHaveFinishDownloadVideoFile(final DownloadCheckCallback callback) {
+        Observable.fromCallable(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                if (!TextUtils.isEmpty(dataManager.getCustomDownloadVideoDirPath())) {
+                    File file = new File(dataManager.getCustomDownloadVideoDirPath());
+                    return file.listFiles() != null && file.listFiles().length != 0;
+                }
+                File file = new File(SDCardUtils.DOWNLOAD_VIDEO_PATH);
+                //检查是否有MP4文件
+                File[] children = file.listFiles();
+                if (children == null) {
+                    return false;
+                }
+                for (File file1 : children) {
+                    if (file1.getName().endsWith(".mp4")) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        })
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .compose(provider.<Boolean>bindUntilEvent(Lifecycle.Event.ON_DESTROY))
+                .subscribe(new Consumer<Boolean>() {
+                    @Override
+                    public void accept(Boolean has) throws Exception {
+                        if (callback != null) {
+                            callback.onResult(has);
+                        }
+                    }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable throwable) throws Exception {
+                        Logger.t(TAG).e(TAG + ": 扫描已下载文件失败 " + throwable.getMessage());
+                        // M100：扫描异常按「无可移动文件」处理，放行走直接设置目录的分支
+                        if (callback != null) {
+                            callback.onResult(false);
+                        }
+                    }
+                });
+    }
+
+    /**
+     * M100：保留接口同步实现仅作兼容（界面入口已改走 checkHaveUnFinishDownloadVideo），
+     * 禁止在主线程调用。
+     */
     @Override
     public boolean isHaveUnFinishDownloadVideo() {
         return dataManager.loadDownloadingData().size() != 0;
     }
 
+    /**
+     * M100：保留接口同步实现仅作兼容（界面入口已改走 checkHaveFinishDownloadVideoFile），
+     * 禁止在主线程调用。
+     */
     @Override
     public boolean isHaveFinishDownloadVideoFile() {
         if (!TextUtils.isEmpty(dataManager.getCustomDownloadVideoDirPath())) {
@@ -226,32 +319,42 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
 
     @Override
     public void moveOldDownloadVideoToNewDir(final String newDirPath, final QMUICommonListItemView qmuiCommonListItemView) {
-        Observable.fromCallable(new Callable<File[]>() {
+        Observable.fromCallable(new Callable<List<String>>() {
             @Override
-            public File[] call() throws Exception {
-                File file = new File(dataManager.getCustomDownloadVideoDirPath());
-                return file.listFiles();
+            public List<String> call() throws Exception {
+                File oldDir = new File(dataManager.getCustomDownloadVideoDirPath());
+                File[] files = oldDir.listFiles();
+                List<String> movedSrcPaths = new ArrayList<>();
+                if (files == null) {
+                    return movedSrcPaths;
+                }
+                try {
+                    for (File file : files) {
+                        if (!file.getName().endsWith(".mp4")) {
+                            continue;
+                        }
+                        FileUtils.move(file, new File(newDirPath, file.getName()));
+                        movedSrcPaths.add(file.getAbsolutePath());
+                    }
+                } catch (Exception e) {
+                    // M100：任一移动失败→把已成功移动的文件移回原位（回滚），保证不出现半迁移状态；
+                    // 失败即整单失败，不写 SP、不放行新目录
+                    for (int i = movedSrcPaths.size() - 1; i >= 0; i--) {
+                        File src = new File(movedSrcPaths.get(i));
+                        try {
+                            FileUtils.move(new File(newDirPath, src.getName()), src);
+                        } catch (Exception rollbackErr) {
+                            Logger.t(TAG).e(TAG + ": 回滚文件失败 " + src.getName() + " " + rollbackErr.getMessage());
+                        }
+                    }
+                    throw new IllegalStateException("移动文件失败：" + e.getMessage(), e);
+                }
+                return movedSrcPaths;
             }
-        }).flatMap(new Function<File[], ObservableSource<File>>() {
-            @Override
-            public ObservableSource<File> apply(File[] files) throws Exception {
-                return Observable.fromArray(files);
-            }
-        }).filter(new Predicate<File>() {
-            @Override
-            public boolean test(File file) throws Exception {
-                return file.getName().endsWith(".mp4");
-            }
-        }).map(new Function<File, String>() {
-            @Override
-            public String apply(File file) throws Exception {
-                FileUtils.move(file, new File(newDirPath, file.getName()));
-                return file.getAbsolutePath();
-            }
-        }).delay(1, TimeUnit.SECONDS)
-                .compose(RxSchedulersHelper.<String>ioMainThread())
-                .compose(provider.<String>bindUntilEvent(Lifecycle.Event.ON_DESTROY))
-                .subscribe(new CallBackWrapper<String>() {
+        })
+                .compose(RxSchedulersHelper.<List<String>>ioMainThread())
+                .compose(provider.<List<String>>bindUntilEvent(Lifecycle.Event.ON_DESTROY))
+                .subscribe(new CallBackWrapper<List<String>>() {
 
                     @Override
                     public void onBegin(Disposable d) {
@@ -264,8 +367,8 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
                     }
 
                     @Override
-                    public void onSuccess(final String s) {
-                        Logger.t(TAG).d("正在移动到：" + s);
+                    public void onSuccess(final List<String> movedPaths) {
+                        Logger.t(TAG).d("已全部移动 " + movedPaths.size() + " 个文件到：" + newDirPath);
                     }
 
                     @Override
@@ -284,6 +387,7 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
                         ifViewAttached(new ViewAction<SettingView>() {
                             @Override
                             public void run(@NonNull SettingView view) {
+                                // M100：全部成功才写 SP 放行新目录
                                 dataManager.setCustomDownloadVideoDirPath(newDirPath);
                                 qmuiCommonListItemView.setDetailText(newDirPath);
                                 view.setNewDownloadVideoDirSuccess("移动文件完成,设置新目录成功");

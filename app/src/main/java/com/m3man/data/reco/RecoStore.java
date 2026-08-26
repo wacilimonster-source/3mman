@@ -11,9 +11,12 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -56,6 +59,8 @@ public class RecoStore {
 
     private boolean loaded = false;
     private boolean dirty = false;
+    /** M98：脏变更序号——锁外写盘期间若有新 markDirty，可据此判断不能清 dirty 位 */
+    private long dirtySeq = 0L;
     /** 上次画像学习所用的词典版本；与当前词典不一致时 RecoEngine 会自动重置画像 */
     private int dictVersion = 0;
 
@@ -96,7 +101,7 @@ public class RecoStore {
                 it.remove();
             }
         }
-        dirty = true;
+        markDirtyInternal();
     }
 
     /** 记录作者昵称（供「学习记录」展示） */
@@ -118,7 +123,7 @@ public class RecoStore {
             it.next();
             it.remove();
         }
-        dirty = true;
+        markDirtyInternal();
     }
 
     public synchronized String authorName(String authorId) {
@@ -162,11 +167,17 @@ public class RecoStore {
             it.next();
             it.remove();
         }
-        dirty = true;
+        markDirtyInternal();
     }
 
     public synchronized void markDirty() {
+        markDirtyInternal();
+    }
+
+    /** M98：置脏 + 递增变更序号（供锁外写盘后判断期间是否有新变更） */
+    private void markDirtyInternal() {
         dirty = true;
+        dirtySeq++;
     }
 
     public synchronized int seenSize() {
@@ -184,7 +195,7 @@ public class RecoStore {
     public synchronized void setDictVersion(int version) {
         ensureLoaded();
         dictVersion = version;
-        dirty = true;
+        markDirtyInternal();
         save();
     }
 
@@ -195,7 +206,7 @@ public class RecoStore {
         actions.clear();
         seen.clear();
         authorNames.clear();
-        dirty = true;
+        markDirtyInternal();
         save();
     }
 
@@ -296,7 +307,13 @@ public class RecoStore {
         }
     }
 
-    /** 写盘（原子替换）。调用方应放到 IO 线程。 */
+    /**
+     * 写盘（原子替换）。调用方应放到 IO 线程。
+     * <p>
+     * M98：锁内只做画像/交互快照拷贝（三张权重表 + actions/seen/authorNames 浅拷贝），
+     * JSON 构建与文件 IO 全部移到锁外执行，避免持锁写盘阻塞 UI 线程的
+     * getAction/isSeen 等同步读路径。写盘成功且期间无新变更时才清 dirty 位。
+     */
     public synchronized void save() {
         ensureLoaded();
         if (!dirty) {
@@ -309,6 +326,31 @@ public class RecoStore {
         if (!dir.exists() && !dir.mkdirs()) {
             return;
         }
+        long seqAtStart = dirtySeq;
+        // ---- 锁内：快照拷贝（仅内存操作）----
+        StateSnapshot snap = new StateSnapshot();
+        snap.tags = new HashMap<>(profile.tagWeights);
+        snap.authors = new HashMap<>(profile.authorWeights);
+        snap.categories = new HashMap<>(profile.categoryWeights);
+        snap.lastDecayTime = profile.lastDecayTime;
+        snap.likeCount = profile.likeCount;
+        snap.dislikeCount = profile.dislikeCount;
+        snap.favoriteCount = profile.favoriteCount;
+        snap.watchCount = profile.watchCount;
+        snap.actions = new LinkedHashMap<>(actions);
+        snap.seen = new ArrayList<>(seen);
+        snap.authorNames = new LinkedHashMap<>(authorNames);
+        snap.dictVersion = dictVersion;
+        // ---- 锁外（同线程、无监视器）：JSON 构建 + 文件 IO ----
+        boolean ok = writeToDisk(snap, dir);
+        if (ok && dirtySeq == seqAtStart) {
+            // 写盘期间没有新变更才清脏位；否则保留 dirty 等下次合并落盘
+            dirty = false;
+        }
+    }
+
+    /** M98：锁外执行的 JSON 构建 + 原子替换写盘，只读快照不碰成员状态 */
+    private boolean writeToDisk(StateSnapshot snap, File dir) {
         File tmp = new File(dir, TMP);
         File dst = new File(dir, FILE);
         FileOutputStream fos = null;
@@ -316,23 +358,23 @@ public class RecoStore {
         try {
             JSONObject root = new JSONObject();
             JSONObject prof = new JSONObject();
-            prof.put("tags", new JSONObject(profile.tagWeights));
-            prof.put("authors", new JSONObject(profile.authorWeights));
-            prof.put("categories", new JSONObject(profile.categoryWeights));
-            prof.put("lastDecayTime", profile.lastDecayTime);
-            prof.put("likeCount", profile.likeCount);
-            prof.put("dislikeCount", profile.dislikeCount);
-            prof.put("favoriteCount", profile.favoriteCount);
-            prof.put("watchCount", profile.watchCount);
+            prof.put("tags", new JSONObject(snap.tags));
+            prof.put("authors", new JSONObject(snap.authors));
+            prof.put("categories", new JSONObject(snap.categories));
+            prof.put("lastDecayTime", snap.lastDecayTime);
+            prof.put("likeCount", snap.likeCount);
+            prof.put("dislikeCount", snap.dislikeCount);
+            prof.put("favoriteCount", snap.favoriteCount);
+            prof.put("watchCount", snap.watchCount);
             root.put("profile", prof);
-            root.put("actions", new JSONObject(actions));
+            root.put("actions", new JSONObject(snap.actions));
             JSONArray arr = new JSONArray();
-            for (String s : seen) {
+            for (String s : snap.seen) {
                 arr.put(s);
             }
             root.put("seen", arr);
-            root.put("authorNames", new JSONObject(authorNames));
-            root.put("dictVersion", dictVersion);
+            root.put("authorNames", new JSONObject(snap.authorNames));
+            root.put("dictVersion", snap.dictVersion);
             root.put("v", 1);
 
             fos = new FileOutputStream(tmp);
@@ -349,15 +391,32 @@ public class RecoStore {
             }
             if (!tmp.renameTo(dst)) {
                 android.util.Log.w("RecoStore", "state rename failed");
-                return;
+                return false;
             }
-            dirty = false;
+            return true;
         } catch (Exception e) {
             android.util.Log.w("RecoStore", "save reco state failed: " + e.getMessage());
+            return false;
         } finally {
             close(writer);
             close(fos);
         }
+    }
+
+    /** M98：save() 锁内拷贝出的不可变快照（字段即拷贝时刻的值） */
+    private static final class StateSnapshot {
+        Map<String, Double> tags;
+        Map<String, Double> authors;
+        Map<String, Double> categories;
+        long lastDecayTime;
+        int likeCount;
+        int dislikeCount;
+        int favoriteCount;
+        int watchCount;
+        Map<String, Integer> actions;
+        List<String> seen;
+        Map<String, String> authorNames;
+        int dictVersion;
     }
 
     private File stateDir() {

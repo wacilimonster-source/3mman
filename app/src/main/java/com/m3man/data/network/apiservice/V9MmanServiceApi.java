@@ -119,22 +119,8 @@ public interface V9MmanServiceApi {
     @GET("/my_favour.php")
     Observable<String> myFavoriteVideo(@Query("page") int page, @Header("Referer") String referer);
 
-    /**
-     * 删除我的收藏
-     * rvid=250198&removfavour=Remove+FavoriteJsonResult&x=45&y=19
-     *
-     * @param rvid        要删除的视频id
-     * @param removFavour 标志
-     * @param x           点击x
-     * @param y           点击y
-     * @param referer     rf
-     * @return ob
-     */
-    @Headers({"Domain-Name: " + Api.PORN9_VIDEO_DOMAIN_NAME})
-    @FormUrlEncoded
-    @POST("/my_favour.php")
-    Observable<String> deleteMyFavoriteVideo(@Field("rvid") String rvid, @Field("removfavour") String removFavour, @Field("x") int x, @Field("y") int y, @Header("Referer") String referer);
-
+    // M95：原 deleteMyFavoriteVideo(rvid, removfavour, x:int, y:int, referer) 死重载已删除
+    // （全局 grep 确认无任何调用，唯一调用方 AppApiHelper 使用下方 submit 变体）
     @Headers({"Domain-Name: " + Api.PORN9_VIDEO_DOMAIN_NAME})
     @FormUrlEncoded
     @POST("/my_favour.php")

@@ -33,10 +33,12 @@ public class RulerCookie extends PersistentCookieJar {
             List<Cookie> requestCookies = new ArrayList<>();
             List<Cookie> cookies = super.loadForRequest(url);
             for (Cookie cookie : cookies) {
-                String value = cookie.toString();
+                // M95：黑名单匹配改为 cookie 名精确（忽略大小写）比较。
+                // 旧实现 cookie.toString().contains(blackName) 会把 VALUE 值中恰好含
+                // 黑名单子串的无关 cookie 误杀（如值里带 "level" 的普通 cookie 被误删）。
                 boolean useful = true;
                 for (String blackName: BLACK_COOKIE) {
-                    if (value.contains(blackName)){
+                    if (cookie.name().equalsIgnoreCase(blackName)){
                         useful = false;
                         break;
                     }

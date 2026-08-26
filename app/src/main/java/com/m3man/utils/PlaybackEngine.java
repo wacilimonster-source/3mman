@@ -36,6 +36,11 @@ public class PlaybackEngine {
                 intent.setClass(context, JiaoZiVideoPlayerActivity.class);
                 break;
             default:
+                // M99：未知引擎值回退默认播放引擎，避免返回无 component 的空 Intent
+                // 导致 startActivity 抛 ActivityNotFoundException
+                intent.setClass(context, DEFAULT_PLAYER_ENGINE == EXOMEDIAPLAYER_ENGINE
+                        ? ExoMediaPlayerActivity.class : JiaoZiVideoPlayerActivity.class);
+                break;
         }
         return intent;
     }

@@ -12,6 +12,8 @@ import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -61,6 +63,8 @@ public class ProxySettingActivity extends MvpActivity<ProxyView, ProxyPresenter>
     SwipeRefreshLayout swipeLayout;
     private AlertDialog testAlertDialog;
     private boolean isTestSuccess = false;
+    /** M100：「完成」时若测试结果已失效，先自动补测一次，成功后再继续保存流程 */
+    private boolean pendingSaveAfterTest = false;
     private ProxyAdapter proxyAdapter;
     private LoadViewHelper helper;
 
@@ -138,6 +142,33 @@ public class ProxySettingActivity extends MvpActivity<ProxyView, ProxyPresenter>
                 presenter.parseXiCiDaiLi(true);
             }
         });
+        // M100：任意编辑 IP/端口即令旧测试结果失效，防止「A 地址测试通过后残留到 B 地址」跨输入串用
+        TextWatcher invalidateTester = new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                isTestSuccess = false;
+            }
+        };
+        hookProxyInputChanged(invalidateTester);
+    }
+
+    /** M100：IpInputEditText 是复合控件（内部 4 个子 EditText），需逐个挂钩才能监听 IP 编辑；端口框单独挂 */
+    private void hookProxyInputChanged(TextWatcher watcher) {
+        for (int i = 0; i < etDialogProxySettingIpAddress.getChildCount(); i++) {
+            View child = etDialogProxySettingIpAddress.getChildAt(i);
+            if (child instanceof EditText) {
+                ((EditText) child).addTextChangedListener(watcher);
+            }
+        }
+        etDialogProxySettingPort.addTextChangedListener(watcher);
     }
 
     @NonNull
@@ -188,18 +219,22 @@ public class ProxySettingActivity extends MvpActivity<ProxyView, ProxyPresenter>
     }
 
     private void doSettingProxy() {
-        if (!isTestSuccess) {
-            showMessage("未有成功测试的代理，无法设置", TastyToast.INFO);
-            return;
-        }
-        presenter.exitTest();
         String proxyIpAddress = etDialogProxySettingIpAddress.getIpAddressStr();
         String proxyPortStr = etDialogProxySettingPort.getText().toString().trim();
         int proxyPort = parsePort(proxyPortStr);
-        if (proxyPort < 0) {
+        if (TextUtils.isEmpty(proxyIpAddress) || proxyPort < 0) {
             showMessage("无法设置，代理端口错误，请检查（有效范围 1-65535）", TastyToast.INFO);
             return;
         }
+        if (!isTestSuccess) {
+            // M100：保存即开启代理开关；输入被编辑后旧测试结果已失效——先自动补测一次，
+            // 成功（testProxySuccess 回调）后继续本方法落盘，失败 Toast 并中止保存
+            pendingSaveAfterTest = true;
+            presenter.exitTest();
+            presenter.testProxy(proxyIpAddress, proxyPort);
+            return;
+        }
+        presenter.exitTest();
         //设置开启代理并存储地址和端口号
         presenter.setOpenHttpProxy(true);
         presenter.setProxyIpAddress(proxyIpAddress);
@@ -266,10 +301,17 @@ public class ProxySettingActivity extends MvpActivity<ProxyView, ProxyPresenter>
     public void testProxySuccess(String message) {
         isTestSuccess = true;
         showMessage(message, TastyToast.SUCCESS);
+        // M100：自动补测成功→继续此前挂起的「完成」保存流程
+        if (pendingSaveAfterTest) {
+            pendingSaveAfterTest = false;
+            doSettingProxy();
+        }
     }
 
     @Override
     public void testProxyError(String message) {
+        // M100：测试（含自动补测）失败→中止保存流程，仅提示
+        pendingSaveAfterTest = false;
         dismissDialog();
         showMessage(message, TastyToast.ERROR);
     }

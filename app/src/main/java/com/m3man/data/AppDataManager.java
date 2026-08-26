@@ -542,6 +542,10 @@ public class AppDataManager implements DataManager {
         // H6：同时清空持久化的登录用户名，否则重启后构造函数会再次恢复"假登录态"。
         // 设置页与"我的"页退出均走此路径，统一在此清理可保证两处行为一致。
         mPreferencesHelper.setMman9VideoLoginUserName("");
+        // M94：登出同时清理密码 SP 键（空串触发 helper 内部 remove，键名不变），
+        // 并关闭自动登录标记，避免换账号登录页自动填充他人密码。
+        mPreferencesHelper.setMman9VideoLoginUserPassWord("");
+        mPreferencesHelper.setMman9VideoUserAutoLogin(false);
     }
 
     @Override

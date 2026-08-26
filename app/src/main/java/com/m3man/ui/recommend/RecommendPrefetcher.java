@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -56,6 +57,8 @@ public class RecommendPrefetcher {
     private static final int MAX_CACHE = 60;
     /** 只对紧邻的 N 条做字节级预热（解析本身按 prefetchAhead 做） */
     private static final int WARM_AHEAD = 1;
+    /** M98：负缓存 TTL——解析失败后 10 分钟内直接快速失败，不再反复打详情页 */
+    private static final long NEGATIVE_CACHE_TTL_MS = 10L * 60L * 1000L;
 
     /** 解析回调 */
     public interface ResolveCallback {
@@ -77,6 +80,11 @@ public class RecommendPrefetcher {
     private final LinkedHashMap<String, String> urlCache = new LinkedHashMap<>();
     private final Set<String> inFlight = new HashSet<>();
     private final Set<String> warmed = new HashSet<>();
+    /**
+     * M98：负缓存——viewKey -> 失败封禁截止时间（elapsedRealtime）。
+     * 解析失败的 key 在 TTL 内直接 fail-fast，避免反复对同一条死链打详情页网络请求。
+     */
+    private final Map<String, Long> failedUntil = new ConcurrentHashMap<>();
     /**
      * viewKey -> 等待该 key 解析结果的回调列表。
      * 同一条视频可能被「起播」和「下载」同时等待，所以是一对多，
@@ -165,7 +173,14 @@ public class RecommendPrefetcher {
     }
 
     /**
-     * 立刻要播：命中缓存就同步回调，否则发起解析并在完成后回调。
+     * 立刻要播：命中内存缓存就同步回调，否则发起解析并在完成后回调。
+     * <p>
+     * M98：本方法可能在主线程被调用——已移除原先的同步 DB 查库
+     * （findV9MmanItemByViewKey 是 greenDAO 磁盘读，会卡主线程）。
+     * resolveNow 只做「内存缓存命中判断 + 负缓存 fail-fast」，
+     * 未命中直接挂回调走 {@link #parse} 异步链；DB 缓存直链的检查
+     * 移到 parse 链起始的 IO 线程执行。调用方（起播 / 下载）本就按
+     * 异步回调模式编写（onResolved/onFailed），无需额外适配。
      */
     public void resolveNow(final RecoCandidate candidate, final ResolveCallback callback) {
         if (candidate == null || candidate.item == null || TextUtils.isEmpty(candidate.viewKey())) {
@@ -191,25 +206,14 @@ public class RecommendPrefetcher {
                 return;
             }
         }
-        // M72：DB 里存着旧的 VideoResult（含过期直链）时同样强制重新解析，
-        // 避免拿到 10 天前的签名 URL 去建本地代理流。
-        try {
-            V9MmanItem dbItem = dataManager.findV9MmanItemByViewKey(viewKey);
-            VideoResult dbVr = (dbItem == null || dbItem.getVideoResultId() == 0)
-                    ? null : dbItem.getVideoResult();
-            if (dbVr != null && isSecureUrlExpired(dbVr.getVideoUrl())) {
-                AppLog.i(TAG, "DB直链已过期，强制重新解析 viewKey=" + viewKey);
-            } else if (dbVr != null && !TextUtils.isEmpty(dbVr.getVideoUrl())) {
-                // DB 直链仍有效：入缓存并直接起播
-                put(viewKey, dbVr.getVideoUrl());
-                if (callback != null) {
-                    callback.onResolved(viewKey, toPlayUrl(dbVr.getVideoUrl()), candidate.item);
-                }
-                warm(dbVr.getVideoUrl());
-                return;
+        // M98：负缓存未到期直接快速失败，不打网络请求
+        Long until = failedUntil.get(viewKey);
+        if (until != null && android.os.SystemClock.elapsedRealtime() < until) {
+            AppLog.i(TAG, "负缓存命中，跳过解析 viewKey=" + viewKey);
+            if (callback != null) {
+                callback.onFailed(viewKey, "解析视频链接失败了");
             }
-        } catch (Throwable ignored) {
-            // DB 查询失败不影响后续解析流程
+            return;
         }
         if (callback != null) {
             synchronized (waiting) {
@@ -272,6 +276,19 @@ public class RecommendPrefetcher {
 
     private void parse(final RecoCandidate candidate, final boolean urgent) {
         final String viewKey = candidate.viewKey();
+        // M98：负缓存 fail-fast——TTL 内失败过的 key 不再发起网络解析，直接回调失败
+        Long until = failedUntil.get(viewKey);
+        if (until != null && android.os.SystemClock.elapsedRealtime() < until) {
+            AppLog.i(TAG, "负缓存命中(parse)，跳过 viewKey=" + viewKey);
+            for (ResolveCallback cb : drainWaiting(viewKey)) {
+                try {
+                    cb.onFailed(viewKey, "解析视频链接失败了");
+                } catch (Exception e) {
+                    Logger.t(TAG).d("failed callback error: " + e.getMessage());
+                }
+            }
+            return;
+        }
         synchronized (inFlight) {
             if (released || inFlight.contains(viewKey)) {
                 return;
@@ -287,7 +304,21 @@ public class RecommendPrefetcher {
         final Observable<VideoResult> parseObs = isHexViewKey
                 ? dataManager.loadPornyVideoUrl(viewKey)
                 : dataManager.loadMman9VideoUrl(viewKey);
-        disposables.add(parseObs
+        disposables.add(Observable
+                // M98：链路起始（IO 线程）先查 DB 缓存的 raw url，命中且未过期直接回调，
+                // 不再发起详情页网络请求（resolveNow 已不再主线程查库，DB 检查移到这里）
+                .defer(new java.util.concurrent.Callable<Observable<VideoResult>>() {
+                    @Override
+                    public Observable<VideoResult> call() {
+                        VideoResult dbCached = loadDbCachedResult(viewKey);
+                        if (dbCached != null) {
+                            AppLog.i(TAG, "DB缓存直链命中，跳过网络解析 viewKey=" + viewKey);
+                            put(viewKey, dbCached.getVideoUrl());
+                            return Observable.just(dbCached);
+                        }
+                        return parseObs;
+                    }
+                })
                 .subscribeOn(Schedulers.io())
                 .map(videoResult -> {
                     if (videoResult == null || TextUtils.isEmpty(videoResult.getVideoUrl())) {
@@ -313,6 +344,29 @@ public class RecommendPrefetcher {
                         throwable -> onParseFailed(viewKey, throwable)));
     }
 
+    /**
+     * M98：IO 线程查 DB 里缓存的直链（原 resolveNow 主线程查库逻辑的迁移）。
+     * 直链为空或 secure 签名已过期时返回 null → 走网络重新解析。
+     */
+    private VideoResult loadDbCachedResult(String viewKey) {
+        try {
+            V9MmanItem dbItem = dataManager.findV9MmanItemByViewKey(viewKey);
+            VideoResult dbVr = (dbItem == null || dbItem.getVideoResultId() == 0)
+                    ? null : dbItem.getVideoResult();
+            if (dbVr == null || TextUtils.isEmpty(dbVr.getVideoUrl())) {
+                return null;
+            }
+            if (isSecureUrlExpired(dbVr.getVideoUrl())) {
+                AppLog.i(TAG, "DB直链已过期，强制重新解析 viewKey=" + viewKey);
+                return null;
+            }
+            return dbVr;
+        } catch (Throwable ignored) {
+            // DB 查询失败不影响后续网络解析流程
+            return null;
+        }
+    }
+
     private static String shortUrl(String url) {
         if (url == null) {
             return "null";
@@ -332,6 +386,8 @@ public class RecommendPrefetcher {
         synchronized (inFlight) {
             inFlight.remove(viewKey);
         }
+        // M98：解析成功，解除负缓存封禁
+        failedUntil.remove(viewKey);
         put(viewKey, videoResult.getVideoUrl());
         // 回填作者，供作者召回与作者收藏使用
         if (!TextUtils.isEmpty(videoResult.getOwnerId())) {
@@ -356,6 +412,11 @@ public class RecommendPrefetcher {
     private void onParseFailed(String viewKey, Throwable throwable) {
         synchronized (inFlight) {
             inFlight.remove(viewKey);
+        }
+        // M98：记入负缓存，10 分钟内对该 key 的解析请求直接 fail-fast
+        if (!TextUtils.isEmpty(viewKey)) {
+            failedUntil.put(viewKey,
+                    android.os.SystemClock.elapsedRealtime() + NEGATIVE_CACHE_TTL_MS);
         }
         String msg = throwable == null || TextUtils.isEmpty(throwable.getMessage())
                 ? "解析视频链接失败了" : throwable.getMessage();
@@ -516,6 +577,8 @@ public class RecommendPrefetcher {
         synchronized (inFlight) {
             inFlight.clear();
         }
+        // M98：一并清空负缓存，避免复用实例时旧失败记录误伤新会话
+        failedUntil.clear();
         try {
             warmExecutor.shutdownNow();
         } catch (Exception ignored) {

@@ -21,7 +21,6 @@ import com.qmuiteam.qmui.widget.grouplist.QMUIGroupListView;
 import com.sdsmdg.tastytoast.TastyToast;
 import com.m3man.R;
 import com.m3man.data.model.UpdateVersion;
-import com.m3man.service.UpdateDownloadService;
 import com.m3man.ui.MvpActivity;
 import com.m3man.ui.update.UpdateActivity;
 import com.m3man.utils.ApkVersionUtils;
@@ -318,9 +317,12 @@ public class AboutActivity extends MvpActivity<AboutView, AboutPresenter> implem
     }
 
     private void dismissDialog() {
+        // M97：两个 loading dialog 各自独立判断关闭——旧写法用 else-if，
+        // alertDialog 在展示时 cleanCacheDialog 即使在展示也永远关不掉
         if (alertDialog != null && alertDialog.isShowing() && !isFinishing()) {
             alertDialog.dismiss();
-        } else if (cleanCacheDialog != null && cleanCacheDialog.isShowing() && !isFinishing()) {
+        }
+        if (cleanCacheDialog != null && cleanCacheDialog.isShowing() && !isFinishing()) {
             cleanCacheDialog.dismiss();
         }
     }

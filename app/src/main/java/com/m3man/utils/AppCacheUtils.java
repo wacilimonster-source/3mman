@@ -29,7 +29,9 @@ public class AppCacheUtils {
     public static File getRxCacheDir(Context context) {
         String path;
         if (SDCardUtils.isSDCardMounted()) {
-            path = context.getExternalCacheDir() + RX_CACHE_DIR;
+            // M99：getExternalCacheDir 可能返回 null（外存未挂载/被清空），回退内部缓存目录
+            File externalCacheDir = context.getExternalCacheDir();
+            path = (externalCacheDir != null ? externalCacheDir.getAbsolutePath() : context.getCacheDir().getAbsolutePath()) + RX_CACHE_DIR;
         } else {
             path = context.getCacheDir() + RX_CACHE_DIR;
         }
@@ -50,7 +52,9 @@ public class AppCacheUtils {
     public static File getVideoCacheDir(Context context) {
         String path;
         if (SDCardUtils.isSDCardMounted()) {
-            path = context.getExternalCacheDir() + VIDEO_CACHE_DIR;
+            // M99：getExternalCacheDir 可能返回 null（外存未挂载/被清空），回退内部缓存目录
+            File externalCacheDir = context.getExternalCacheDir();
+            path = (externalCacheDir != null ? externalCacheDir.getAbsolutePath() : context.getCacheDir().getAbsolutePath()) + VIDEO_CACHE_DIR;
         } else {
             path = context.getCacheDir() + VIDEO_CACHE_DIR;
         }
@@ -70,7 +74,9 @@ public class AppCacheUtils {
     public static File getGlideDiskCacheDir(Context context) {
         String path;
         if (SDCardUtils.isSDCardMounted()) {
-            path = context.getExternalCacheDir() + GLIDE_DIS_CACHE_DIR;
+            // M99：getExternalCacheDir 可能返回 null（外存未挂载/被清空），回退内部缓存目录
+            File externalCacheDir = context.getExternalCacheDir();
+            path = (externalCacheDir != null ? externalCacheDir.getAbsolutePath() : context.getCacheDir().getAbsolutePath()) + GLIDE_DIS_CACHE_DIR;
         } else {
             path = context.getCacheDir() + GLIDE_DIS_CACHE_DIR;
         }

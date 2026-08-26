@@ -31,6 +31,8 @@ public class SearchPresenter extends MvpBasePresenter<SearchView> implements ISe
     private LifecycleProvider<Lifecycle.Event> provider;
     private int page = 1;
     private Integer totalPage;
+    /** M100：在途搜索请求，新搜索发起前先取消，防止旧响应晚到串位覆盖新结果 */
+    private Disposable inFlightSearch;
     private DataManager dataManager;
 
     @Inject
@@ -46,6 +48,8 @@ public class SearchPresenter extends MvpBasePresenter<SearchView> implements ISe
         if (pullToRefresh) {
             page = 1;
         }
+        // M100：串位修复——发起本次搜索前先取消上一条在途请求（保留 ON_DESTROY 绑定）
+        disposeInFlightSearch();
         dataManager.searchMman9Videos(viewType, page, searchType, searchId, sort)
                 .map(new Function<BaseResult<List<V9MmanItem>>, List<V9MmanItem>>() {
                     @Override
@@ -54,9 +58,10 @@ public class SearchPresenter extends MvpBasePresenter<SearchView> implements ISe
                             throw new MessageException(baseResult.getMessage());
                         }
                         // M73：任意页响应都刷新 totalPage，避免首屏后站点总页数变化/初始为 null 时误判
-                        if (baseResult.getTotalPage() != null && baseResult.getTotalPage() > 0) {
-                            totalPage = baseResult.getTotalPage();
-                        }
+                        // M100：totalPage 判空兜底——接口未返回或非法时按 1 处理，
+                        // 修复下方 onSuccess 里 page == totalPage 的自动拆箱 NPE
+                        Integer tp = baseResult.getTotalPage();
+                        totalPage = (tp == null || tp < 1) ? 1 : tp;
                         return baseResult.getData();
                     }
                 })
@@ -66,6 +71,8 @@ public class SearchPresenter extends MvpBasePresenter<SearchView> implements ISe
                 .subscribe(new CallBackWrapper<List<V9MmanItem>>() {
                     @Override
                     public void onBegin(Disposable d) {
+                        // M100：记录本次在途请求，供下一次搜索发起前取消
+                        inFlightSearch = d;
                         ifViewAttached(new ViewAction<SearchView>() {
                             @Override
                             public void run(@NonNull SearchView view) {
@@ -114,6 +121,14 @@ public class SearchPresenter extends MvpBasePresenter<SearchView> implements ISe
                         });
                     }
                 });
+    }
+
+    /** M100：取消在途搜索请求（若存在） */
+    private void disposeInFlightSearch() {
+        if (inFlightSearch != null && !inFlightSearch.isDisposed()) {
+            inFlightSearch.dispose();
+        }
+        inFlightSearch = null;
     }
 
     @Override

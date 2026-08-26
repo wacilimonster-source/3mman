@@ -43,6 +43,8 @@ public class Parse91PornyVideo {
     private static final Pattern JS_VIDEO_URL = Pattern.compile("(?:file|videoUrl|video_url|mp4_url|mp4Url|data-src|src)\\s*[:=]\\s*['\"]([^'\"]+\\.(?:mp4|m3u8)(?:\\?[^'\"]*)?)['\"]", Pattern.CASE_INSENSITIVE);
     /** 匹配以单个斜杠开头的相对视频路径 */
     private static final Pattern RELATIVE_MP4 = Pattern.compile("/[^\\s\"'<>]+\\.(?:mp4|m3u8)(?:\\?[^\\s\"'<>]*)?", Pattern.CASE_INSENSITIVE);
+    /** M95：91porny 站内基准地址（与 AppPreferencesHelper 默认源一致），供外链广告判定的 host 比较基准 */
+    private static final String SITE_BASE_URL = "https://91porny.com/";
 
     public static BaseResult<List<V9MmanItem>> parseSearchVideos(String html) {
         List<V9MmanItem> list = new ArrayList<>();
@@ -249,10 +251,17 @@ public class Parse91PornyVideo {
             }
         }
         // 3.4) 匹配单个斜杠开头的相对路径 /uploads/xxx.mp4
+        // M95：该兜底仅当路径包含 "/hls/" 或 "/mp4/" 才采纳——RELATIVE_MP4 会把页面里
+        // 任意相对 .mp4/.m3u8 字符串（广告脚本、统计资源、缩略图等）误判为视频直链。
+        // 其余兜底顺序（整页 http(s) → 协议相对 → JS 变量）不变。
         if (TextUtils.isEmpty(url)) {
             Matcher rel = RELATIVE_MP4.matcher(html);
             if (rel.find()) {
-                url = rel.group();
+                String candidate = rel.group();
+                String lowerCandidate = candidate.toLowerCase();
+                if (lowerCandidate.contains("/hls/") || lowerCandidate.contains("/mp4/")) {
+                    url = candidate;
+                }
             }
         }
         return url;
@@ -295,14 +304,41 @@ public class Parse91PornyVideo {
         return false;
     }
 
+    /**
+     * M95：广告链接判定改为 host 比较（旧实现把所有 http(s) 绝对链接一律判广告，
+     * 会误杀指向站内自身的绝对形式链接）。规则：
+     * 1) 相对链接（无 http(s) 前缀）视为站内，不是广告；
+     * 2) 绝对链接用 java.net.URI 解析出非空 host，且与基准 baseUrl（SITE_BASE_URL）host
+     *    不同才判定为广告；
+     * 3) 保留既有推广位规则：ads. / /ads/ / affiliate 特征仍然命中。
+     * URI 解析失败时保守回退旧规则（绝对链接视为广告），不抛异常。
+     */
     private static boolean isExternalAdHref(String href) {
         if (TextUtils.isEmpty(href)) {
             return false;
         }
         String lower = href.toLowerCase();
-        // 外链或带 ?ref= 的推广链接都判定为广告
-        return lower.startsWith("http://") || lower.startsWith("https://")
-                || lower.contains("ads.") || lower.contains("/ads/") || lower.contains("affiliate");
+        // 保留既有 /ads/ 等推广特征规则
+        if (lower.contains("ads.") || lower.contains("/ads/") || lower.contains("affiliate")) {
+            return true;
+        }
+        // 相对链接视为内部链接
+        if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
+            return false;
+        }
+        try {
+            URI uri = new URI(href);
+            String host = uri.getHost();
+            if (TextUtils.isEmpty(host)) {
+                // 解析不出 host 的绝对链接按旧规则保守视为广告
+                return true;
+            }
+            String baseHost = new URI(SITE_BASE_URL).getHost();
+            return baseHost != null && !host.equalsIgnoreCase(baseHost);
+        } catch (Exception e) {
+            // URI 解析异常时保守按旧规则处理：绝对 http(s) 链接视为广告
+            return true;
+        }
     }
 
     /**

@@ -35,6 +35,9 @@ import com.m3man.utils.DialogUtils;
 
 import javax.inject.Inject;
 
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.schedulers.Schedulers;
@@ -70,7 +73,13 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
 
     // 验证码自动识别（OCR）
     private CaptchaOcr captchaOcr;
-    private Bitmap currentCaptchaBitmap;
+    // M94：位图统一经原子引用管理，替代原 currentCaptchaBitmap 裸字段，
+    // 解决 onDestroy 直接 recycle 与 native recognize 进行中的竞态崩溃。
+    private final AtomicReference<Bitmap> mCaptchaBitmapRef = new AtomicReference<>();
+    /** M94：销毁标志，OCR 回调路径据此决定是否回收位图 */
+    private volatile boolean mDestroyed = false;
+    /** M94：在途 OCR 识别任务数（仅在主线程增减），归零后才允许回收位图 */
+    private final AtomicInteger mOcrInFlight = new AtomicInteger(0);
     private volatile boolean ocrInitializing = false;
     /** OCR 训练数据按需下载进度弹窗 */
     private ProgressDialog ocrProgressDialog;
@@ -218,7 +227,8 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
 
     @Override
     protected void onDestroy() {
-        //C13：必须先取消 OCR 订阅，再释放 native 引擎与 bitmap。
+        //C13/M94：先置销毁标志、取消订阅，再释放 native 引擎与位图。
+        mDestroyed = true;
         dismissOcrProgress();
         //否则识别任务仍在 IO 线程持有已 recycle 的句柄/位图，会在 native 层崩溃。
         mOcrDisposables.clear();
@@ -226,11 +236,27 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
             captchaOcr.recycle();
             captchaOcr = null;
         }
-        if (currentCaptchaBitmap != null && !currentCaptchaBitmap.isRecycled()) {
-            currentCaptchaBitmap.recycle();
-            currentCaptchaBitmap = null;
+        // M94：不再直接 recycle——仍有识别任务在途时，由任务结清处 handleOcrTaskSettled
+        // （native 必已返回）负责回收；无在途任务则此处立即回收，保证恰好回收一次。
+        if (mOcrInFlight.get() == 0) {
+            recycleCaptchaBitmapIfNeeded();
         }
         super.onDestroy();
+    }
+
+    /** M94：取出并回收当前验证码位图（getAndSet(null) 保证恰好回收一次） */
+    private void recycleCaptchaBitmapIfNeeded() {
+        Bitmap b = mCaptchaBitmapRef.getAndSet(null);
+        if (b != null && !b.isRecycled()) {
+            b.recycle();
+        }
+    }
+
+    /** M94：单个识别任务结清善后——在途计数归零且 Activity 已销毁时回收位图 */
+    private void handleOcrTaskSettled() {
+        if (mOcrInFlight.decrementAndGet() == 0 && mDestroyed) {
+            recycleCaptchaBitmapIfNeeded();
+        }
     }
 
     @Override
@@ -285,7 +311,8 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
 
     @Override
     public void loadCaptchaSuccess(Bitmap bitmap) {
-        currentCaptchaBitmap = bitmap;
+        // M94：新图放入原子引用（旧图引用被替换，交由 GC 兜底，与原实现一致）
+        mCaptchaBitmapRef.set(bitmap);
         captchaImageView.setImageBitmap(bitmap);
         // 自动识别验证码并填入输入框（识别失败时由用户手动输入）
         recognizeCaptcha(bitmap);
@@ -330,7 +357,12 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
                 }
             });
             //初始化完成后再赋值给成员，避免半初始化对象被其它线程看到
-            captchaOcr = ocr;
+            // M94：若期间 Activity 已销毁(onDestroy 先跑)，直接回收引擎，避免泄漏 native 资源
+            if (mDestroyed) {
+                ocr.recycle();
+            } else {
+                captchaOcr = ocr;
+            }
             return result[0];
         })
                 .subscribeOn(Schedulers.io())
@@ -341,8 +373,10 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
                     if (isFinishing() || isDestroyed()) {
                         return;
                     }
-                    if (ready && currentCaptchaBitmap != null && !currentCaptchaBitmap.isRecycled()) {
-                        recognizeCaptcha(currentCaptchaBitmap);
+                    // M94：改从原子引用取当前位图
+                    Bitmap bmp = mCaptchaBitmapRef.get();
+                    if (ready && bmp != null && !bmp.isRecycled()) {
+                        recognizeCaptcha(bmp);
                     } else if (!ready) {
                         showMessage("验证码识别组件准备失败，请手动输入验证码", TastyToast.INFO);
                     }
@@ -366,7 +400,7 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
      * 对已加载的验证码图片进行 OCR 识别并回填到输入框。
      */
     private void recognizeCaptcha(final Bitmap bitmap) {
-        if (bitmap == null || bitmap.isRecycled()) {
+        if (mDestroyed || bitmap == null || bitmap.isRecycled()) {
             return;
         }
         //持有局部引用，避免识别期间成员被 onDestroy 置空导致 NPE
@@ -375,15 +409,39 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
             prepareCaptchaOcr();
             return;
         }
+        // M94：主线程登记在途识别任务，onDestroy 依据该计数决定能否立即安全回收位图
+        mOcrInFlight.incrementAndGet();
+        // M94：每任务状态机 0=未开始 1=native执行中 2=已结清。
+        // 目的：位图回收只允许发生在 native recognize 真正返回之后，且全路径恰好一次；
+        // 订阅在执行开始前即被 dispose 清理时，由 doFinally 结清计数并跳过 native。
+        final AtomicInteger taskState = new AtomicInteger(0);
         mOcrDisposables.add(Observable.fromCallable(() -> {
-            //C13：进入 native 前再校验一次，避免使用已释放的引擎/位图
-            if (bitmap.isRecycled() || !ocr.isReady()) {
-                return "";
+            String result = "";
+            // 抢执行权：已被提前 dispose 结清(状态=2)时直接放弃，不再触碰引擎/位图
+            if (taskState.compareAndSet(0, 1)) {
+                try {
+                    //C13：进入 native 前再校验一次，避免使用已释放的引擎/位图
+                    if (!bitmap.isRecycled() && ocr.isReady()) {
+                        result = ocr.recognize(bitmap);
+                    }
+                } finally {
+                    // M94：执行方结清——此刻 native 必已返回，可安全判定回收
+                    if (taskState.getAndSet(2) == 1) {
+                        handleOcrTaskSettled();
+                    }
+                }
             }
-            return ocr.recognize(bitmap);
+            return result;
         })
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
+                .doFinally(() -> {
+                    // M94：覆盖"任务从未开始执行即被销毁清理"的场景（正常完成/异常时该
+                    // CAS 必然失败，善后已由 callable 的 finally 负责），不会双份结清。
+                    if (taskState.compareAndSet(0, 2)) {
+                        handleOcrTaskSettled();
+                    }
+                })
                 .subscribe(result -> {
                     if (isFinishing() || isDestroyed()) {
                         return;

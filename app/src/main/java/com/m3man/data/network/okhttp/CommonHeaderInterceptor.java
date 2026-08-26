@@ -5,6 +5,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.orhanobut.logger.Logger;
+import com.m3man.BuildConfig;
 import com.m3man.data.network.Api;
 import com.m3man.utils.AppLog;
 import com.m3man.data.prefs.PreferencesHelper;
@@ -78,21 +79,30 @@ public class CommonHeaderInterceptor implements Interceptor {
         // M62：只 proceed 一次。旧实现先 proceed 一次探测重定向、再 proceed 一次返回，
         // 导致所有主站请求被真实执行两次（POST 双提交/配额双耗），且首个 Response 从不关闭造成连接泄漏。
         // === M63 诊断：打印完整请求 URL + 最终 URL + HTTP 状态码，用于定位推荐/视频/详情 404 ===
+        // M95：[DIAG] 常规诊断（info 级、含完整 URL）改为仅 debug 包输出——release 下逐请求
+        // 三通道打日志既拖慢请求线程，也会把带 Cookie 上下文的 URL 泄露到日志文件。
+        // HTTP 失败分支（code>=400，error 级）保持不门控：release 下仍需「复制日志」定位失败请求。
         String reqUrl = request.url().toString();
-        String diagStart = "[DIAG] --> " + request.method() + " " + reqUrl;
-        Logger.t(TAG).d(diagStart);
-        AppLog.i(TAG, diagStart);
-        Log.i(TAG, diagStart);
+        if (BuildConfig.DEBUG) {
+            String diagStart = "[DIAG] --> " + request.method() + " " + reqUrl;
+            Logger.t(TAG).d(diagStart);
+            AppLog.i(TAG, diagStart);
+            Log.i(TAG, diagStart);
+        }
         Response response = chain.proceed(request);
-        String finalUrl = response.request().url().toString();
         int code = response.code();
-        String diagEnd = "[DIAG] <-- HTTP " + code + "  "
-                + (reqUrl.equals(finalUrl) ? "" : ("(重定向->" + finalUrl + ") "))
-                + reqUrl;
-        Logger.t(TAG).d(diagEnd);
-        AppLog.i(TAG, diagEnd);
-        Log.i(TAG, diagEnd);
+        if (BuildConfig.DEBUG) {
+            String finalUrl = response.request().url().toString();
+            String diagEnd = "[DIAG] <-- HTTP " + code + "  "
+                    + (reqUrl.equals(finalUrl) ? "" : ("(重定向->" + finalUrl + ") "))
+                    + reqUrl;
+            Logger.t(TAG).d(diagEnd);
+            AppLog.i(TAG, diagEnd);
+            Log.i(TAG, diagEnd);
+        }
+        // release 下保留错误级别日志能力：失败请求诊断不门控
         if (code >= 400) {
+            String finalUrl = response.request().url().toString();
             String diagError = "[DIAG-ERR] 失败请求: " + request.method() + " " + reqUrl
                     + "  HTTP=" + code + "  final=" + finalUrl;
             Logger.t(TAG).e(diagError);

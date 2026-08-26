@@ -48,10 +48,14 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
     // ==================== M92f：错误自愈（与 JiaoZi 引擎能力对齐） ====================
 
     private final Handler watchdog = new Handler(Looper.getMainLooper());
-    /** 直链诊断探测客户端（带系统代理，避免把代理可达误判为源站不可达） */
-    private OkHttpClient probeClient;
-    /** 本次播放是否已做过一次「重新解析」自愈，防止失败→解析→失败死循环 */
-    private boolean healAttempted;
+    /** M96：直链诊断探测客户端（带系统代理，避免把代理可达误判为源站不可达）；
+     *  改为类级 static volatile 单例缓存，避免每个 Activity 实例重建连接池 */
+    private static volatile OkHttpClient probeClient;
+    /** M96：上一次触发自愈的直链。同一直链至多自愈一次：
+     *  解析后拿到新地址（≠lastHealUrl）自然解锁下一次机会；
+     *  若解析器仍返回旧地址则不再重试，杜绝「失败→重新解析→失败」死循环。
+     *  用户手动下拉刷新/重进页面会带来新 URL，自动获得新的自愈机会。 */
+    private String lastHealUrl;
 
     private final Runnable prepareTimeoutTask = new Runnable() {
         @Override
@@ -81,11 +85,14 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
                 java.io.StringWriter sw = new java.io.StringWriter();
                 e.printStackTrace(new java.io.PrintWriter(sw));
                 String stack = sw.toString();
+                // M96：日志脱敏——直链只留 scheme://host/path，不打印 query（含签名/token）
                 AppLog.e("Player", "播放失败 viewKey=" + getViewKeyForLog()
-                        + " url=" + currentPlayUrl
+                        + " url=" + maskUrl(currentPlayUrl)
                         + " err=" + e.getClass().getName()
                         + " msg=" + e.getMessage()
                         + " stack=" + stack.substring(0, Math.min(800, stack.length())));
+                // M96：转发给控件库，恢复被覆盖的原监听所维护的内部状态机（错误图标/收起转圈）
+                videoPlayer.notifyControlsPlaybackError();
                 cancelWatchdog();
                 // M92f：错误时先诊断直链真实状态，再尝试自动重新解析一次
                 diagnose(currentPlayUrl);
@@ -101,11 +108,13 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
                     if (!bufferZeroLogged) {
                         bufferZeroLogged = true;
                         AppLog.i("Player", "起播缓冲 0%（拉流未建立或极慢） viewKey=" + getViewKeyForLog()
-                                + " url=" + currentPlayUrl);
+                                + " url=" + maskUrl(currentPlayUrl));
                     }
                 } else {
                     bufferZeroLogged = false;
                 }
+                // M96：转发缓冲进度给控件库，维持其「转圈」显隐状态机（原库内监听已被本回调覆盖）
+                videoPlayer.notifyControlsBufferUpdate(percent);
             }
         });
     }
@@ -131,20 +140,26 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
 
     private void onPrepareTimeout() {
         AppLog.e("Player", "起播看门狗超时(20s) viewKey=" + getViewKeyForLog()
-                + " url=" + currentPlayUrl + " 已尝试自愈=" + healAttempted);
+                + " url=" + maskUrl(currentPlayUrl)
+                + " 同址已自愈=" + (currentPlayUrl != null && currentPlayUrl.equals(lastHealUrl)));
         diagnose(currentPlayUrl);
         attemptReparseOnce("加载超时");
     }
 
     /**
-     * 自动重新解析视频地址拿新直链（每次播放至多一次）。
-     * 解析成功后 BasePlayVideo 流程会回调 playVideo(...) 重设播放器。
+     * 自动重新解析视频地址拿新直链。
+     * M96：改为「同一直链至多自愈一次」（lastHealUrl 判定）——解析成功后 BasePlayVideo
+     * 流程回调 playVideo(...) 重设播放器；若仍失败且地址未变化则不再重复尝试，防止死循环。
      */
     private void attemptReparseOnce(final String reason) {
-        if (healAttempted || v9MmanItem == null || playVideoPresenter == null) {
+        if (v9MmanItem == null || playVideoPresenter == null) {
             return;
         }
-        healAttempted = true;
+        // M96：同一 URL 只自愈一次，避免持续失败时无限「错误→重新解析」
+        if (TextUtils.isEmpty(currentPlayUrl) || currentPlayUrl.equals(lastHealUrl)) {
+            return;
+        }
+        lastHealUrl = currentPlayUrl;
         Toast.makeText(this, reason + "，正在重新解析视频地址…", Toast.LENGTH_SHORT).show();
         watchdog.postDelayed(new Runnable() {
             @Override
@@ -221,6 +236,43 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
         return probeClient;
     }
 
+    /**
+     * M96：日志脱敏——直链只保留 scheme://host/path（丢弃 query 中的签名/token 等），
+     * 并追加原始长度便于排查；解析失败时兜底截断，绝不打印完整直链。
+     */
+    private static String maskUrl(String u) {
+        if (u == null) {
+            return "";
+        }
+        int len = u.length();
+        String head = u;
+        try {
+            java.net.URI uri = java.net.URI.create(u);
+            StringBuilder sb = new StringBuilder();
+            if (uri.getScheme() != null) {
+                sb.append(uri.getScheme()).append("://");
+            }
+            if (uri.getHost() != null) {
+                sb.append(uri.getHost());
+            }
+            if (uri.getPath() != null) {
+                sb.append(uri.getPath());
+            }
+            if (sb.length() > 0) {
+                head = sb.toString();
+            }
+        } catch (Exception ignored) {
+            int q = u.indexOf('?');
+            if (q >= 0) {
+                head = u.substring(0, q);
+            }
+        }
+        if (head.length() > 96) {
+            head = head.substring(0, 96) + "...";
+        }
+        return head + "|len=" + len;
+    }
+
     @Override
     public void playVideo(String title, String videoUrl, String name, String thumImgUrl) {
 
@@ -242,10 +294,10 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
         // M70：记录本次播放 URL + 起播日志，配合错误/缓冲埋点定位转圈问题
         currentPlayUrl = videoUrl;
         bufferZeroLogged = false;
-        // M92f：每次新起播重置自愈标记并启动准备看门狗
-        healAttempted = false;
+        // M96：自愈机会由 lastHealUrl 与新 URL 的差异自然判定，这里不再无条件重置；
+        // 仅启动准备看门狗。
         startWatchdog();
-        AppLog.i("Player", "起播请求 viewKey=" + getViewKeyForLog() + " url=" + videoUrl);
+        AppLog.i("Player", "起播请求 viewKey=" + getViewKeyForLog() + " url=" + maskUrl(videoUrl));
     }
 
     @Override
@@ -265,10 +317,20 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
 
     @Override
     protected void onPause() {
-        videoPlayer.pause();
-        isPauseByActivityEvent = true;
+        // M96：仅当确实处于播放中才视为「由页面事件暂停」；
+        // 用户手动暂停后切后台再回来，不再被 onResume 强制续播。
+        boolean wasPlaying = false;
+        try {
+            wasPlaying = videoPlayer.isPlaying();
+        } catch (Exception ignored) {
+        }
+        if (wasPlaying) {
+            videoPlayer.pause();
+            isPauseByActivityEvent = true;
+        } else {
+            isPauseByActivityEvent = false;
+        }
         super.onPause();
-
     }
 
     @Override
@@ -280,6 +342,9 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
 
     @Override
     protected void onDestroy() {
+        // M96：销毁时清空看门狗与 Toast 等主线程回调，防止泄漏与迟到弹窗
+        cancelWatchdog();
+        watchdog.removeCallbacksAndMessages(null);
         if (videoPlayer.getParent() != null) {
             videoPlayerContainer.removeView(videoPlayer);
         }

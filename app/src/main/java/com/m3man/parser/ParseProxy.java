@@ -13,6 +13,7 @@ import org.jsoup.select.Elements;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * 代理抓取
@@ -23,6 +24,8 @@ import java.util.List;
 
 public class ParseProxy {
     private static final String TAG = ParseProxy.class.getSimpleName();
+    /** M95：IPv4 形态校验（四段、每段 1~3 位数字） */
+    private static final Pattern IP_PATTERN = Pattern.compile("\\d{1,3}(\\.\\d{1,3}){3}");
 
     public static BaseResult<List<ProxyModel>> parseXiCiDaiLi(String html, int page) {
         BaseResult<List<ProxyModel>> baseResult = new BaseResult<>();
@@ -41,23 +44,43 @@ public class ParseProxy {
             }
             //tr里的td
             Elements tds = trs.get(i).select("td");
+            // M95：列数不足 8 说明是残缺行/表头残留，直接丢弃该行
+            if (tds.size() < 8) {
+                continue;
+            }
             ProxyModel proxyModel = new ProxyModel();
+            // M95：行级有效性标记——ip/port 校验不合格时丢弃整行
+            boolean validRow = true;
             for (int j = 0; j < tds.size(); j++) {
                 Element td = tds.get(j);
                 switch (j) {
                     case 0:
                         //国家
                         break;
-                    case 1:
+                    case 1: {
                         //ip
-                        String ip = td.text();
-                        proxyModel.setProxyIp(ip);
+                        String ip = td.text().trim();
+                        if (IP_PATTERN.matcher(ip).matches()) {
+                            proxyModel.setProxyIp(ip);
+                        } else {
+                            validRow = false;
+                        }
                         break;
-                    case 2:
+                    }
+                    case 2: {
                         //端口
-                        String port = td.text();
-                        proxyModel.setProxyPort(port);
+                        try {
+                            int portValue = Integer.parseInt(td.text().trim());
+                            if (portValue >= 1 && portValue <= 65535) {
+                                proxyModel.setProxyPort(String.valueOf(portValue));
+                            } else {
+                                validRow = false;
+                            }
+                        } catch (NumberFormatException e) {
+                            validRow = false;
+                        }
                         break;
+                    }
                     case 3:
                         //城市
                         break;
@@ -80,11 +103,15 @@ public class ParseProxy {
                     case 6:
                         //速度
                         break;
-                    case 7:
+                    case 7: {
                         //连接时间
-                        String responseTime = td.select("div").first().attr("title");
-                        proxyModel.setResponseTime(responseTime);
+                        // M95：div 可能缺失，判空跳过该字段而非 NPE
+                        Element div = td.select("div").first();
+                        if (div != null) {
+                            proxyModel.setResponseTime(div.attr("title"));
+                        }
                         break;
+                    }
                     case 8:
                         //存活时间
                         break;
@@ -93,6 +120,13 @@ public class ParseProxy {
                         break;
                     default:
                 }
+                if (!validRow) {
+                    break;
+                }
+            }
+            // M95：ip/port 不合格的行整行丢弃
+            if (!validRow) {
+                continue;
             }
             proxyModelList.add(proxyModel);
         }

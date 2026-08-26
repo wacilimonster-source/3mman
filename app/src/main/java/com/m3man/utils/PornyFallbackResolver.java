@@ -118,7 +118,8 @@ public class PornyFallbackResolver {
         i.setAction(HlsDownloadService.ACTION_START);
         i.putExtra(HlsDownloadService.EXTRA_VIDEO_URL, m3u8Url);
         i.putExtra(HlsDownloadService.EXTRA_TITLE, item.getTitle());
-        i.putExtra(HlsDownloadService.EXTRA_FILE_NAME, item.getTitle());
+        // M99：文件名必须经 sanitizeFileName 清洗，防止标题含非法字符导致建目录/写文件失败
+        i.putExtra(HlsDownloadService.EXTRA_FILE_NAME, SDCardUtils.sanitizeFileName(item.getTitle()));
         i.putExtra(HlsDownloadService.EXTRA_VIEW_KEY, item.getViewKey());
         i.putExtra(HlsDownloadService.EXTRA_SAVE_PATH, savePath);
         try {

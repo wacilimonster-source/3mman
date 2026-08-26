@@ -22,8 +22,14 @@ import java.util.List;
 
 import javax.inject.Inject;
 
+import io.reactivex.Observable;
+import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Consumer;
 import io.reactivex.functions.Function;
+import io.reactivex.schedulers.Schedulers;
+
+import java.util.concurrent.Callable;
 
 /**
  * @author flymegoc
@@ -63,7 +69,9 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
                             throw new MessageException(baseResult.getMessage());
                         }
                         if (page == 1) {
-                            totalPage = baseResult.getTotalPage();
+                            // M100：totalPage 判空兜底——接口未返回或非法时按 1 处理，防后续比较拆箱 NPE
+                            Integer tp = baseResult.getTotalPage();
+                            totalPage = (tp == null || tp < 1) ? 1 : tp;
                             // M73：本次刷新已绕过缓存，后续页恢复走缓存
                             cleanCache = false;
                         }
@@ -104,7 +112,8 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
                                     view.setMoreData(v9MmanItems);
                                 }
                                 //已经最后一页了
-                                if (page >= totalPage) {
+                                // M100：比较前判空兜底，防止 totalPage 为 null 时自动拆箱 NPE
+                                if (totalPage == null || page >= totalPage) {
                                     view.noMoreData();
                                 } else {
                                     page++;
@@ -147,7 +156,9 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
                             throw new MessageException(baseResult.getMessage());
                         }
                         if (page == 1) {
-                            totalPage = baseResult.getTotalPage();
+                            // M100：totalPage 判空兜底——接口未返回或非法时按 1 处理，防后续比较拆箱 NPE
+                            Integer tp = baseResult.getTotalPage();
+                            totalPage = (tp == null || tp < 1) ? 1 : tp;
                             // M73：本次刷新已绕过缓存，后续页恢复走缓存
                             cleanCache = false;
                         }
@@ -183,7 +194,8 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
                                     view.setMoreData(v9MmanItems);
                                 }
                                 //已经最后一页了
-                                if (page >= totalPage) {
+                                // M100：比较前判空兜底，防止 totalPage 为 null 时自动拆箱 NPE
+                                if (totalPage == null || page >= totalPage) {
                                     view.noMoreData();
                                 } else {
                                     page++;
@@ -247,19 +259,43 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
                     }
 
                     @Override
-                    public void onSuccess(VideoResult fresh) {
-                        // 新 ownerId 回写持久化，后续进入不再用过期 token
-                        try {
-                            dataManager.saveVideoResult(fresh);
-                            item.setVideoResult(fresh);
-                            dataManager.saveV9MmanItem(item);
-                            // M92g：同步刷新收藏行的 authorKey（若该作者已被收藏），收藏直进不再失效
-                            syncFavoriteAuthorKey(fresh.getOwnerId(), sourceOf(item));
-                            Logger.t(TAG).d("自愈成功：新 ownerId=" + fresh.getOwnerId());
-                        } catch (Exception e) {
-                            Logger.t(TAG).e(TAG + ": 回写新 ownerId 失败 " + e.getMessage());
-                        }
-                        authorVideos(fresh.getOwnerId(), pullToRefresh);
+                    public void onSuccess(final VideoResult fresh) {
+                        // M100：持久化段改 IO 异步执行（原主线程同步写库卡 UI）；
+                        // 闭包一律使用 final 快照——currentHealStaleKey 字段可能被下一次自愈覆盖，
+                        // 异步执行期间直接读字段存在竞态
+                        final String newOwnerId = fresh.getOwnerId();
+                        final String staleKeySnapshot = currentHealStaleKey;
+                        final V9MmanItem itemSnapshot = item;
+                        final String sourceSnapshot = sourceOf(item);
+                        Observable.fromCallable(new Callable<Boolean>() {
+                            @Override
+                            public Boolean call() {
+                                // 新 ownerId 回写持久化，后续进入不再用过期 token
+                                dataManager.saveVideoResult(fresh);
+                                itemSnapshot.setVideoResult(fresh);
+                                dataManager.saveV9MmanItem(itemSnapshot);
+                                // M92g：同步刷新收藏行的 authorKey（若该作者已被收藏），收藏直进不再失效
+                                syncFavoriteAuthorKey(staleKeySnapshot, newOwnerId, sourceSnapshot);
+                                return true;
+                            }
+                        })
+                                .subscribeOn(Schedulers.io())
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .compose(provider.<Boolean>bindUntilEvent(Lifecycle.Event.ON_DESTROY))
+                                .subscribe(new Consumer<Boolean>() {
+                                    @Override
+                                    public void accept(Boolean ok) {
+                                        Logger.t(TAG).d("自愈成功：新 ownerId=" + newOwnerId);
+                                        authorVideos(newOwnerId, pullToRefresh);
+                                    }
+                                }, new Consumer<Throwable>() {
+                                    @Override
+                                    public void accept(Throwable err) {
+                                        Logger.t(TAG).e(TAG + ": 回写新 ownerId 失败 " + err.getMessage());
+                                        // 持久化失败也继续拉取作者列表，优先保证页面可用
+                                        authorVideos(newOwnerId, pullToRefresh);
+                                    }
+                                });
                     }
 
                     @Override
@@ -309,14 +345,35 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
                     }
 
                     @Override
-                    public void onSuccess(VideoResult fresh) {
-                        try {
-                            syncFavoriteAuthorKey(fresh.getOwnerId(), source);
-                            Logger.t(TAG).d("收藏路径自愈成功：新 ownerId=" + fresh.getOwnerId());
-                        } catch (Exception e) {
-                            Logger.t(TAG).e(TAG + ": 收藏行 authorKey 同步失败 " + e.getMessage());
-                        }
-                        authorVideos(fresh.getOwnerId(), pullToRefresh);
+                    public void onSuccess(final VideoResult fresh) {
+                        // M100：持久化段改 IO 异步执行；source/pullToRefresh 为方法 final 入参，
+                        // currentHealStaleKey 先做 final 快照再进入闭包，防字段被并发自愈覆盖的竞态
+                        final String newOwnerId = fresh.getOwnerId();
+                        final String staleKeySnapshot = currentHealStaleKey;
+                        Observable.fromCallable(new Callable<Boolean>() {
+                            @Override
+                            public Boolean call() {
+                                syncFavoriteAuthorKey(staleKeySnapshot, newOwnerId, source);
+                                return true;
+                            }
+                        })
+                                .subscribeOn(Schedulers.io())
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .compose(provider.<Boolean>bindUntilEvent(Lifecycle.Event.ON_DESTROY))
+                                .subscribe(new Consumer<Boolean>() {
+                                    @Override
+                                    public void accept(Boolean ok) {
+                                        Logger.t(TAG).d("收藏路径自愈成功：新 ownerId=" + newOwnerId);
+                                        authorVideos(newOwnerId, pullToRefresh);
+                                    }
+                                }, new Consumer<Throwable>() {
+                                    @Override
+                                    public void accept(Throwable err) {
+                                        Logger.t(TAG).e(TAG + ": 收藏行 authorKey 同步失败 " + err.getMessage());
+                                        // 同步收藏行失败不阻断页面，继续重试作者列表
+                                        authorVideos(newOwnerId, pullToRefresh);
+                                    }
+                                });
                     }
 
                     @Override
@@ -332,19 +389,23 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
                 });
     }
 
-    /** 把（可能过期的）authorKey 对应的收藏行更新为新 token；未收藏则跳过。IO 线程调用 */
-    private void syncFavoriteAuthorKey(String newAuthorKey, String source) {
-        if (TextUtils.isEmpty(newAuthorKey) || TextUtils.isEmpty(currentHealStaleKey)) {
+    /**
+     * M100：把（可能过期的）authorKey 对应的收藏行更新为新 token；未收藏则跳过。
+     * staleAuthorKey 由调用方以 final 局部变量快照传入（IO 线程异步执行期间，
+     * 字段 currentHealStaleKey 可能已被下一次自愈改写，禁止在闭包内直读字段）。
+     */
+    private void syncFavoriteAuthorKey(String staleAuthorKey, String newAuthorKey, String source) {
+        if (TextUtils.isEmpty(newAuthorKey) || TextUtils.isEmpty(staleAuthorKey)) {
             return;
         }
-        AuthorFavorite row = dataManager.findAuthorFavorite(currentHealStaleKey, source);
+        AuthorFavorite row = dataManager.findAuthorFavorite(staleAuthorKey, source);
         if (row != null && !newAuthorKey.equals(row.getAuthorKey())) {
             row.setAuthorKey(newAuthorKey);
             dataManager.updateAuthorFavorite(row);
         }
     }
 
-    /** 播放页自愈路径的旧 key 传递（reloadOwnerThenAuthorVideos 调用前赋值） */
+    /** 播放页自愈路径的旧 key 传递（reloadOwnerThenAuthorVideos 调用前赋值）；M100：异步闭包须用 final 快照读取 */
     private String currentHealStaleKey;
 
     /** 条目来源归一化：sourceName 优先，source 兜底，默认按 mman9 处理 */

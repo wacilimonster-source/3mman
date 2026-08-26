@@ -23,6 +23,7 @@ import com.m3man.utils.AddressHelper;
 import java.net.Proxy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import javax.inject.Singleton;
 
@@ -92,6 +93,16 @@ public class ApiServiceModule {
     @Provides
     OkHttpClient providesOkHttpClient(CommonHeaderInterceptor commonHeaderInterceptor, HttpLoggingInterceptor httpLoggingInterceptor, RulerCookie rulerCookie, MyProxySelector myProxySelector, AddressHelper addressHelper) {
         OkHttpClient.Builder builder = new OkHttpClient.Builder();
+        // M95：评审结论——超时必须显式声明，不能依赖 OkHttp 默认值（默认 connect/read/write 均为 10s，
+        // 且散落在隐式行为里，弱网/慢站点场景下排障困难）。显式设置：
+        //   连接 10s：目标站多为境外/镜像，快速失败便于上层走地址测试与重试；
+        //   读 30s：视频播放页 HTML 较大且站点响应慢，读超时需放宽；
+        //   写 15s：评论/收藏等 POST 体量小，15s 足够。
+        // 不改 retryOnConnectionFailure（保持 OkHttp 默认 true）：该开关影响所有请求的失败重连路径，
+        // 与本次超时治理正交；改动会扩大行为面（可能掩盖连接类故障、增加重复请求），如需收紧另行评审。
+        builder.connectTimeout(10, TimeUnit.SECONDS);
+        builder.readTimeout(30, TimeUnit.SECONDS);
+        builder.writeTimeout(15, TimeUnit.SECONDS);
         builder.addInterceptor(commonHeaderInterceptor);
         builder.addInterceptor(httpLoggingInterceptor);
         builder.cookieJar(rulerCookie);

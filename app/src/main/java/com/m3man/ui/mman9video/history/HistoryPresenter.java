@@ -61,6 +61,17 @@ public class HistoryPresenter extends MvpBasePresenter<HistoryView> implements I
                             view.noMoreData();
                         }
                     });
+                    // M97：补错误回调——此前单参 subscribe 出错直接走 onError 致崩溃
+                }, e -> {
+                    Logger.t(TAG).e(e, "加载浏览历史失败：" + e.getMessage());
+                    ifViewAttached(view -> {
+                        if (page == 1) {
+                            view.showError(e.getMessage());
+                        } else {
+                            // HistoryView 已声明 loadMoreFailed，加载更多出错时恢复上拉状态
+                            view.loadMoreFailed();
+                        }
+                    });
                 });
     }
 

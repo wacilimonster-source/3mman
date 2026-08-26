@@ -57,15 +57,36 @@ public class HlsDownloadService extends Service {
     private static final String CHANNEL_ID = "hls_download";
 
     private NotificationManager notificationManager;
-    private HlsDownloader downloader;
     // M62：用户取消栅栏——worker 迟到回调（成功/失败）不得再写库或弹通知
     private volatile boolean cancelledByUser;
-    private int lastProgress = -1;
     private String notifyTitle = "";
-    private String targetMp4Path = "";
-    private String viewKey = "";
-    private String savePath = "";
-    private int pseudoDownloadId = 0;
+
+    /**
+     * M97：任务状态不可变快照——原 downloader/viewKey/savePath/targetMp4Path/
+     * pseudoDownloadId/lastProgress 为多个独立共享字段，新任务逐个覆盖的瞬间，
+     * 旧 worker 线程可能读到“半个新半个旧”的混合状态。收敛为单个 volatile 引用：
+     * 读端取一次局部快照保证一致，写端构造新对象整体替换。cancelledByUser 保持独立。
+     */
+    private static final class TaskState {
+        final HlsDownloader downloader;
+        final String viewKey;
+        final String savePath;
+        final String targetMp4Path;
+        final int pseudoDownloadId;
+        final int lastProgress;
+
+        TaskState(HlsDownloader downloader, String viewKey, String savePath,
+                  String targetMp4Path, int pseudoDownloadId, int lastProgress) {
+            this.downloader = downloader;
+            this.viewKey = viewKey == null ? "" : viewKey;
+            this.savePath = savePath == null ? "" : savePath;
+            this.targetMp4Path = targetMp4Path == null ? "" : targetMp4Path;
+            this.pseudoDownloadId = pseudoDownloadId;
+            this.lastProgress = lastProgress;
+        }
+    }
+
+    private volatile TaskState state = new TaskState(null, "", "", "", 0, -1);
 
     @Override
     public void onCreate() {
@@ -97,13 +118,19 @@ public class HlsDownloadService extends Service {
             String url = intent.getStringExtra(EXTRA_VIDEO_URL);
             String title = intent.getStringExtra(EXTRA_TITLE);
             String fileName = intent.getStringExtra(EXTRA_FILE_NAME);
-            // M62：覆盖字段前先快照"被替换的旧任务"上下文——
+            // M62/M97：先快照"被替换的旧任务"上下文——
             // 旧 worker 线程的迟到回调必须按它自己的归属落库，不得读写新任务的共享字段
-            final HlsDownloader replacedDownloader = downloader;
-            final String replacedViewKey = viewKey;
-            final int replacedPseudoId = pseudoDownloadId;
-            viewKey = intent.getStringExtra(EXTRA_VIEW_KEY);
-            savePath = intent.getStringExtra(EXTRA_SAVE_PATH);
+            final TaskState previous = state;
+            final HlsDownloader replacedDownloader = previous.downloader;
+            final String replacedViewKey = previous.viewKey;
+            final int replacedPseudoId = previous.pseudoDownloadId;
+            // M97：新任务替换旧任务前，若旧记录仍挂在“正在下载”，先置 ERROR 并发一次刷新广播——
+            // 旧 worker 即将被取消、永远等不到终态回调，不处理则旧行一直停留在下载中（幽灵行）
+            if (replacedDownloader != null && replacedPseudoId > 0) {
+                markReplacedRecordError(replacedViewKey, replacedPseudoId);
+            }
+            String newViewKey = intent.getStringExtra(EXTRA_VIEW_KEY);
+            String newSavePath = intent.getStringExtra(EXTRA_SAVE_PATH);
             if (TextUtils.isEmpty(url)) {
                 // M73：startForegroundService 路径下也需先履行 startForeground 契约
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -118,42 +145,48 @@ public class HlsDownloadService extends Service {
             }
             notifyTitle = TextUtils.isEmpty(title) ? "视频下载" : title;
             // 优先使用调用方算好的完整路径（与「我的下载」播放路径一致），否则回退旧 fileName 逻辑
-            if (TextUtils.isEmpty(savePath)) {
-                targetMp4Path = SDCardUtils.DOWNLOAD_VIDEO_PATH + fileName + ".mp4";
+            String newTargetMp4Path;
+            if (TextUtils.isEmpty(newSavePath)) {
+                newTargetMp4Path = SDCardUtils.DOWNLOAD_VIDEO_PATH + fileName + ".mp4";
             } else {
-                targetMp4Path = savePath;
+                newTargetMp4Path = newSavePath;
             }
             // M61：目录不可写时回退到应用专属目录，避免 Android 11+ 公共目录写入直接失败
-            String ensured = SDCardUtils.ensureDownloadDir(targetMp4Path, this);
+            String ensured = SDCardUtils.ensureDownloadDir(newTargetMp4Path, this);
             if (!TextUtils.isEmpty(ensured)) {
-                targetMp4Path = ensured;
+                newTargetMp4Path = ensured;
                 AppLog.i("HlsDownload", "下载目录 ensured=" + ensured);
             } else {
-                AppLog.e("HlsDownload", "下载目录不可写且无 fallback path=" + targetMp4Path);
+                AppLog.e("HlsDownload", "下载目录不可写且无 fallback path=" + newTargetMp4Path);
             }
             // 稳定的伪 downloadId，使「我的下载」查询（DownloadId!=0）能命中本记录。
             // M73：Math.abs(hashCode) 对 Integer.MIN_VALUE 会返回负数，且不同 URL 可能碰撞；
             // 改为拼接 viewKey 哈希的高低位构造正数，并兜底保证 >0。
-            pseudoDownloadId = stablePositiveId(url);
+            int newPseudoId = stablePositiveId(url);
             cancelledByUser = false;
             startForeground(NOTIFICATION_ID, buildProgressNotification("下载中 0%", 0, 1));
+            // M97：以不可变快照一次性发布本任务上下文（downloader 暂沿用旧值，
+            // 防止发布与 startDownload 替换之间 PAUSE/CANCEL 取不到旧下载器）
+            state = new TaskState(replacedDownloader, newViewKey, newSavePath, newTargetMp4Path, newPseudoId, -1);
             // M62：统一在此落伪 downloadId + status=progress（修复 2.5）——
             // 各启动入口（推荐流/兜底/重新下载等）此前不写 downloadId，导致整个下载期间
             // 记录在「正在下载」「下载完成」两列表均不可见、进度广播空转。
             markRecordDownloading();
-            startDownload(url, targetMp4Path, replacedDownloader, replacedViewKey, replacedPseudoId);
+            startDownload(url, newTargetMp4Path, replacedDownloader, replacedViewKey, replacedPseudoId);
         } else if (ACTION_PAUSE.equals(action)) {
-            if (downloader == null) {
+            // M97：读端取一次快照，PAUSE/CANCEL 全程使用同一份上下文
+            TaskState s = state;
+            if (s.downloader == null) {
                 return START_NOT_STICKY;
             }
             String pauseViewKey = intent.getStringExtra(EXTRA_VIEW_KEY);
-            if (!TextUtils.isEmpty(pauseViewKey) && !pauseViewKey.equals(viewKey)) {
+            if (!TextUtils.isEmpty(pauseViewKey) && !pauseViewKey.equals(s.viewKey)) {
                 return START_NOT_STICKY;
             }
             cancelledByUser = true;
-            downloader.cancel();
-            downloader.shutdown();
-            downloader = null;
+            s.downloader.cancel();
+            s.downloader.shutdown();
+            state = new TaskState(null, s.viewKey, s.savePath, s.targetMp4Path, s.pseudoDownloadId, s.lastProgress);
             cleanupHlsTemp();
             V9MmanItem item = findItem();
             if (item != null) {
@@ -161,34 +194,60 @@ public class HlsDownloadService extends Service {
                 getDataManager().updateV9MmanItem(item);
             }
             LocalBroadcastManager.getInstance(this).sendBroadcast(new Intent(ACTION_HLS_PROGRESS)
-                    .putExtra(EXTRA_VIEW_KEY, viewKey).putExtra(EXTRA_PROGRESS, lastProgress < 0 ? 0 : lastProgress));
+                    .putExtra(EXTRA_VIEW_KEY, s.viewKey).putExtra(EXTRA_PROGRESS, s.lastProgress < 0 ? 0 : s.lastProgress));
             stopForeground(true);
             stopSelf();
         } else if (ACTION_CANCEL.equals(action)) {
             // M62：竞态防护——
             // ① 无活跃下载（downloader==null）时忽略取消，防止陈旧 viewKey 清错已完成记录；
             // ② 带 viewKey 的取消请求与本任务不匹配时同样忽略（防误杀无关记录/当前下载）。
+            TaskState s = state;
             String cancelViewKey = intent.getStringExtra(EXTRA_VIEW_KEY);
-            if (downloader == null) {
+            if (s.downloader == null) {
                 return START_NOT_STICKY;
             }
-            if (!TextUtils.isEmpty(cancelViewKey) && !cancelViewKey.equals(viewKey)) {
+            if (!TextUtils.isEmpty(cancelViewKey) && !cancelViewKey.equals(s.viewKey)) {
                 return START_NOT_STICKY;
             }
             cancelledByUser = true;
-            downloader.cancel();
-            downloader.shutdown();
-            downloader = null;
+            s.downloader.cancel();
+            s.downloader.shutdown();
+            state = new TaskState(null, s.viewKey, s.savePath, s.targetMp4Path, s.pseudoDownloadId, s.lastProgress);
             // M40：清理下载过程中产生的临时分片（getCacheDir 下的 hls_* 目录）
             cleanupHlsTemp();
             // 复位 DB 记录，使其从「正在下载」列表移除
             resetRecord();
             // M62：取消后清掉半成品 mp4，避免残留不可播文件
-            deleteQuietly(new File(targetMp4Path));
+            deleteQuietly(new File(s.targetMp4Path));
             stopForeground(true);
             stopSelf();
         }
         return START_NOT_STICKY;
+    }
+
+    /**
+     * M97：被新任务顶替的旧任务，其 DB 记录若仍为“下载中”则置 ERROR 并广播刷新。
+     * 沿用现有 DataManager 更新方法与 ACTION_HLS_DONE 刷新通道；
+     * 仅在 status==progress 时才改写，不碰已完成/已暂停的记录。
+     */
+    private void markReplacedRecordError(String oldViewKey, int oldPseudoId) {
+        try {
+            V9MmanItem item = TextUtils.isEmpty(oldViewKey)
+                    ? null : getDataManager().findV9MmanItemByViewKey(oldViewKey);
+            if (item == null && oldPseudoId != 0) {
+                item = getDataManager().findV9MmanItemByDownloadId(oldPseudoId);
+            }
+            if (item != null && item.getStatus() == FileDownloadStatus.progress) {
+                item.setStatus(FileDownloadStatus.error);
+                getDataManager().updateV9MmanItem(item);
+                Intent i = new Intent(ACTION_HLS_DONE);
+                i.putExtra(EXTRA_VIEW_KEY, oldViewKey);
+                LocalBroadcastManager.getInstance(this).sendBroadcast(i);
+                AppLog.i("HlsDownload", "被替换的旧任务记录已置 error viewKey=" + oldViewKey);
+            }
+        } catch (Exception e) {
+            AppLog.e("HlsDownload", "markReplacedRecordError failed: " + e.getMessage());
+        }
     }
 
     /** M73：构造稳定且恒为正的伪 downloadId（Math.abs 对 MIN_VALUE 返回负数） */
@@ -211,9 +270,6 @@ public class HlsDownloadService extends Service {
         if (replacedDownloader != null) {
             replacedDownloader.cancel();
             replacedDownloader.shutdown();
-            if (downloader == replacedDownloader) {
-                downloader = null;
-            }
         }
         File target = new File(mp4Path);
         String saveDir = target.getParent();
@@ -221,17 +277,19 @@ public class HlsDownloadService extends Service {
         if (fileName != null && fileName.toLowerCase().endsWith(".mp4") && fileName.length() > 4) {
             fileName = fileName.substring(0, fileName.length() - 4);
         }
-        // M62：per-task 归属校验——闭包持有"本任务专属的下载器实例"，
-        // 回调到达时与当前 downloader 字段比对，非当前实例的一律按旧任务上下文处理或丢弃。
+        // M62/M97：per-task 归属校验——闭包持有"本任务专属的下载器实例"，
+        // 回调到达时与当前状态快照中的 downloader 比对，非当前实例的一律按旧任务上下文处理或丢弃。
         // 修复：连发两个 HLS 下载时，被程序化 cancel 的旧 worker 迟到回调
         // 会把新任务记录写成 error 并删掉新任务目标 mp4（cancelledByUser 栅栏管不住这条路径）。
         final HlsDownloader activeDownloader = new HlsDownloader(this);
-        downloader = activeDownloader;
+        // M97：把活跃下载器写入快照整体发布（其余字段沿用当前快照值）
+        TaskState cur = state;
+        state = new TaskState(activeDownloader, cur.viewKey, cur.savePath, cur.targetMp4Path, cur.pseudoDownloadId, -1);
         // M43：传入播放缓存目录，若该视频播放过（分片已缓存）则直接复用，避免重复下载
         activeDownloader.download(url, saveDir, fileName, AppCacheUtils.getVideoCacheDir(this), new HlsDownloader.HlsDownloadListener() {
             @Override
             public void onProgress(int done, int total) {
-                if (activeDownloader != downloader) {
+                if (activeDownloader != state.downloader) {
                     // 旧任务的迟到进度：不写库、不刷通知，直接丢弃
                     return;
                 }
@@ -240,7 +298,7 @@ public class HlsDownloadService extends Service {
 
             @Override
             public void onSuccess(File mp4File) {
-                if (activeDownloader == downloader && !cancelledByUser) {
+                if (activeDownloader == state.downloader && !cancelledByUser) {
                     handleSuccess(mp4File);
                     return;
                 }
@@ -257,7 +315,7 @@ public class HlsDownloadService extends Service {
 
             @Override
             public void onError(String message) {
-                if (activeDownloader != downloader) {
+                if (activeDownloader != state.downloader) {
                     // 旧下载器的迟到失败（含被程序化取消）：只记日志——
                     // 不写库、不删任何文件，防止误伤新任务的记录与产物
                     AppLog.i("HlsDownload", "丢弃旧下载器迟到错误回调 msg=" + message);
@@ -281,12 +339,13 @@ public class HlsDownloadService extends Service {
             }
             if (item != null) {
                 long len = mp4File.length();
-                int size = len > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) Math.max(0L, len);
+                // M99：字段已改 long，直接存真实字节数，去掉 int 钳制
                 item.setStatus(FileDownloadStatus.completed);
                 item.setProgress(100);
                 item.setFinishedDownloadDate(new Date());
-                item.setSoFarBytes(size);
-                item.setTotalFarBytes(size);
+                // M99：实体字段保持 int（greenDAO 插件对 long 改造不友好，见评审遗留），>2GB 截断风险已知
+                item.setSoFarBytes((int) len);
+                item.setTotalFarBytes((int) len);
                 item.setDownloadId(taskPseudoId);
                 getDataManager().updateV9MmanItem(item);
             }
@@ -303,10 +362,12 @@ public class HlsDownloadService extends Service {
     }
 
     private V9MmanItem findItem() {
-        if (TextUtils.isEmpty(viewKey)) {
+        // M97：从状态快照读 viewKey，避免读到被新任务覆盖一半的字段
+        String vk = state.viewKey;
+        if (TextUtils.isEmpty(vk)) {
             return null;
         }
-        return getDataManager().findV9MmanItemByViewKey(viewKey);
+        return getDataManager().findV9MmanItemByViewKey(vk);
     }
 
     /**
@@ -315,8 +376,9 @@ public class HlsDownloadService extends Service {
      */
     private V9MmanItem findItemOrByDownloadId() {
         V9MmanItem item = findItem();
-        if (item == null && pseudoDownloadId != 0) {
-            item = getDataManager().findV9MmanItemByDownloadId(pseudoDownloadId);
+        int pseudoId = state.pseudoDownloadId;
+        if (item == null && pseudoId != 0) {
+            item = getDataManager().findV9MmanItemByDownloadId(pseudoId);
         }
         return item;
     }
@@ -328,7 +390,7 @@ public class HlsDownloadService extends Service {
             if (item != null) {
                 item.setStatus(FileDownloadStatus.progress);
                 item.setProgress(0);
-                item.setDownloadId(pseudoDownloadId);
+                item.setDownloadId(state.pseudoDownloadId);
                 item.setSoFarBytes(0);
                 item.setTotalFarBytes(0);
                 getDataManager().updateV9MmanItem(item);
@@ -358,12 +420,14 @@ public class HlsDownloadService extends Service {
             getDataManager().updateV9MmanItem(item);
         }
         Intent i = new Intent(ACTION_HLS_PROGRESS);
-        i.putExtra(EXTRA_VIEW_KEY, viewKey);
+        i.putExtra(EXTRA_VIEW_KEY, state.viewKey);
         i.putExtra(EXTRA_PROGRESS, percent);
         LocalBroadcastManager.getInstance(this).sendBroadcast(i);
     }
 
     private void handleSuccess(File mp4File) {
+        // M97：读端取一次快照，成功处理全程使用同一份任务上下文
+        TaskState s = state;
         // M62：已取消的任务不得复活为"下载完成"（取消发生在合并/转码阶段时到达此处）
         if (cancelledByUser) {
             AppLog.i("HlsDownload", "已取消，丢弃迟到成功回调 path=" + mp4File.getPath());
@@ -379,16 +443,16 @@ public class HlsDownloadService extends Service {
             item.setStatus(FileDownloadStatus.completed);
             item.setProgress(100);
             item.setFinishedDownloadDate(new Date());
-            // M62：long→int 截断防护（>2GB 时钳制到 Integer.MAX_VALUE，避免负数尺寸）
+            // M99：字段已改 long，直接存真实字节数，去掉 int 钳制（原 >2GB 时钳到 Integer.MAX_VALUE）
             long len = mp4File.length();
-            int size = len > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) len;
-            item.setSoFarBytes(size);
-            item.setTotalFarBytes(size);
-            item.setDownloadId(pseudoDownloadId);
+            // M99：同上 int 截断说明
+            item.setSoFarBytes((int) len);
+            item.setTotalFarBytes((int) len);
+            item.setDownloadId(s.pseudoDownloadId);
             getDataManager().updateV9MmanItem(item);
         }
         Intent i = new Intent(ACTION_HLS_DONE);
-        i.putExtra(EXTRA_VIEW_KEY, viewKey);
+        i.putExtra(EXTRA_VIEW_KEY, s.viewKey);
         LocalBroadcastManager.getInstance(this).sendBroadcast(i);
         showCompletedNotification(mp4File);
         stopForeground(true);
@@ -397,10 +461,12 @@ public class HlsDownloadService extends Service {
     }
 
     private void handleError(String message) {
+        // M97：读端取一次快照，失败处理全程使用同一份任务上下文
+        TaskState s = state;
         // M62：已取消的任务不得复活为"下载错误"（worker 阻塞在 socket 读时用户取消，迟到回调到达此处）
         if (cancelledByUser) {
             AppLog.i("HlsDownload", "已取消，丢弃迟到错误回调 msg=" + message);
-            deleteQuietly(new File(targetMp4Path));
+            deleteQuietly(new File(s.targetMp4Path));
             cleanupHlsTemp();
             stopForeground(true);
             releaseDownloader();
@@ -410,7 +476,7 @@ public class HlsDownloadService extends Service {
         // M62：删除"remux 半成品提升为成功"的旧逻辑——remux 直接写最终路径，
         // 失败时残留的是无 moov 的不可播文件，判 >0 字节就标 completed 只会产出损坏"完成"记录。
         // 真失败：清掉半成品 + 记录置 error（可重试/删除）。
-        deleteQuietly(new File(targetMp4Path));
+        deleteQuietly(new File(s.targetMp4Path));
         // M41：失败时保留记录（status=error、downloadId 不变），
         // 使「正在下载」列表显示“下载错误”并可重试/删除；
         // 不再 resetRecord 把 downloadId 置 0 导致记录从两个列表都消失。
@@ -418,7 +484,7 @@ public class HlsDownloadService extends Service {
         if (item != null) {
             item.setStatus(FileDownloadStatus.error);
             item.setProgress(100);
-            item.setDownloadId(pseudoDownloadId);
+            item.setDownloadId(s.pseudoDownloadId);
             getDataManager().updateV9MmanItem(item);
         }
         // 清理临时分片，避免残留
@@ -474,17 +540,21 @@ public class HlsDownloadService extends Service {
 
     // M25/M26：释放下载器并关闭其线程池，防止 4 个工作线程泄漏
     private void releaseDownloader() {
-        if (downloader != null) {
-            downloader.shutdown();
-            downloader = null;
+        // M97：经快照整体替换置空，不再直接写共享字段
+        TaskState s = state;
+        if (s.downloader != null) {
+            s.downloader.shutdown();
+            state = new TaskState(null, s.viewKey, s.savePath, s.targetMp4Path, s.pseudoDownloadId, s.lastProgress);
         }
     }
 
     private void updateProgress(String text, int percent, int total) {
-        if (percent == lastProgress) {
+        // M97：lastProgress 收敛进快照，读-改-写以“复制+替换”完成
+        TaskState s = state;
+        if (percent == s.lastProgress) {
             return;
         }
-        lastProgress = percent;
+        state = new TaskState(s.downloader, s.viewKey, s.savePath, s.targetMp4Path, s.pseudoDownloadId, percent);
         Notification notification = buildProgressNotification(text, percent, total);
         notificationManager.notify(NOTIFICATION_ID, notification);
     }

@@ -73,6 +73,9 @@ public class JiaoZiVideoPlayerActivity extends BasePlayVideo {
     @Override
     protected void onPause() {
         super.onPause();
+        // M96：releaseAllVideos 前先显式暂停解码器——退全屏后 300ms 内切后台时，
+        // release 流程可能来不及停音，导致页面已不可见但音频仍在播放。
+        cn.jzvd.JZMediaManager.pause();
         JZVideoPlayer.releaseAllVideos();
     }
 }

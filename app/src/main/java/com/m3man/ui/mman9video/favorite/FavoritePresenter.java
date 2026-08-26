@@ -148,7 +148,10 @@ public class FavoritePresenter extends MvpBasePresenter<FavoriteView> implements
                     @Override
                     public List<V9MmanItem> apply(BaseResult<List<V9MmanItem>> baseResult) throws Exception {
                         if (page == 1) {
-                            totalPage = baseResult.getTotalPage();
+                            // M97：totalPage 判空兜底（与 VideoListPresenter 同款写法）——
+                            // 服务端缺字段/返回 0 时保持 1，避免 page>=totalPage 误判“没有更多”
+                            Integer tp = baseResult.getTotalPage();
+                            totalPage = (tp == null || tp < 1) ? 1 : tp;
                             // M73：本次已绕过缓存，后续页恢复走缓存
                             cleanCache = false;
                         }

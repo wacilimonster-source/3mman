@@ -2,7 +2,6 @@ package com.m3man.ui.main;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.Handler;
 import android.support.annotation.IntRange;
 import android.support.annotation.NonNull;
 import android.support.design.widget.CoordinatorLayout;
@@ -32,7 +31,6 @@ import com.m3man.data.model.Notice;
 import com.m3man.data.model.UpdateVersion;
 import com.m3man.data.network.Api;
 import com.m3man.eventbus.LowMemoryEvent;
-import com.m3man.service.UpdateDownloadService;
 import com.m3man.ui.MvpActivity;
 import com.m3man.ui.basemain.BaseMainFragment;
 import com.m3man.ui.download.DownloadActivity;
@@ -486,10 +484,8 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                 super.onBackPressed();
             }
             finishAffinity();
-            new Handler().postDelayed(() -> {
-                int pid = android.os.Process.myPid();
-                android.os.Process.killProcess(pid);
-            }, 500);
+            // M97：删除 postDelayed killProcess 强杀——HLS 分片合并/转码进行中进程被强杀
+            // 会产生无 moov 的脏文件与残留 hls_* 临时目录；finishAffinity 后交由系统正常回收。
         }
     }
 

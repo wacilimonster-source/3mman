@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -51,6 +52,7 @@ import io.rx_cache2.EvictDynamicKey;
 import io.rx_cache2.EvictDynamicKeyGroup;
 import io.rx_cache2.EvictProvider;
 import io.rx_cache2.Reply;
+import okhttp3.HttpUrl;
 import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Response;
@@ -206,7 +208,8 @@ public class AppApiHelper implements ApiHelper {
     @Override
     public Observable<String> commentMman9Video(String cpaintFunction, String comment, String uid, String vid, String viewKey, String responseType) {
         return v9MmanServiceApi.commentVideo(cpaintFunction, comment, uid, vid, responseType, HeaderUtils.getPlayVideoReferer(viewKey, addressHelper))
-                .map(s -> new Gson().fromJson(s, VideoCommentResult.class))
+                // M95：改用注入的 gson 字段，避免每次调用 new Gson() 的重复构造开销
+                .map(s -> gson.fromJson(s, VideoCommentResult.class))
                 .map(videoCommentResult -> {
                     String msg = "评论错误，未知错误";
                     //M16：接口返回空/错误页时 gson 会产出 null 或 a 为 null，需先判空避免 NPE
@@ -215,9 +218,9 @@ public class AppApiHelper implements ApiHelper {
                         throw new MessageException("评论错误，未知错误");
                     } else if (videoCommentResult.getA().get(0).getData() == VideoCommentResult.COMMENT_SUCCESS) {
                         msg = "留言已经提交，审核后通过";
-                    } else if (videoCommentResult.getA().get(0).getData() == VideoCommentResult.COMMENT_ALLREADY) {
+                    } else if (videoCommentResult.getA().get(0).getData() == VideoCommentResult.COMMENT_ALREADY) {
                         throw new MessageException("你已经在这个视频下留言过");
-                    } else if (videoCommentResult.getA().get(0).getData() == VideoCommentResult.COMMENT_NO_PERMISION) {
+                    } else if (videoCommentResult.getA().get(0).getData() == VideoCommentResult.COMMENT_NO_PERMISSION) {
                         throw new MessageException("不允许留言!");
                     }
                     return msg;
@@ -260,9 +263,25 @@ public class AppApiHelper implements ApiHelper {
 
     @Override
     public Observable<Boolean> testPornyAddress(String url) {
-        RetrofitUrlManager.getInstance().putDomain(Api.PORNY_DOMAIN_NAME, url);
+        // M95：进入前先记录当前 porny 域名映射。旧实现直接 putDomain 新地址且不回滚，
+        // 测试失败（异常或返回 false）时毒化映射残留整个会话，后续所有 porny 请求连锁失败。
+        final HttpUrl oldDomain = RetrofitUrlManager.getInstance().fetchDomain(Api.PORNY_DOMAIN_NAME);
+        final AtomicBoolean testSuccess = new AtomicBoolean(false);
         return pornyServiceApi.search("test", 1, "", "", "", HeaderUtils.getPornyHeader(addressHelper))
-                .map(s -> Parse91PornyVideo.parseSearchVideos(s).getData().size() > 0);
+                .map(s -> Parse91PornyVideo.parseSearchVideos(s).getData().size() > 0)
+                .doOnNext(testSuccess::set)
+                //参照同文件 testProxy 的 doFinally 模式：无论成功/失败/取消都收口；
+                //测试成功才保留新值，失败恢复旧值（无旧映射则移除该条目）
+                .doFinally(() -> {
+                    if (testSuccess.get()) {
+                        return;
+                    }
+                    if (oldDomain != null) {
+                        RetrofitUrlManager.getInstance().putDomain(Api.PORNY_DOMAIN_NAME, oldDomain.toString());
+                    } else {
+                        RetrofitUrlManager.getInstance().removeDomain(Api.PORNY_DOMAIN_NAME);
+                    }
+                });
     }
 
     @Override

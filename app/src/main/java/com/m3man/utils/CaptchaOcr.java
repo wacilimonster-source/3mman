@@ -8,11 +8,13 @@ import android.os.Looper;
 import com.googlecode.tesseract.android.TessBaseAPI;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.security.MessageDigest;
 
 /**
  * 基于 tess-two 的离线验证码识别工具（无需 GMS / ML Kit，适用于无 Play 服务的模拟器）。
@@ -23,11 +25,21 @@ import java.net.URL;
  */
 public class CaptchaOcr {
 
+    private static final String TAG = "CaptchaOcr";
+
     private static final String TESS_DIR = "tessdata";
     private static final String LANG = "eng";
     // 训练数据托管地址（与 App 更新同源：GitHub raw）
     private static final String TRAINEDDATA_URL =
             "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/tessdata/eng.traineddata";
+
+    /**
+     * M94：训练数据完整性指纹——2026-08 版本指纹（对仓库 tessdata/eng.traineddata
+     * 实测 SHA-256，23466654 字节）。下载完成后除大小校验外必须比对，
+     * 防止 CDN 劫持/截断/错误页内容被当作模型文件。
+     */
+    private static final String EXPECTED_SHA256 =
+            "daa0c97d651c19fba3b25e81317cd697e9908c8208090c94c3905381c23fc047";
 
     private final Context context;
     private TessBaseAPI tessBaseAPI;
@@ -62,8 +74,9 @@ public class CaptchaOcr {
     /**
      * 准备 OCR 引擎：若本地缺训练数据则先下载(建议子线程调用)，随后初始化引擎。
      * 通过 callback 上报进度与结果。
+     * M94：加 synchronized 防止并发调用导致重复下载/双初始化。
      */
-    public void prepare(final PrepareCallback callback) {
+    public synchronized void prepare(final PrepareCallback callback) {
         if (engineReady) {
             callback.onPrepared(true);
             return;
@@ -86,6 +99,8 @@ public class CaptchaOcr {
             dir.mkdirs();
         }
         File tmp = new File(dir, LANG + ".traineddata.tmp");
+        // M94：成功(已 rename 走)才跳过 finally 里的 .tmp 清理，任何失败路径都清残留
+        boolean success = false;
         HttpURLConnection conn = null;
         InputStream is = null;
         OutputStream os = null;
@@ -98,6 +113,7 @@ public class CaptchaOcr {
             conn.connect();
             int code = conn.getResponseCode();
             if (code != HttpURLConnection.HTTP_OK) {
+                AppLog.w(TAG, "训练数据下载HTTP异常 code=" + code);
                 return false;
             }
             int total = conn.getContentLength();
@@ -116,8 +132,18 @@ public class CaptchaOcr {
                 }
             }
             os.flush();
+            os.close();
+            os = null;
             // 校验大小合理（至少几百 KB，防止下载到错误页）
             if (tmp.length() < 1024 * 200) {
+                AppLog.w(TAG, "训练数据过小(" + tmp.length() + "B)，疑似错误内容，丢弃");
+                return false;
+            }
+            // M94：SHA-256 指纹校验（见 EXPECTED_SHA256 注释），不匹配删除 .tmp 并报错
+            String actualSha256 = sha256Hex(tmp);
+            if (!EXPECTED_SHA256.equals(actualSha256)) {
+                AppLog.e(TAG, "训练数据SHA-256不匹配 actual=" + actualSha256
+                        + " expected=" + EXPECTED_SHA256);
                 return false;
             }
             // 原子替换
@@ -125,9 +151,13 @@ public class CaptchaOcr {
             if (finalFile.exists()) {
                 finalFile.delete();
             }
-            return tmp.renameTo(finalFile);
+            success = tmp.renameTo(finalFile);
+            if (!success) {
+                AppLog.e(TAG, ".tmp 原子替换失败 path=" + tmp.getPath());
+            }
+            return success;
         } catch (Exception e) {
-            e.printStackTrace();
+            AppLog.e(TAG, "训练数据下载失败 " + AppLog.cause(e));
             return false;
         } finally {
             try {
@@ -145,7 +175,30 @@ public class CaptchaOcr {
             if (conn != null) {
                 conn.disconnect();
             }
+            if (!success && tmp.exists() && !tmp.delete()) {
+                AppLog.w(TAG, ".tmp 残留清理失败 path=" + tmp.getPath());
+            }
         }
+    }
+
+    /** M94：流式计算文件 SHA-256（十六进制小写），供下载完整性校验 */
+    private static String sha256Hex(File file) throws Exception {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        InputStream in = new FileInputStream(file);
+        try {
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = in.read(buffer)) != -1) {
+                md.update(buffer, 0, read);
+            }
+        } finally {
+            in.close();
+        }
+        StringBuilder sb = new StringBuilder(md.getDigestLength() * 2);
+        for (byte b : md.digest()) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 
     private void postProgress(final PrepareCallback callback, final int percent) {

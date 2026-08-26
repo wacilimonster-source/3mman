@@ -15,9 +15,12 @@ import com.m3man.data.db.entity.VideoResult;
 import com.m3man.data.db.entity.VideoResultDao;
 import com.m3man.data.db.entity.AutoCompleteEntity;
 import com.m3man.data.db.entity.AutoCompleteEntityDao;
+import android.content.Context;
 import android.text.TextUtils;
 import java.util.Date;
 
+import com.m3man.di.ApplicationContext;
+import com.m3man.utils.AppLog;
 import org.greenrobot.greendao.database.Database;
 
 import java.util.ArrayList;
@@ -40,8 +43,13 @@ public class AppDbHelper implements DbHelper {
     /** M66b：持久化来源标记取值，与 PlayVideoPresenter.SOURCE_MMAN9_PERSIST 一致 */
     private static final String SOURCE_MMAN9 = "mman9";
 
+    /** M99：porny 误标修复的一次性 SP 标记（PreferencesHelper 无通用 SP 能力，直读 SharedPreferences） */
+    private static final String REPAIR_PORNY_SP_NAME = "repair_porny_v1";
+    private static final String REPAIR_PORNY_DONE_KEY = "repair_porny_v1_done";
+
     @Inject
-    AppDbHelper(MySQLiteOpenHelper helper) {
+    AppDbHelper(MySQLiteOpenHelper helper, @ApplicationContext Context context) {
+        this.mAppContext = context;
         //如果你想查看日志信息，请将DEBUG设置为true
         MigrationHelper.DEBUG = BuildConfig.DEBUG;
         Database db = helper.getWritableDb();
@@ -55,13 +63,18 @@ public class AppDbHelper implements DbHelper {
                 try {
                     initCategory(Category.TYPE_91PORN, Category.CATEGORY_DEFAULT_91PORN_VALUE, Category.CATEGORY_DEFAULT_91PORN_NAME);
                     repairMisflaggedPornyRows();
-                } catch (Exception ignored) {
+                } catch (Exception e) {
+                    // M99：种子失败不再静默吞掉，至少留一条错误日志便于排查
+                    AppLog.e("AppDbHelper", "initCategory/repairMisflaggedPornyRows failed: " + AppLog.cause(e));
                 } finally {
                     io.shutdown();
                 }
             }
         });
     }
+
+    /** M99：应用上下文，供 repairMisflaggedPornyRows 读写一次性标记 */
+    private final Context mAppContext;
 
     /**
      * M66b 一次性数据修复：旧版 isPornySource 的 hex 正则误判把大量 9mman 视频标成了
@@ -70,29 +83,50 @@ public class AppDbHelper implements DbHelper {
      * porny 条目恒为裸 hex）但 sourceName 被标成 91porny 的行 → 改回 mman9。
      */
     private void repairMisflaggedPornyRows() {
+        // M99：一次性修复标记——已执行过直接返回，避免每次启动都做全表扫描。
+        // PreferencesHelper 无通用 SP 能力，这里直读 SharedPreferences。
+        try {
+            if (mAppContext.getSharedPreferences(REPAIR_PORNY_SP_NAME, Context.MODE_PRIVATE)
+                    .getBoolean(REPAIR_PORNY_DONE_KEY, false)) {
+                return;
+            }
+        } catch (Exception e) {
+            // SP 不可用时仍执行一次修复，失败不影响启动
+        }
         try {
             List<V9MmanItem> misflagged = mDaoSession.getV9MmanItemDao().queryBuilder()
                     .where(V9MmanItemDao.Properties.SourceName.eq("91porny"))
                     .build().list();
-            boolean dirty = false;
+            // M99：只把实际修改的行收集起来提交，避免把未变更行整批 updateInTx
+            List<V9MmanItem> modified = new ArrayList<>();
             for (V9MmanItem item : misflagged) {
                 String key = item.getViewKey();
                 if (key != null && key.startsWith("viewkey=")) {
                     item.setSourceName(SOURCE_MMAN9);
-                    dirty = true;
+                    modified.add(item);
                 }
             }
-            if (dirty) {
-                mDaoSession.getV9MmanItemDao().updateInTx(misflagged);
+            if (!modified.isEmpty()) {
+                mDaoSession.getV9MmanItemDao().updateInTx(modified);
             }
-        } catch (Exception ignored) {
-            // 修复失败不影响启动
+            // 全部成功后才落"已执行"标记；中途异常则下次启动重试
+            mAppContext.getSharedPreferences(REPAIR_PORNY_SP_NAME, Context.MODE_PRIVATE)
+                    .edit().putBoolean(REPAIR_PORNY_DONE_KEY, true).apply();
+        } catch (Exception e) {
+            // 修复失败不影响启动，且不落标记，下次启动重试
+            AppLog.w("AppDbHelper", "repairMisflaggedPornyRows failed: " + AppLog.cause(e));
         }
     }
 
     @Override
     public void initCategory(int type, String[] value, String[] name) {
         if (name == null || name.length == 0) {
+            return;
+        }
+        // M99：name/value 必须等长，否则下方按索引配对会越界/错位插入脏数据
+        if (value != null && value.length != name.length) {
+            AppLog.w("AppDbHelper", "initCategory 配置非法：name/value 长度不一致 name="
+                    + name.length + " value=" + value.length + " type=" + type);
             return;
         }
         int length = name.length;
@@ -135,18 +169,27 @@ public class AppDbHelper implements DbHelper {
 
     @Override
     public List<V9MmanItem> loadDownloadingData() {
-        return mDaoSession.getV9MmanItemDao().queryBuilder().where(V9MmanItemDao.Properties.Status.notEq(FileDownloadStatus.completed), V9MmanItemDao.Properties.DownloadId.notEq(0)).orderDesc(V9MmanItemDao.Properties.AddDownloadDate).build().list();
+        // M99：读前 detach，对齐收藏/分类路径，避免 IdentityScope 返回陈旧缓存实体
+        V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
+        dao.detachAll();
+        return dao.queryBuilder().where(V9MmanItemDao.Properties.Status.notEq(FileDownloadStatus.completed), V9MmanItemDao.Properties.DownloadId.notEq(0)).orderDesc(V9MmanItemDao.Properties.AddDownloadDate).build().list();
 
     }
 
     @Override
     public List<V9MmanItem> loadFinishedData() {
-        return mDaoSession.getV9MmanItemDao().queryBuilder().where(V9MmanItemDao.Properties.Status.eq(FileDownloadStatus.completed), V9MmanItemDao.Properties.DownloadId.notEq(0)).orderDesc(V9MmanItemDao.Properties.FinishedDownloadDate).build().list();
+        // M99：读前 detach，对齐收藏/分类路径
+        V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
+        dao.detachAll();
+        return dao.queryBuilder().where(V9MmanItemDao.Properties.Status.eq(FileDownloadStatus.completed), V9MmanItemDao.Properties.DownloadId.notEq(0)).orderDesc(V9MmanItemDao.Properties.FinishedDownloadDate).build().list();
     }
 
     @Override
     public List<V9MmanItem> loadHistoryData(int page, int pageSize) {
-        return mDaoSession.getV9MmanItemDao().queryBuilder().where(V9MmanItemDao.Properties.ViewHistoryDate.isNotNull()).orderDesc(V9MmanItemDao.Properties.ViewHistoryDate).offset((page - 1) * pageSize).limit(pageSize).build().list();
+        // M99：读前 detach，对齐收藏/分类路径
+        V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
+        dao.detachAll();
+        return dao.queryBuilder().where(V9MmanItemDao.Properties.ViewHistoryDate.isNotNull()).orderDesc(V9MmanItemDao.Properties.ViewHistoryDate).offset((page - 1) * pageSize).limit(pageSize).build().list();
     }
 
     @Override
@@ -208,9 +251,12 @@ public class AppDbHelper implements DbHelper {
         // 已存在同 videoId 的记录时复用其主键做替换，外键引用保持有效。
         if (videoResult.getId() == null && !TextUtils.isEmpty(videoResult.getVideoId())) {
             try {
-                VideoResult existing = mDaoSession.getVideoResultDao().queryBuilder()
+                // M99：unique() 在历史脏数据（同 videoId 多行）下会抛 DaoException，
+                // 改用 list() 取第一条，保留 insertOrReplace 主键复用语义
+                List<VideoResult> existList = mDaoSession.getVideoResultDao().queryBuilder()
                         .where(VideoResultDao.Properties.VideoId.eq(videoResult.getVideoId()))
-                        .build().unique();
+                        .build().list();
+                VideoResult existing = (existList != null && !existList.isEmpty()) ? existList.get(0) : null;
                 if (existing != null) {
                     videoResult.setId(existing.getId());
                 }
@@ -247,6 +293,8 @@ public class AppDbHelper implements DbHelper {
         if (TextUtils.isEmpty(key)) {
             return null;
         }
+        // M99：读前 detach，对齐收藏/分类路径，避免拿到其它线程缓存的陈旧实体
+        dao.detachAll();
         try {
             // D3：viewKey 已建立唯一索引，直接用 unique() 即可；
             // 偶发异常不再删除命中行，避免误删用户数据。
@@ -257,7 +305,8 @@ public class AppDbHelper implements DbHelper {
             if (tmp != null && !tmp.isEmpty()) {
                 return tmp.get(0);
             }
-            if (!BuildConfig.DEBUG) {
+            // M99：修正写反的日志方向——仅 DEBUG 打印堆栈，RELEASE 静默
+            if (BuildConfig.DEBUG) {
                 e.printStackTrace();
             }
             return null;
@@ -266,21 +315,27 @@ public class AppDbHelper implements DbHelper {
 
     @Override
     public V9MmanItem findV9MmanItemByDownloadId(int downloadId) {
+        // M99：读前 detach，对齐收藏/分类路径
+        V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
+        dao.detachAll();
         try {
-            return mDaoSession.getV9MmanItemDao().queryBuilder().where(V9MmanItemDao.Properties.DownloadId.eq(downloadId)).build().unique();
+            return dao.queryBuilder().where(V9MmanItemDao.Properties.DownloadId.eq(downloadId)).build().unique();
         } catch (Exception e) {
-            //暂时先不处理这问题了，理论上一个不会发生，因为时根据url生成
-            if (!BuildConfig.DEBUG) {
-                //Bugsnag.notify(new Throwable("findV9MmanItemDaoByDownloadId DaoException", e), Severity.WARNING);
+            // 暂时先不处理这问题了，理论上一个不会发生，因为时根据url生成
+            // M99：修正写反的日志方向——仅 DEBUG 打印堆栈，RELEASE 静默；清理空 if 块
+            if (BuildConfig.DEBUG) {
+                e.printStackTrace();
             }
-            e.printStackTrace();
         }
         return null;
     }
 
     @Override
     public List<V9MmanItem> loadV9MmanItems() {
-        return mDaoSession.getV9MmanItemDao().loadAll();
+        // M99：读前 detach，对齐收藏/分类路径
+        V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
+        dao.detachAll();
+        return dao.loadAll();
     }
 
     @Override
@@ -296,7 +351,10 @@ public class AppDbHelper implements DbHelper {
 
     @Override
     public List<V9MmanItem> findV9MmanItemByDownloadStatus(int status) {
-        return mDaoSession.getV9MmanItemDao().queryBuilder().where(V9MmanItemDao.Properties.Status.eq(status)).build().list();
+        // M99：读前 detach，对齐收藏/分类路径
+        V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
+        dao.detachAll();
+        return dao.queryBuilder().where(V9MmanItemDao.Properties.Status.eq(status)).build().list();
     }
 
     @Override

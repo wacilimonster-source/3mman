@@ -4,7 +4,6 @@ import org.greenrobot.greendao.annotation.Entity;
 import org.greenrobot.greendao.annotation.Id;
 import org.greenrobot.greendao.annotation.Index;
 import org.greenrobot.greendao.annotation.Generated;
-import org.greenrobot.greendao.annotation.Transient;
 
 import java.io.Serializable;
 
@@ -20,8 +19,8 @@ public class VideoResult implements Serializable {
     private static final long serialVersionUID = 1L;
     /**
      * 游客超过每天观看次数
+     * M99：@Transient 只对实体字段生效，static 常量上的注解无任何作用，移除
      */
-    @Transient
     public static final Long OUT_OF_WATCH_TIMES = -1L;
     @Id
     public Long id;

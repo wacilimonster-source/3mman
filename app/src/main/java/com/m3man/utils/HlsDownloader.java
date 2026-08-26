@@ -106,50 +106,85 @@ public class HlsDownloader {
                 }
 
                 // 3. 下载所有分片（M43：优先复用播放缓存——仅当全部分片都已缓存时使用，避免半缓存错位）
-                File tempDir = new File(context.getCacheDir(), "hls_" + System.currentTimeMillis());
+                // M97：临时目录名改为 hls_+URL哈希+_分片总数——同名目录下已存在非空同名分片则跳过下载，
+                // 实现断点续传；旧 System.currentTimeMillis() 命名每次都新建目录，重试必然全部重来
+                File tempDir = new File(context.getCacheDir(),
+                        "hls_" + Integer.toHexString(m3u8Url.hashCode()) + "_" + fullUrls.size());
                 if (!tempDir.exists() && !tempDir.mkdirs()) {
                     notifyError(listener, "创建临时目录失败");
                     return;
                 }
                 Map<String, File> cacheHits = collectCacheHits(fullUrls, videoCacheDir);
                 boolean useCache = cacheHits != null && cacheHits.size() == fullUrls.size();
-                List<File> tsFiles = new ArrayList<>(fullUrls.size());
-                int ok = 0;
+                // M97：分片并发化——此前线程池只跑整条流水线、分片实际串行；
+                // 现把每个分片提交到池（池大小 4，满足 ≤4 并发），CountDownLatch 等待全部完成，
+                // 任一分片失败置 failed 标志，未开始的分片快速结束不再发起网络请求
+                final List<File> tsFiles = new ArrayList<>(java.util.Collections.nCopies(fullUrls.size(), null));
+                final java.util.concurrent.atomic.AtomicInteger okCount = new java.util.concurrent.atomic.AtomicInteger();
+                final java.util.concurrent.atomic.AtomicBoolean failed =
+                        new java.util.concurrent.atomic.AtomicBoolean(false);
+                final java.util.concurrent.CountDownLatch latch =
+                        new java.util.concurrent.CountDownLatch(fullUrls.size());
                 for (int i = 0; i < fullUrls.size(); i++) {
-                    if (cancelled) {
-                        notifyError(listener, "下载已取消");
-                        return;
-                    }
-                    File tsFile = new File(tempDir, String.format("seg_%05d.ts", i));
-                    boolean pieceOk;
-                    if (useCache && cacheHits.containsKey(fullUrls.get(i))) {
-                        // M62：缓存复制失败时回退网络下载，而不是静默跳过该分片
-                        pieceOk = copyFile(cacheHits.get(fullUrls.get(i)), tsFile)
-                                || downloadToFile(fullUrls.get(i), tsFile);
-                    } else {
-                        pieceOk = downloadToFile(fullUrls.get(i), tsFile);
-                    }
-                    if (pieceOk) {
-                        tsFiles.add(tsFile);
-                        ok++;
-                    }
-                    notifyProgress(listener, ok, fullUrls.size());
+                    final int idx = i;
+                    final String segUrl = fullUrls.get(i);
+                    executor.execute(() -> {
+                        try {
+                            // 失败/取消后不再启动新的分片下载（快速结束）
+                            if (failed.get() || cancelled) {
+                                return;
+                            }
+                            File tsFile = new File(tempDir, String.format("seg_%05d.ts", idx));
+                            // M97：断点续传——同名分片已存在且长度>0 则跳过下载直接复用
+                            boolean pieceOk = tsFile.exists() && tsFile.length() > 0;
+                            if (!pieceOk) {
+                                if (useCache && cacheHits.containsKey(segUrl)) {
+                                    // M62：缓存复制失败时回退网络下载，而不是静默跳过该分片
+                                    pieceOk = copyFile(cacheHits.get(segUrl), tsFile)
+                                            || downloadToFile(segUrl, tsFile);
+                                } else {
+                                    pieceOk = downloadToFile(segUrl, tsFile);
+                                }
+                            }
+                            if (pieceOk) {
+                                tsFiles.set(idx, tsFile);
+                                notifyProgress(listener, okCount.incrementAndGet(), fullUrls.size());
+                            } else {
+                                failed.set(true);
+                            }
+                        } finally {
+                            latch.countDown();
+                        }
+                    });
                 }
-                // M62：硬校验——任一分片失败都不得合并，否则产出缺段 mp4 被标成"下载完成"
-                if (ok != fullUrls.size()) {
-                    notifyError(listener, "有 " + (fullUrls.size() - ok) + "/" + fullUrls.size()
-                            + " 个分片下载失败，已中止（请重试）");
+                try {
+                    latch.await();
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    notifyError(listener, "下载已中断");
                     return;
                 }
-                if (cancelled) {
-                    // M62：合并/转码阶段也响应取消，避免已取消任务照常产出"下载完成"
-                    notifyError(listener, "下载已取消");
+                List<File> downloadedTsFiles = new ArrayList<>(fullUrls.size());
+                for (File f : tsFiles) {
+                    if (f != null) {
+                        downloadedTsFiles.add(f);
+                    }
+                }
+                // M62/M97：硬校验——任一分片失败都不得合并，否则产出缺段 mp4 被标成"下载完成"
+                if (failed.get() || cancelled || downloadedTsFiles.size() != fullUrls.size()) {
+                    if (cancelled) {
+                        notifyError(listener, "下载已取消");
+                    } else {
+                        int ok = downloadedTsFiles.size();
+                        notifyError(listener, "有 " + (fullUrls.size() - ok) + "/" + fullUrls.size()
+                                + " 个分片下载失败，已中止（请重试）");
+                    }
                     return;
                 }
 
-                // 4. 合并分片为单个 ts
+                // 4. 合并分片为单个 ts（合并逻辑不变，仅数据源换为并发下载结果）
                 File tsMerged = new File(tempDir, "merged.ts");
-                mergeFiles(tsFiles, tsMerged);
+                mergeFiles(downloadedTsFiles, tsMerged);
 
                 // 5. ts -> mp4（MediaExtractor + MediaMuxer）
                 File outDir = new File(saveDir);

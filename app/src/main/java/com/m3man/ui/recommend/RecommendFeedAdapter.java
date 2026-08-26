@@ -22,13 +22,14 @@ import com.m3man.utils.GlideApp;
 import com.m3man.utils.PlayUiPrefs;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 /**
  * 推荐流适配器：一屏一条视频。
  * <p>
  * 适配器只负责「静态内容」（封面 / 标题 / 操作栏状态），
- * 真正的起播与释放由 {@link RecommendFeedActivity} 根据当前吸附位置驱动，
+ * 真正的起播与释放由 {@link RecommendFeedFragment} 根据当前吸附位置驱动，
  * 这样同一时刻只有一个 {@link RecoVideoPlayer} 持有解码器。
  *
  * @author 3mman
@@ -163,11 +164,37 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         notifyDataSetChanged();
     }
 
+    /**
+     * M98：viewKey -> 稳定自增 id 的懒分配映射（替代原 key.hashCode() 方案）。
+     * hashCode 存在碰撞可能，两个不同视频拿到同一 id 会导致 RecyclerView 的
+     * 稳定 id 复用/动画错乱；自增 Long 保证会话内唯一。
+     */
+    private final HashMap<String, Long> idMap = new HashMap<>();
+    /** M98：id 分配序号（仅在 getIdOf 同步方法内递增） */
+    private long idSeq = 0L;
+
+    /** M98：懒分配稳定 id——缺失则 put 自增序号，主线程调用故用 synchronized 兜底 */
+    private synchronized long idOf(String viewKey) {
+        if (viewKey == null) {
+            return RecyclerView.NO_ID;
+        }
+        Long id = idMap.get(viewKey);
+        if (id == null) {
+            id = ++idSeq;
+            idMap.put(viewKey, id);
+        }
+        return id;
+    }
+
     @Override
     public long getItemId(int position) {
         RecoCandidate c = getItem(position);
         String key = c == null ? null : c.viewKey();
-        return key == null ? position : key.hashCode();
+        if (key == null) {
+            // viewKey 为空仍回退 position（保留原兜底行为）
+            return position;
+        }
+        return idOf(key);
     }
 
     @Override
@@ -495,6 +522,9 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
     @Override
     public void onViewRecycled(PageHolder holder) {
         super.onViewRecycled(holder);
+        // M98：对**所有** holder 无条件取消挂起手势（单击延迟 / 长按计时 / 双击标志），
+        // 不 release 播放器——防止非当前页的 Holder 在回收后延迟手势到期误触发到复用的新视频上
+        holder.player.cancelPendingGestures();
         holder.player.setOnTapListener(null);
         // 回收前彻底停掉这一页：关循环 + 摘监听 + 收进度条，
         // 否则复用到新页时残留的状态会造成画面/标题错位

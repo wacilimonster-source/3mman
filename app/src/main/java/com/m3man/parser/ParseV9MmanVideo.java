@@ -9,6 +9,7 @@ import com.m3man.data.db.entity.VideoResult;
 import com.m3man.data.model.BaseResult;
 import com.m3man.data.model.User;
 import com.m3man.data.model.VideoComment;
+import com.m3man.utils.NetworkClientHolder;
 import com.m3man.utils.StringUtils;
 
 import org.jsoup.Jsoup;
@@ -21,6 +22,9 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import okhttp3.Request;
+import okhttp3.Response;
+
 /**
  * @author flymegoc
  * @date 2017/11/15
@@ -31,6 +35,8 @@ import java.util.regex.Pattern;
 public class ParseV9MmanVideo {
 
     private static final String TAG = ParseV9MmanVideo.class.getSimpleName();
+    /** M95：通用 Chrome UA（与 CommonHeaderInterceptor 保持一致），供分享链接兜底请求使用 */
+    private static final String FALLBACK_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.84 Safari/537.36";
 
     /**
      * 解析主页
@@ -502,15 +508,28 @@ public class ParseV9MmanVideo {
         if(TextUtils.isEmpty(videoUrl)) {
             //如果都获取不到就找分享链接
             Logger.t(TAG).e("解析加密链接失败，尝试获取分享链接");
+            // M95：兜底结果初始为空串——shareLink 为空或请求异常时直接以空串收尾，不再携带 null
+            videoUrl = "";
+            // M95：裸 Jsoup.connect 每次新建连接池且绕过全局 Cookie/代理配置，
+            // 改走 NetworkClientHolder 统一持有的 OkHttpClient（MyApplication 主进程启动时注入）。
+            Response response = null;
             try {
                 String shareLink = doc.select("#linkForm2 #fm-video_link").text();
-                Document shareDoc = Jsoup.connect(shareLink)
-                        .timeout(3000)
-                        .get();
-//                videoUrl = shareDoc.select("source").first().attr("src");
-                videoUrl = decodeVideoUrl(shareDoc.html());
+                if (!TextUtils.isEmpty(shareLink)) {
+                    Request request = new Request.Builder()
+                            .url(shareLink)
+                            .header("User-Agent", FALLBACK_UA)
+                            .build();
+                    response = NetworkClientHolder.get().newCall(request).execute();
+                    String shareHtml = response.body() != null ? response.body().string() : "";
+                    videoUrl = decodeVideoUrl(shareHtml);
+                }
             } catch (Exception e) {
                 e.printStackTrace();
+            } finally {
+                if (response != null) {
+                    response.close();
+                }
             }
         }
 
@@ -629,8 +648,9 @@ public class ParseV9MmanVideo {
     private static String decodeVideoUrl(String html) {
 
         // 找不到的话 解密
-        final String reg = "document.write\\(strencode\\(\"(.+)\",\"(.+)\",\"(.+)\"+\\)\\);";
-//        final String reg = "document.write\\(strencode\\(\"(.+)\",\"(.+)\",.+\\)\\);";
+        // M95：三组参数改非贪婪 + 字符集限定（Base64 字符集 [A-Za-z0-9+/=]）。
+        // 旧 (.+) 贪婪匹配会在页面含多段 strencode/引号嵌套时跨段吞并，取错参数导致解密失败。
+        final String reg = "document\\.write\\(strencode\\(\"([A-Za-z0-9+/=]+?)\",\"([A-Za-z0-9+/=]+?)\",\"([A-Za-z0-9+/=]+?)\"";
         Pattern p = Pattern.compile(reg);
         Matcher m = p.matcher(html);
         String param1 = "", param2 = "",param3 = "";
@@ -654,7 +674,9 @@ public class ParseV9MmanVideo {
             source_str = new String(Base64.decode(source_str.getBytes(), Base64.DEFAULT));
             Logger.t(TAG).d("视频source2：" + source_str);
             Document source = Jsoup.parse(source_str);
-            return source.select("source").first().attr("src");
+            // M95：解密产物里可能没有 <source> 标签（站点改版/解密错位），判空返回空串而非 NPE
+            Element sourceEle = source.selectFirst("source");
+            return sourceEle != null ? sourceEle.attr("src") : "";
         }
         return "";
     }
@@ -859,8 +881,10 @@ public class ParseV9MmanVideo {
 
         BaseResult<List<V9MmanItem>> baseResult = new BaseResult<>();
         //尝试解析删除信息
+        // M95：Jsoup.select 永不返回 null，旧 != null 判断恒真导致 errorbox 兜底分支不可达；
+        // 改为 isEmpty 判断，并在 msgbox 缺失时补 errorbox 错误信息检查兜底
         Elements msgElements = doc.select("div.msgbox");
-        if (msgElements != null) {
+        if (!msgElements.isEmpty()) {
             String msgInfo = msgElements.text();
             if (!TextUtils.isEmpty(msgInfo)) {
                 baseResult.setCode(BaseResult.SUCCESS_CODE);
@@ -935,7 +959,8 @@ public class ParseV9MmanVideo {
         String errorInfo = "";
         Document doc = Jsoup.parse(html);
         Elements errorElements = doc.select("div.errorbox");
-        if (errorElements != null) {
+        // M95：select 永不返回 null，旧 != null 判断恒真；改 isEmpty 判断
+        if (!errorElements.isEmpty()) {
             errorInfo = errorElements.text();
         }
         return errorInfo;

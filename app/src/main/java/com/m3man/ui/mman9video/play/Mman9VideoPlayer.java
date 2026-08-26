@@ -59,6 +59,10 @@ public class Mman9VideoPlayer extends JZVideoPlayerStandard {
     /** 外部设置：点击重试时执行的动作（一般为重新解析视频地址）。 */
     private Runnable mRetryAction;
 
+    /** M96：静态兜底——JZ 进入全屏会反射克隆一个新实例，其 mRetryAction 为空，
+     *  必须回退到类级持有的动作，否则全屏内点「重试」无反应。 */
+    private static Runnable sRetryAction;
+
     /** 当前正在播放的直链，用于失败时诊断。 */
     private String mCurrentUrl;
 
@@ -101,6 +105,10 @@ public class Mman9VideoPlayer extends JZVideoPlayerStandard {
             }
             float touchX = lastTouchX;
             if (touchX < getWidth() / 2f) {
+                // M96：仅播放中允许长按变速，暂停态触发会造成隐式开播
+                if (currentState != CURRENT_STATE_PLAYING) {
+                    return;
+                }
                 longPressTriggered = true;
                 speedBeforeLongPress = readCurrentSpeed();
                 setPlaybackSpeed(LONG_PRESS_SPEED);
@@ -110,21 +118,38 @@ public class Mman9VideoPlayer extends JZVideoPlayerStandard {
 
     public Mman9VideoPlayer(Context context) {
         super(context);
+        // M96：构造完成后控件已 inflate，同步全屏按钮显隐（覆盖克隆实例等入口）
+        syncFullscreenButtonVisibility();
     }
 
     public Mman9VideoPlayer(Context context, AttributeSet attrs) {
         super(context, attrs);
+        syncFullscreenButtonVisibility();
     }
 
     /** 设置「重试」按钮的回调（重新解析视频地址）。 */
     public void setRetryAction(Runnable action) {
         mRetryAction = action;
+        // M96：同时写入静态字段，供全屏克隆实例兜底
+        sRetryAction = action;
+    }
+
+    /** M96：按当前屏幕形态统一全屏按钮显隐（竖屏可见、全屏隐藏）。 */
+    private void syncFullscreenButtonVisibility() {
+        if (fullscreenButton != null) {
+            fullscreenButton.setVisibility(currentScreen == SCREEN_WINDOW_FULLSCREEN
+                    ? View.GONE : View.VISIBLE);
+        }
     }
 
     /** 设置当前 MediaPlayer 倍速。 */
     public boolean setPlaybackSpeed(float speed) {
         if (!isCurrentPlayer() || Build.VERSION.SDK_INT < Build.VERSION_CODES.M
                 || speed <= 0f) {
+            return false;
+        }
+        // M96：非播放态直接拒绝——暂停态下 setPlaybackParams 会让 MediaPlayer 隐式恢复播放
+        if (currentState != CURRENT_STATE_PLAYING) {
             return false;
         }
         try {
@@ -317,8 +342,10 @@ public class Mman9VideoPlayer extends JZVideoPlayerStandard {
     public void onClick(View v) {
         // mRetryBtn 在 JZVideoPlayerStandard.init() 中设置了点击监听
         if (v == mRetryBtn) {
-            if (mRetryAction != null) {
-                mRetryAction.run();
+            // M96：优先实例动作，克隆实例（无实例动作）回退静态兜底
+            Runnable action = mRetryAction != null ? mRetryAction : sRetryAction;
+            if (action != null) {
+                action.run();
             }
             return;
         }
@@ -332,6 +359,8 @@ public class Mman9VideoPlayer extends JZVideoPlayerStandard {
         mCurrentUrl = url;
         mDiagnosed = false;
         super.setUp(url, screen, objects);
+        // M96：setUp 会走到全屏克隆实例，这里统一纠正全屏按钮显隐
+        syncFullscreenButtonVisibility();
         startWatchdog();
     }
 
@@ -377,6 +406,19 @@ public class Mman9VideoPlayer extends JZVideoPlayerStandard {
         cancelWatchdog();
         super.onStateError(); // 显示重试 UI
         diagnose();
+    }
+
+    // ==================== 视图脱离窗口：清空回调 ====================
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        // M96：脱离窗口时清空看门狗与手势延迟任务，并复位长按标记，
+        // 防止回收的实例在 detached 后仍被 Handler 唤醒（误弹 Toast/误变速）。
+        cancelWatchdog();
+        mWatchdog.removeCallbacksAndMessages(null);
+        tapHandler.removeCallbacksAndMessages(null);
+        longPressTriggered = false;
     }
 
     // ==================== 看门狗：准备超时主动报错 ====================

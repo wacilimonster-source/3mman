@@ -10,6 +10,8 @@ import java.util.Locale;
 
 import com.m3man.di.ApplicationContext;
 import com.m3man.di.PreferenceInfo;
+import com.m3man.utils.AppLog;
+import com.m3man.utils.PasswordVault;
 import com.m3man.utils.PlaybackEngine;
 import com.m3man.utils.SDCardUtils;
 import com.m3man.utils.Tags;
@@ -24,6 +26,8 @@ import javax.inject.Singleton;
 @SuppressLint("ApplySharedPref")
 @Singleton
 public class AppPreferencesHelper implements PreferencesHelper {
+
+    private static final String TAG = "AppPrefsHelper";
 
     public final static String KEY_SP_PORN_91_VIDEO_ADDRESS = "key_sp_custom_address";
     /** 视频分类源站默认地址（用户未配置时使用；以 / 结尾保证 Referer 拼接正确） */
@@ -112,16 +116,44 @@ public class AppPreferencesHelper implements PreferencesHelper {
         if (TextUtils.isEmpty(passWord)) {
             mPrefs.edit().remove(KEY_SP_USER_LOGIN_PASSWORD).apply();
         } else {
-            mPrefs.edit().putString(KEY_SP_USER_LOGIN_PASSWORD, Base64.encodeToString(passWord.getBytes(), Base64.DEFAULT)).apply();
+            String toSave;
+            try {
+                // M94：优先 Keystore AES/GCM 加密，"v1:" 前缀标识新格式
+                toSave = PasswordVault.PREFIX_V1 + PasswordVault.encrypt(passWord);
+            } catch (Exception e) {
+                // M94：加密失败（API<23 / Keystore 不可用等）降级旧 Base64 形态，保证功能不中断
+                AppLog.w(TAG, "密码加密失败，降级Base64存储 " + AppLog.cause(e));
+                toSave = Base64.encodeToString(passWord.getBytes(), Base64.DEFAULT);
+            }
+            mPrefs.edit().putString(KEY_SP_USER_LOGIN_PASSWORD, toSave).apply();
         }
     }
 
     @Override
     public String getMman9VideoLoginUserPassword() {
         String scPassWord = mPrefs.getString(KEY_SP_USER_LOGIN_PASSWORD, "");
-        if (!TextUtils.isEmpty(scPassWord)) {
-            return new String(Base64.decode(scPassWord.getBytes(), Base64.DEFAULT));
-        } else {
+        if (TextUtils.isEmpty(scPassWord)) {
+            return "";
+        }
+        if (PasswordVault.hasV1Prefix(scPassWord)) {
+            // M94：新格式（v1: 前缀）→ Keystore 解密；失败清坏键返回空，不向上抛
+            try {
+                return PasswordVault.decrypt(scPassWord.substring(PasswordVault.PREFIX_V1.length()));
+            } catch (Exception e) {
+                AppLog.w(TAG, "密码解密失败，清理坏键 " + AppLog.cause(e));
+                mPrefs.edit().remove(KEY_SP_USER_LOGIN_PASSWORD).apply();
+                return "";
+            }
+        }
+        // M94：legacy Base64 形态——非法输入不再抛 IllegalArgumentException（合并评审问题）
+        try {
+            String plain = new String(Base64.decode(scPassWord.getBytes(), Base64.DEFAULT));
+            // M94 惰性升级：老数据解码成功即按新格式回写（内部失败会自动回落 Base64，无递归风险）
+            setMman9VideoLoginUserPassWord(plain);
+            return plain;
+        } catch (IllegalArgumentException e) {
+            AppLog.w(TAG, "密码Base64解码失败(非法输入)，清理坏键 " + AppLog.cause(e));
+            mPrefs.edit().remove(KEY_SP_USER_LOGIN_PASSWORD).apply();
             return "";
         }
     }

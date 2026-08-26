@@ -106,6 +106,8 @@ public class SearchPornyActivity extends MvpActivity<SearchView, SearchPornyPres
 
     private void init() {
         initToolBar(toolbar);
+        // M100：恢复上次持久化的搜索筛选项，与 SearchPornyFragment 使用同一组 SP 键与语义
+        restoreSearchFilters();
         searchView.setQueryHint("搜索视频");
         // M42：搜索框默认收起（点击放大镜才展开），避免进入页面/从详情页返回时自动弹出输入法
         searchView.setIconified(true);
@@ -208,7 +210,9 @@ public class SearchPornyActivity extends MvpActivity<SearchView, SearchPornyPres
                 if (skipPageRecyclerView == null) {
                     return;
                 }
-                skipPageRecyclerView.smoothScrollToPosition(currentPage + 2);
+                // M100：滚动位置钳制到 [0, itemCount-1]，避免越界崩溃/无效滚动（对齐 SearchPornyFragment 同款写法）
+                int targetPos = Math.max(0, Math.min(skipPageAdapter.getItemCount() - 1, currentPage + 2));
+                skipPageRecyclerView.smoothScrollToPosition(targetPos);
             }
         }, 200);
     }
@@ -304,6 +308,8 @@ public class SearchPornyActivity extends MvpActivity<SearchView, SearchPornyPres
                 .setTitle(R.string.porny_filter_title)
                 .setView(view)
                 .setNeutralButton(getString(R.string.porny_filter_reset), (d, which) -> {
+                    // M100：重置只还原弹窗内 spinner 选中项（局部变量），不立即持久化；
+                    // 持久化与应用统一发生在「应用」点击，取消对话框不产生任何持久化副作用
                     sortSpinner.setSelectedIndex(0);
                     timeSpinner.setSelectedIndex(0);
                     viewsSpinner.setSelectedIndex(0);
@@ -312,6 +318,8 @@ public class SearchPornyActivity extends MvpActivity<SearchView, SearchPornyPres
                     currentSort = textOf(sortOptions, sortSpinner);
                     currentTime = textOf(timeOptions, timeSpinner);
                     currentViews = textOf(viewsOptions, viewsSpinner);
+                    // M100：与 SearchPornyFragment 对齐——「应用」时本地保存，下次搜索自动套用
+                    saveSearchFilters();
                     applied[0] = true;
                     d.dismiss();
                 })
@@ -338,6 +346,20 @@ public class SearchPornyActivity extends MvpActivity<SearchView, SearchPornyPres
             return list.get(index);
         }
         return "";
+    }
+
+    /** M100：进入页面时恢复上次持久化的搜索筛选项（排序/发布时间/播放量），键与语义同 SearchPornyFragment */
+    private void restoreSearchFilters() {
+        currentSort = dataManager.getPornySearchSort();
+        currentTime = dataManager.getPornySearchTime();
+        currentViews = dataManager.getPornySearchViews();
+    }
+
+    /** M100：「应用」时将当前搜索筛选项持久化到本地（同一 SP 键），供下次搜索自动套用 */
+    private void saveSearchFilters() {
+        dataManager.setPornySearchSort(currentSort);
+        dataManager.setPornySearchTime(currentTime);
+        dataManager.setPornySearchViews(currentViews);
     }
 
     @NonNull

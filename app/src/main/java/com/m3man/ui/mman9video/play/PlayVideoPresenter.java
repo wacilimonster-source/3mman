@@ -29,7 +29,10 @@ import java.util.Date;
 
 import javax.inject.Inject;
 
+import io.reactivex.Observable;
+import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 
 /**
  * @author flymegoc
@@ -103,7 +106,27 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
 
                         @Override
                         public void onSuccess(final VideoResult videoResult) {
-                            ifViewAttached(view -> view.parseVideoUrlSuccess(saveVideoUrl(videoResult, v9MmanItem)));
+                            // M96：saveVideoUrl 含数据库写入，改到 IO 线程异步执行，不再阻塞主线程；
+                            // 生命周期复用 provider.bindUntilEvent，页面销毁自动断流。
+                            Observable.fromCallable(() -> saveVideoUrl(videoResult, v9MmanItem))
+                                    .subscribeOn(Schedulers.io())
+                                    .observeOn(AndroidSchedulers.mainThread())
+                                    .compose(provider.bindUntilEvent(Lifecycle.Event.ON_DESTROY))
+                                    .subscribe(saved -> ifViewAttached(view -> view.parseVideoUrlSuccess(saved)),
+                                            t -> {
+                                                AppLog.e(TAG, "91porny解析结果保存DB失败 viewKey="
+                                                        + (v9MmanItem == null ? "null" : v9MmanItem.getViewKey())
+                                                        + " err=" + AppLog.cause(t));
+                                                // 写库失败不阻断播放：内存挂载结果后照常回调
+                                                if (v9MmanItem != null) {
+                                                    try {
+                                                        v9MmanItem.setVideoResult(videoResult);
+                                                    } catch (Exception ignored) {
+                                                    }
+                                                    final V9MmanItem fallbackItem = v9MmanItem;
+                                                    ifViewAttached(view -> view.parseVideoUrlSuccess(fallbackItem));
+                                                }
+                                            });
                         }
 
                         @Override
@@ -143,7 +166,27 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
                     @Override
                     public void onSuccess(final VideoResult videoResult) {
                         dataManager.resetMman91VideoWatchTime(false);
-                        ifViewAttached(view -> view.parseVideoUrlSuccess(saveVideoUrl(videoResult, v9MmanItem)));
+                        // M96：saveVideoUrl 含数据库写入，改到 IO 线程异步执行，不再阻塞主线程；
+                        // 生命周期复用 provider.bindUntilEvent，页面销毁自动断流。
+                        Observable.fromCallable(() -> saveVideoUrl(videoResult, v9MmanItem))
+                                .subscribeOn(Schedulers.io())
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .compose(provider.bindUntilEvent(Lifecycle.Event.ON_DESTROY))
+                                .subscribe(saved -> ifViewAttached(view -> view.parseVideoUrlSuccess(saved)),
+                                        t -> {
+                                            AppLog.e(TAG, "9mman解析结果保存DB失败 viewKey="
+                                                    + (v9MmanItem == null ? "null" : v9MmanItem.getViewKey())
+                                                    + " err=" + AppLog.cause(t));
+                                            // 写库失败不阻断播放：内存挂载结果后照常回调
+                                            if (v9MmanItem != null) {
+                                                try {
+                                                    v9MmanItem.setVideoResult(videoResult);
+                                                } catch (Exception ignored) {
+                                                }
+                                                final V9MmanItem fallbackItem = v9MmanItem;
+                                                ifViewAttached(view -> view.parseVideoUrlSuccess(fallbackItem));
+                                            }
+                                        });
                     }
 
                     @Override

@@ -85,6 +85,8 @@ public class CommentPresenter extends MvpBasePresenter<CommentView> implements I
                         ifViewAttached(new ViewAction<CommentView>() {
                             @Override
                             public void run(@NonNull CommentView view) {
+                                // M97：错误时也要退出加载态，否则页面停留在 loading
+                                view.showContent();
                                 if (start == 1) {
                                     view.loadVideoCommentError(msg);
                                 } else {
@@ -100,6 +102,8 @@ public class CommentPresenter extends MvpBasePresenter<CommentView> implements I
                             @Override
                             public void run(@NonNull CommentView view) {
                                 Logger.t(TAG).d("------getVideoComments  onCancel----------------------------");
+                                // M97：取消请求同样要恢复内容态，避免下拉刷新圈不消失
+                                view.showContent();
                                 if (start == 1) {
                                     view.loadVideoCommentError("取消请求");
                                 } else {

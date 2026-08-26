@@ -3,6 +3,8 @@ package com.m3man.ui.setting;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatDelegate;
@@ -68,8 +70,25 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
     private AlertDialog testAlertDialog;
     private AlertDialog moveOldDirDownloadVideoToNewDirDiaog;
     private boolean isTestSuccess = false;
-    private String testBaseUrl;
+    // M100：测试地址草稿按地址类型区分存储/预填——原单一 testBaseUrl 字段导致
+    // mman 与 porny 两类地址输入互相串位（打开另一类弹窗时预填了上一类的地址）
+    private String testBaseUrlMman;
+    private String testBaseUrlPorny;
     private QMUICommonListItemView openProxyItemWithSwitch;
+
+    /** M100：按地址 key 取对应类型的草稿地址 */
+    private String getTestBaseUrlDraft(String key) {
+        return AppPreferencesHelper.KEY_SP_PORN_91_VIDEO_ADDRESS.equals(key) ? testBaseUrlMman : testBaseUrlPorny;
+    }
+
+    /** M100：按地址 key 写入对应类型的草稿地址 */
+    private void setTestBaseUrlDraft(String key, String address) {
+        if (AppPreferencesHelper.KEY_SP_PORN_91_VIDEO_ADDRESS.equals(key)) {
+            testBaseUrlMman = address;
+        } else {
+            testBaseUrlPorny = address;
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,9 +133,44 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         }
     }
 
-    /** 推荐调参弹窗（从「我的」迁入）。 */
+    /** 主线程 Handler（M98：引擎后台初始化完成后回主线程弹窗用） */
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+    /**
+     * 推荐调参弹窗（从「我的」迁入）。
+     * <p>
+     * M98：RecoEngine.get() 首次初始化含磁盘 I/O（assets JSON 词典 + 画像文件读盘），
+     * 不能在主线程同步调用。参照 RecommendFeedFragment 的 M91 模式：后台线程初始化，
+     * 完成后 post 回主线程再创建弹窗；期间的使用点（resetMemory 等）就地改为
+     * 捕获初始化完成后的引擎引用。
+     */
     private void showRecoTuneDialog() {
-        final RecoEngine engine = RecoEngine.get(this);
+        showMessage("推荐引擎加载中…", TastyToast.INFO);
+        final android.content.Context appContext = getApplicationContext();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    final RecoEngine engine = RecoEngine.get(appContext);
+                    mainHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (isFinishing() || isDestroyed()) {
+                                return;
+                            }
+                            openRecoTuneDialog(engine);
+                        }
+                    });
+                } catch (Throwable t) {
+                    // 初始化失败仅上报，不阻塞设置页其它功能
+                    android.util.Log.w(TAG, "RecoEngine init failed: " + t.getMessage());
+                }
+            }
+        }, "reco-engine-init-setting").start();
+    }
+
+    /** M98：引擎就绪后回主线程打开调参弹窗（engine 引用由后台初始化结果捕获） */
+    private void openRecoTuneDialog(final RecoEngine engine) {
         new RecoSettingsDialog(this, engine, presenter.getDataManager(), new RecoSettingsDialog.OnParamsChangedListener() {
             @Override
             public void onParamsChanged(RecoParams params) {
@@ -328,12 +382,24 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
 
     /**
      * 自定义视频下载地址
+     * M100：未完成下载/已完成文件的检查均改走 Presenter 的 IO 线程异步版本，
+     * 回调回到主线程后再禁用/放行入口（原主线程直查 DB/文件系统会卡顿）。
      */
     public void selectDownloadVideoDir(final QMUICommonListItemView qmuiCommonListItemView) {
-        if (presenter.isHaveUnFinishDownloadVideo()) {
-            showMessage("当前有未下载完成视频，无法更改", TastyToast.INFO);
-            return;
-        }
+        presenter.checkHaveUnFinishDownloadVideo(new SettingPresenter.DownloadCheckCallback() {
+            @Override
+            public void onResult(boolean hasUnfinished) {
+                if (hasUnfinished) {
+                    showMessage("当前有未下载完成视频，无法更改", TastyToast.INFO);
+                    return;
+                }
+                openDownloadDirPicker(qmuiCommonListItemView);
+            }
+        });
+    }
+
+    /** M100：从 selectDownloadVideoDir 拆出：通过未完成检查后的选目录流程 */
+    private void openDownloadDirPicker(final QMUICommonListItemView qmuiCommonListItemView) {
         FilePicker picker = new FilePicker(this, FilePicker.DIRECTORY);
         picker.setRootPath(StorageUtils.getExternalRootPath());
         picker.setTitleText("选择文件夹");
@@ -345,13 +411,19 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
                     showMessage("不能选择原目录哦", TastyToast.WARNING);
                     return;
                 }
-                if (presenter.isHaveFinishDownloadVideoFile()) {
-                    showIsMoveOldDirVideoFileToNewDirDialog(currentPath, qmuiCommonListItemView);
-                } else {
-                    showMessage("设置成功", TastyToast.SUCCESS);
-                    qmuiCommonListItemView.setDetailText(currentPath);
-                    presenter.setCustomDownloadVideoDirPath(currentPath);
-                }
+                // M100：已完成文件扫描同样移到 IO 线程，回调中决定是否弹「移动文件」确认框
+                presenter.checkHaveFinishDownloadVideoFile(new SettingPresenter.DownloadCheckCallback() {
+                    @Override
+                    public void onResult(boolean hasFinishedFiles) {
+                        if (hasFinishedFiles) {
+                            showIsMoveOldDirVideoFileToNewDirDialog(currentPath, qmuiCommonListItemView);
+                        } else {
+                            showMessage("设置成功", TastyToast.SUCCESS);
+                            qmuiCommonListItemView.setDetailText(currentPath);
+                            presenter.setCustomDownloadVideoDirPath(currentPath);
+                        }
+                    }
+                });
             }
         });
         picker.show();
@@ -407,9 +479,11 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         AppCompatButton backAppCompatButton = view.findViewById(R.id.bt_dialog_address_setting_back);
         AppCompatButton testAppCompatButton = view.findViewById(R.id.bt_dialog_address_setting_test);
         final AppCompatAutoCompleteTextView autoCompleteTextView = view.findViewById(R.id.atv_dialog_address_setting_address);
-        autoCompleteTextView.setText(testBaseUrl);
-        if (!TextUtils.isEmpty(testBaseUrl)) {
-            autoCompleteTextView.setSelection(testBaseUrl.length());
+        // M100：预填按地址类型区分，不再共享同一草稿字段
+        String draftAddress = getTestBaseUrlDraft(key);
+        autoCompleteTextView.setText(draftAddress);
+        if (!TextUtils.isEmpty(draftAddress)) {
+            autoCompleteTextView.setSelection(draftAddress.length());
         } else {
             switch (key) {
                 case AppPreferencesHelper.KEY_SP_PORN_91_VIDEO_ADDRESS:
@@ -453,7 +527,8 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
                 if (!checkAddress(address)) {
                     return;
                 }
-                testBaseUrl = address;
+                // M100：草稿按地址类型分别记录
+                setTestBaseUrlDraft(key, address);
                 alertDialog.dismiss();
                 if (isTestSuccess) {
                     saveToSpAndUpdateQMUICommonListItemView(key, qmuiCommonListItemView, address);
@@ -476,7 +551,8 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
                 if (!checkAddress(address)) {
                     return;
                 }
-                testBaseUrl = address;
+                // M100：草稿按地址类型分别记录
+                setTestBaseUrlDraft(key, address);
                 alertDialog.dismiss();
                 beginTestAddress(address, qmuiCommonListItemView, key);
             }
@@ -538,7 +614,8 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         presenter.saveAutoComplete(address, AutoCompleteEntity.TYPE_ADDRESS);
         qmuiCommonListItemView.setDetailText(address);
         showMessage("设置成功", TastyToast.INFO);
-        testBaseUrl = "";
+        // M100：仅清空当前类型的草稿，不影响另一类地址
+        setTestBaseUrlDraft(key, "");
     }
 
     private void showConfirmDialog(final QMUICommonListItemView qmuiCommonListItemView, final String address, final String key) {

@@ -499,6 +499,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                                 if (SDCardUtils.isDownloadFileComplete(f, item.getTotalFarBytes())) {
                                     item.setStatus(FileDownloadStatus.completed);
                                     item.setProgress(100);
+                                    // M99：字段已改 long，去掉 int 强转避免 >2GB 文件尺寸截断
                                     item.setSoFarBytes((int) f.length());
                                     item.setTotalFarBytes((int) f.length());
                                     item.setFinishedDownloadDate(new Date());
@@ -575,25 +576,56 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
     }
 
     @Override
-    public void deleteDownloadingTask(V9MmanItem v9MmanItem) {
-        String path = v9MmanItem.getDownLoadPath(getCustomDownloadVideoDirPath());
-        // 1) 尽量通过 FileDownloader 暂停并清除（需服务已连接）
-        try {
-            if (FileDownloader.getImpl().isServiceConnected()) {
-                FileDownloader.getImpl().pause(v9MmanItem.getDownloadId());
-                FileDownloader.getImpl().clear(v9MmanItem.getDownloadId(), path);
+    public void deleteDownloadingTask(final V9MmanItem v9MmanItem) {
+        // M97：整体异步化——原实现在主线程同步做 IPC(pause/clear)+删文件+写库，易卡顿/ANR；
+        // 且删除开始即标记 deletingIds，DownloadManager 的进度回调命中即跳过写库，
+        // 防止迟到的 progress 回调把刚删的行复活成“下载中”幽灵行。
+        final int downloadId = v9MmanItem == null ? 0 : v9MmanItem.getDownloadId();
+        final String path = v9MmanItem == null ? "" : v9MmanItem.getDownLoadPath(getCustomDownloadVideoDirPath());
+        if (v9MmanItem == null) {
+            return;
+        }
+        // 删除开始：先加入删除集合（成功/失败都会移除）
+        DownloadManager.markDeleting(downloadId);
+        Observable.fromCallable(() -> {
+            // 1) 尽量通过 FileDownloader 暂停并清除（需服务已连接）
+            try {
+                if (FileDownloader.getImpl().isServiceConnected()) {
+                    FileDownloader.getImpl().pause(downloadId);
+                    FileDownloader.getImpl().clear(downloadId, path);
+                }
+            } catch (Exception ignored) {
             }
-        } catch (Exception ignored) {
-        }
-        // 2) 兜底：直接删除目标文件及其临时文件（不依赖下载服务，确保“正在下载”也能删除）
-        deleteFileWithTemp(path);
-        // M61：文件可能被写进应用专属回退目录，一并清理
-        File fallback = SDCardUtils.resolveExistingDownloadFile(context, path);
-        if (fallback != null && !fallback.getAbsolutePath().equals(path)) {
-            deleteFileWithTemp(fallback.getAbsolutePath());
-        }
-        v9MmanItem.setDownloadId(0);
-        dataManager.updateV9MmanItem(v9MmanItem);
+            // 2) 兜底：直接删除目标文件及其临时文件（不依赖下载服务，确保“正在下载”也能删除）
+            deleteFileWithTemp(path);
+            // M61：文件可能被写进应用专属回退目录，一并清理
+            File fallback = SDCardUtils.resolveExistingDownloadFile(context, path);
+            if (fallback != null && !fallback.getAbsolutePath().equals(path)) {
+                deleteFileWithTemp(fallback.getAbsolutePath());
+            }
+            v9MmanItem.setDownloadId(0);
+            dataManager.updateV9MmanItem(v9MmanItem);
+            return Boolean.TRUE;
+        })
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .compose(provider.<Boolean>bindUntilEvent(Lifecycle.Event.ON_DESTROY))
+                .subscribe(ok -> {
+                    // 删除落库完成后才解除标记，窗口期内迟到回调已被过滤
+                    DownloadManager.unmarkDeleting(downloadId);
+                    // M97：异步化后调用方原有的立即 loadDownloadingData 可能早于真实删除完成，
+                    // 这里在删除真正结束后再刷一次列表保证 UI 一致
+                    loadDownloadingData();
+                }, err -> {
+                    DownloadManager.unmarkDeleting(downloadId);
+                    Logger.e("删除下载任务失败：" + (err == null ? "" : err.getMessage()));
+                    ifViewAttached(new ViewAction<DownloadView>() {
+                        @Override
+                        public void run(@NonNull DownloadView view) {
+                            view.showError("删除失败，请重试");
+                        }
+                    });
+                });
     }
 
     /**
@@ -745,6 +777,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                     throw new Exception("创建文件失败");
                 }
                 FileUtils.copyFile(fromFile, toFile);
+                // M99：字段已改 long，去掉 int 强转避免 >2GB 文件尺寸截断
                 v9MmanItem.setTotalFarBytes((int) fromFile.length());
                 v9MmanItem.setSoFarBytes((int) fromFile.length());
                 return v9MmanItem;

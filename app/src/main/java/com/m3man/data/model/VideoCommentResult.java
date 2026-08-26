@@ -16,12 +16,14 @@ public class VideoCommentResult {
     public static final int COMMENT_SUCCESS=1;
     /**
      * 你已经在这个视频下留言过.
+     * M99：修正拼写 ALLREADY→ALREADY
      */
-    public static final int COMMENT_ALLREADY=2;
+    public static final int COMMENT_ALREADY=2;
     /**
      * 不允许留言!
+     * M99：修正拼写 PERMISION→PERMISSION
      */
-    public static final int COMMENT_NO_PERMISION=3;
+    public static final int COMMENT_NO_PERMISSION=3;
     /**
      * attributes : {"id":""}
      * a : [{"attributes":{"id":""},"data":1}]

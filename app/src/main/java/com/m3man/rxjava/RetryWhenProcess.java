@@ -26,12 +26,21 @@ public class RetryWhenProcess implements Function<Observable<Throwable>, Observa
      * 重试间隔
      */
     private long mInterval;
-    private long tryTimes = 1;
+    // M95：修正 off-by-one——初值由 1 改为 0，配合下方 ++tryTimes <= maxTryTime 前缀自增：
+    // 首次超时计数变为 1（第 1 次重试），最多重试 maxTryTime(=3) 次。
+    // 语义确认：1 次原始请求 + 3 次重试 = 最多 4 次尝试；第 4 次仍超时则不再重试直接 onError。
+    // （旧实现初值 1 导致实际只重试 2 次。）两个分支共用同一计数器，总重试次数合计上限为 3 次。
+    private long tryTimes = 0;
     private long maxTryTime = 3;
 
     public RetryWhenProcess(long interval) {
+        this(interval, 3);
+    }
 
+    /** M101：测试与定制入口——显式指定最大重试次数 */
+    public RetryWhenProcess(long interval, long maxTryTime) {
         mInterval = interval;
+        this.maxTryTime = maxTryTime;
     }
 
     @Override
@@ -42,14 +51,15 @@ public class RetryWhenProcess implements Function<Observable<Throwable>, Observa
             public ObservableSource<?> apply(Throwable throwable) throws Exception {
                 Logger.t(TAG).d("Error:::" + throwable);
                 if (throwable instanceof SocketTimeoutException && ++tryTimes <= maxTryTime) {
-                    Logger.t(TAG).d("超时重试第【" + (tryTimes - 1) + "】次");
+                    // M95：tryTimes 已是本次重试的序号（1 起），直接打印
+                    Logger.t(TAG).d("超时重试第【" + tryTimes + "】次");
                     return Observable.timer(mInterval, TimeUnit.SECONDS);
                 } else if (throwable instanceof CompositeException) {
                     CompositeException compositeException = (CompositeException) throwable;
                     //结合rxcache会把异常进行包裹才会返回，需要解析提取
                     for (Throwable innerthrowable : compositeException.getExceptions()) {
                         if (innerthrowable instanceof SocketTimeoutException && ++tryTimes <= maxTryTime) {
-                            Logger.t(TAG).d("带Rxcache超时重试第【" + (tryTimes - 1) + "】次");
+                            Logger.t(TAG).d("带Rxcache超时重试第【" + tryTimes + "】次");
                             return Observable.timer(mInterval, TimeUnit.SECONDS);
                         }
                     }

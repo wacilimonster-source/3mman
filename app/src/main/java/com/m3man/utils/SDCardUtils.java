@@ -14,11 +14,45 @@ import java.io.IOException;
  */
 
 public class SDCardUtils {
-    private static final String ROOT_FOLDER = Environment.getExternalStorageDirectory() + "/3mman/";
-    public static final String DOWNLOAD_VIDEO_PATH = ROOT_FOLDER + "video/";
-    public static final String DOWNLOAD_IMAGE_PATH = ROOT_FOLDER + "image/";
+    /**
+     * M99：根目录惰性解析。
+     * 原实现把 Environment.getExternalStorageDirectory() 写死在静态常量初始化里：
+     * 类一加载就访问外部存储（此时存储可能未挂载/受限），且无任何兜底。
+     * 现改为内部 Holder 首次被触碰时才解析，失败时回退到公共存储的标准挂载点 /sdcard；
+     * 公共方法签名保持不变（DOWNLOAD_VIDEO_PATH 等公共常量仍按原名编译内联引用），
+     * 内部实现统一切换到 getRootFolder() 惰性取值。
+     */
+    private static final class LazyPaths {
+        private static final String ROOT = resolveRootFolder();
+
+        private static String resolveRootFolder() {
+            try {
+                File ext = Environment.getExternalStorageDirectory();
+                if (ext != null && !TextUtils.isEmpty(ext.getAbsolutePath())) {
+                    return ext.getAbsolutePath() + "/3mman/";
+                }
+            } catch (Throwable ignored) {
+                // 存储未就绪/受限时走下方回退
+            }
+            // 回退：/sdcard 为 Android 公共存储的标准挂载点
+            return "/sdcard/3mman/";
+        }
+    }
+
+    /** M99：根目录惰性 getter */
+    public static String getRootFolder() {
+        return LazyPaths.ROOT;
+    }
+
+    /** M99：下载目录惰性 getter */
+    public static String getDownloadVideoPath() {
+        return DOWNLOAD_VIDEO_PATH;
+    }
+
+    public static final String DOWNLOAD_VIDEO_PATH = LazyPaths.ROOT + "video/";
+    public static final String DOWNLOAD_IMAGE_PATH = LazyPaths.ROOT + "image/";
     public static final String DATE_FORMAT_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND = "yyyy-MM-dd HH:mm:ss";
-    public static final String EXPORT_FILE = ROOT_FOLDER + "export.txt";
+    public static final String EXPORT_FILE = LazyPaths.ROOT + "export.txt";
 
     /**
      * 存储卡是否挂载
@@ -53,9 +87,10 @@ public class SDCardUtils {
      * 避免旧版 AndPermission 在 Android 11+ 上对 READ/WRITE_EXTERNAL_STORAGE 的误判。
      */
     public static boolean isDownloadDirWritable(Context context) {
-        File dir = new File(DOWNLOAD_VIDEO_PATH);
+        // M99：内部实现切换到惰性 getter
+        File dir = new File(getDownloadVideoPath());
         if (!dir.exists() && !dir.mkdirs()) {
-            File parent = new File(ROOT_FOLDER);
+            File parent = new File(getRootFolder());
             if (!parent.exists() && !parent.mkdirs()) {
                 return false;
             }

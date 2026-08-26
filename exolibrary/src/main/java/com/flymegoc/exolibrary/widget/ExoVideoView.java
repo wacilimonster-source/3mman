@@ -675,6 +675,56 @@ public class ExoVideoView extends RelativeLayout {
     }
 
     /**
+     * M96：把播放错误同步给 {@link ExoVideoControlsMobile}，恢复其内部状态机。
+     * <p>
+     * 背景：{@code setVideoControls} 时库会在 {@code ExoVideoControlsMobile.setVideoView}
+     * 内部注册自己的 OnErrorListener（维护 isPlayError 标记、错误图标、收起缓冲圈）；
+     * 外部（如播放页 Activity）随后调用 {@link #setOnErrorListener} 会把它覆盖掉，
+     * 导致出错后「重播按钮图标不切换、点击播放键不重播、转圈不消失」。
+     * 本方法供外部错误回调末尾手动转发等效逻辑（同包访问 protected 成员，
+     * hideBuffering 为 private 故按其原始实现内联）。
+     */
+    public void notifyControlsPlaybackError() {
+        if (videoControls instanceof ExoVideoControlsMobile) {
+            ExoVideoControlsMobile mobile = (ExoVideoControlsMobile) videoControls;
+            mobile.isPlayError = true;
+            if (mobile.playPauseButton != null) {
+                mobile.playPauseButton.setImageDrawable(mobile.errorDrawable);
+            }
+            // 等效于 ExoVideoControlsMobile.hideBuffering()
+            if (!mobile.isLoading && mobile.loadingProgressBar != null) {
+                mobile.loadingProgressBar.setVisibility(GONE);
+            }
+        }
+    }
+
+    /**
+     * M96：把缓冲进度同步给 {@link ExoVideoControlsMobile}，维持其「转圈」显隐状态机
+     * （原 onBufferUpdateListener 已被外部覆盖，见 {@link #notifyControlsPlaybackError()} 说明）。
+     * 逻辑与库内原实现一致：进度追平缓冲且在播且无错未完 → 显示缓冲圈，否则隐藏。
+     */
+    public void notifyControlsBufferUpdate(int bufferPercent) {
+        if (videoControls instanceof ExoVideoControlsMobile) {
+            ExoVideoControlsMobile mobile = (ExoVideoControlsMobile) videoControls;
+            if (mobile.seekBar == null) {
+                return;
+            }
+            if (mobile.seekBar.getProgress() >= mobile.seekBar.getSecondaryProgress()
+                    && isPlaying() && !mobile.isPlayError && !mobile.isPlayComplete) {
+                // 等效于 showBuffering()
+                if (!mobile.isLoading && mobile.loadingProgressBar != null) {
+                    mobile.loadingProgressBar.setVisibility(VISIBLE);
+                }
+            } else if (!mobile.isPlayError && !mobile.isPlayComplete) {
+                // 等效于 hideBuffering()
+                if (!mobile.isLoading && mobile.loadingProgressBar != null) {
+                    mobile.loadingProgressBar.setVisibility(GONE);
+                }
+            }
+        }
+    }
+
+    /**
      * Sets the listener to inform of ID3 metadata updates
      *
      * @param listener The listener
@@ -1002,8 +1052,38 @@ public class ExoVideoView extends RelativeLayout {
         private boolean isblockX = false;
         private float oX;
         private float oY;
+        /** M96：左半屏长按 2x 触发延时（按下到确认为「长按」的窗口） */
+        private static final long LEFT_PRESS_SPEED_DELAY_MS = 400L;
+        /** M96：左半屏 2x 待触发标记（DOWN 时挂起，400ms 无位移才真正生效） */
+        private boolean pendingLeftSpeed;
         private boolean leftSpeedPressed;
         private float speedBeforeLeftPress = 1.0f;
+
+        /**
+         * M96：左半屏长按 2x 的延迟触发器。触发时若已进入亮度/音量等 Y 轴手势
+         * 或已被取消则放弃；否则记住原速并切到 2x（抬手在 UP/CANCEL 分支恢复）。
+         */
+        private final Runnable speedTrigger = new Runnable() {
+            @Override
+            public void run() {
+                if (!pendingLeftSpeed) {
+                    return;
+                }
+                pendingLeftSpeed = false;
+                if (isblockY || isVolume || isLight) {
+                    return;
+                }
+                leftSpeedPressed = true;
+                speedBeforeLeftPress = playbackSpeed;
+                setPlaybackSpeed(2.0f);
+            }
+        };
+
+        /** M96：取消待触发的左半屏长按（位移让位给亮度/音量/进度手势，或本次手势已结束）。 */
+        private void cancelPendingLeftSpeed() {
+            pendingLeftSpeed = false;
+            removeCallbacks(speedTrigger);
+        }
 
         public TouchListener(Context context) {
             gestureDetector = new GestureDetector(context, this);
@@ -1014,6 +1094,8 @@ public class ExoVideoView extends RelativeLayout {
         @Override
         public boolean onTouch(View view, MotionEvent event) {
             if (event.getAction() == MotionEvent.ACTION_UP || event.getAction() == MotionEvent.ACTION_CANCEL) {
+                // M96：手势结束，取消尚未触发的左半屏长按；已生效的 2x 恢复原速
+                cancelPendingLeftSpeed();
                 if (leftSpeedPressed) {
                     leftSpeedPressed = false;
                     setPlaybackSpeed(speedBeforeLeftPress);
@@ -1039,6 +1121,8 @@ public class ExoVideoView extends RelativeLayout {
                 pausedForSeek = false;
                 isblockY = false;
                 isblockX = false;
+                // M96：清掉上一次手势可能残留的待触发长按
+                cancelPendingLeftSpeed();
                 oX = event.getX();
                 oY = event.getY();
                 if (stepVolume == 0) {
@@ -1053,15 +1137,22 @@ public class ExoVideoView extends RelativeLayout {
                 int per = getWidth() / 4;
                 int threePer = 3 * per;
                 if (leftPressSpeedEnabled && event.getX() >= 0 && event.getX() <= getWidth() * 0.5f) {
-                    leftSpeedPressed = true;
-                    speedBeforeLeftPress = playbackSpeed;
-                    setPlaybackSpeed(2.0f);
+                    // M96：改为真·长按语义——按下先挂起，400ms 内无位移才切 2x（不再 DOWN 即变速）
+                    pendingLeftSpeed = true;
+                    postDelayed(speedTrigger, LEFT_PRESS_SPEED_DELAY_MS);
                 } else if (event.getX() >= 0 && event.getX() <= per) {
                     isLight = true;
                 } else if (event.getX() >= threePer && event.getX() <= getWidth()) {
                     isVolume = true;
                 }
             } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
+                // M96：待触发的左半屏长按一旦出现明显位移（横竖皆可）即取消，
+                // 让位给亮度/音量/进度拖动等手势；已生效的 2x 不受影响。
+                if (pendingLeftSpeed && !leftSpeedPressed
+                        && (Math.abs(event.getX() - oX) > mTouchSlop
+                        || Math.abs(event.getY() - oY) > mTouchSlop)) {
+                    cancelPendingLeftSpeed();
+                }
                 if (videoControls == null) {
                     return true;
                 }

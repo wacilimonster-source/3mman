@@ -1,5 +1,6 @@
 package com.m3man.ui.recommend;
 
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.graphics.Color;
@@ -121,6 +122,8 @@ public class RecommendFeedFragment extends BaseFragment
     private boolean loading = false;
     private boolean noMore = false;
     private int emptyRetryCount = 0;
+    /** M98：最近一次加载是否发生过错误（error 不计入空批计数，也不置 noMore，但保留重试入口） */
+    private boolean lastLoadHadError = false;
     private long lastPersistTime = 0L;
     private Runnable coverWatcher;
     private Runnable progressTicker;
@@ -176,18 +179,26 @@ public class RecommendFeedFragment extends BaseFragment
         // M91：RecoEngine 初始化含磁盘 I/O（assets JSON 词典 + SharedPreferences 画像），
         // 移到后台线程执行，避免阻塞主线程导致进入推荐页时黑屏转圈过久。
         // globalLoading 已默认 VISIBLE，引擎就绪后再发起首次拉取。
+        // M98：线程启动前先捕获 Application Context——后台线程执行期间 Fragment 可能已
+        // detach（BaseFragment.onDetach 会把 context 置空），直接用 context.getApplicationContext()
+        // 存在 NPE / 使用已销毁 Activity 的风险。
+        final Context appContext = (context != null) ? context.getApplicationContext() : null;
         new Thread(new Runnable() {
             @Override
             public void run() {
-                RecoEngine e = RecoEngine.get(context);
+                // M98：线程体首行判空 + 可用性检查，页面已不可用直接放弃初始化
+                if (appContext == null || !isUsable()) {
+                    return;
+                }
+                RecoEngine e = RecoEngine.get(appContext);
                 if (!isUsable()) {
                     return;
                 }
                 engine = e;
                 repository = new RecoRepository(dataManager, engine);
-                prefetcher = new RecommendPrefetcher(context, dataManager);
-                repository.setOrientationFilter(PlayUiPrefs.getOrientationFilter(context));
-                repository.setAutoRotateLandscape(PlayUiPrefs.isAutoRotateLandscape(context));
+                prefetcher = new RecommendPrefetcher(appContext, dataManager);
+                repository.setOrientationFilter(PlayUiPrefs.getOrientationFilter(appContext));
+                repository.setAutoRotateLandscape(PlayUiPrefs.isAutoRotateLandscape(appContext));
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
@@ -303,6 +314,9 @@ public class RecommendFeedFragment extends BaseFragment
             public void onClick(View v) {
                 noMore = false;
                 emptyRetryCount = 0;
+                // M98：手动重试同时清除错误标记并收起提示层
+                lastLoadHadError = false;
+                emptyLayout.setVisibility(View.GONE);
                 repository.resetSession();
                 loadMore(true);
             }
@@ -404,7 +418,8 @@ public class RecommendFeedFragment extends BaseFragment
         globalLoading.setVisibility(View.GONE);
 
         if (list == null || list.isEmpty()) {
-            // 某个召回源恰好没数据是常态，换一个源再试几次
+            // 某个召回源恰好没数据是常态，换一个源再试几次。
+            // M98：只有「成功且空」才计入连续空批计数；召回错误已改走 onBatchFailed（仓库层不再吞错）。
             if (++emptyRetryCount < MAX_EMPTY_RETRY) {
                 loadMore(first);
                 return;
@@ -415,11 +430,19 @@ public class RecommendFeedFragment extends BaseFragment
             } else {
                 noMore = true;
                 showMessage(getString(R.string.reco_no_more), TastyToast.INFO);
+                // M98：放宽重试按钮显示条件——noMore 且本次会话最近出现过加载错误时也显示，
+                // 给用户手动恢复入口，避免把瞬时网络失败永久限流成「没有更多」
+                if (lastLoadHadError) {
+                    emptyText.setText(getString(R.string.reco_no_more));
+                    emptyLayout.setVisibility(View.VISIBLE);
+                }
             }
             return;
         }
 
         emptyRetryCount = 0;
+        // M98：成功拿到真实内容才清除错误标记（空批不清，供 noMore 分支判断）
+        lastLoadHadError = false;
         boolean wasEmpty = adapter.getItemCount() == 0;
         adapter.appendData(list);
         emptyLayout.setVisibility(View.GONE);
@@ -436,6 +459,9 @@ public class RecommendFeedFragment extends BaseFragment
     private void onBatchFailed(boolean first, Throwable throwable) {
         loading = false;
         globalLoading.setVisibility(View.GONE);
+        // M98：召回 error 走这里——不计入连续空批计数、不置 noMore（避免瞬时失败被永久限流），
+        // 只记录错误标记供「noMore + 出错」时放宽重试按钮显示。
+        lastLoadHadError = true;
         String reason = throwable == null ? "unknown" : AppLog.cause(throwable);
         Logger.t(TAG).d("load batch failed: " + reason);
         AppLog.e(TAG, "推荐列表加载失败: " + reason);
@@ -443,6 +469,9 @@ public class RecommendFeedFragment extends BaseFragment
             showEmpty("加载失败，点击重试");
         } else {
             showMessage("加载失败", TastyToast.ERROR);
+            // M98：已有内容时也把重试入口亮出来，用户可手动恢复
+            emptyText.setText("加载失败，点击重试");
+            emptyLayout.setVisibility(View.VISIBLE);
         }
     }
 
@@ -1514,9 +1543,16 @@ public class RecommendFeedFragment extends BaseFragment
 
     // ==================== 持久化 ====================
 
+    /** M98：force 请求的合并窗口——强制落盘也走合并调度，500ms 内的多次请求合并为一次 */
+    private static final long PERSIST_FORCE_INTERVAL = 500L;
+
     private void persistAsync(boolean force) {
         long now = SystemClock.uptimeMillis();
-        if (!force && now - lastPersistTime < PERSIST_INTERVAL) {
+        // M98：force 不再绕过节流直写。统一走合并调度：普通间隔 PERSIST_INTERVAL(2s)，
+        // 强制间隔降到 PERSIST_FORCE_INTERVAL(500ms)。崩溃时最多丢最近 500ms 的
+        // actions/seen 增量——这些属可再学习数据（重新观看即可重建反馈），可容忍。
+        long window = force ? PERSIST_FORCE_INTERVAL : PERSIST_INTERVAL;
+        if (now - lastPersistTime < window) {
             return;
         }
         lastPersistTime = now;
@@ -1546,8 +1582,9 @@ public class RecommendFeedFragment extends BaseFragment
     @Override
     public void onPause() {
         // 不使用 goOnPlayOnPause：它只暂停并保留 MediaPlayer，切换页面后仍可能有音频输出。
-        stopPlaybackForLeavingPage();
+        // M98：先结算观看比例再释放播放器——release 后 watchedRatio 恒为 0，隐式反馈会丢失。
         recordWatchRatio(currentPosition);
+        stopPlaybackForLeavingPage();
         persistAsync(true);
         super.onPause();
     }
@@ -1557,8 +1594,9 @@ public class RecommendFeedFragment extends BaseFragment
         super.onHiddenChanged(hidden);
         // hide/show 切换（切到其它 Tab）时必须释放底层播放器，不能只暂停。
         if (hidden) {
-            stopPlaybackForLeavingPage();
+            // M98：先结算观看比例再释放播放器（同 onPause，release 后比例读不到）
             recordWatchRatio(currentPosition);
+            stopPlaybackForLeavingPage();
             persistAsync(true);
             // 切到其它 Tab：恢复 App 默认紫色状态栏（推荐流内才透明）
             restoreAppStatusBar();

@@ -29,6 +29,8 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
     private static final String TAG = VideoListFragment.class.getSimpleName();
     private Integer totalPage = 1;
     private int page = 1;
+    // M97：实际已成功加载的最后一页（getPage 不再依赖 page-1 推算，修复末页 off-by-one）
+    private int lastLoadedPage = 1;
     // M73：请求在途标志，防刷新/加载更多/跳页并发乱序
     private volatile boolean isLoading = false;
     private LifecycleProvider<Lifecycle.Event> provider;
@@ -59,6 +61,9 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
         }
         // M73：请求在途守卫——刷新/加载更多/跳页并发时响应乱序会错插数据、页码错乱
         if (isLoading) {
+            // M97：下拉刷新分支被丢弃时必须收起刷新指示，否则 SwipeRefreshLayout 永远转圈
+            // （VideoListView 继承 BaseView 有 showContent；VideoListFragment 实现内含 setRefreshing(false)）
+            ifViewAttached(view -> view.showContent());
             return;
         }
         isLoading = true;
@@ -120,6 +125,8 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
                     @Override
                     public void onSuccess(final List<V9MmanItem> v9MmanItems) {
                         isLoading = false;
+                        // M97：先记录本页页码再自增，getPage() 依据它返回真实已加载页
+                        lastLoadedPage = page;
                         ifViewAttached(view -> {
                             if (page == 1 || skipPage > 0) {
                                 view.setData(v9MmanItems);
@@ -172,6 +179,7 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
     }
 
     public int getPage() {
-        return page - 1;
+        // M97：返回实际已成功加载的页码（初始 1），修复旧 page-1 写法在末页/跳页时的 off-by-one
+        return lastLoadedPage;
     }
 }

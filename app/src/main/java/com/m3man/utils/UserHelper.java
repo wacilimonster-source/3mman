@@ -4,6 +4,8 @@ import android.text.TextUtils;
 
 import com.m3man.data.model.User;
 
+import java.security.SecureRandom;
+
 /**
  * 用户帮助
  *
@@ -13,6 +15,17 @@ import com.m3man.data.model.User;
 
 public class UserHelper {
     /**
+     * M99：机器指纹/验证码属安全敏感随机数，Math.random() 可预测且非线程安全，
+     * 统一改为字段持有的 SecureRandom（无参构造自动播种）。
+     */
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
+    /** 从候选字符集中随机取一位字符 */
+    private static char randomChar(String keys) {
+        return keys.charAt(SECURE_RANDOM.nextInt(keys.length()));
+    }
+
+    /**
      * 随机生成10位机器指纹
      *
      * @return 指纹码
@@ -21,9 +34,7 @@ public class UserHelper {
         String keys = "0123456789";
         StringBuilder key = new StringBuilder();
         for (int i = 0; i < keys.length(); i++) {
-            int pos = (int) (Math.random() * keys.length());
-            pos = (int) Math.floor(pos);
-            key.append(keys.charAt(pos));
+            key.append(randomChar(keys));
         }
         return key.toString();
     }
@@ -38,9 +49,7 @@ public class UserHelper {
         int length = 4;
         StringBuilder key = new StringBuilder();
         for (int i = 0; i < length; i++) {
-            int pos = (int) (Math.random() * keys.length());
-            pos = (int) Math.floor(pos);
-            key.append(keys.charAt(pos));
+            key.append(randomChar(keys));
         }
         return key.toString();
     }
@@ -55,9 +64,7 @@ public class UserHelper {
         int keyLength = 32;
         StringBuilder key = new StringBuilder();
         for (int i = 0; i < keyLength; i++) {
-            int pos = (int) (Math.random() * keys.length());
-            pos = (int) Math.floor(pos);
-            key.append(keys.charAt(pos));
+            key.append(randomChar(keys));
         }
         return key.toString();
     }

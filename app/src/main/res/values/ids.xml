@@ -4,4 +4,6 @@
     <item name="setting_item_player_engine_choice" type="id" />
     <item name="setting_item_9_mman_address" type="id" />
     <item name="setting_item_porny_address" type="id" />
+    <!-- M97：adapter 封面加载防抖 tag（相同 url 复用时跳过重载，消除图片闪烁） -->
+    <item name="tag_adapter_url" type="id" />
 </resources>

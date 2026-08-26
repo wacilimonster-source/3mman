@@ -30,7 +30,6 @@ import com.m3man.ui.mman9video.user.UserRegisterActivity;
 import com.m3man.ui.mman9video.user.UserRegisterActivityModule;
 import com.m3man.ui.proxy.ProxySettingActivity;
 import com.m3man.ui.proxy.ProxySettingActivityModule;
-import com.m3man.ui.recommend.RecommendFeedActivity;
 import com.m3man.ui.setting.SettingActivity;
 import com.m3man.ui.setting.SettingActivityModule;
 import com.m3man.ui.update.UpdateActivity;
@@ -108,9 +107,7 @@ public abstract class ActivityBindingModule {
     @ContributesAndroidInjector(modules = HistoryActivityModule.class)
     abstract HistoryActivity historyActivity();
 
-    @PerActivity
-    @ContributesAndroidInjector
-    abstract RecommendFeedActivity recommendFeedActivity();
+    // M98：RecommendFeedActivity 已删除，其 @ContributesAndroidInjector 绑定一并移除
 
     @PerActivity
     @ContributesAndroidInjector

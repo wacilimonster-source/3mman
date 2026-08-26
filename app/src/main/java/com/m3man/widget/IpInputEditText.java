@@ -186,7 +186,8 @@ public class IpInputEditText extends LinearLayout {
         } else if (text.length() >= SUB_MAX_LENGTH) {
             int subIp = Integer.parseInt(text.replace(ZERO_WIDTH_SPACE, ""));
             //检查ip断合法性
-            if (subIp >= MAX_IP_NUM) {
+            // M96：255 本身是合法 IP 段值，原 >= 255 会误杀 255；改为仅拒绝 > 255（MAX_IP_NUM 即 255）
+            if (subIp > MAX_IP_NUM) {
                 //清空重新输入
                 currenAppCompatEditText.setText(ZERO_WIDTH_SPACE);
             } else {

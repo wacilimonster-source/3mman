@@ -33,12 +33,18 @@ public class DownloadVideoAdapter extends BaseQuickAdapter<V9MmanItem, BaseViewH
     protected void convert(BaseViewHolder helper, V9MmanItem item) {
         helper.setText(R.id.tv_91mman_item_title, item.getTitleWithDuration());
         ImageView simpleDraweeView = helper.getView(R.id.iv_91mman_item_img);
-        Uri uri = Uri.parse(item.getImgUrl());
-        // M77：智能封面变换，配合布局 centerCrop 彻底消除下载列表的拉伸变形
-        GlideApp.with(helper.itemView).load(uri).placeholder(R.drawable.placeholder)
-                .transition(new DrawableTransitionOptions().crossFade(300))
-                .transform(new SmartCoverTransformation())
-                .into(simpleDraweeView);
+        String coverUrl = item.getImgUrl();
+        // M97：tag 防抖——下载列表高频 notifyItemChanged，相同 url 复用时跳过重载消除闪烁
+        Object boundTag = simpleDraweeView.getTag(R.id.tag_adapter_url);
+        if (boundTag == null || !boundTag.equals(coverUrl)) {
+            simpleDraweeView.setTag(R.id.tag_adapter_url, coverUrl);
+            Uri uri = Uri.parse(coverUrl);
+            // M77：智能封面变换，配合布局 centerCrop 彻底消除下载列表的拉伸变形
+            GlideApp.with(helper.itemView).load(uri).placeholder(R.drawable.placeholder)
+                    .transition(new DrawableTransitionOptions().crossFade(300))
+                    .transform(new SmartCoverTransformation())
+                    .into(simpleDraweeView);
+        }
         helper.setProgress(R.id.progressBar_download, item.getProgress());
         helper.setText(R.id.tv_download_progress, String.valueOf(item.getProgress()) + "%");
         helper.setText(R.id.tv_download_filesize, Formatter.formatFileSize(helper.itemView.getContext(), item.getSoFarBytes()).replace("MB", "") + "/ " + Formatter.formatFileSize(helper.itemView.getContext(), item.getTotalFarBytes()));

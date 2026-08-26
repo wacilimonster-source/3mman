@@ -412,14 +412,11 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                 .setTitle(R.string.porny_filter_title)
                 .setView(view)
                 .setNeutralButton(getString(R.string.porny_filter_reset), (d, which) -> {
+                    // M100：重置只还原弹窗内 spinner 选中项（局部变量），不再立即写 SP；
+                    // 持久化与应用统一发生在「应用」点击，取消对话框不产生任何持久化副作用
                     sortSpinner.setSelectedIndex(0);
                     timeSpinner.setSelectedIndex(0);
                     viewsSpinner.setSelectedIndex(0);
-                    // 重置也持久化：清空上次筛选项，下次搜索回到默认
-                    currentSort = "";
-                    currentTime = "";
-                    currentViews = "";
-                    saveSearchFilters();
                 })
                 .setPositiveButton(getString(R.string.porny_filter_apply), (d, which) -> {
                     currentSort = textOf(sortOptions, sortSpinner);

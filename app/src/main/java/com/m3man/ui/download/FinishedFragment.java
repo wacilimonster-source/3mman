@@ -63,6 +63,8 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
 
     private DownloadVideoAdapter mDownloadAdapter;
     private boolean isFocusRefresh = false;
+    // M97：缓存应用级 Context，onDestroy 反注销 LocalBroadcastManager 时 getContext() 可能为 null
+    private Context appContext;
 
     private BroadcastReceiver hlsReceiver = new BroadcastReceiver() {
         @Override
@@ -87,6 +89,8 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // M97：提前缓存 ApplicationContext，供 onDestroy 判空反注销使用
+        appContext = getActivity() != null ? getActivity().getApplicationContext() : null;
         DownloadManager.getImpl().addUpdater(this);
         // 注册 HLS 下载完成广播，让「下载完成」列表实时刷新
         IntentFilter hlsFilter = new IntentFilter();
@@ -256,7 +260,11 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
     public void onDestroy() {
         super.onDestroy();
         DownloadManager.getImpl().removeUpdater(this);
-        LocalBroadcastManager.getInstance(getContext()).unregisterReceiver(hlsReceiver);
+        // M97：用缓存的 appContext 判空反注销，修复 onDestroy 时 getContext()==null 的 NPE
+        if (appContext != null) {
+            LocalBroadcastManager.getInstance(appContext).unregisterReceiver(hlsReceiver);
+            appContext = null;
+        }
     }
 
     @Override
