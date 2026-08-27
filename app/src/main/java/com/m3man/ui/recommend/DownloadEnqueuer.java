@@ -174,7 +174,7 @@ class DownloadEnqueuer {
                             return Single.just(url);
                         })
                         .flatMap(resolvedUrl -> {
-                            boolean alive = PornyFallbackResolver.isAlive(okHttpClient, resolvedUrl);
+                            boolean alive = PornyFallbackResolver.isAlive(okHttpClient, resolvedUrl, buildReferer(viewKey));
                             DownloadDiag.append(viewKey, "isAlive=" + alive + " host=" + DownloadDiag.hostOf(resolvedUrl));
                             if (!alive) {
                                 return tryPornyFallback(target, path, viewKey)
@@ -248,7 +248,7 @@ class DownloadEnqueuer {
                             if (ensured != null) hlsPath2 = ensured;
                         } catch (Exception ignored) {}
                         PornyFallbackResolver.enqueueHlsDownload(context, target, porny.getVideoUrl(), hlsPath2);
-                        return Single.just(new DownloadResult(true, "源站受限，已改用 91porny 源下载"));
+                        return Single.just(new DownloadResult(true, "原站视频地址不可访问，已自动改用备用源继续下载"));
                     } else {
                         DownloadDiag.append(viewKey, "91porny=未命中 → 退回原直链");
                         return Single.error(new IllegalStateException("porny not found"));

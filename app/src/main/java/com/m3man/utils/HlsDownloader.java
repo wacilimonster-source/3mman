@@ -44,8 +44,11 @@ import java.util.regex.Pattern;
 public class HlsDownloader {
 
     public interface HlsDownloadListener {
-        /** 分片下载进度：done 已下载数 / total 总数 */
-        void onProgress(int done, int total);
+        /**
+         * 分片下载进度：done 已下载数 / total 总数；
+         * bytesDone 为已落盘字节累计（含断点复用与缓存命中分片的 length），转码阶段为最终值。
+         */
+        void onProgress(int done, int total, long bytesDone);
 
         /** 下载并转换完成 */
         void onSuccess(File mp4File);
@@ -127,6 +130,9 @@ public class HlsDownloader {
                 // 任一分片失败置 failed 标志，未开始的分片快速结束不再发起网络请求
                 final List<File> tsFiles = new ArrayList<>(java.util.Collections.nCopies(fullUrls.size(), null));
                 final java.util.concurrent.atomic.AtomicInteger okCount = new java.util.concurrent.atomic.AtomicInteger();
+                // L-fix：真实字节统计（每个分片完成后取 length，含缓存命中/断点续传复用），
+                // 供下载列表展示“已下载大小”并推算实时速度
+                final java.util.concurrent.atomic.AtomicLong bytesDone = new java.util.concurrent.atomic.AtomicLong();
                 final java.util.concurrent.atomic.AtomicBoolean failed =
                         new java.util.concurrent.atomic.AtomicBoolean(false);
                 final java.util.concurrent.CountDownLatch latch =
@@ -154,7 +160,8 @@ public class HlsDownloader {
                             }
                             if (pieceOk) {
                                 tsFiles.set(idx, tsFile);
-                                notifyProgress(listener, okCount.incrementAndGet(), fullUrls.size());
+                                bytesDone.addAndGet(tsFile.length());
+                                notifyProgress(listener, okCount.incrementAndGet(), fullUrls.size(), bytesDone.get());
                             } else {
                                 failed.set(true);
                             }
@@ -586,9 +593,9 @@ public class HlsDownloader {
         dir.delete();
     }
 
-    private static void notifyProgress(HlsDownloadListener listener, int done, int total) {
+    private static void notifyProgress(HlsDownloadListener listener, int done, int total, long bytesDone) {
         if (listener != null) {
-            listener.onProgress(done, total);
+            listener.onProgress(done, total, bytesDone);
         }
     }
 

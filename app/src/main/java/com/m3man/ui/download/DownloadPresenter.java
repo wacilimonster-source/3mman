@@ -259,7 +259,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         Observable.create(new ObservableOnSubscribe<Boolean>() {
             @Override
             public void subscribe(ObservableEmitter<Boolean> emitter) throws Exception {
-                emitter.onNext(PornyFallbackResolver.isAlive(okHttpClient, resumeOldUrl));
+                emitter.onNext(PornyFallbackResolver.isAlive(okHttpClient, resumeOldUrl, buildReferer(item.getViewKey())));
                 emitter.onComplete();
             }
         })
@@ -380,7 +380,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                         } catch (Exception ignored) {
                         }
                         // 直链 CDN 可能封锁当前网络（下载 error/0% 无速度）：先探活，被拒则走 91porny 备用源
-                        if (!PornyFallbackResolver.isAlive(okHttpClient, freshUrl)) {
+                        if (!PornyFallbackResolver.isAlive(okHttpClient, freshUrl, buildReferer(item.getViewKey()))) {
                             AppLog.w("Download", "直链探活失败，走91porny兜底 viewKey=" + item.getViewKey());
                             tryPornyFallback(item, path, wifi, force, listener);
                             return;
@@ -433,12 +433,12 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                             PornyFallbackResolver.applyPornyResult(dataManager, item, pornyResult);
                             PornyFallbackResolver.enqueueHlsDownload(context, item, pornyResult.getVideoUrl(), path);
                             if (listener != null) {
-                                listener.onSuccess("源站受限，已改用 91porny 源下载");
+                                listener.onSuccess("原站视频地址不可访问，已自动改用备用源继续下载");
                             } else {
                                 ifViewAttached(new ViewAction<DownloadView>() {
                                     @Override
                                     public void run(@NonNull DownloadView view) {
-                                        view.showMessage("源站受限，已改用 91porny 源下载", TastyToast.SUCCESS);
+                                        view.showMessage("原站视频地址不可访问，已自动改用备用源继续下载", TastyToast.SUCCESS);
                                     }
                                 });
                             }

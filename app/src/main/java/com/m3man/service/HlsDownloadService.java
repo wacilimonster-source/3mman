@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.SystemClock;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.FileProvider;
 import android.support.v4.content.LocalBroadcastManager;
@@ -52,6 +53,10 @@ public class HlsDownloadService extends Service {
     public static final String ACTION_HLS_PROGRESS = "com.m3man.service.action.HLS_PROGRESS";
     public static final String ACTION_HLS_DONE = "com.m3man.service.action.HLS_DONE";
     public static final String EXTRA_PROGRESS = "extra_progress";
+    /** L-fix：HLS 进行中已落盘字节数（伴随 ACTION_HLS_PROGRESS 播发） */
+    public static final String EXTRA_SO_FAR_BYTES = "extra_so_far_bytes";
+    /** L-fix：HLS 实时速率（B/s，指数平滑；伴随 ACTION_HLS_PROGRESS 播发） */
+    public static final String EXTRA_SPEED_BPS = "extra_speed_bps";
     /** M102：进度广播附带「任务是否正在下载」，接收端据此同步行状态（true=下载中 / false=已暂停） */
     public static final String EXTRA_RUNNING = "extra_running";
 
@@ -294,12 +299,12 @@ public class HlsDownloadService extends Service {
         // M43：传入播放缓存目录，若该视频播放过（分片已缓存）则直接复用，避免重复下载
         activeDownloader.download(url, saveDir, fileName, AppCacheUtils.getVideoCacheDir(this), new HlsDownloader.HlsDownloadListener() {
             @Override
-            public void onProgress(int done, int total) {
+            public void onProgress(int done, int total, long bytesDone) {
                 if (activeDownloader != state.downloader) {
                     // 旧任务的迟到进度：不写库、不刷通知，直接丢弃
                     return;
                 }
-                handleProgress(done, total);
+                handleProgress(done, total, bytesDone);
             }
 
             @Override
@@ -405,8 +410,34 @@ public class HlsDownloadService extends Service {
         }
     }
 
-    private void handleProgress(int done, int total) {
+    // L-fix：HLS 进度速率估算与广播节流状态（服务内单任务串行，volatile 仅为可见性保障）
+    private volatile long lastProgressBytes = 0L;
+    private volatile long lastProgressBytesAt = 0L;
+    private volatile long smoothedSpeedBps = 0L;
+    private volatile int lastBroadcastPercent = -1;
+    private volatile long lastBroadcastAtMs = 0L;
+    private volatile long lastDbWriteAtMs = 0L;
+
+    private void handleProgress(int done, int total, long bytesDone) {
         int percent = total <= 0 ? 0 : (int) (done * 100L / total);
+        // L-fix：窗口速率 + 指数平滑。分片并发完成时每片都回调，
+        // 不节流会导致通知栏与列表高频重绘（缩略图/整行反复缩放闪烁的诱因之一）。
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (lastProgressBytesAt > 0 && now > lastProgressBytesAt && bytesDone >= lastProgressBytes) {
+            long dtMs = now - lastProgressBytesAt;
+            if (dtMs > 0) {
+                long windowBps = (bytesDone - lastProgressBytes) * 1000L / dtMs;
+                smoothedSpeedBps = smoothedSpeedBps <= 0 ? windowBps
+                        : (smoothedSpeedBps * 7 + windowBps * 3) / 10;
+            }
+        }
+        lastProgressBytes = bytesDone;
+        lastProgressBytesAt = now;
+
+        boolean percentChanged = percent != lastBroadcastPercent;
+        boolean firstBroadcast = lastBroadcastPercent < 0;
+        boolean throttlePassed = now - lastBroadcastAtMs >= 800;
+
         // M41：分片全部下载完成后进入合并/转码阶段，提示用户（避免误以为卡死）
         if (total > 0 && done >= total) {
             updateProgress("分片下载完成，正在转码", percent, total);
@@ -417,19 +448,27 @@ public class HlsDownloadService extends Service {
         if (item != null) {
             item.setProgress(percent);
             item.setStatus(FileDownloadStatus.progress);
-            // M62：soFarBytes/totalFarBytes 必须存字节而非分片数——
-            // 分片数会被下游 isDownloadFileComplete 当字节阈值（95%×分片数 恒真），
-            // 也会被列表按 formatFileSize 渲染成垃圾尺寸。分片阶段总量未知，存 0 走"≥100KB"兜底分支。
-            item.setSoFarBytes(0);
+            // M62：totalFarBytes 分片阶段保持 0（总量未知；存分片数曾导致垃圾尺寸渲染与误判）。
+            // L-fix：soFarBytes 改为真实已落盘字节，供「正在下载」列表展示已下载大小。
+            item.setSoFarBytes(bytesDone);
             item.setTotalFarBytes(0);
-            getDataManager().updateV9MmanItem(item);
+            if (percentChanged || firstBroadcast || now - lastDbWriteAtMs >= 5000) {
+                getDataManager().updateV9MmanItem(item);
+                lastDbWriteAtMs = now;
+            }
         }
-        Intent i = new Intent(ACTION_HLS_PROGRESS);
-        i.putExtra(EXTRA_VIEW_KEY, state.viewKey);
-        i.putExtra(EXTRA_PROGRESS, percent);
-        // M102：真实下载中的进度广播，running=true
-        i.putExtra(EXTRA_RUNNING, true);
-        LocalBroadcastManager.getInstance(this).sendBroadcast(i);
+        if (percentChanged || firstBroadcast || throttlePassed) {
+            lastBroadcastPercent = percent;
+            lastBroadcastAtMs = now;
+            Intent i = new Intent(ACTION_HLS_PROGRESS);
+            i.putExtra(EXTRA_VIEW_KEY, state.viewKey);
+            i.putExtra(EXTRA_PROGRESS, percent);
+            i.putExtra(EXTRA_SO_FAR_BYTES, bytesDone);
+            i.putExtra(EXTRA_SPEED_BPS, Math.max(smoothedSpeedBps, 0L));
+            // M102：真实下载中的进度广播，running=true
+            i.putExtra(EXTRA_RUNNING, true);
+            LocalBroadcastManager.getInstance(this).sendBroadcast(i);
+        }
     }
 
     private void handleSuccess(File mp4File) {

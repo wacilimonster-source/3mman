@@ -75,7 +75,12 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
                 Boolean running = intent.hasExtra(HlsDownloadService.EXTRA_RUNNING)
                         ? intent.getBooleanExtra(HlsDownloadService.EXTRA_RUNNING, false)
                         : null;
-                updateHlsItemProgress(vk, p, running);
+                // L-fix：携带已落盘字节与实时速度，供列表显示大小/速率
+                long soFar = intent.hasExtra(HlsDownloadService.EXTRA_SO_FAR_BYTES)
+                        ? intent.getLongExtra(HlsDownloadService.EXTRA_SO_FAR_BYTES, -1L) : -1L;
+                long speedBps = intent.hasExtra(HlsDownloadService.EXTRA_SPEED_BPS)
+                        ? intent.getLongExtra(HlsDownloadService.EXTRA_SPEED_BPS, -1L) : -1L;
+                updateHlsItemProgress(vk, p, running, soFar, speedBps);
             } else if (HlsDownloadService.ACTION_HLS_DONE.equals(intent.getAction())) {
                 // HLS 下载完成会从「正在下载」列表移出
                 presenter.loadDownloadingData();
@@ -135,7 +140,10 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
         super.onCreate(savedInstanceState);
         // M97：提前缓存 ApplicationContext，供 onDestroy 判空反注销使用
         appContext = getActivity() != null ? getActivity().getApplicationContext() : null;
-        DownloadManager.getImpl().addUpdater(this);
+        // L-fix：关闭 RecyclerView 默认 item 变更动画——高频进度刷新时整行反复淡出淡入，
+// 视觉上即“缩略图反复缩放”。下载列表以数值刷新为主，不需要动画。
+recyclerView.setItemAnimator(null);
+DownloadManager.getImpl().addUpdater(this);
         FileDownloader.getImpl().addServiceConnectListener(fileDownloadConnectListener);
         IntentFilter filter = new IntentFilter();
         filter.addAction(HlsDownloadService.ACTION_HLS_PROGRESS);
@@ -373,7 +381,7 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
     }
 
     private void updateHlsItemProgress(String viewKey, int progress) {
-        updateHlsItemProgress(viewKey, progress, null);
+        updateHlsItemProgress(viewKey, progress, null, -1L, -1L);
     }
 
     /**
@@ -381,7 +389,8 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
      * 修复：直链受限兜底转 HLS 后，DB 已是 progress、进度正常刷新，
      * 但暂停时写入内存行的 paused 状态从未被更新，列表一直显示“暂停中”。
      */
-    private void updateHlsItemProgress(String viewKey, int progress, Boolean running) {
+    private void updateHlsItemProgress(String viewKey, int progress, Boolean running,
+                                       long soFarBytes, long speedBps) {
         if (mV9MmanItemList == null || viewKey == null) {
             return;
         }
@@ -391,6 +400,12 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
                 it.setProgress(progress);
                 if (running != null && it.getStatus() != FileDownloadStatus.completed) {
                     it.setStatus(running ? FileDownloadStatus.progress : FileDownloadStatus.paused);
+                }
+                if (soFarBytes >= 0) {
+                    it.setSoFarBytes(soFarBytes);
+                }
+                if (speedBps >= 0) {
+                    it.setSpeed(speedBps / 1024L); // 列表按 KB/s 展示
                 }
                 mDownloadAdapter.notifyItemChanged(i);
                 break;

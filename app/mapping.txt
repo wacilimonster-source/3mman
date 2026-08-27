@@ -3,8 +3,8 @@
 # min_api: 19
 # common_typos_disable
 # {"id":"com.android.tools.r8.mapping","version":"2.1"}
-# pg_map_id: d2ffcfb
-# pg_map_hash: SHA-256 d2ffcfbc9d889f3e7ca434fa23f58c1df62411051bdf0636665bfb26bd7c1843
+# pg_map_id: 363576a
+# pg_map_hash: SHA-256 363576ac81abfbbdfbd33903428fce24646353f0c7accc4c2a5793c736f8b43d
 android.arch.core.executor.ArchTaskExecutor -> a.a:
     android.arch.core.executor.ArchTaskExecutor sInstance -> c
     java.util.concurrent.Executor sMainThreadExecutor -> d
@@ -34916,13 +34916,19 @@ com.m3man.service.DownloadVideoService -> com.m3man.service.DownloadVideoService
 com.m3man.service.DownloadVideoService_MembersInjector -> com.m3man.service.a:
     void injectDataManager(com.m3man.service.DownloadVideoService,com.m3man.data.DataManager) -> a
 com.m3man.service.HlsDownloadService -> com.m3man.service.HlsDownloadService:
+    long lastDbWriteAtMs -> j
+    long lastBroadcastAtMs -> i
+    long lastProgressBytesAt -> f
+    long lastProgressBytes -> e
+    int lastBroadcastPercent -> h
     android.app.NotificationManager notificationManager -> a
+    long smoothedSpeedBps -> g
     java.lang.String notifyTitle -> c
     boolean cancelledByUser -> b
     com.m3man.service.HlsDownloadService$TaskState state -> d
     void updateProgress(java.lang.String,int,int) -> A
     com.m3man.service.HlsDownloadService$TaskState access$000(com.m3man.service.HlsDownloadService) -> a
-    void access$100(com.m3man.service.HlsDownloadService,int,int) -> b
+    void access$100(com.m3man.service.HlsDownloadService,int,int,long) -> b
     boolean access$200(com.m3man.service.HlsDownloadService) -> c
     void access$300(com.m3man.service.HlsDownloadService,java.io.File) -> d
     void access$400(com.m3man.service.HlsDownloadService,java.lang.String,int,java.io.File) -> e
@@ -34936,7 +34942,7 @@ com.m3man.service.HlsDownloadService -> com.m3man.service.HlsDownloadService:
     com.m3man.data.db.entity.V9MmanItem findItemOrByDownloadId() -> m
     com.m3man.data.DataManager getDataManager() -> n
     void handleError(java.lang.String) -> o
-    void handleProgress(int,int) -> p
+    void handleProgress(int,int,long) -> p
     void handleSuccess(java.io.File) -> q
     void markRecordDownloading() -> r
     void markReplacedRecordError(java.lang.String,int) -> s
@@ -34959,8 +34965,8 @@ com.m3man.service.HlsDownloadService$1 -> com.m3man.service.HlsDownloadService$a
     int val$replacedPseudoId -> d
     java.lang.String val$replacedViewKey -> c
     void onError(java.lang.String) -> a
-    void onProgress(int,int) -> b
-    void onSuccess(java.io.File) -> c
+    void onSuccess(java.io.File) -> b
+    void onProgress(int,int,long) -> c
 com.m3man.service.HlsDownloadService$TaskState -> com.m3man.service.HlsDownloadService$b:
     com.m3man.utils.HlsDownloader downloader -> a
     int lastProgress -> f
@@ -35347,33 +35353,34 @@ com.m3man.ui.download.DownloadPresenter -> x5.j:
     com.trello.rxlifecycle2.LifecycleProvider provider -> d
     android.content.Context context -> e
     com.m3man.data.DataManager dataManager -> c
-    void deleteFileWithTemp(java.lang.String) -> A
-    void deleteWithFile(com.m3man.data.db.entity.V9MmanItem) -> B
-    void deleteWithoutFile(com.m3man.data.db.entity.V9MmanItem) -> C
-    void downloadVideo(com.m3man.data.db.entity.V9MmanItem,boolean) -> D
-    void downloadVideo(com.m3man.data.db.entity.V9MmanItem,boolean,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> E
-    void downloadVideoImmediately(com.m3man.data.db.entity.V9MmanItem) -> F
-    com.m3man.data.db.entity.V9MmanItem findUnLimit91MmanItemByDownloadId(int) -> G
-    java.io.File getCacheFileIfExists(com.m3man.data.db.entity.V9MmanItem) -> H
-    java.lang.String getCustomDownloadVideoDirPath() -> I
-    int getPlaybackEngine() -> J
-    boolean hasFileDownloaderCheckpoint(java.lang.String) -> K
-    boolean isAlreadyDownloaded(com.m3man.data.db.entity.V9MmanItem,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> L
-    boolean isPornyVideo(com.m3man.data.db.entity.V9MmanItem) -> M
-    java.lang.Boolean lambda$deleteDownloadingTask$0(int,java.lang.String,com.m3man.data.db.entity.V9MmanItem) -> N
-    void lambda$deleteDownloadingTask$1(int,java.lang.Boolean) -> O
-    void lambda$deleteDownloadingTask$2(int,java.lang.Throwable) -> P
-    void loadDownloadingData() -> Q
-    java.util.List loadDownloadingDatas() -> R
-    void loadFinishedData() -> S
-    boolean probeAndCleanupZombieTask(com.m3man.data.db.entity.V9MmanItem,boolean) -> T
-    void reparseThenDownload(com.m3man.data.db.entity.V9MmanItem,java.lang.String,boolean,boolean,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> U
-    void startDownloadInternal(com.m3man.data.db.entity.V9MmanItem,java.lang.String,java.lang.String,boolean,boolean,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> V
-    void startDownloadWithFallback(com.m3man.data.db.entity.V9MmanItem,java.lang.String,boolean,boolean,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> W
-    void tryPornyFallback(com.m3man.data.db.entity.V9MmanItem,java.lang.String,boolean,boolean,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> X
-    boolean tryResumeDownload(com.m3man.data.db.entity.V9MmanItem,java.lang.String,boolean,boolean,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> Y
-    void updateV9MmanItem(com.m3man.data.db.entity.V9MmanItem) -> Z
-    com.m3man.data.db.entity.V9MmanItem validateAndResolveItem(com.m3man.data.db.entity.V9MmanItem,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> a0
+    void deleteDownloadingTask(com.m3man.data.db.entity.V9MmanItem) -> A
+    void deleteFileWithTemp(java.lang.String) -> B
+    void deleteWithFile(com.m3man.data.db.entity.V9MmanItem) -> C
+    void deleteWithoutFile(com.m3man.data.db.entity.V9MmanItem) -> D
+    void downloadVideo(com.m3man.data.db.entity.V9MmanItem,boolean) -> E
+    void downloadVideo(com.m3man.data.db.entity.V9MmanItem,boolean,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> F
+    void downloadVideoImmediately(com.m3man.data.db.entity.V9MmanItem) -> G
+    com.m3man.data.db.entity.V9MmanItem findUnLimit91MmanItemByDownloadId(int) -> H
+    java.io.File getCacheFileIfExists(com.m3man.data.db.entity.V9MmanItem) -> I
+    java.lang.String getCustomDownloadVideoDirPath() -> J
+    int getPlaybackEngine() -> K
+    boolean hasFileDownloaderCheckpoint(java.lang.String) -> L
+    boolean isAlreadyDownloaded(com.m3man.data.db.entity.V9MmanItem,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> M
+    boolean isPornyVideo(com.m3man.data.db.entity.V9MmanItem) -> N
+    java.lang.Boolean lambda$deleteDownloadingTask$0(int,java.lang.String,com.m3man.data.db.entity.V9MmanItem) -> O
+    void lambda$deleteDownloadingTask$1(int,java.lang.Boolean) -> P
+    void lambda$deleteDownloadingTask$2(int,java.lang.Throwable) -> Q
+    void loadDownloadingData() -> R
+    java.util.List loadDownloadingDatas() -> S
+    void loadFinishedData() -> T
+    boolean probeAndCleanupZombieTask(com.m3man.data.db.entity.V9MmanItem,boolean) -> U
+    void reparseThenDownload(com.m3man.data.db.entity.V9MmanItem,java.lang.String,boolean,boolean,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> V
+    void startDownloadInternal(com.m3man.data.db.entity.V9MmanItem,java.lang.String,java.lang.String,boolean,boolean,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> W
+    void startDownloadWithFallback(com.m3man.data.db.entity.V9MmanItem,java.lang.String,boolean,boolean,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> X
+    void tryPornyFallback(com.m3man.data.db.entity.V9MmanItem,java.lang.String,boolean,boolean,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> Y
+    boolean tryResumeDownload(com.m3man.data.db.entity.V9MmanItem,java.lang.String,boolean,boolean,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> Z
+    void updateV9MmanItem(com.m3man.data.db.entity.V9MmanItem) -> a0
+    com.m3man.data.db.entity.V9MmanItem validateAndResolveItem(com.m3man.data.db.entity.V9MmanItem,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> b0
     void $r8$lambda$5DV7I33U2a41j6eJPgCx3qiPCHE(com.m3man.ui.download.DownloadPresenter,int,java.lang.Throwable) -> f
       # {"id":"com.android.tools.r8.synthesized"}
     void $r8$lambda$CsZJ7aHP0ydWDMzV7mf_KFaJlgw(com.m3man.ui.download.DownloadPresenter,int,java.lang.Boolean) -> g
@@ -35386,18 +35393,18 @@ com.m3man.ui.download.DownloadPresenter -> x5.j:
     void access$1100(com.m3man.ui.download.DownloadPresenter,com.hannesdorfmann.mosby3.mvp.MvpBasePresenter$ViewAction) -> l
     void access$1200(com.m3man.ui.download.DownloadPresenter,com.hannesdorfmann.mosby3.mvp.MvpBasePresenter$ViewAction) -> m
     void access$1300(com.m3man.ui.download.DownloadPresenter,com.hannesdorfmann.mosby3.mvp.MvpBasePresenter$ViewAction) -> n
-    okhttp3.OkHttpClient access$200(com.m3man.ui.download.DownloadPresenter) -> o
-    void access$300(com.m3man.ui.download.DownloadPresenter,com.m3man.data.db.entity.V9MmanItem,java.lang.String,boolean,boolean,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> p
-    com.m3man.data.DataManager access$400(com.m3man.ui.download.DownloadPresenter) -> q
-    android.content.Context access$500(com.m3man.ui.download.DownloadPresenter) -> r
-    void access$600(com.m3man.ui.download.DownloadPresenter,com.hannesdorfmann.mosby3.mvp.MvpBasePresenter$ViewAction) -> s
-    void access$700(com.m3man.ui.download.DownloadPresenter,com.m3man.data.db.entity.V9MmanItem,java.lang.String,boolean,boolean,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> t
-    void access$800(com.m3man.ui.download.DownloadPresenter,com.hannesdorfmann.mosby3.mvp.MvpBasePresenter$ViewAction) -> u
-    void access$900(com.m3man.ui.download.DownloadPresenter,com.hannesdorfmann.mosby3.mvp.MvpBasePresenter$ViewAction) -> v
-    java.lang.String buildReferer(java.lang.String) -> w
-    void copyCacheFile(com.m3man.data.db.entity.V9MmanItem,java.io.File,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> x
-    void deleteDownloadedTask(com.m3man.data.db.entity.V9MmanItem,boolean) -> y
-    void deleteDownloadingTask(com.m3man.data.db.entity.V9MmanItem) -> z
+    void access$1400(com.m3man.ui.download.DownloadPresenter,com.hannesdorfmann.mosby3.mvp.MvpBasePresenter$ViewAction) -> o
+    okhttp3.OkHttpClient access$200(com.m3man.ui.download.DownloadPresenter) -> p
+    java.lang.String access$300(com.m3man.ui.download.DownloadPresenter,java.lang.String) -> q
+    void access$400(com.m3man.ui.download.DownloadPresenter,com.m3man.data.db.entity.V9MmanItem,java.lang.String,boolean,boolean,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> r
+    com.m3man.data.DataManager access$500(com.m3man.ui.download.DownloadPresenter) -> s
+    android.content.Context access$600(com.m3man.ui.download.DownloadPresenter) -> t
+    void access$700(com.m3man.ui.download.DownloadPresenter,com.hannesdorfmann.mosby3.mvp.MvpBasePresenter$ViewAction) -> u
+    void access$800(com.m3man.ui.download.DownloadPresenter,com.m3man.data.db.entity.V9MmanItem,java.lang.String,boolean,boolean,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> v
+    void access$900(com.m3man.ui.download.DownloadPresenter,com.hannesdorfmann.mosby3.mvp.MvpBasePresenter$ViewAction) -> w
+    java.lang.String buildReferer(java.lang.String) -> x
+    void copyCacheFile(com.m3man.data.db.entity.V9MmanItem,java.io.File,com.m3man.ui.download.DownloadPresenter$DownloadListener) -> y
+    void deleteDownloadedTask(com.m3man.data.db.entity.V9MmanItem,boolean) -> z
 com.m3man.ui.download.DownloadPresenter$$ExternalSyntheticLambda0 -> x5.g:
 # {"id":"sourceFile","fileName":"R8$$SyntheticClass"}
 # {"id":"com.android.tools.r8.synthesized"}
@@ -35540,8 +35547,9 @@ com.m3man.ui.download.DownloadPresenter$5 -> x5.j$r:
     void onSuccess(java.lang.Object) -> d
     void onSuccess(java.lang.Boolean) -> e
 com.m3man.ui.download.DownloadPresenter$6 -> x5.j$s:
+    com.m3man.data.db.entity.V9MmanItem val$item -> b
     java.lang.String val$resumeOldUrl -> a
-    com.m3man.ui.download.DownloadPresenter this$0 -> b
+    com.m3man.ui.download.DownloadPresenter this$0 -> c
     void subscribe(io.reactivex.ObservableEmitter) -> a
 com.m3man.ui.download.DownloadPresenter$7 -> x5.j$t:
     com.m3man.ui.download.DownloadPresenter this$0 -> g
@@ -35604,7 +35612,7 @@ com.m3man.ui.download.DownloadingFragment -> com.m3man.ui.download.DownloadingFr
     void setFinishedData(java.util.List) -> M0
     void startHlsReDownload(com.m3man.data.db.entity.V9MmanItem) -> M3
     void update(com.liulishuo.filedownloader.BaseDownloadTask) -> N0
-    void updateHlsItemProgress(java.lang.String,int,java.lang.Boolean) -> N3
+    void updateHlsItemProgress(java.lang.String,int,java.lang.Boolean,long,long) -> N3
     void onCreate(android.os.Bundle) -> P1
     android.view.View onCreateView(android.view.LayoutInflater,android.view.ViewGroup,android.os.Bundle) -> T1
     void onDestroy() -> U1
@@ -35614,7 +35622,7 @@ com.m3man.ui.download.DownloadingFragment -> com.m3man.ui.download.DownloadingFr
     void showMessage(java.lang.String,int) -> g
     void onLazyLoadOnce() -> j3
     void onViewCreated(android.view.View,android.os.Bundle) -> n2
-    void access$000(com.m3man.ui.download.DownloadingFragment,java.lang.String,int,java.lang.Boolean) -> r3
+    void access$000(com.m3man.ui.download.DownloadingFragment,java.lang.String,int,java.lang.Boolean,long,long) -> r3
     com.hannesdorfmann.mosby3.mvp.MvpPresenter access$100(com.m3man.ui.download.DownloadingFragment) -> s3
     com.hannesdorfmann.mosby3.mvp.MvpPresenter access$1000(com.m3man.ui.download.DownloadingFragment) -> t3
     com.hannesdorfmann.mosby3.mvp.MvpPresenter access$1100(com.m3man.ui.download.DownloadingFragment) -> u3
@@ -40989,7 +40997,7 @@ com.m3man.utils.HlsDownloader -> com.m3man.utils.s:
     boolean cancelled -> c
     void $r8$lambda$IKmXk8-zXjs9E9fToNYKAZvhIEQ(com.m3man.utils.HlsDownloader,java.lang.String,com.m3man.utils.HlsDownloader$HlsDownloadListener,java.io.File,java.lang.String,java.lang.String) -> a
       # {"id":"com.android.tools.r8.synthesized"}
-    void $r8$lambda$Y-XRsPGZwJfMLQhkRdx76Ol7z_Q(com.m3man.utils.HlsDownloader,java.util.concurrent.atomic.AtomicBoolean,java.io.File,int,boolean,java.util.Map,java.lang.String,java.util.List,com.m3man.utils.HlsDownloader$HlsDownloadListener,java.util.concurrent.atomic.AtomicInteger,java.util.List,java.util.concurrent.CountDownLatch) -> b
+    void $r8$lambda$eBFfkQ3FyDO4PEKI4KEa0G-0SL0(com.m3man.utils.HlsDownloader,java.util.concurrent.atomic.AtomicBoolean,java.io.File,int,boolean,java.util.Map,java.lang.String,java.util.List,java.util.concurrent.atomic.AtomicLong,com.m3man.utils.HlsDownloader$HlsDownloadListener,java.util.concurrent.atomic.AtomicInteger,java.util.List,java.util.concurrent.CountDownLatch) -> b
       # {"id":"com.android.tools.r8.synthesized"}
     java.util.Map collectCacheHits(java.util.List,java.io.File) -> c
     boolean copyFile(java.io.File,java.io.File) -> d
@@ -40998,11 +41006,11 @@ com.m3man.utils.HlsDownloader -> com.m3man.utils.s:
     boolean downloadToFile(java.lang.String,java.io.File) -> g
     java.lang.String fetchString(java.lang.String) -> h
     java.lang.String getBaseDir(java.lang.String) -> i
-    void lambda$download$0(java.util.concurrent.atomic.AtomicBoolean,java.io.File,int,boolean,java.util.Map,java.lang.String,java.util.List,com.m3man.utils.HlsDownloader$HlsDownloadListener,java.util.concurrent.atomic.AtomicInteger,java.util.List,java.util.concurrent.CountDownLatch) -> j
+    void lambda$download$0(java.util.concurrent.atomic.AtomicBoolean,java.io.File,int,boolean,java.util.Map,java.lang.String,java.util.List,java.util.concurrent.atomic.AtomicLong,com.m3man.utils.HlsDownloader$HlsDownloadListener,java.util.concurrent.atomic.AtomicInteger,java.util.List,java.util.concurrent.CountDownLatch) -> j
     void lambda$download$1(java.lang.String,com.m3man.utils.HlsDownloader$HlsDownloadListener,java.io.File,java.lang.String,java.lang.String) -> k
     void mergeFiles(java.util.List,java.io.File) -> l
     void notifyError(com.m3man.utils.HlsDownloader$HlsDownloadListener,java.lang.String) -> m
-    void notifyProgress(com.m3man.utils.HlsDownloader$HlsDownloadListener,int,int) -> n
+    void notifyProgress(com.m3man.utils.HlsDownloader$HlsDownloadListener,int,int,long) -> n
     void notifySuccess(com.m3man.utils.HlsDownloader$HlsDownloadListener,java.io.File) -> o
     java.net.HttpURLConnection open(java.lang.String) -> p
     java.util.List parseSegments(java.lang.String) -> q
@@ -41027,26 +41035,27 @@ com.m3man.utils.HlsDownloader$$ExternalSyntheticLambda0 -> com.m3man.utils.q:
 com.m3man.utils.HlsDownloader$$ExternalSyntheticLambda1 -> com.m3man.utils.r:
 # {"id":"sourceFile","fileName":"R8$$SyntheticClass"}
 # {"id":"com.android.tools.r8.synthesized"}
-    com.m3man.utils.HlsDownloader com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$0 -> a
     java.lang.String com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$6 -> g
+    com.m3man.utils.HlsDownloader$HlsDownloadListener com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$9 -> j
     java.io.File com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$2 -> c
-    com.m3man.utils.HlsDownloader$HlsDownloadListener com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$8 -> i
-    java.util.concurrent.CountDownLatch com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$11 -> l
+    java.util.concurrent.CountDownLatch com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$12 -> m
+    java.util.concurrent.atomic.AtomicLong com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$8 -> i
+    int com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$3 -> d
+    java.util.concurrent.atomic.AtomicInteger com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$10 -> k
+    com.m3man.utils.HlsDownloader com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$0 -> a
     java.util.concurrent.atomic.AtomicBoolean com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$1 -> b
     boolean com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$4 -> e
-    int com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$3 -> d
     java.util.List com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$7 -> h
     java.util.Map com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$5 -> f
-    java.util.concurrent.atomic.AtomicInteger com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$9 -> j
-    java.util.List com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$10 -> k
-    void com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.<init>(com.m3man.utils.HlsDownloader,java.util.concurrent.atomic.AtomicBoolean,java.io.File,int,boolean,java.util.Map,java.lang.String,java.util.List,com.m3man.utils.HlsDownloader$HlsDownloadListener,java.util.concurrent.atomic.AtomicInteger,java.util.List,java.util.concurrent.CountDownLatch) -> <init>
+    java.util.List com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.f$11 -> l
+    void com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.<init>(com.m3man.utils.HlsDownloader,java.util.concurrent.atomic.AtomicBoolean,java.io.File,int,boolean,java.util.Map,java.lang.String,java.util.List,java.util.concurrent.atomic.AtomicLong,com.m3man.utils.HlsDownloader$HlsDownloadListener,java.util.concurrent.atomic.AtomicInteger,java.util.List,java.util.concurrent.CountDownLatch) -> <init>
       # {"id":"com.android.tools.r8.synthesized"}
     void com.m3man.utils.HlsDownloader$$InternalSyntheticLambda$2$b19f7a7e0495f6eb12afba3aa965d24383b9396f6d00010d11ba7498c0b2b540$0.run() -> run
       # {"id":"com.android.tools.r8.synthesized"}
 com.m3man.utils.HlsDownloader$HlsDownloadListener -> com.m3man.utils.s$a:
     void onError(java.lang.String) -> a
-    void onProgress(int,int) -> b
-    void onSuccess(java.io.File) -> c
+    void onSuccess(java.io.File) -> b
+    void onProgress(int,int,long) -> c
 com.m3man.utils.LoadHelperUtils -> com.m3man.utils.t:
     android.widget.TextView findViewById(android.view.View,int) -> a
     void setEmptyText(android.view.View,int,java.lang.String) -> b
@@ -41112,11 +41121,12 @@ com.m3man.utils.PornyFallbackResolver -> com.m3man.utils.f0:
     boolean applyPornyResult(com.m3man.data.DataManager,com.m3man.data.db.entity.V9MmanItem,com.m3man.data.db.entity.VideoResult) -> a
     java.util.Set chars(java.lang.String) -> b
     void enqueueHlsDownload(android.content.Context,com.m3man.data.db.entity.V9MmanItem,java.lang.String,java.lang.String) -> c
-    boolean isAlive(okhttp3.OkHttpClient,java.lang.String) -> d
-    com.m3man.data.db.entity.VideoResult resolve(com.m3man.data.DataManager,java.lang.String) -> e
-    java.lang.String searchKeyword(java.lang.String) -> f
-    double similarity(java.lang.String,java.lang.String) -> g
-    java.lang.String stripPrefix(java.lang.String) -> h
+    boolean isAlive(okhttp3.OkHttpClient,java.lang.String,java.lang.String) -> d
+    boolean probeOnce(okhttp3.OkHttpClient,java.lang.String,java.lang.String) -> e
+    com.m3man.data.db.entity.VideoResult resolve(com.m3man.data.DataManager,java.lang.String) -> f
+    java.lang.String searchKeyword(java.lang.String) -> g
+    double similarity(java.lang.String,java.lang.String) -> h
+    java.lang.String stripPrefix(java.lang.String) -> i
 com.m3man.utils.RegexUtils -> com.m3man.utils.g0:
     java.util.concurrent.ConcurrentHashMap PATTERN_CACHE -> a
     boolean isIP(java.lang.CharSequence) -> a

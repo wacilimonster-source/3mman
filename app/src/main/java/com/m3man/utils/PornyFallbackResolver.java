@@ -91,16 +91,34 @@ public class PornyFallbackResolver {
      * 返回 true = CDN 放行（可正常下载）；false = 连接被拒/超时/非 2xx（多半被封锁，走备用源）。
      */
     public static boolean isAlive(OkHttpClient client, String mp4Url) {
+        return isAlive(client, mp4Url, null);
+    }
+
+    /**
+     * 探活（Bug1 复查增强）：Range+UA 直连探测。首探失败且提供了 Referer 时，
+     * 补一次带 Referer 的重试再判死——部分 CDN 对无 Referer 的裸 Range 请求返回
+     * 403/302，但正常播放（带来源页）可出流；直接判死会造成「源站受限」误报。
+     */
+    public static boolean isAlive(OkHttpClient client, String mp4Url, String referer) {
         if (client == null || TextUtils.isEmpty(mp4Url)) {
             return false;
         }
+        if (probeOnce(client, mp4Url, referer)) {
+            return true;
+        }
+        return probeOnce(client, mp4Url, null);
+    }
+
+    private static boolean probeOnce(OkHttpClient client, String mp4Url, String referer) {
         try {
-            Request req = new Request.Builder()
+            Request.Builder rb = new Request.Builder()
                     .url(mp4Url)
                     .header("Range", RANGE)
-                    .header("User-Agent", UA)
-                    .build();
-            try (Response resp = client.newCall(req).execute()) {
+                    .header("User-Agent", UA);
+            if (!TextUtils.isEmpty(referer)) {
+                rb.header("Referer", referer);
+            }
+            try (Response resp = client.newCall(rb.build()).execute()) {
                 int code = resp.code();
                 return code == 200 || code == 206;
             }

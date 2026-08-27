@@ -1,7 +1,7 @@
 {
-  "versionCode": 134,
-  "versionName": "1.0.101",
-  "updateMessage": "全量代码审查修复：修复下载任务识别已解析视频的查询问题（M-09 回归）；编译链修复；推荐页与横屏逻辑重构收尾；多处空指针防护与性能优化。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.101.apk",
-  "sha256": "ea1277ec2d9d97bc3c54b7731f9ca646f18ec509c2a8268a12f9dc897937774a"
+  "versionCode": 135,
+  "versionName": "1.0.102",
+  "updateMessage": "修复正在下载列表：HLS/备用源下载现已显示已下载大小与实时速度，并消除缩略图反复缩放闪烁；直链探活增加 Referer 重试，减少「源站受限」误判转备用源；提示文案更准确。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.102.apk",
+  "sha256": "d6a522d7ccc750ac3f88e2667f35fb1525fb3df096c922aaf80b06e15e980b9c"
 }

@@ -38,7 +38,17 @@ public class DownloadVideoAdapter extends BaseQuickAdapter<V9MmanItem, BaseViewH
         GlideLoader.loadCover(simpleDraweeView, coverUrl);
         helper.setProgress(R.id.progressBar_download, item.getProgress());
         helper.setText(R.id.tv_download_progress, String.valueOf(item.getProgress()) + "%");
-        helper.setText(R.id.tv_download_filesize, Formatter.formatFileSize(helper.itemView.getContext(), item.getSoFarBytes()).replace("MB", "") + "/ " + Formatter.formatFileSize(helper.itemView.getContext(), item.getTotalFarBytes()));
+        // L-fix：HLS 分片阶段总量未知(total=0)，改显已下载字节 / "--"；直连任务维持原样式
+        String sizeText;
+        if (item.getTotalFarBytes() > 0) {
+            sizeText = Formatter.formatFileSize(helper.itemView.getContext(), item.getSoFarBytes()).replace("MB", "") + "/ "
+                    + Formatter.formatFileSize(helper.itemView.getContext(), item.getTotalFarBytes());
+        } else if (item.getSoFarBytes() > 0) {
+            sizeText = Formatter.formatFileSize(helper.itemView.getContext(), item.getSoFarBytes()).replace("MB", "") + "/ --";
+        } else {
+            sizeText = "--/--";
+        }
+        helper.setText(R.id.tv_download_filesize, sizeText);
         if (item.getStatus() == FileDownloadStatus.completed) {
             helper.setText(R.id.tv_download_speed, "已完成");
             helper.setVisible(R.id.iv_download_control, false);
