@@ -8,7 +8,7 @@ import android.support.v7.widget.Toolbar;
 
 import com.orhanobut.logger.Logger;
 import com.m3man.R;
-import com.m3man.adapter.DownloadFragmentAdapter;
+import com.m3man.adapter.SimpleFragmentPagerAdapter;
 import com.m3man.ui.BaseAppCompatActivity;
 
 import java.util.List;
@@ -42,7 +42,7 @@ public class DownloadActivity extends BaseAppCompatActivity {
     List<Fragment> fragmentList;
 
     @Inject
-    DownloadFragmentAdapter downloadAdapter;
+    SimpleFragmentPagerAdapter downloadAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

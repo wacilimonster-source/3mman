@@ -53,8 +53,8 @@ public class V9MmanItem implements Serializable {
 
     private int progress;
     private long speed;
-    private int soFarBytes;
-    private int totalFarBytes;
+    private long soFarBytes;
+    private long totalFarBytes;
     private int status;
     private Date addDownloadDate;
     private Date finishedDownloadDate;
@@ -69,9 +69,9 @@ public class V9MmanItem implements Serializable {
     private transient V9MmanItemDao myDao;
 
 
-    @Generated(hash = 1325910129)
+    @Generated(hash = 615533494)
     public V9MmanItem(Long id, String viewKey, String title, String imgUrl, String duration, String info, String sourceName, Boolean isLocalFavorite, long videoResultId, int downloadId, int progress, long speed,
-            int soFarBytes, int totalFarBytes, int status, Date addDownloadDate, Date finishedDownloadDate, Date viewHistoryDate) {
+            long soFarBytes, long totalFarBytes, int status, Date addDownloadDate, Date finishedDownloadDate, Date viewHistoryDate) {
         this.id = id;
         this.viewKey = viewKey;
         this.title = title;
@@ -296,19 +296,19 @@ public class V9MmanItem implements Serializable {
         this.speed = speed;
     }
 
-    public int getSoFarBytes() {
+    public long getSoFarBytes() {
         return this.soFarBytes;
     }
 
-    public void setSoFarBytes(int soFarBytes) {
+    public void setSoFarBytes(long soFarBytes) {
         this.soFarBytes = soFarBytes;
     }
 
-    public int getTotalFarBytes() {
+    public long getTotalFarBytes() {
         return this.totalFarBytes;
     }
 
-    public void setTotalFarBytes(int totalFarBytes) {
+    public void setTotalFarBytes(long totalFarBytes) {
         this.totalFarBytes = totalFarBytes;
     }
 

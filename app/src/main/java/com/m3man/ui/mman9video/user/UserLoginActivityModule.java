@@ -1,24 +1,17 @@
 package com.m3man.ui.mman9video.user;
 
-import android.arch.lifecycle.Lifecycle;
 import android.support.v7.app.AppCompatActivity;
 
-import com.trello.lifecycle2.android.lifecycle.AndroidLifecycle;
-import com.trello.rxlifecycle2.LifecycleProvider;
-import com.m3man.ui.about.AboutActivity;
+import com.m3man.di.module.BaseActivityModule;
 
 import dagger.Module;
 import dagger.Provides;
 
-@Module
+@Module(includes = BaseActivityModule.class)
 public class UserLoginActivityModule {
-    @Provides
-    static AppCompatActivity provideAppCompatActivity(UserLoginActivity userLoginActivity){
-        return userLoginActivity;
-    }
 
     @Provides
-    static LifecycleProvider<Lifecycle.Event> providerLifecycleProvider(AppCompatActivity mAppCompatActivity) {
-        return AndroidLifecycle.createLifecycleProvider(mAppCompatActivity);
+    static AppCompatActivity provideAppCompatActivity(UserLoginActivity userLoginActivity) {
+        return userLoginActivity;
     }
 }

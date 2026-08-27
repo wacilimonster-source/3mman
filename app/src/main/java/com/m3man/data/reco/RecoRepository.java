@@ -26,6 +26,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import io.reactivex.Observable;
+import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Function;
 import io.reactivex.schedulers.Schedulers;
 
@@ -38,6 +40,22 @@ import io.reactivex.schedulers.Schedulers;
  *   <li>作者召回：画像里高权重作者的视频列表，占比由 authorRecallRatio 控制。</li>
  *   <li>探索召回：随机分类，避免陷入信息茧房。</li>
  * </ul>
+ *
+ * 核心算法说明：
+ * <ol>
+ *   <li><strong>年份提取</strong>（{@link #extractYearFromInfo(String)}）：从视频信息文本中提取年份，
+ *       使用正则 {@link #YEAR_PATTERN} 匹配 "添加时间: 2024-05-01" 等格式中的年份，
+ *       锚定到日期分隔符（- / . 年 月）避免误判播放量数字为年份。
+ *   </li>
+ *   <li><strong>多样性前缀方案</strong>（{@link #diversityAuthorKey(RecoCandidate)}、
+ *       {@link #diversityTopTag(RecoCandidate)}）：出队时按「作者前缀+主标签前缀」去重，
+ *       同一作者/主标签每批最多 {@link #MAX_SAME_AUTHOR_PER_BATCH}/{@link #MAX_SAME_TAG_PER_BATCH} 条，
+ *       超额候选延后，凑不满时放宽补齐——避免连刷同作者/同题材。
+ *   </li>
+ *   <li><strong>探索坑位制</strong>（{@link #take(int)}）：每批固定留 {@code want/6} 个坑位给探索来源，
+ *       垫在批次末尾，防止高分垃圾挤占前排。
+ *   </li>
+ * </ol>
  *
  * @author 3mman
  */
@@ -86,12 +104,15 @@ public class RecoRepository {
     private final Map<String, Integer> authorPage = new HashMap<>();
 
     /** 连续拉取失败次数，用于让 UI 提示错误 */
-    private int consecutiveFailures = 0;
+    private volatile int consecutiveFailures = 0;
 
     /** M78：方向筛选（0=全部 1=仅竖屏 2=仅横屏）；严格过滤，不符合方向的候选会被丢弃 */
-    private int orientationFilter = PlayUiPrefs.FILTER_ALL;
+    private volatile int orientationFilter = PlayUiPrefs.FILTER_ALL;
     /** M78：开启自动横屏时，即使筛选为「全部」也需要探测封面方向。 */
-    private boolean autoRotateLandscape;
+    private volatile boolean autoRotateLandscape;
+
+    /** 用于在 resetSession() 时取消正在进行的 nextBatch IO 操作，防止并发修改 pool */
+    private final CompositeDisposable batchDisposables = new CompositeDisposable();
 
     public RecoRepository(DataManager dataManager, RecoEngine engine) {
         this.dataManager = dataManager;
@@ -220,7 +241,9 @@ public class RecoRepository {
     }
 
     public int poolSize() {
-        return pool.size();
+        synchronized (pool) {
+            return pool.size();
+        }
     }
 
     public int getConsecutiveFailures() {
@@ -228,11 +251,15 @@ public class RecoRepository {
     }
 
     public void resetSession() {
-        pool.clear();
-        servedKeys.clear();
-        categoryPage.clear();
-        authorPage.clear();
-        consecutiveFailures = 0;
+        // 在同步块内取消 IO 并清理状态，防止与 nextBatch()/take() 并发访问 pool
+        synchronized (pool) {
+            batchDisposables.clear();
+            pool.clear();
+            servedKeys.clear();
+            categoryPage.clear();
+            authorPage.clear();
+            consecutiveFailures = 0;
+        }
     }
 
     /**
@@ -247,24 +274,37 @@ public class RecoRepository {
                 // M78：方向筛选开启时先补齐池内未知方向的探测（本调用运行在 IO 线程）
                 if (orientationFilter != PlayUiPrefs.FILTER_ALL || autoRotateLandscape) {
                     // M98：串行循环改为并行探测（并发 3 / 单条超时 1500ms），收齐结果再出批
-                    probeOrientationsParallel(pool);
+                    synchronized (pool) {
+                        probeOrientationsParallel(pool);
+                    }
                 }
-                if (countPassing() >= want) {
-                    return Observable.just(take(want));
+                synchronized (pool) {
+                    if (countPassing() >= want) {
+                        return Observable.just(take(want));
+                    }
                 }
                 return fetchOneSource()
                         .map(new Function<List<RecoCandidate>, List<RecoCandidate>>() {
                             @Override
                             public List<RecoCandidate> apply(List<RecoCandidate> fetched) {
-                                addToPool(fetched);
-                                // 新入池的候选同样需要方向探测后再出队
-                                if (orientationFilter != PlayUiPrefs.FILTER_ALL || autoRotateLandscape) {
-                                    // M98：串行循环改为并行探测（并发 3 / 单条超时 1500ms）
-                                    probeOrientationsParallel(fetched);
+                                synchronized (pool) {
+                                    addToPool(fetched);
+                                    // 新入池的候选同样需要方向探测后再出队
+                                    if (orientationFilter != PlayUiPrefs.FILTER_ALL || autoRotateLandscape) {
+                                        // M98：串行循环改为并行探测（并发 3 / 单条超时 1500ms）
+                                        probeOrientationsParallel(fetched);
+                                    }
+                                    return take(want);
                                 }
-                                return take(want);
                             }
                         });
+            }
+        })
+        // 注册到 batchDisposables，使 resetSession() 能取消正在进行的 IO 操作
+        .doOnSubscribe(new io.reactivex.functions.Consumer<Disposable>() {
+            @Override
+            public void accept(Disposable d) {
+                batchDisposables.add(d);
             }
         });
     }
@@ -274,8 +314,10 @@ public class RecoRepository {
         return fetchOneSource().map(new Function<List<RecoCandidate>, Integer>() {
             @Override
             public Integer apply(List<RecoCandidate> fetched) {
-                addToPool(fetched);
-                return pool.size();
+                synchronized (pool) {
+                    addToPool(fetched);
+                    return pool.size();
+                }
             }
         });
     }

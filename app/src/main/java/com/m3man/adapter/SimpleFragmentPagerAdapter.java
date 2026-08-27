@@ -11,17 +11,16 @@ import java.util.List;
 import javax.inject.Inject;
 
 /**
- * @author flymegoc
- * @date 2017/11/24
- * @describe
+ * 通用 FragmentPagerAdapter（下载页/播放页通用）。
+ * <p>
+ * 合并原 DownloadFragmentAdapter 与 PlayFragmentAdapter，消除 100% 重复代码。
  */
-
-public class DownloadFragmentAdapter extends FragmentPagerAdapter {
+public class SimpleFragmentPagerAdapter extends FragmentPagerAdapter {
 
     private List<Fragment> fragmentList;
 
     @Inject
-    public DownloadFragmentAdapter(FragmentManager fm) {
+    public SimpleFragmentPagerAdapter(FragmentManager fm) {
         super(fm);
     }
 

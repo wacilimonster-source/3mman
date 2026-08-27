@@ -59,14 +59,19 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+// RxJava2 的 fromCallable 收 java.util.concurrent.Callable，io.reactivex.functions 包下无此类型
+import java.util.concurrent.Callable;
 
 import javax.inject.Inject;
 
 import cn.jzvd.JZVideoPlayer;
 import cn.jzvd.JZVideoPlayerStandard;
+import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.Consumer;
 import io.reactivex.schedulers.Schedulers;
 
 /**
@@ -75,7 +80,7 @@ import io.reactivex.schedulers.Schedulers;
  * 逻辑与原 RecommendFeedActivity 一致（引擎召回 / 预取 / 进度条 / 封面 watcher / 下载兜底）。
  */
 public class RecommendFeedFragment extends BaseFragment
-        implements RecommendFeedAdapter.Callback {
+        implements RecommendFeedAdapter.Callback, LandscapeOrientationHelper.Host {
 
     private static final String TAG = "RecoFeed";
 
@@ -124,9 +129,6 @@ public class RecommendFeedFragment extends BaseFragment
     private boolean firstLoadStarted = false;
     private boolean engineInitFailed = false;
     private boolean engineInitStarted = false;
-    /** 推荐下载的进程内并发闸门，防止双击/重复回调同时创建两个任务。 */
-    private final java.util.Set<String> downloadInFlight =
-            java.util.Collections.synchronizedSet(new java.util.HashSet<String>());
     private boolean noMore = false;
     private int emptyRetryCount = 0;
     /** M98：最近一次加载是否发生过错误（error 不计入空批计数，也不置 noMore，但保留重试入口） */
@@ -136,27 +138,17 @@ public class RecommendFeedFragment extends BaseFragment
     private Runnable progressTicker;
     /** 用户正在拖动进度条时暂停自动刷新，避免手指被「拽回去」 */
     private boolean userSeeking = false;
+    /** M-06: Fragment 销毁后防止 progressTicker 重复触发 */
+    private boolean viewDestroyed = false;
 
     /** M78：方向筛选（0=全部 1=仅竖屏 2=仅横屏） */
     private TextView orientationFilterView;
-    /** M79：最近一次向 Activity 应用的播放方向，避免横屏→横屏重复触发旋转。 */
-    private int appliedPlaybackOrientation = -1;
-    /** M82：横屏锁。一旦进入横屏（全屏按钮或自动旋转），除非手动退出，否则始终横屏。 */
-    private boolean landscapeLock = false;
     private ImageView landscapeBackView;
-    private int normalContentBottomMargin = -1;
-    /** 横屏锁定时系统栏被系统/用户临时唤出后自动收回，消除顶部紫条与底部留白复发 */
-    private final View.OnSystemUiVisibilityChangeListener sysUiVisibilityListener =
-            new View.OnSystemUiVisibilityChangeListener() {
-                @Override
-                public void onSystemUiVisibilityChange(int visibility) {
-                    if (landscapeLock && getActivity() != null
-                            && ((visibility & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0
-                            || (visibility & View.SYSTEM_UI_FLAG_HIDE_NAVIGATION) == 0)) {
-                        reapplyImmersive();
-                    }
-                }
-            };
+
+    /** 横屏/沉浸模式 Helper（从 Fragment 提取，降低 God Class 复杂度） */
+    private LandscapeOrientationHelper orientationHelper;
+    /** 下载入队 Helper（从 Fragment 提取，降低 God Class 复杂度） */
+    private DownloadEnqueuer downloadEnqueuer;
 
     public static RecommendFeedFragment getInstance() {
         return new RecommendFeedFragment();
@@ -172,66 +164,60 @@ public class RecommendFeedFragment extends BaseFragment
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        // 初始化 Helper 类
+        orientationHelper = new LandscapeOrientationHelper(this);
+        downloadEnqueuer = new DownloadEnqueuer(dataManager, okHttpClient, context, disposables);
         // M82：进程重建后恢复横屏锁，避免回到竖屏
         if (savedInstanceState != null) {
-            landscapeLock = savedInstanceState.getBoolean("reco_landscape_lock", false);
+            orientationHelper.setLandscapeLock(savedInstanceState.getBoolean("reco_landscape_lock", false));
         }
         if (getActivity() != null) {
             getActivity().getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             getActivity().getWindow().getDecorView()
-                    .setOnSystemUiVisibilityChangeListener(sysUiVisibilityListener);
+                    .setOnSystemUiVisibilityChangeListener(visibility -> {
+                        if (orientationHelper.isLandscapeLock() && getActivity() != null
+                                && ((visibility & View.SYSTEM_UI_FLAG_FULLSCREEN) == 0
+                                || (visibility & View.SYSTEM_UI_FLAG_HIDE_NAVIGATION) == 0)) {
+                            orientationHelper.reapplyImmersive();
+                        }
+                    });
         }
         initViews();
 
         // M91：RecoEngine 初始化含磁盘 I/O（assets JSON 词典 + SharedPreferences 画像），
         // 移到后台线程执行，避免阻塞主线程导致进入推荐页时黑屏转圈过久。
         // globalLoading 已默认 VISIBLE，引擎就绪后再发起首次拉取。
-        // M98：线程启动前先捕获 Application Context——后台线程执行期间 Fragment 可能已
-        // detach（BaseFragment.onDetach 会把 context 置空），直接用 context.getApplicationContext()
-        // 存在 NPE / 使用已销毁 Activity 的风险。
+        // H-06：使用 RxJava + CompositeDisposable 替代原始 Thread，
+        // 确保 Fragment 销毁时自动取消，避免访问已销毁的 View。
         final Context appContext = (context != null) ? context.getApplicationContext() : null;
-        new Thread(new Runnable() {
+        if (appContext == null) {
+            return;
+        }
+        disposables.add(Observable.fromCallable(new Callable<RecoEngine>() {
             @Override
-            public void run() {
-                // M98：线程体首行只检查 Fragment 是否仍附着，不要求 isResumed()。
-                // 首次进入时 onViewCreated 可能早于 onResume；若把这段合法窗口当作失效，
-                // 初始化线程会直接 return，主线程也不会提交首批请求，页面就会永久转圈。
-                if (appContext == null || !isAdded() || isDetached()) {
-                    return;
-                }
-                final RecoEngine e;
-                try {
-                    e = RecoEngine.get(appContext);
-                } catch (Throwable t) {
-                    AppLog.e(TAG, "推荐引擎初始化失败: " + AppLog.cause(t));
-                    handler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (getView() != null && isAdded() && !isDetached()) {
-                                engineInitFailed = true;
-                                globalLoading.setVisibility(View.GONE);
-                                showEmpty("推荐初始化失败，点击重试");
-                            }
-                        }
-                    });
-                    return;
-                }
-                if (!isAdded() || isDetached()) {
-                    return;
-                }
-                engine = e;
-                repository = new RecoRepository(dataManager, engine);
-                prefetcher = new RecommendPrefetcher(appContext, dataManager);
-                repository.setOrientationFilter(PlayUiPrefs.getOrientationFilter(appContext));
-                repository.setAutoRotateLandscape(PlayUiPrefs.isAutoRotateLandscape(appContext));
-                handler.post(new Runnable() {
+            public RecoEngine call() throws Exception {
+                return RecoEngine.get(appContext);
+            }
+        })
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .doOnSubscribe(disposable -> {
+                    // 订阅时检查 Fragment 是否仍附着
+                    if (!isAdded() || isDetached()) {
+                        disposable.dispose();
+                    }
+                })
+                .subscribe(new Consumer<RecoEngine>() {
                     @Override
-                    public void run() {
-                        // 回调真正执行时再判断 View 是否仍存在；不能要求 isResumed，
-                        // 否则首进 onViewCreated -> onResume 的时序会丢掉首次 loadMore。
+                    public void accept(RecoEngine e) throws Exception {
                         if (getView() == null || !isAdded() || isDetached()) {
                             return;
                         }
+                        engine = e;
+                        repository = new RecoRepository(dataManager, engine);
+                        prefetcher = new RecommendPrefetcher(appContext, dataManager);
+                        repository.setOrientationFilter(PlayUiPrefs.getOrientationFilter(appContext));
+                        repository.setAutoRotateLandscape(PlayUiPrefs.isAutoRotateLandscape(appContext));
                         // M92c：Adapter 构造时 engine 还是 null（后台初始化），
                         // 必须回填并刷新已挂载页，否则点赞/踩/收藏选中态永远不显示
                         if (adapter != null) {
@@ -240,9 +226,17 @@ public class RecommendFeedFragment extends BaseFragment
                         }
                         loadMore(true);
                     }
-                });
-            }
-        }, "reco-engine-init").start();
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(Throwable t) throws Exception {
+                        AppLog.e(TAG, "推荐引擎初始化失败: " + AppLog.cause(t));
+                        if (getView() != null && isAdded() && !isDetached()) {
+                            engineInitFailed = true;
+                            globalLoading.setVisibility(View.GONE);
+                            showEmpty("推荐初始化失败，点击重试");
+                        }
+                    }
+                }));
         // M89: 顶部胶囊/返回键必须避开状态栏区域，避免加载时「全部」胶囊侵入
         // 状态栏导致 12:05 / 右侧系统图标被遮挡；状态栏高度用系统资源反射读取，兼容各 ROM。
         applyTopBarInsets();
@@ -253,7 +247,7 @@ public class RecommendFeedFragment extends BaseFragment
             @Override
             public void run() {
                 if (isAdded() && getActivity() != null) {
-                    applyFeedContentFullBleed();
+                    orientationHelper.applyFeedContentFullBleed();
                 }
             }
         });
@@ -305,7 +299,7 @@ public class RecommendFeedFragment extends BaseFragment
         landscapeBackView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                restorePortrait();
+                orientationHelper.restorePortrait();
             }
         });
 
@@ -529,7 +523,7 @@ public class RecommendFeedFragment extends BaseFragment
         RecoCandidate candidate = adapter.getItem(position);
         if (candidate != null && engine != null) {
             engine.markSeen(candidate.viewKey());
-            applyAutoRotation(candidate);
+            orientationHelper.applyAutoRotation(candidate);
         }
         startPlay(position);
 
@@ -542,317 +536,6 @@ public class RecommendFeedFragment extends BaseFragment
             loadMore(false);
         }
         persistAsync(false);
-    }
-
-    /** M79：只有方向类别发生变化时才请求 Activity 旋转，横屏连续翻页保持横屏。
-     *  M82：处于横屏即锁 —— 一旦 landscapeLock 为真，翻页、旋转重算、回前台都只重断言横屏，绝不回竖屏。 */
-    private void applyAutoRotation(RecoCandidate candidate) {
-        if (getActivity() == null || candidate == null) {
-            return;
-        }
-        // 横屏锁：重断言横屏 + 沉浸式（覆盖导航栏状态），不打回竖屏。
-        // 不论是全屏按钮进入，还是自动旋转进入的横屏，锁定时都保持横屏直到手动退出。
-        if (landscapeLock) {
-            enterLandscapeFullscreen();
-            return;
-        }
-        if (!PlayUiPrefs.isAutoRotateLandscape(context)) {
-            restorePortrait();
-            return;
-        }
-        int targetOrientation;
-        if (candidate.orientation == RecoCandidate.ORIENT_LANDSCAPE) {
-            targetOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
-            landscapeLock = true; // 进入横屏即锁
-        } else if (candidate.orientation == RecoCandidate.ORIENT_PORTRAIT) {
-            targetOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
-        } else {
-            return;
-        }
-        if (appliedPlaybackOrientation == targetOrientation) {
-            return;
-        }
-        appliedPlaybackOrientation = targetOrientation;
-        getActivity().setRequestedOrientation(targetOrientation);
-        if (targetOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
-            enterLandscapeFullscreen();
-        } else {
-            restorePortrait();
-        }
-    }
-
-    /**
-     * 进入横屏全屏沉浸式。
-     * <p>
-     * 关键修复：
-     * 1) 设置 {@code JZVideoPlayer.NORMAL_ORIENTATION = LANDSCAPE}，避免翻页时
-     *    {@code JZVideoPlayer.releaseAllVideos()} 内部 onCompletion 把 Activity 强制切回 PORTRAIT（导致“竖屏闪一下”）。
-     * 2) {@code setRequestedOrientation} 仅在方向真正变化时才调用，避免每次翻页重复请求旋转造成的抖动/闪烁。
-     * 3) 隐藏 StatusBarUtil 注入的紫色假状态栏 View，并把状态栏/导航栏颜色设为透明，
-     *    消除横屏顶部紫条与底部留白。
-     */
-    private void enterLandscapeFullscreen() {
-        if (getActivity() == null) {
-            return;
-        }
-        // 让 JZVD 完成/释放时保持横屏，不再回退到竖屏
-        JZVideoPlayer.NORMAL_ORIENTATION = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
-
-        // 仅在方向变化时才请求旋转，避免重复 setRequestedOrientation 引发的闪烁
-        if (appliedPlaybackOrientation != ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
-            appliedPlaybackOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
-            getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-        }
-
-        Window window = getActivity().getWindow();
-        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        window.getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.setStatusBarColor(Color.TRANSPARENT);
-            // 不使用透明导航栏：Android 10+ 可能为透明导航栏强制绘制白色对比度背景。
-            window.setNavigationBarColor(Color.BLACK);
-        }
-        applyImmersiveNavigationBar(window);
-        // 撤销 StatusBarUtil 的 contentParent 紫色背景，并把 activity_main.xml 实际根 View 设为黑色。
-        // 白条来自 activity_main.xml 最外层 FrameLayout 的白色背景，不是视频 item 背景。
-        applyFeedContentFullBleed();
-
-        if (landscapeBackView != null) {
-            landscapeBackView.setVisibility(View.VISIBLE);
-        }
-        if (bottomNavigationBarView() != null) {
-            bottomNavigationBarView().setVisibility(View.GONE);
-        }
-        View content = getActivity().findViewById(R.id.content);
-        // content_main 被放在 CoordinatorLayout 中，实际参数是 CoordinatorLayout.LayoutParams，
-        // 不能用 FrameLayout.LayoutParams 判断，否则横屏底部 margin 永远清不掉，白条就会露出。
-        if (content != null && content.getLayoutParams() instanceof ViewGroup.MarginLayoutParams) {
-            ViewGroup.MarginLayoutParams lp =
-                    (ViewGroup.MarginLayoutParams) content.getLayoutParams();
-            if (normalContentBottomMargin < 0) {
-                normalContentBottomMargin = lp.bottomMargin;
-            }
-            lp.bottomMargin = 0;
-            content.setLayoutParams(lp);
-        }
-        if (floatingActionButtonView() != null) {
-            floatingActionButtonView().setVisibility(View.GONE);
-        }
-        // 让内容铺满导航栏区域，消除横屏沉浸时的底部留白
-        if (getActivity() instanceof BaseAppCompatActivity) {
-            ((BaseAppCompatActivity) getActivity()).setNavigationBarOverlap(true);
-        }
-        // MainActivity 使用 configChanges，首个已存在的 ViewHolder 不会自动换成 layout-land。
-        // M90：立即对当前挂载的 ViewHolder 应用横屏布局；转屏动画期间 Holder 可能被 detach，
-        // 旋转完成后（post）再补一次。新滑入的 ViewHolder 由 onBindViewHolder 自动带横屏布局。
-        if (adapter != null && recyclerView != null) {
-            adapter.setLandscapeMode(recyclerView, true);
-            recyclerView.post(new Runnable() {
-                @Override
-                public void run() {
-                    if (adapter != null && recyclerView != null && landscapeLock) {
-                        adapter.applyOrientationUi(recyclerView, true);
-                    }
-                }
-            });
-        }
-    }
-
-    /** 仅重新应用沉浸式系统栏（不改动方向），供系统栏被临时唤出后自动收回。 */
-    private void reapplyImmersive() {
-        if (getActivity() == null) {
-            return;
-        }
-        Window window = getActivity().getWindow();
-        window.getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.setStatusBarColor(Color.TRANSPARENT);
-            window.setNavigationBarColor(Color.BLACK);
-        }
-        applyImmersiveNavigationBar(window);
-        applyFeedContentFullBleed();
-    }
-
-    /**
-     * 强制隐藏导航栏，并关闭 Android 10+ 透明导航栏的对比度遮罩。
-     * 部分系统即使设置了 SYSTEM_UI_FLAG_HIDE_NAVIGATION，也会单独恢复导航栏；
-     * 使用 WindowInsetsController 再补一次，避免底部露出白色系统栏。
-     */
-    private void applyImmersiveNavigationBar(Window window) {
-        if (window == null) {
-            return;
-        }
-        View decor = window.getDecorView();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            window.setNavigationBarContrastEnforced(false);
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            WindowInsetsController controller = decor.getWindowInsetsController();
-            if (controller != null) {
-                controller.hide(WindowInsets.Type.navigationBars());
-            }
-        }
-    }
-
-    /**
-     * 推荐流满铺到顶部。
-     * <p>
-     * <b>真正的根因</b>（已被反编译 StatusBarUtil 1.5.1 的 {@code setColorForSwipeBack} 确认）：
-     * 该方法通过 {@code findViewById(android.R.id.content)} 拿到系统 contentParent（不是 decorView），
-     * 给它 {@code setBackgroundColor(紫)} 并 {@code setPadding(0, statusBarHeight, 0, 0)}，
-     * 让出顶部一片紫色看起来像状态栏。<b>并没有</b> {@code addView} 任何假状态栏 View，
-     * 所以 {@code hideFakeStatusBarView(findViewById(R.id.statusbarutil_fake_status_bar_view))}
-     * 永远返回 null，等于 no-op——这是 v1.0.81 / v1.0.82 紫条修不掉的原因。
-     * <p>
-     * 正确做法是撤销 contentParent 的 background 和 paddingTop。
-     */
-    private void applyFeedContentFullBleed() {
-        if (getActivity() == null) {
-            return;
-        }
-        Window window = getActivity().getWindow();
-        ViewGroup contentParent = (ViewGroup) getActivity().findViewById(android.R.id.content);
-        if (contentParent != null) {
-            contentParent.setBackgroundColor(Color.BLACK);
-            contentParent.setPadding(0, 0, 0, 0);
-            // contentParent 的第一个子 View 就是 setContentView(activity_main.xml) 的最外层 FrameLayout。
-            // 必须改这个实际根 View，单改 DecorView 对横屏底部露白无效。
-            if (contentParent.getChildCount() > 0) {
-                View activityRoot = contentParent.getChildAt(0);
-                activityRoot.setBackgroundColor(Color.BLACK);
-                activityRoot.setPadding(0, 0, 0, 0);
-            }
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.setStatusBarColor(Color.TRANSPARENT);
-            window.setNavigationBarColor(Color.BLACK);
-        }
-    }
-
-    private void restorePortrait() {
-        landscapeLock = false;
-        if (getActivity() == null) {
-            return;
-        }
-        // 退出横屏后，JZVD 完成/释放应回退到竖屏（恢复默认行为）
-        JZVideoPlayer.NORMAL_ORIENTATION = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
-
-        if (appliedPlaybackOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
-            appliedPlaybackOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
-            getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-        }
-        Window window = getActivity().getWindow();
-        window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.setNavigationBarColor(Color.BLACK);
-        }
-        // 退出横屏但仍在推荐流内：保持状态栏透明（视频满铺），不再回退到紫色状态栏。
-        applyFeedContentFullBleed();
-        // 恢复 activity_main.xml 实际根 View 的白色背景。
-        ViewGroup contentParent = (ViewGroup) getActivity().findViewById(android.R.id.content);
-        if (contentParent != null && contentParent.getChildCount() > 0) {
-            contentParent.getChildAt(0).setBackgroundColor(Color.WHITE);
-        }
-        if (landscapeBackView != null) {
-            landscapeBackView.setVisibility(View.GONE);
-        }
-        if (bottomNavigationBarView() != null) {
-            bottomNavigationBarView().setVisibility(View.VISIBLE);
-        }
-        View content = getActivity().findViewById(R.id.content);
-        if (content != null && content.getLayoutParams() instanceof ViewGroup.MarginLayoutParams
-                && normalContentBottomMargin >= 0) {
-            ViewGroup.MarginLayoutParams lp =
-                    (ViewGroup.MarginLayoutParams) content.getLayoutParams();
-            lp.bottomMargin = normalContentBottomMargin;
-            content.setLayoutParams(lp);
-        }
-        // 恢复导航栏默认（不重叠），底部留白回到系统处理
-        if (getActivity() instanceof BaseAppCompatActivity) {
-            ((BaseAppCompatActivity) getActivity()).setNavigationBarOverlap(false);
-        }
-        if (adapter != null && recyclerView != null) {
-            adapter.setLandscapeMode(recyclerView, false);
-            recyclerView.post(new Runnable() {
-                @Override
-                public void run() {
-                    if (adapter != null && recyclerView != null && !landscapeLock) {
-                        adapter.applyOrientationUi(recyclerView, false);
-                    }
-                }
-            });
-        }
-    }
-
-    /**
-     * 离开推荐流（切到其它 Tab / Fragment 销毁）时恢复 App 默认紫色状态栏，
-     * 保证其它页面外观正确；同时解除横屏锁、清沉浸式、恢复底部导航。
-     */
-    private void restoreAppStatusBar() {
-        landscapeLock = false;
-        if (getActivity() == null) {
-            return;
-        }
-        // 退出推荐流后，JZVD 完成/释放应回退到竖屏（恢复默认行为）
-        JZVideoPlayer.NORMAL_ORIENTATION = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
-        if (appliedPlaybackOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
-            appliedPlaybackOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
-            getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-        }
-        Window window = getActivity().getWindow();
-        window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.setNavigationBarColor(Color.BLACK);
-        }
-        ViewGroup contentParent = (ViewGroup) getActivity().findViewById(android.R.id.content);
-        if (contentParent != null && contentParent.getChildCount() > 0) {
-            contentParent.getChildAt(0).setBackgroundColor(Color.WHITE);
-        }
-        // 恢复紫色状态栏（StatusBarUtil 会重新显示并为假状态栏 View 着色）
-        if (getActivity() instanceof BaseAppCompatActivity) {
-            ((BaseAppCompatActivity) getActivity())
-                    .setStatusBarColor(ContextCompat.getColor(getActivity(), R.color.colorPrimary));
-        }
-        if (landscapeBackView != null) {
-            landscapeBackView.setVisibility(View.GONE);
-        }
-        if (bottomNavigationBarView() != null) {
-            bottomNavigationBarView().setVisibility(View.VISIBLE);
-        }
-        View content = getActivity().findViewById(R.id.content);
-        if (content != null && content.getLayoutParams() instanceof ViewGroup.MarginLayoutParams
-                && normalContentBottomMargin >= 0) {
-            ViewGroup.MarginLayoutParams lp =
-                    (ViewGroup.MarginLayoutParams) content.getLayoutParams();
-            lp.bottomMargin = normalContentBottomMargin;
-            content.setLayoutParams(lp);
-        }
-        // 恢复导航栏默认（不重叠），底部留白回到系统处理
-        if (getActivity() instanceof BaseAppCompatActivity) {
-            ((BaseAppCompatActivity) getActivity()).setNavigationBarOverlap(false);
-        }
-    }
-
-    private View bottomNavigationBarView() {
-        return getActivity() == null ? null : getActivity().findViewById(R.id.bottom_navigation_bar);
-    }
-
-    private View floatingActionButtonView() {
-        return getActivity() == null ? null : getActivity().findViewById(R.id.fab_search);
     }
 
     private void recordWatchRatio(int position) {
@@ -1059,7 +742,8 @@ public class RecommendFeedFragment extends BaseFragment
         progressTicker = new Runnable() {
             @Override
             public void run() {
-                if (!isUsable() || position != currentPosition) {
+                // M-06: Fragment 销毁后不再重新调度
+                if (viewDestroyed || !isUsable() || position != currentPosition) {
                     progressTicker = null;
                     return;
                 }
@@ -1181,8 +865,8 @@ public class RecommendFeedFragment extends BaseFragment
         if (position != currentPosition || getActivity() == null) {
             return;
         }
-        landscapeLock = true;
-        enterLandscapeFullscreen();
+        orientationHelper.setLandscapeLock(true);
+        orientationHelper.enterLandscapeFullscreen();
     }
 
     @Override
@@ -1337,7 +1021,30 @@ public class RecommendFeedFragment extends BaseFragment
         }
         // 已经解析过（正在播的这条一定已解析）就直接入队
         if (!TextUtils.isEmpty(prefetcher.peekRawUrl(candidate.viewKey()))) {
-            enqueueDownload(candidate);
+            downloadEnqueuer.enqueueDownload(candidate.viewKey(), candidate.item,
+                    new DownloadEnqueuer.Callback() {
+                        @Override
+                        public boolean isUsable() {
+                            return RecommendFeedFragment.this.isUsable();
+                        }
+
+                        @Override
+                        public void showMessage(String msg, int type) {
+                            RecommendFeedFragment.this.showMessage(msg, type);
+                        }
+
+                        @Override
+                        public void startDownloadService() {
+                            if (getActivity() != null) {
+                                try {
+                                    getActivity().startService(new Intent(getActivity(),
+                                            DownloadVideoService.class));
+                                } catch (Exception e) {
+                                    Logger.t(TAG).d("start download service failed: " + e.getMessage());
+                                }
+                            }
+                        }
+                    });
             return;
         }
         // 还没解析：先解析出真实地址再入队
@@ -1348,7 +1055,30 @@ public class RecommendFeedFragment extends BaseFragment
                 if (!isUsable()) {
                     return;
                 }
-                enqueueDownload(candidate);
+                downloadEnqueuer.enqueueDownload(candidate.viewKey(), candidate.item,
+                        new DownloadEnqueuer.Callback() {
+                            @Override
+                            public boolean isUsable() {
+                                return RecommendFeedFragment.this.isUsable();
+                            }
+
+                            @Override
+                            public void showMessage(String msg, int type) {
+                                RecommendFeedFragment.this.showMessage(msg, type);
+                            }
+
+                            @Override
+                            public void startDownloadService() {
+                                if (getActivity() != null) {
+                                    try {
+                                        getActivity().startService(new Intent(getActivity(),
+                                                DownloadVideoService.class));
+                                    } catch (Exception e) {
+                                        Logger.t(TAG).d("start download service failed: " + e.getMessage());
+                                    }
+                                }
+                            }
+                        });
             }
 
             @Override
@@ -1360,225 +1090,6 @@ public class RecommendFeedFragment extends BaseFragment
                         ? getString(R.string.reco_download_failed) : message, TastyToast.ERROR);
             }
         });
-    }
-
-    private void enqueueDownload(RecoCandidate candidate) {
-        final String viewKey = candidate.viewKey();
-        final V9MmanItem fallback = candidate.item;
-        synchronized (downloadInFlight) {
-            if (!downloadInFlight.add(viewKey)) {
-                showMessage("下载任务正在启动，请勿重复点击", TastyToast.INFO);
-                return;
-            }
-        }
-        disposables.add(Observable.just(1)
-                .subscribeOn(Schedulers.io())
-                .map(i -> doEnqueueDownload(viewKey, fallback))
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(result -> {
-                    downloadInFlight.remove(viewKey);
-                    showMessage(result.message, result.ok ? TastyToast.SUCCESS : TastyToast.INFO);
-                    if (result.ok && getActivity() != null) {
-                        // 拉起下载前台服务，保证退出页面后仍继续下载
-                        try {
-                            getActivity().startService(new Intent(getActivity(),
-                                    DownloadVideoService.class));
-                        } catch (Exception e) {
-                            Logger.t(TAG).d("start download service failed: " + e.getMessage());
-                        }
-                    }
-                }, throwable -> {
-                    downloadInFlight.remove(viewKey);
-                    showMessage(getString(R.string.reco_download_failed), TastyToast.ERROR);
-                }));
-    }
-
-    /**
-     * 真正入队（IO 线程）。逻辑与播放页的下载保持一致：
-     * 先取库里已解析的实体 → 查重 → 查是否在下载 → 交给 FileDownloader。
-     */
-    private DownloadResult doEnqueueDownload(String viewKey, V9MmanItem fallback) {
-        DownloadDiag.reset(viewKey);
-        V9MmanItem target = null;
-        try {
-            target = dataManager.findV9MmanItemByViewKey(viewKey);
-        } catch (Exception ignored) {
-        }
-        if (target == null) {
-            target = fallback;
-        }
-        if (target == null || target.getVideoResultId() == 0) {
-            AppLog.e(TAG, "推荐下载缺少VideoResult viewKey=" + viewKey);
-            DownloadDiag.append(viewKey, "enqueue=无已解析的 VideoResult → 失败");
-            return new DownloadResult(false, "还未解析成功视频地址");
-        }
-        VideoResult videoResult;
-        try {
-            videoResult = target.getVideoResult();
-        } catch (Exception e) {
-            videoResult = null;
-        }
-        if (videoResult == null || TextUtils.isEmpty(videoResult.getVideoUrl())) {
-            DownloadDiag.append(viewKey, "enqueue=videoResult.videoUrl 为空 → 失败");
-            return new DownloadResult(false, "还未解析成功视频地址");
-        }
-        String path = target.getDownLoadPath(dataManager.getCustomDownloadVideoDirPath());
-        // M61：兼容 ensureDownloadDir 回退目录，文件可能已写进应用专属目录
-        File file = SDCardUtils.resolveExistingDownloadFile(context, path);
-        if (file != null && file.exists() && file.length() > 0) {
-            DownloadDiag.append(viewKey, "enqueue=目标文件已存在(" + file.length() + "B) → 跳过");
-            return new DownloadResult(false, "已经下载过了，请查看下载目录");
-        }
-        if ((target.getStatus() == FileDownloadStatus.pending
-                || target.getStatus() == FileDownloadStatus.started
-                || target.getStatus() == FileDownloadStatus.connected
-                || target.getStatus() == FileDownloadStatus.progress)
-                && target.getDownloadId() != 0) {
-            DownloadDiag.append(viewKey, "enqueue=已在下载(status=" + target.getStatus()
-                    + ", downloadId=" + target.getDownloadId() + ") → 跳过");
-            return new DownloadResult(false, "已经在下载了");
-        }
-        // 91mman 视频分类源：直链带时效签名（st/f），预取/库里存的旧 URL 过期会被 CDN 拒绝
-        // （表现为「正在下载」里报下载错误）。下载前重新解析播放页拿新鲜签名 URL。
-        String url = videoResult.getVideoUrl();
-        DownloadDiag.append(viewKey, "enqueue=旧URL host=" + DownloadDiag.hostOf(url));
-        // M50：20 位 hex viewkey = 91porny 视频。这类视频直链多落在 cdn77，但 cdn77 对部分出口
-        // （如用户 VPN）会返回 3.5KB 错误页——isAlive 探活只验 Content-Range 总长拦不住，下载即
-        // 假完成/error。已知 key 直接走 91porny m3u8 HLS 下载，绕开 cdn77 直链，更稳。
-        // M50：91porny 的 viewKey 实际为 24 位 hex（见 Parse91PornyVideo），旧正则锁死 20 位
-        // 导致该绕过 cdn77 的分支永不触发。放宽到 [16,32] 位全 hex，覆盖 20/24 位。
-        boolean isPornyHex = viewKey != null && viewKey.matches("[0-9a-fA-F]{16,32}");
-        if (isPornyHex) {
-            try {
-                VideoResult porny = dataManager.loadPornyVideoUrl(viewKey).blockingFirst();
-                if (porny != null && !TextUtils.isEmpty(porny.getVideoUrl())) {
-                    DownloadDiag.append(viewKey, "91porny=直链host=" + DownloadDiag.hostOf(url)
-                            + " → 命中m3u8=" + DownloadDiag.hostOf(porny.getVideoUrl()) + " → HLS下载");
-                    PornyFallbackResolver.applyPornyResult(dataManager, target, porny);
-                    String hlsPath = path;
-                    try {
-                        String ensured = SDCardUtils.ensureDownloadDir(path, context);
-                        if (ensured != null) {
-                            hlsPath = ensured;
-                        }
-                    } catch (Exception ignored) {
-                    }
-                    PornyFallbackResolver.enqueueHlsDownload(context,
-                            target, porny.getVideoUrl(), hlsPath);
-                    return new DownloadResult(true, "已改用 91porny 源下载");
-                }
-                DownloadDiag.append(viewKey, "91porny=直链m3u8为空 → 退回原直链");
-            } catch (Exception e) {
-                DownloadDiag.append(viewKey, "91porny=直链异常(" + (e.getMessage() == null ? e.toString() : e.getMessage()) + ") → 退回原直链");
-            }
-        }
-        // M73：与 Activity 同位置(785行)对齐，用权威判源 isPornySource（持久化 sourceName），
-        // 此前依赖 transient 的 target.getSource()，DB 读出的 porny 条目该字段为空会被误走 9mman 解析必失败
-        if (!com.m3man.ui.mman9video.play.PlayVideoPresenter.isPornySource(target)) {
-            try {
-                VideoResult fresh = dataManager.loadMman9VideoUrl(viewKey).blockingFirst();
-                if (fresh != null && !TextUtils.isEmpty(fresh.getVideoUrl())) {
-                    dataManager.saveVideoResult(fresh);
-                    target.setVideoResult(fresh);
-                    dataManager.updateV9MmanItem(target);
-                    url = fresh.getVideoUrl();
-                    DownloadDiag.append(viewKey, "reparse=成功 host=" + DownloadDiag.hostOf(url));
-                } else {
-                    DownloadDiag.append(viewKey, "reparse=空URL(观看超限/解析失败) → 尝试91porny备用源");
-                }
-            } catch (Exception e) {
-                Logger.t(TAG).d("recommend re-parse failed, fallback old url: " + e.getMessage());
-                DownloadDiag.append(viewKey, "reparse=异常(" + e.getMessage() + ") → 退回旧URL");
-            }
-            // 直链 CDN 可能封锁当前网络（下载报错/0% 无速度）：探活被拒则改用 91porny 备用源
-            boolean alive = PornyFallbackResolver.isAlive(okHttpClient, url);
-            DownloadDiag.append(viewKey, "isAlive=" + alive + " host=" + DownloadDiag.hostOf(url));
-            if (!alive) {
-                try {
-                    VideoResult porny = PornyFallbackResolver.resolve(dataManager, target.getTitle());
-                    if (porny != null && !TextUtils.isEmpty(porny.getVideoUrl())) {
-                        DownloadDiag.append(viewKey, "91porny=命中 host=" + DownloadDiag.hostOf(porny.getVideoUrl()) + " → HLS下载");
-                        PornyFallbackResolver.applyPornyResult(dataManager, target, porny);
-                        // M50：兜底路径也要 ensureDownloadDir（之前漏了，HLS 写到不可写目录会 error）
-                        String hlsPath2 = path;
-                        try {
-                            String ensured = SDCardUtils.ensureDownloadDir(path, context);
-                            if (ensured != null) hlsPath2 = ensured;
-                        } catch (Exception ignored) {}
-                        PornyFallbackResolver.enqueueHlsDownload(context,
-                                target, porny.getVideoUrl(), hlsPath2);
-                        return new DownloadResult(true, "源站受限，已改用 91porny 源下载");
-                    }
-                    DownloadDiag.append(viewKey, "91porny=未命中 → 退回原直链");
-                } catch (Exception e) {
-                    DownloadDiag.append(viewKey, "91porny=解析异常(" + (e.getMessage() == null ? e.toString() : e.getMessage()) + ") → 退回原直链");
-                }
-                // 备用源未命中：仍用原直链尝试（可能探活误报）
-            }
-        }
-        String referer = null;
-        try {
-            String addr = dataManager.getMman9VideoAddress();
-            if (!TextUtils.isEmpty(addr)) {
-                // M62：viewKey 已带 "viewkey=" 前缀，直接拼会产生 viewkey=viewkey=XXX
-                String bareKey = viewKey != null && viewKey.startsWith("viewkey=")
-                        ? viewKey.substring(8) : viewKey;
-                referer = addr + "view_video.php?viewkey=" + bareKey;
-            }
-        } catch (Exception ignored) {
-        }
-        // M47：Android 11+ 上 /sdcard/3mman/video/ 对 app 只读，FileDownloader 写入会抛
-        // java.io.IOException: Operation not permitted。提前探测并 fallback 到 app 私有目录。
-        String requestedPath = path;
-        path = SDCardUtils.ensureDownloadDir(path, context);
-        AppLog.i(TAG, "推荐下载目录 requested=" + requestedPath + " actual=" + path);
-        if (path == null) {
-            DownloadDiag.append(viewKey, "download=目录不可写且无 fallback（requested=" + requestedPath + "）");
-            return new DownloadResult(false, "下载目录不可写，请检查存储权限或更换下载目录");
-        }
-        DownloadDiag.append(viewKey, "startDownload url.host=" + DownloadDiag.hostOf(url) + " referer=" + DownloadDiag.hostOf(referer) + " path.dir=" + path);
-        // M61：m3u8 绝不能交给 FileDownloader（会把播放列表文本秒下成假 mp4），改走 HLS 服务
-        if (DownloadManager.isHlsUrl(url)) {
-            DownloadDiag.append(viewKey, "HLS=改走HlsDownloadService");
-            PornyFallbackResolver.enqueueHlsDownload(context, target, url, path);
-            return new DownloadResult(true, "已加入后台下载");
-        }
-        // FileDownloader 的 pending/started 回调可能在 startDownload 返回前到达。
-        // 先按 URL+实际路径计算稳定 ID并写入 DB，再启动任务，避免回调查不到记录后
-        // 被 saveDownloadInfo 误判为孤儿任务；这也是退出重进后记录消失的关键竞态。
-        int predictedId = DownloadManager.predictDownloadId(url, path);
-        if (predictedId > 0) {
-            if (target.getAddDownloadDate() == null) {
-                target.setAddDownloadDate(new Date());
-            }
-            target.setDownloadId(predictedId);
-            target.setStatus(FileDownloadStatus.pending);
-            target.setProgress(0);
-            dataManager.updateV9MmanItem(target);
-        }
-        int id = DownloadManager.getImpl().startDownload(url, path,
-                dataManager.isDownloadVideoNeedWifi(), false, referer);
-        if (target.getAddDownloadDate() == null) {
-            target.setAddDownloadDate(new Date());
-        }
-        target.setDownloadId(id);
-        if (target.getStatus() == FileDownloadStatus.error
-                || target.getStatus() == FileDownloadStatus.completed) {
-            target.setStatus(FileDownloadStatus.pending);
-        }
-        dataManager.updateV9MmanItem(target);
-        return new DownloadResult(true, getString(R.string.reco_download_started));
-    }
-
-    /** 下载入队结果 */
-    private static final class DownloadResult {
-        final boolean ok;
-        final String message;
-
-        DownloadResult(boolean ok, String message) {
-            this.ok = ok;
-            this.message = message;
-        }
     }
 
     private boolean isFavorited(RecoCandidate candidate) {
@@ -1640,7 +1151,7 @@ public class RecommendFeedFragment extends BaseFragment
             updateOrientationPill(PlayUiPrefs.getOrientationFilter(context));
         }
         if (currentPosition >= 0 && adapter != null) {
-            applyAutoRotation(adapter.getItem(currentPosition));
+            orientationHelper.applyAutoRotation(adapter.getItem(currentPosition));
         }
         // 首次初始化可能早于 onResume 完成；此处补偿一次被生命周期时序跳过的首批请求。
         if (!firstLoadStarted && repository != null && adapter != null
@@ -1671,10 +1182,10 @@ public class RecommendFeedFragment extends BaseFragment
             stopPlaybackForLeavingPage();
             persistAsync(true);
             // 切到其它 Tab：恢复 App 默认紫色状态栏（推荐流内才透明）
-            restoreAppStatusBar();
+            orientationHelper.restoreAppStatusBar();
         } else if (isResumed()) {
             if (currentPosition >= 0 && adapter != null) {
-                applyAutoRotation(adapter.getItem(currentPosition));
+                orientationHelper.applyAutoRotation(adapter.getItem(currentPosition));
             }
             resumeCurrentPlaybackIfNeeded();
         }
@@ -1692,20 +1203,20 @@ public class RecommendFeedFragment extends BaseFragment
     public void onDestroyView() {
         stopCoverWatcher();
         stopProgressTicker();
+        viewDestroyed = true;
         handler.removeCallbacksAndMessages(null);
         recordWatchRatio(currentPosition);
-        // View 已销毁，Rx 订阅马上会被清掉，这里用裸线程保证画像一定落盘
+        // View 已销毁，用 RxJava Completable 在 IO 线程持久化画像，避免裸线程
         final RecoEngine target = engine;
         if (target != null) {
-            new Thread(new Runnable() {
+            disposables.add(Completable.fromAction(new Action() {
                 @Override
-                public void run() {
-                    try {
-                        target.persist();
-                    } catch (Exception ignored) {
-                    }
+                public void run() throws Exception {
+                    target.persist();
                 }
-            }, "reco-persist").start();
+            })
+                    .subscribeOn(Schedulers.io())
+                    .subscribe());
         }
         if (!disposables.isDisposed()) {
             disposables.clear();
@@ -1715,7 +1226,7 @@ public class RecommendFeedFragment extends BaseFragment
         }
         JZVideoPlayer.releaseAllVideos();
         // Fragment 销毁（离开推荐流）：恢复 App 默认紫色状态栏
-        restoreAppStatusBar();
+        orientationHelper.restoreAppStatusBar();
         if (getActivity() != null) {
             try {
                 getActivity().getWindow().getDecorView()
@@ -1734,14 +1245,44 @@ public class RecommendFeedFragment extends BaseFragment
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         // M82：横屏锁状态下，系统重算方向（旋转 / 切后台返回）后重新断言横屏 + 沉浸，避免被拉回竖屏。
-        if (landscapeLock) {
-            enterLandscapeFullscreen();
+        if (orientationHelper != null && orientationHelper.isLandscapeLock()) {
+            orientationHelper.enterLandscapeFullscreen();
         }
     }
 
     @Override
     public void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putBoolean("reco_landscape_lock", landscapeLock);
+        outState.putBoolean("reco_landscape_lock",
+                orientationHelper != null && orientationHelper.isLandscapeLock());
+    }
+
+    // ==================== LandscapeOrientationHelper.Host ====================
+
+    @Override
+    public RecommendFeedAdapter getAdapter() {
+        return adapter;
+    }
+
+    @Override
+    public RecyclerView getRecyclerView() {
+        return recyclerView;
+    }
+
+    @Override
+    public View getLandscapeBackView() {
+        return landscapeBackView;
+    }
+
+    private int normalContentBottomMargin = -1;
+
+    @Override
+    public int getNormalContentBottomMargin() {
+        return normalContentBottomMargin;
+    }
+
+    @Override
+    public void setNormalContentBottomMargin(int value) {
+        normalContentBottomMargin = value;
     }
 }

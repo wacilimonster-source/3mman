@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L-01~L-20 复查·定位·修复报告</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#ffffff; --ink:#24292f; --muted:#6a737d;
+    --blue:#0969da; --green:#1a7f37; --amber:#9a6700; --red:#cf222e;
+    --line:#d8dee4;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:32px 20px;background:var(--bg);color:var(--ink);
+       font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;line-height:1.65}
+  .wrap{max-width:1080px;margin:0 auto}
+  h1{font-size:26px;margin:0 0 6px}
+  h2{font-size:19px;margin:34px 0 12px;border-bottom:2px solid var(--line);padding-bottom:8px}
+  h3{font-size:15px;margin:22px 0 8px;color:var(--blue)}
+  p.meta{color:var(--muted);margin:0 0 8px;font-size:13.5px}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:20px 0}
+  .metric{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;text-align:center}
+  .metric b{display:block;font-size:30px;line-height:1.25}
+  .metric span{font-size:12.5px;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;background:var(--card);font-size:13.5px;margin:14px 0;border-radius:8px;overflow:hidden}
+  th,td{padding:9px 11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{background:#eff2f5;font-weight:600;white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  code{font-family:Consolas,Menlo,monospace;background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:12.5px}
+  .tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:600;white-space:nowrap}
+  .t-fixed{background:#dafbe1;color:var(--green)}
+  .t-skip{background:#ddf4ff;color:var(--blue)}
+  .t-fp{background:#fff8c5;color:var(--amber)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:14px 0}
+  .card h4{margin:0 0 8px;font-size:14.5px}
+  ul{padding-left:22px;margin:8px 0}
+  li{margin:4px 0}
+  .footer{color:var(--muted);font-size:12.5px;margin-top:36px;border-top:1px dashed var(--line);padding-top:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Lint 问题 L-01 ~ L-20：复查 · 定位 · 修复报告</h1>
+<p class="meta">项目：G:\game\nw\3mman（Android / Java）｜执行日期：2026-08-27｜逐项以「全源码树引用检索 + 使用链分析」复核后处置</p>
+
+<div class="metrics">
+  <div class="metric"><b style="color:var(--green)">16</b><span>真实存在 · 本轮已修复</span></div>
+  <div class="metric"><b style="color:var(--blue)">3</b><span>已在既有改动中解决</span></div>
+  <div class="metric"><b style="color:var(--amber)">1</b><span>误报 · 不应删改</span></div>
+</div>
+
+<h2>一、逐项裁决明细</h2>
+
+<h3>已修复（16 项）</h3>
+<table>
+<tr><th>#</th><th>位置</th><th>问题确认</th><th>处置</th></tr>
+<tr><td><span class="tag t-fixed">L-01</span></td><td><code>utils/Tags.java:10-14</code></td><td>4 个常量全树 0 引用（<code>CacheProviders</code> 的 "dou_ban_mei…" 是字符串字面量，与此常量无关）</td><td>删除 <code>TAG_PORNY_VIDEO</code>/<code>TAG_MM_99</code>/<code>TAG_HUA_BAN</code>/<code>DOU_BAN</code></td></tr>
+<tr><td><span class="tag t-fixed">L-04</span></td><td><code>utils/AnimationUtils.java</code></td><td>两方法除起止角度外完全相同；注意两者在 <code>BaseMainFragment</code> 四处调用中均在使用，不可直接删一个</td><td>收敛到私有 <code>rotate(view, fromDegrees, toDegrees)</code>，<code>rotateUp/rotateDown</code> 保留为一行委托，外部 API 与可读性不变</td></tr>
+<tr><td><span class="tag t-fixed">L-07</span></td><td><code>ui/BasePresenter.java</code> + <code>ui/MvpBasePresenter.java</code></td><td>实际使用面比报告更窄：19 个业务 Presenter 中 18 个直接继承 Mosby 库类，仅 <code>SettingPresenter</code> 走自家链且只用 <code>(provider)</code> 一条路径，端到端可达构造只有 1 个而非 2 个</td><td>两类的 6 个构造重载各裁至 1 个（仅 <code>provider</code>）；随之移除永不被赋值的 <code>cacheProviders/appDataManager</code> 字段及对应 import（树内无引用，含 <code>MinePresenter</code> 的同名私有字段核查）</td></tr>
+<tr><td><span class="tag t-fixed">L-08</span></td><td><code>di/module/ApplicationModule.java:133-155</code></td><td>23 行注释掉的 WebView 提供方法</td><td>整块删除（该文件头部本就没有 WebView 相关 import，无残留）</td></tr>
+<tr><td><span class="tag t-fixed">L-09</span></td><td><code>exception/ApiException.java:117</code></td><td>被注释的 Bugsnag.notify；连带暴露空壳 <code>if(!BuildConfig.DEBUG){}</code></td><td>注释行 + 空 if 外壳一起删除；<code>BuildConfig</code> import 为其独占使用者，一并移除</td></tr>
+<tr><td><span class="tag t-fixed">L-10</span></td><td><code>app/build.gradle</code></td><td>bugsnag 配置块整段注释（实际行号 89-96，行号漂移）</td><td>删除 8 行</td></tr>
+<tr><td><span class="tag t-fixed">L-11</span></td><td><code>parser/ParseV9MmanVideo.java</code></td><td>旧版 <code>parseByCategory</code> 实现（<code>"fullside"</code> 选择器时代）的死注释块，实际跨度 122-180 共 59 行，内含多处已被现行代码独立修复过的旧逻辑</td><td>整块删除（脚本按唯一标记定位并断言恰好 1 处）</td></tr>
+<tr><td><span class="tag t-fixed">L-12</span></td><td><code>ParseV9MmanVideo.java</code> 多处</td><td><code>//Logger.d()</code> 样式调试残渣</td><td>正则清理活代码内 12 行（块内另 6 行随 L-11 一并消失），共 18 行级联清除</td></tr>
+<tr><td><span class="tag t-fixed">L-13</span></td><td><code>ParseV9MmanVideo.java</code></td><td>分页解析复制粘贴块中的 <code>ppp</code>（倒数第二个分页链接文本）与单字母 <code>a</code></td><td><code>ppp→lastPageText</code> ×4 处；4 个分页块的 <code>Elements a→pagingLinks</code>（3 处分离声明 + 1 处单行声明风格）；两个列表循环锚点 <code>Element a→anchor</code> 及成套引用；全程计数断言 + 残留归零校验</td></tr>
+<tr><td><span class="tag t-fixed">L-14</span></td><td><code>ui/setting/SettingPresenter.java:257,312</code></td><td>泛化名 <code>file1</code> 的 mp4 扫描循环变量 ×2（代码结构相同，按上下文尾缀消歧编辑）</td><td><code>file1→childFile</code> ×2</td></tr>
+<tr><td><span class="tag t-fixed">L-15</span></td><td><code>ui/download/DownloadPresenter.java</code></td><td><code>tmp</code> 承载的是 DB 解析实体而非临时对象，贯穿下载主链路约 70 处</td><td>作用域化重命名：<code>validateAndResolveItem</code> 内 →<code>resolvedItem</code>（11 处）、<code>downloadVideoImmediately</code> 内 →<code>resolvedItem</code>（7 处）、其余链路参数/局部量 →<code>item</code>（55 处，逐方法核验无遮蔽冲突）；<code>deleteFileWithTemp</code> 中 FileDownloader 断点句柄是<b>真·临时变量</b>，改名为更贴切的 <code>fdTempFile</code> 而非混入 item 序列</td></tr>
+<tr><td><span class="tag t-fixed">L-16</span></td><td><code>service/HlsDownloadService.java:122,152</code></td><td>核实 5 个生产方传入均为 <code>item.getTitle()</code>/<code>sanitizeFileName(title)</code>——确系标题而非文件名</td><td>本地量改名 <code>fileName→videoTitle</code> 并补语义注释；149 行路径拼接注释同步修正；281 行另一处同名局部量语义属实（去扩展名的缓存基名），不动</td></tr>
+<tr><td><span class="tag t-fixed">L-17</span></td><td><code>DownloadPresenter.java:71-74</code></td><td>空 <code>favorite()</code> 无解释——但它是 <code>IDownload → IBaseDownload → IBaseFavorite</code> 接口链的强制实现，且 <code>BasePlayVideo:735</code> 调用的实现在 PlayVideoPresenter/FavoritePresenter</td><td>补充空实现的明确理由注释（接口契约要求 + 职责不在下载模块），避免下一轮复查再报</td></tr>
+<tr><td><span class="tag t-fixed">L-18</span></td><td><code>play/BasePlayVideo.java:617-631</code></td><td>IntelliJ 模板注释两条 + 过期 noinspection 行</td><td>三处删除，行为不变</td></tr>
+<tr><td><span class="tag t-fixed">L-19</span></td><td><code>download/DownloadingFragment.java:269</code></td><td>"Inflate the layout for this fragment" 模板注释</td><td>连同多余空行删除</td></tr>
+<tr><td><span class="tag t-fixed">L-20</span></td><td><code>DownloadingFragment.java:50-54</code></td><td>"A simple {@link Fragment} subclass." 模板 javadoc；其 {@link} 是 <code>android.support.v4.app.Fragment</code> import 的唯一使用者</td><td>javadoc 改写为说明性一句话（保留 @author），孤立的 Fragment import 一并删除</td></tr>
+</table>
+
+<h3>已在既有工作区改动中解决（3 项，无需再动）</h3>
+<table>
+<tr><th>#</th><th>位置</th><th>核实结论</th></tr>
+<tr><td><span class="tag t-skip">L-02</span></td><td><code>widget/ProblematicViewPager.java</code></td><td>主源码树中文件已不存在。<code>git status</code> 显示其为工作区里<b>既有的未提交删除</b>（D 状态），全树亦无任何引用；仅备份目录存有历史副本</td></tr>
+<tr><td><span class="tag t-skip">L-05</span></td><td><code>AboutActivityModule.java</code></td><td>当前版本只有 AppCompatActivity/BaseActivityModule/Module/Provides 四个有效 import，无 <code>DownloadActivity</code>。报告对应的是备份目录里的旧版文件</td></tr>
+<tr><td><span class="tag t-skip">L-06</span></td><td><code>FavoriteActivityModule.java</code></td><td>同上，无 <code>AboutActivity</code> import，当前版本干净</td></tr>
+</table>
+
+<h3>误报（1 项，明确不修）</h3>
+<table>
+<tr><th>#</th><th>位置</th><th>驳回依据</th></tr>
+<tr><td><span class="tag t-fp">L-03</span></td><td><code>exception/VideoException / MessageException / FavoriteException</code></td><td>"空壳冗余类"不成立。三个类都是活跃类型标记：<code>AppApiHelper</code> 至少 12 处 throw；<code>ApiException.handleCase</code> 依赖 <code>instanceof</code> 三分支映射不同错误码（PARSE_VIDEO_URL_ERROR / FAVORITE_VIDEO_ERROR / COMMON_MESSAGE_ERROR）；另有 AuthorPresenter、SearchPresenter、SearchPornyPresenter、PlayVideoPresenter 直接抛出。若合并删除，错误码分流逻辑将被破坏。<b>结论：保留</b></td></tr>
+</table>
+
+<h2>二、验证结果</h2>
+<div class="card">
+<h4>✅ 通过的静态自检</h4>
+<ul>
+<li>被删符号全树归零：<code>TAG_PORNY_VIDEO / TAG_MM_99 / TAG_HUA_BAN / DOU_BAN</code>、旧 <code>RotateAnimation(0f,180f,…)</code> 签名 → 0 引用</li>
+<li><code>ParseV9MmanVideo</code>：<code>lastPageText/pagingLinks/anchor</code> 新符号 27 处、四个分页块声明-引用逐一配对一致；<code>ppp=0</code>；剩余 2 处 <code>tmp</code> 是 strencode 参数交换的经典缓冲用法，属合理临时变量予以保留</li>
+<li><code>DownloadPresenter</code>：<code>tmp=0</code>；<code>resolvedItem/fdTempFile</code> 16 处落位；13 个含 <code>item</code> 的方法逐一对账，任一方法作用域内名称唯一，无遮蔽/重复声明</li>
+<li>接口链影响面核查：自定义 <code>MvpBasePresenter</code> 全工程唯一消费者是 <code>SettingPresenter</code>（import 级证据），裁剪构造不影响 Mosby 库继承的 18 个 Presenter</li>
+</ul>
+</div>
+
+<div class="card">
+<h4>⚠️ 全模块编译：被先前遗留问题阻断（14 个错误，均与本轮无关）</h4>
+<p style="margin:6px 0">以项目自带构建环境（Temurin JDK17 + Gradle 7.6.4）执行 <code>:app:compileDebugJavaWithJavac</code> 失败，但 14 个错误的符号全部归属于<b>上一批未完成的重构改动</b>，无一指向本次修改：</p>
+<ul>
+<li>9 个类处于工作区 D 状态（未提交删除）但仍被引用：<code>PackageManagerWrapper</code>、<code>IBaseAbout</code>、<code>IUpdate</code>、<code>INotice</code> 及 4 个适配器类 → PSVS21/IAbout/UpdatePresenter/NoticePresenter 报找不到符号</li>
+<li>reco 域残留：<code>RecoCandidate</code>、<code>service.DownloadManager/PornyFallbackResolver</code> 引用错位</li>
+<li><code>androidx.annotation.WorkerThread</code>：HEAD 中无此 import，属未提交改动新加且工程依赖未覆盖（Project 用 support 库体系）</li>
+</ul>
+<p style="margin:6px 0"><b>归属判定方法</b>：将错误清单逐条对 <code>git status/diff</code> 归因；本轮触碰的 12 个文件中没有出现任何编译错误行。</p>
+</div>
+
+<h2>三、后续建议</h2>
+<ul>
+<li>收尾上次重构使编译转绿（三类路径）：恢复 4 个仍在使用的接口/工具类文件，或完成其调用方的迁移替换；reco 包做一次 import 对账；<code>WorkerThread</code> 改用 <code>android.support.annotation.WorkerThread</code> 或补充 androidx annotation 依赖。</li>
+<li>顺带观察（未改动，超出本轮范围）：<code>HlsDownloadService.EXTRA_FILE_NAME</code> 的生产方消毒不一致——<code>BasePlayVideo</code>/<code>PornyFallbackResolver</code> 传 <code>sanitizeFileName(title)</code>，而 <code>DownloadingFragment:371</code>/<code>FinishedFragment:232</code> 直接传原始 <code>getTitle()</code>，标题含非法字符时生成的回退路径可能异常。</li>
+<li>建议在本轮修复通过整体编译后尽快提交一次快照，让 lint 层面的改善与其余重构解耦回滚。</li>
+</ul>
+
+<div class="footer">生成：OpenClaw · 3mman ｜ 自检脚本：.openclaw/tmp/lint-fix.js（带出现次数断言，可在归档后删除）</div>
+</div>
+</body>
+</html>

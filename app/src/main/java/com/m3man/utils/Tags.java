@@ -7,9 +7,5 @@ public class Tags {
     public static final String TAG_SEARCH_PORN_VIDEO = "搜索视频地址视频";
     public static final String TAG_MY_DOWNLOAD = "我的下载";
     public static final String TAG_PRON_9_VIDEO="视频地址视频";
-    public static final String TAG_PORNY_VIDEO="91porny搜索";
     public static final String TAG_MEI_ZI_TU = "妹子图";
-    public static final String TAG_MM_99 = "九妹图社";
-    public static final String TAG_HUA_BAN = "花瓣网";
-    public static final String DOU_BAN = "豆瓣妹纸";
 }

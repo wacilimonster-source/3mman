@@ -5,8 +5,7 @@ import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v7.app.AppCompatActivity;
 
-import com.trello.lifecycle2.android.lifecycle.AndroidLifecycle;
-import com.trello.rxlifecycle2.LifecycleProvider;
+import com.m3man.di.module.BaseActivityModule;
 import com.m3man.di.PerFragment;
 
 import java.util.ArrayList;
@@ -16,7 +15,7 @@ import dagger.Module;
 import dagger.Provides;
 import dagger.android.ContributesAndroidInjector;
 
-@Module
+@Module(includes = BaseActivityModule.class)
 public abstract class DownloadActivityModule {
     @PerFragment
     @ContributesAndroidInjector
@@ -31,19 +30,13 @@ public abstract class DownloadActivityModule {
         return new ArrayList<>();
     }
 
-
     @Provides
-    static AppCompatActivity providesAppCompatActivity(DownloadActivity downloadActivity){
+    static AppCompatActivity providesAppCompatActivity(DownloadActivity downloadActivity) {
         return downloadActivity;
     }
 
     @Provides
     static FragmentManager providesSupportFragmentManager(AppCompatActivity mAppCompatActivity) {
         return mAppCompatActivity.getSupportFragmentManager();
-    }
-
-    @Provides
-    static LifecycleProvider<Lifecycle.Event> providerLifecycleProvider(AppCompatActivity mAppCompatActivity) {
-        return AndroidLifecycle.createLifecycleProvider(mAppCompatActivity);
     }
 }

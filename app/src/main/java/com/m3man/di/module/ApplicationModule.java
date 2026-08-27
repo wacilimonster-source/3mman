@@ -129,28 +129,4 @@ public abstract class ApplicationModule {
     static CookieManager providesCookieManager(AppCookieManager appCookieManager) {
         return appCookieManager;
     }
-
-//    @SuppressLint("SetJavaScriptEnabled")
-//    @Provides
-//    @Singleton
-//    static WebView providesWebView(@ApplicationContext Context context){
-//        Logger.t(TAG).d("初始化");
-//        WebView mWebView = new WebView(context);
-//
-//        WebSettings mWebSettings = mWebView.getSettings();
-//
-//        //启用JavaScript。
-//        mWebSettings.setJavaScriptEnabled(true);
-//        mWebSettings.setUseWideViewPort(true);
-//        mWebSettings.setJavaScriptCanOpenWindowsAutomatically(true);
-//
-//        mWebView.loadUrl("file:///android_asset/web/index.html"); //js文件路径
-//        mWebView.setWebViewClient(new WebViewClient() {
-//            @Override
-//            public void onPageFinished(WebView view, String url) {
-//                Logger.t(TAG).d("加载完成..:" + url);
-//            }
-//        });
-//        return mWebView;
-//    }
 }

@@ -18,6 +18,8 @@ import com.m3man.utils.DownloadManager;
 import com.m3man.utils.NotificationChannelHelper;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.inject.Inject;
 
@@ -30,6 +32,10 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
 
     @Inject
     protected DataManager dataManager;
+
+    // H-08：内存缓存下载任务，避免 FileDownloader 主线程回调中每次都查 DB
+    // key: downloadId, value: V9MmanItem
+    private final Map<Integer, V9MmanItem> downloadItemCache = new ConcurrentHashMap<>();
 
     // M97：进度 tick 节流——记录每个任务上次触发查库/写通知时的百分比与状态，
     // 仅在进度跨越 ≥5% 或状态跃迁时才查库，避免高频回调每 tick 都打 DB
@@ -54,6 +60,37 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
         //确保渠道存在，避免进程被单独拉起时 startForeground 崩溃
         NotificationChannelHelper.initChannel(this);
         DownloadManager.getImpl().addUpdater(this);
+        // H-08：启动时预热缓存，避免首次回调查 DB
+        populateDownloadItemCache();
+    }
+
+    /**
+     * H-08：从 DB 加载所有进行中的下载任务到内存缓存
+     */
+    private void populateDownloadItemCache() {
+        try {
+            List<V9MmanItem> downloading = dataManager.findV9MmanItemByDownloadStatus(FileDownloadStatus.progress);
+            for (V9MmanItem item : downloading) {
+                if (item.getDownloadId() != 0) {
+                    downloadItemCache.put(item.getDownloadId(), item);
+                }
+            }
+            // 同时加载暂停和失败的任务，用于完成时判断是否还有运行中任务
+            List<V9MmanItem> paused = dataManager.findV9MmanItemByDownloadStatus(FileDownloadStatus.paused);
+            for (V9MmanItem item : paused) {
+                if (item.getDownloadId() != 0) {
+                    downloadItemCache.put(item.getDownloadId(), item);
+                }
+            }
+            List<V9MmanItem> error = dataManager.findV9MmanItemByDownloadStatus(FileDownloadStatus.error);
+            for (V9MmanItem item : error) {
+                if (item.getDownloadId() != 0) {
+                    downloadItemCache.put(item.getDownloadId(), item);
+                }
+            }
+        } catch (Exception e) {
+            // 忽略缓存预热失败，后续会回退到查 DB
+        }
     }
 
     @Override
@@ -124,25 +161,56 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
         // M97：FileDownloader 的 getStatus() 返回 byte，装箱为 Integer 存储
         lastTickStatus.put(task.getId(), (int) task.getStatus());
         String fileSize = Formatter.formatFileSize(DownloadVideoService.this, soFarBytes).replace("MB", "") + "/ " + Formatter.formatFileSize(DownloadVideoService.this, totalBytes);
-        V9MmanItem v9MmanItem = dataManager.findV9MmanItemByDownloadId(task.getId());
+
+        // H-08：优先从内存缓存获取，避免主线程频繁查 DB
+        V9MmanItem v9MmanItem = downloadItemCache.get(task.getId());
+        if (v9MmanItem == null) {
+            // 缓存未命中：去 DB 查询并放入缓存（仅首次或任务重建时发生）
+            v9MmanItem = dataManager.findV9MmanItemByDownloadId(task.getId());
+            if (v9MmanItem != null) {
+                downloadItemCache.put(task.getId(), v9MmanItem);
+            }
+        }
+
         if (v9MmanItem != null) {
             if (task.getStatus() == FileDownloadStatus.completed) {
-                List<V9MmanItem> v9MmanItemList = dataManager.findV9MmanItemByDownloadStatus(FileDownloadStatus.progress);
-                if (v9MmanItemList.size() == 0) {
-                    stopForeground(true);
-                    // M97：任务队列空闲时主动结束服务（保留上面的 stopForeground）
-                    stopSelf();
+                // 完成时检查是否还有进行中的任务（使用缓存统计）
+                boolean hasRunning = false;
+                for (Map.Entry<Integer, V9MmanItem> entry : downloadItemCache.entrySet()) {
+                    if (entry.getValue().getStatus() == FileDownloadStatus.progress) {
+                        hasRunning = true;
+                        break;
+                    }
+                }
+                if (!hasRunning) {
+                    // 双重确认：缓存可能过期，查一次 DB
+                    List<V9MmanItem> v9MmanItemList = dataManager.findV9MmanItemByDownloadStatus(FileDownloadStatus.progress);
+                    if (v9MmanItemList.isEmpty()) {
+                        stopForeground(true);
+                        stopSelf();
+                    }
                 }
             } else {
                 startNotification(v9MmanItem.getTitle(), progress, fileSize, task.getSpeed());
             }
         } else {
+            // 缓存和 DB 都无此任务：可能是历史残留，查一下加载中的数据
             List<V9MmanItem> v9MmanItemList = dataManager.loadDownloadingData();
-            if (v9MmanItemList.size() == 0) {
+            if (v9MmanItemList.isEmpty()) {
                 stopForeground(true);
-                // M97：任务队列空闲时主动结束服务（保留上面的 stopForeground）
                 stopSelf();
             }
+        }
+    }
+
+    /**
+     * H-08：外部调用（如下载入队时）刷新内存缓存
+     */
+    public void refreshDownloadItemCache(int downloadId, V9MmanItem item) {
+        if (item != null) {
+            downloadItemCache.put(downloadId, item);
+        } else {
+            downloadItemCache.remove(downloadId);
         }
     }
 }

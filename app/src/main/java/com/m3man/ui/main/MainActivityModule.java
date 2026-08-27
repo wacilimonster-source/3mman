@@ -3,8 +3,7 @@ package com.m3man.ui.main;
 import android.arch.lifecycle.Lifecycle;
 import android.support.v7.app.AppCompatActivity;
 
-import com.trello.lifecycle2.android.lifecycle.AndroidLifecycle;
-import com.trello.rxlifecycle2.LifecycleProvider;
+import com.m3man.di.module.BaseActivityModule;
 import com.m3man.di.PerFragment;
 import com.m3man.ui.mine.MineFragment;
 import com.m3man.ui.mman9video.Main9MmanVideoFragment;
@@ -18,7 +17,7 @@ import dagger.Module;
 import dagger.Provides;
 import dagger.android.ContributesAndroidInjector;
 
-@Module
+@Module(includes = BaseActivityModule.class)
 public abstract class MainActivityModule {
     @PerFragment
     @ContributesAndroidInjector
@@ -49,12 +48,7 @@ public abstract class MainActivityModule {
     abstract RecommendFeedFragment recommendFeedFragment();
 
     @Provides
-    static AppCompatActivity provideAppCompatActivity(MainActivity mainActivity){
+    static AppCompatActivity provideAppCompatActivity(MainActivity mainActivity) {
         return mainActivity;
-    }
-
-    @Provides
-    static LifecycleProvider<Lifecycle.Event> providerLifecycleProvider(AppCompatActivity mAppCompatActivity) {
-        return AndroidLifecycle.createLifecycleProvider(mAppCompatActivity);
     }
 }

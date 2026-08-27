@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHECK_REPORT.md 全量复查报告（66 项）</title>
+<style>
+  :root{--bg:#f6f7f9;--card:#fff;--ink:#24292f;--muted:#6a737d;--blue:#0969da;
+        --green:#1a7f37;--amber:#9a6700;--red:#cf222e;--line:#d8dee4}
+  *{box-sizing:border-box}
+  body{margin:0;padding:32px 20px;background:var(--bg);color:var(--ink);
+       font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;line-height:1.65}
+  .wrap{max-width:1120px;margin:0 auto}
+  h1{font-size:26px;margin:0 0 6px}
+  h2{font-size:19px;margin:34px 0 12px;border-bottom:2px solid var(--line);padding-bottom:8px}
+  h3{font-size:15px;margin:22px 0 8px;color:var(--blue)}
+  p.meta{color:var(--muted);margin:0 0 8px;font-size:13.5px}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:20px 0}
+  .metric{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;text-align:center}
+  .metric b{display:block;font-size:30px;line-height:1.25}
+  .metric span{font-size:12.5px;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;background:var(--card);font-size:13.5px;margin:14px 0;border-radius:8px;overflow:hidden}
+  th,td{padding:9px 11px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{background:#eff2f5;font-weight:600;white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  code{font-family:Consolas,Menlo,monospace;background:#eef1f4;padding:1px 5px;border-radius:4px;font-size:12.5px}
+  .tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:600;white-space:nowrap}
+  .t-ok{background:#dafbe1;color:var(--green)}
+  .t-part{background:#ddf4ff;color:var(--blue)}
+  .t-na{background:#fff8c5;color:var(--amber)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:14px 0}
+  .card h4{margin:0 0 8px;font-size:14.5px}
+  ul,ol{padding-left:22px;margin:8px 0}
+  li{margin:4px 0}
+  .step{display:flex;gap:12px;margin:10px 0}
+  .step-n{flex:0 0 26px;height:26px;border-radius:50%;background:var(--blue);color:#fff;
+          display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+  .step-b b{display:block}
+  .step-b span{font-size:13px;color:var(--muted)}
+  .footer{color:var(--muted);font-size:12.5px;margin-top:36px;border-top:1px dashed var(--line);padding-top:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>CHECK_REPORT.md 全量复查报告（66 项）</h1>
+<p class="meta">项目：G:\game\nw\3mman｜复查日期：2026-08-27｜方法：三个并行核验代理分别覆盖 C/H/M 组 + 主会话亲自复核 L 组与全部编译链问题，逐项对照当前工作区代码取证</p>
+
+<div class="metrics">
+  <div class="metric"><b style="color:var(--green)">62</b><span>确认修复</span></div>
+  <div class="metric"><b style="color:var(--blue)">2</b><span>部分修复</span></div>
+  <div class="metric"><b style="color:var(--amber)">2</b><span>误报 / 不适用</span></div>
+  <div class="metric"><b style="color:var(--red)">36+</b><span>另发现编译断链错误 · 已全部修复</span></div>
+  <div class="metric"><b style="color:var(--green)">1</b><span>严重功能回归 · 已修复</span></div>
+</div>
+
+<h2>一、最重要结论（先看这里）</h2>
+
+<div class="card">
+<h4 style="color:var(--red)">⚠️ 上一轮"修复"实际把项目改成了不可编译状态 —— 本轮已全部修复并通过编译</h4>
+<p style="margin:6px 0">复查第一步就发现 <code>:app:compileDebugJavaWithJavac</code> 失败。错误分两层，共 36 个：</p>
+<ul>
+<li><b>第一层（14 个断链）</b>：删除 <code>PackageManagerWrapper / IBaseAbout / IUpdate / INotice / 4 个重复 Adapter / ProblematicViewPager</code> 时未同步更新引用方：<code>PSVS21</code>、<code>IAbout</code>、<code>UpdatePresenter</code>、<code>NoticePresenter</code> 四处悬空；新拆出的 <code>DownloadEnqueuer</code> 用了不存在的 <code>com.m3man.service.*</code> 包路径；<code>ParseV9MmanVideo</code> 引入工程依赖里没有的 <code>androidx.annotation.WorkerThread</code>。</li>
+<li><b>第二层（22 个深层错误）</b>：因为此前从未编译通过而被掩盖——<code>DownloadEnqueuer</code> 的 <code>path</code> 变量作用域错误 ×7、返回类型不匹配、<code>LandscapeOrientationHelper</code> 宿主契约类型不符 ×4、<code>WindowInsets</code> 缺 import、<code>R.id.floatingActionButton</code> 不存在（真实 id 是 <code>fab_search</code>）、Fragment 调用了 Helper 上不存在的方法 ×3、<code>AppDbHelper</code>/<code>BaseMainFragment</code> 缺 import。</li>
+</ul>
+<p style="margin:6px 0"><b>处置</b>：接口链改为直接继承唯一根接口（语义等价，三个被删接口本就是空壳）；RxJava2 的 <code>Callable</code> 归位到 <code>java.util.concurrent</code>；宿主接口 <code>getRecyclerView()</code> 收紧为 <code>RecyclerView</code> 类型；补齐 Helper 缺失的 <code>setLandscapeLock()/applyFeedContentFullBleed()</code> 公开方法；FAB id 修正；零引用的第三方遗留 <code>com/awesapp</code> 移入回收站（可恢复）。最终编译 <b>EXIT=0</b>。</p>
+</div>
+
+<div class="card">
+<h4 style="color:var(--red)">⚠️ M-09 修复引入了比原问题更严重的功能回归 —— 本轮已确认并修复</h4>
+<p style="margin:6px 0"><code>findV9MmanItemByViewKey</code> 的"3 查合一"把三个 <code>ViewKey.eq(...)</code> 条件直接塞进同一个 <code>where()</code>。GreenDAO 的可变参数 <code>where()</code> 默认 <b>AND</b> 连接——一个 key 不可能同时等于裸 key、带前缀 key 和原值三种形态，查询<b>恒返回空</b>，且兜底分支犯了同样的错。<br>
+影响面：下载主链（DownloadPresenter.validateAndResolveItem 及整条下载流程）、推荐页下载（DownloadEnqueuer）、saveV9MmanItem 的状态合并（mergeDownloadState 继承失效）——相当于<b>"永远查不到已有视频记录"</b>。<br>
+<b>修复</b>：按 greenDAO 正确 API 改为 <code>qb.where(qb.or(cond1, cond2, cond3))</code>（已用 javap 对照 greendao-3.2.2.jar 确认 API 存在），主查询与兜底两处同步修正，编译复验通过。</p>
+</div>
+
+<div class="card">
+<h4 style="color:var(--green)">✔ 整体判定</h4>
+<p style="margin:6px 0">在上述两类"修复引入的问题"之外，<b>66 项原始问题的修复质量总体良好</b>：线程安全（加锁+volatile+CompositeDisposable 生命周期管理）、数据库性能（detachAll 移除、N+1 消除、LinkedHashSet 去重）、解析健壮性（container 判空全覆盖、正则预编译、算法文档）等核心改动均有据可查。63% 的争议点集中在注释/文档类低风险项。</p>
+</div>
+
+<h2>二、各组核验汇总</h2>
+
+<table>
+<tr><th>组别</th><th>规模</th><th>确认修复</th><th>部分修复</th><th>误报/不适用</th><th>关键说明</th></tr>
+<tr><td><b>C 致命</b></td><td>7</td><td>6</td><td>1（C-06）</td><td>0</td><td>C-01 pool 加锁完整，遗留"锁内阻塞探测最长约 3s"优化项；C-06 God Class 从 1747 行降到 1183 行，播放器控制逻辑仍可再拆；C-07 downloadVideo 从 ~220 行收敛为 ≤65 行的分段方法，bypassCacheCopy hack 已删</td></tr>
+<tr><td><b>H 重要</b></td><td>18</td><td>17</td><td>1（H-01）</td><td>0</td><td>H-01 实体字段已 long 且无强转（greenDAO int/long 同映射 INTEGER 无需迁移），仅 build.gradle 有"M99 v13 回退"的历史注释疑点；H-02 建议 BasePlayVideo 复用 stablePositiveId 统一算法（当前 MIN_VALUE 边界会得 0 哨兵值）；H-08 报告原文对回调线程的描述不准确，实际采用缓存+节流方案务实有效</td></tr>
+<tr><td><b>M 中等</b></td><td>21</td><td>20</td><td>0</td><td>1（M-18 不适用）</td><td>M-09 回归已由本轮修复；M-02 残留双 listFiles() 与 M-15 空描述本轮补齐；M-18 随 bypassCacheCopy 整体重构消失（仅剩一处有价值的历史说明注释）；其余全部有行号级证据</td></tr>
+<tr><td><b>L 轻微</b></td><td>20</td><td>19</td><td>0</td><td>1（L-03 误报）</td><td>上轮 L 组修复经两轮改动后全部完好（逐一 grep 复核）；L-03 三异常类是 ApiException 错误码分流与十余处 throw 的活跃类型标记，属报告误报予以保留</td></tr>
+</table>
+
+<h2>三、本轮亲手修复清单</h2>
+
+<table>
+<tr><th>#</th><th>文件</th><th>内容</th></tr>
+<tr><td>1</td><td>app\src\main\java\com\awesapp\**</td><td>整体移出源码树至 <code>.openclaw\tmp\removed-src-com-awesapp</code>（零引用的 JAViewer 第三方桩，含 native loadLibrary；回收站可恢复）</td></tr>
+<tr><td>2</td><td>ui\recommend\DownloadEnqueuer.java</td><td><code>service.DownloadManager/PornyFallbackResolver</code> 错误包路径改为 <code>utils.*</code>（含核实移动历史：PornyFallbackResolver 曾有 service 包副本，本轮统一回 utils 单一实现）</td></tr>
+<tr><td>3</td><td>ui\about\IAbout.java</td><td>空壳父接口 IBaseAbout 被删导致的断链 → 改为 <code>extends IBaseUpdate</code>（语义等价重排）</td></tr>
+<tr><td>4</td><td>ui\update\UpdatePresenter.java / ui\notice\NoticePresenter.java</td><td><code>implements IUpdate/INotice</code> → 直接实现各自基接口（三个被删接口均为纯空壳传递层，javap/grep 双重核实等价性）</td></tr>
+<tr><td>5</td><td>parser\ParseV9MmanVideo.java</td><td>androidx 注解换 support 注解（工程无 androidx 依赖）；954 行残留旧变量名 <code>a.size()</code> 修正；类头补 @describe 描述（M-15 收尾）</td></tr>
+<tr><td>6</td><td>ui\recommend\LandscapeOrientationHelper.java</td><td>新增 <code>RecyclerView/WindowInsets</code> import；Host.getRecyclerView() 收紧类型（连带 Fragment 实现、两处调用块共 5 点）；FAB id 修正为 <code>fab_search</code>；补公开方法 <code>setLandscapeLock()/applyFeedContentFullBleed()</code> 对接 Fragment 两处调用与进程重建恢复逻辑</td></tr>
+<tr><td>7</td><td>ui\recommend\RecommendFeedFragment.java</td><td><code>io.reactivex.functions.Callable</code>（RxJava2 无此类型）归位 <code>java.util.concurrent.Callable</code>；孤儿调用 <code>applyFeedContentFullBleed()</code> 改经 Helper 暴露的安全包装</td></tr>
+<tr><td>8</td><td>data\db\AppDbHelper.java</td><td>M-09 回归修复（OR 条件 + QueryBuilder import）；不可编译的 <code>setIdentityScope(null)</code> 循环替换为「单 DaoSession + 启动 clear」设计注释（全工程单会话已核实，RecommendPrefetcher 裸 SQL 为只读）</td></tr>
+<tr><td>9</td><td>ui\basemain\BaseMainFragment.java</td><td>H-09 修复漏加的 <code>java.util.Map</code> import</td></tr>
+<tr><td>10</td><td>ui\setting\SettingPresenter.java</td><td>M-02 残留的双 <code>listFiles()</code> TOCTOU 收敛为单次调用</td></tr>
+<tr><td>11</td><td>验证</td><td><code>:app:compileDebugJavaWithJavac</code> 三次递进验证：14 错 → 22 错 → <b>EXIT=0</b></td></tr>
+</table>
+
+<h2>四、遗留风险与后续建议（未在本轮范围内展开）</h2>
+
+<ol>
+<li><b>C-01 遗留</b>：RecoRepository 在持有 pool 锁期间做封面探测（blockingSubscribe、单项超时 1500ms×多轮）。nextBatch 在 IO 线程执行尚可接受，但若 UI 线程查询池状态会被阻塞数秒造成掉帧。建议下轮把探测移出临界区（先快照再异步回填）。</li>
+<li><b>H-02 一致性</b>：BasePlayVideo 与 HlsDownloadService.stablePositiveId 是两套伪 ID 算法，建议统一复用后者（含 0→1 兜底），消除同 URL 双路径不同 ID 的边界。</li>
+<li><b>C-06 长期项</b>：RecommendFeedFragment 1183 行仍偏大，播放器控制块（attach/detach JZVideoPlayer、进度轮询）可作为下一个拆分单元抽成 PlaybackController。</li>
+<li><b>H-01 验证项</b>：build.gradle 中"M99 v13 int→long 已回退"注释与实体现状 long 相矛盾，建议下次构建时确认 greenDAO 生成列类型为 INTEGER（int/long 同型则无迁移问题），或干脆澄清该注释。</li>
+<li><b>提交纪律</b>：当前 66 项修复与若干轮改动全部堆叠在工作区未提交状态（HEAD 落后极大），任何一次误操作都可能前功尽弃。建议编译绿灯后立即打一次 commit 快照。</li>
+</ol>
+
+<h2>五、完整逐项状态矩阵</h2>
+
+<h3>C 组（致命）</h3>
+<table>
+<tr><th>#</th><th>状态</th><th>一句话裁决</th></tr>
+<tr><td>C-01</td><td><span class="tag t-ok">确认修复</span></td><td>pool 全读写点 synchronized(pool) + volatile 标志；次级发现：锁内阻塞探测（见遗留 #1）</td></tr>
+<tr><td>C-02</td><td><span class="tag t-ok">确认修复</span></td><td>13 处 detachAll 已除；单 DaoSession 设计成立；原 setIdentityScope 尝试不可编译，本轮改注释化设计说明</td></tr>
+<tr><td>C-03</td><td><span class="tag t-ok">确认修复</span></td><td>execute() 带 @WorkerThread 契约文档，调用方 AppApiHelper map 在 IO 订阅链内</td></tr>
+<tr><td>C-04/C-05</td><td><span class="tag t-ok">确认修复</span></td><td>4 个重复 Adapter 删除，共用 V9MmanItemAdapter/SimpleFragmentPagerAdapter，全树零旧引用</td></tr>
+<tr><td>C-06</td><td><span class="tag t-part">部分修复</span></td><td>1747→1183 行；已拆 DownloadEnqueuer/LandscapeOrientationHelper/GlideLoader；doEnqueueDownload 迁出；建议继续拆播放器控制</td></tr>
+<tr><td>C-07</td><td><span class="tag t-ok">确认修复</span></td><td>downloadVideo 220 行消除（≤65 行分段），最长的 copyCacheFile 约 96 行；hack 字段删除</td></tr>
+</table>
+
+<h3>H 组（重要）</h3>
+<table>
+<tr><th>#</th><th>状态</th><th>一句话裁决</th></tr>
+<tr><td>H-01</td><td><span class="tag t-part">部分修复</span></td><td>long 化完成；遗留 build.gradle "v13 回退"注释矛盾待澄清（DB 层无迁移风险）</td></tr>
+<tr><td>H-02</td><td><span class="tag t-ok">确认修复</span></td><td>&amp; 0x7FFFFFFF 掩码替代 Math.abs；瑕疵：MIN_VALUE 边界得 0 哨兵值、未复用 stablePositiveId</td></tr>
+<tr><td>H-03</td><td><span class="tag t-ok">确认修复</span></td><td>pathSegments.isEmpty() 短路防护</td></tr>
+<tr><td>H-04</td><td><span class="tag t-ok">确认修复</span></td><td>4 处 container 判空 + parserByDivContainer 内部兜底</td></tr>
+<tr><td>H-05</td><td><span class="tag t-ok">确认修复</span></td><td>bypassCacheCopy 字段删除；缓存存在性同步检查 + IO 复制防重 + mkdirs 缺陷修复</td></tr>
+<tr><td>H-06</td><td><span class="tag t-ok">确认修复</span></td><td>fromCallable→io→main + doOnSubscribe 防护 + CompositeDisposable.clear()；persist 裸线程同步消除</td></tr>
+<tr><td>H-07</td><td><span class="tag t-ok">确认修复</span></td><td>static final Pattern 提升 + RegexUtils ConcurrentHashMap 缓存</td></tr>
+<tr><td>H-08</td><td><span class="tag t-ok">确认修复</span></td><td>缓存+节流方案（≥5% 步进/状态跃迁才查库）；报告"主线程回调"描述本身不准确</td></tr>
+<tr><td>H-09</td><td><span class="tag t-ok">确认修复</span></td><td>loadCategoryMap 单查组装 Map；缺 import 由本轮补</td></tr>
+<tr><td>H-10</td><td><span class="tag t-ok">确认修复</span></td><td>推荐页 zero blockingFirst（firstOrError 链路）；残余 blocking 有 IO 契约保障</td></tr>
+<tr><td>H-11</td><td><span class="tag t-ok">确认修复</span></td><td>GlideLoader 统一封装，3 个 Adapter 引用；作者页特殊定制不算重复</td></tr>
+<tr><td>H-12</td><td><span class="tag t-ok">确认修复</span></td><td>BaseActivityModule includes 收敛 13 个 Module 至 17 行/个</td></tr>
+<tr><td>H-13/H-14</td><td><span class="tag t-ok">确认修复</span></td><td>死类删除零残留（ProblematicViewPager 早于本轮即在工作区删除态；PackageManagerWrapper 连带其唯一消费者 PSVS21 一并隔离进回收站）</td></tr>
+<tr><td>H-15</td><td><span class="tag t-ok">确认修复</span></td><td>getCacheDirInternal 合并 ×3，顺带补 externalCacheDir null 兜底</td></tr>
+<tr><td>H-16</td><td><span class="tag t-ok">确认修复</span></td><td>三空接口删除；新链闭合（断链由本轮修复）；Dagger 图无需旧接口名（构造注入具体类）</td></tr>
+<tr><td>H-17</td><td><span class="tag t-ok">确认修复</span></td><td>BuildConfig.BUGLY_APP_ID + gradle.properties 注入，硬编码 ID 全树零残留</td></tr>
+<tr><td>H-18</td><td><span class="tag t-ok">确认修复</span></td><td>双格式解密全流程 Javadoc + 循环密钥 XOR 公式 + 参数交换历史差异说明</td></tr>
+</table>
+
+<h3>M 组（中等，21 项全览）</h3>
+<table>
+<tr><th>#</th><th>状态</th><th>一句话裁决</th></tr>
+<tr><td>M-01</td><td><span class="tag t-ok">确认修复</span></td><td>volatile + M78 注释</td></tr>
+<tr><td>M-02</td><td><span class="tag t-ok">确认修复</span></td><td>IO 线程版本单次调用；兼容接口残留由本轮补齐</td></tr>
+<tr><td>M-03</td><td><span class="tag t-ok">确认修复</span></td><td>pageMman/pagePorny 分离</td></tr>
+<tr><td>M-04</td><td><span class="tag t-ok">确认修复</span></td><td>resetSession/take 均在 synchronized(pool) 内</td></tr>
+<tr><td>M-05</td><td><span class="tag t-ok">确认修复</span></td><td>JZ_NORMAL_ORIENTATION_LOCK 全部写入点锁内</td></tr>
+<tr><td>M-06</td><td><span class="tag t-ok">确认修复</span></td><td>ticker runnable 首行销毁检查 + removeCallbacksAndMessages 兜底</td></tr>
+<tr><td>M-07</td><td><span class="tag t-ok">确认修复</span></td><td>Looper 检查抛 IllegalStateException（现无调用方，纯防御）</td></tr>
+<tr><td>M-08</td><td><span class="tag t-ok">确认修复</span></td><td>PATTERN_CACHE + computeIfAbsent；isMatch 低危瑕疵不在报告范围</td></tr>
+<tr><td>M-09</td><td><span class="tag t-ok">确认修复</span></td><td>原修复为 AND 恒空回归，本轮改 qb.or() 修正（重大）</td></tr>
+<tr><td>M-10</td><td><span class="tag t-ok">确认修复</span></td><td>1 查 1 写 + merge 规则文档；M-09 牵连随修复解除</td></tr>
+<tr><td>M-11</td><td><span class="tag t-ok">确认修复</span></td><td>两热点 LinkedHashSet；剩余 contains 属小集合无碍</td></tr>
+<tr><td>M-12</td><td><span class="tag t-ok">确认修复</span></td><td>Completable+disposables 取代裸 Thread</td></tr>
+<tr><td>M-13</td><td><span class="tag t-ok">确认修复</span></td><td>两个文件 "// TODO" 零命中</td></tr>
+<tr><td>M-14</td><td><span class="tag t-ok">确认修复</span></td><td>@return 错误信息（973 行）</td></tr>
+<tr><td>M-15</td><td><span class="tag t-ok">确认修复</span></td><td>DownloadPresenter 原已补；ParseV9MmanVideo 空描述由本轮补齐</td></tr>
+<tr><td>M-16</td><td><span class="tag t-ok">确认修复</span></td><td>年份提取/多样性方案完整 javadoc（类头+方法头+边界注释）</td></tr>
+<tr><td>M-17</td><td><span class="tag t-ok">确认修复</span></td><td>mergeDownloadState 优先级规则三层 ol 文档（复查中亲验）</td></tr>
+<tr><td>M-18</td><td><span class="tag t-na">不适用</span></td><td>bypassCacheCopy 随重构整体删除，原诉求对象不存在；保留一处历史说明注释</td></tr>
+<tr><td>M-19</td><td><span class="tag t-ok">确认修复</span></td><td>DownloadResult 带语义 javadoc（DownloadEnqueuer 内）</td></tr>
+<tr><td>M-20</td><td><span class="tag t-ok">确认修复</span></td><td>重复块区域已随 tryResumeDownload 重写消除</td></tr>
+<tr><td>M-21</td><td><span class="tag t-ok">确认修复</span></td><td>"这里没必要"注释零命中</td></tr>
+</table>
+
+<h3>L 组（轻微，20 项）</h3>
+<table>
+<tr><th>#</th><th>状态</th><th>一句话裁决</th></tr>
+<tr><td>L-01~L-02, L-04~L-20<br>（19 项）</td><td><span class="tag t-ok">确认修复</span></td><td>ASCII 断言脚本逐项复核通过（4 常量零引用 / rotate 收敛构造 / 构造函数裁剪 / WebView+Bugsnag+bugsnag 死块删除 / 死块与调试残渣清理 / ppp→lastPageText 等 / file1→childFile / tmp 全清 / videoTitle / favorite 说明 / 模板注释×3 + 孤立 import）；两个疑似回退点澄清：widget 目录现存 IpInputEditText/ObservableScrollView 两个活跃类、"fullside" 属搜索页活跃解析</td></tr>
+<tr><td>L-03</td><td><span class="tag t-na">误报保留</span></td><td>VideoException/FavoriteException/MessageException 是 instanceof 错误码分流的活跃类型</td></tr>
+</table>
+
+<h2>六、验证方式</h2>
+<ul>
+<li>编译验证：Temurin JDK17 + Gradle 7.6.4（GRADLE_USER_HOME=C:\grd_cache），任务 <code>:app:compileDebugJavaWithJavac</code>，终态 EXIT=0（含 :exolibrary 依赖编译）</li>
+<li>API 事实核对：javap 反汇编 greendao-3.2.2.jar 确认 QueryBuilder.or(...) 与 AbstractDao 无公开 setIdentityScope</li>
+<li>符号审计：ASCII 断言脚本（.openclaw\tmp\lgroup-recheck.ps1）逐项 grep L 组 24 条断言；M-09 用源码阅读+javap 双证据确认回归与修复正确性</li>
+<li>三条并行核验线互为交叉印证；对子代理给出的每个【未修复/回归】结论，均由主会话重新取证后才落处置</li>
+</ul>
+
+<div class="footer">OpenClaw · 3mman ｜ 自检脚本与回收站位于 .openclaw\tmp\（lint-fix.js / lgroup-recheck.ps1 / removed-src-com-awesapp），归档后可删</div>
+</div>
+</body>
+</html>

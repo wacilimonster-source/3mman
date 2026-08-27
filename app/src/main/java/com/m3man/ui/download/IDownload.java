@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * @author flymegoc
  * @date 2017/11/27
- * @describe
+ * @describe 下载管理接口，定义下载视频、暂停/恢复、删除等核心操作
  */
 
 public interface IDownload extends IBaseDownload {

@@ -8,8 +8,8 @@ android {
         applicationId "com.m3man"
         minSdkVersion parent.ext.minSdkVersion
         targetSdkVersion parent.ext.targetSdkVersion
-        versionCode 133
-        versionName "1.0.100"
+        versionCode 134
+        versionName "1.0.101"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
         multiDexEnabled true
@@ -18,6 +18,8 @@ android {
             // 砍掉模拟器 x86 与古董 armeabi，显著缩减安装包体积
             abiFilters 'armeabi-v7a'//, 'x86', 'armeabi'//, 'x86_64', 'arm64-v8a'
         }
+        // H-17: Bugly App ID 通过 gradle.properties 注入，不硬编码在源码中
+        buildConfigField "String", "BUGLY_APP_ID", project.hasProperty('bugly_app_id') ? "\"${bugly_app_id}\"" : "\"\""
     }
     // M101：JVM 单测中 android.util.Log 等桩返回默认值——Logger/Toast 类工具在纯 JVM 测试不崩
     testOptions {
@@ -92,14 +94,6 @@ greendao {
     schemaVersion 12
 }
 
-/*
-bugsnag {
-    autoUpload false //自动上传ProGuard mapping file
-    ndk false //上传ndk mapping
-    autoReportBuilds false //report builds to Bugsnag
-    retryCount 5 //Retrying the file upload
-}
-*/
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "com.android.support:appcompat-v7:$supportLibraryVersion"

@@ -7,6 +7,7 @@ import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.Category;
 
 import java.util.List;
+import java.util.Map;
 
 import javax.inject.Inject;
 
@@ -47,6 +48,18 @@ public class BaseMainPresenter extends MvpBasePresenter<BaseMainView> implements
     @Override
     public Category findCategoryById(Long id) {
         return dataManager.findCategoryById(id);
+    }
+
+    /**
+     * H-09：批量加载分类并转为 Map，避免循环中逐个查询 DB (N+1 问题)
+     */
+    public Map<Long, Category> loadCategoryMap(int type) {
+        List<Category> categoryList = dataManager.loadCategoryDataByType(type);
+        Map<Long, Category> map = new java.util.HashMap<>();
+        for (Category c : categoryList) {
+            map.put(c.getId(), c);
+        }
+        return map;
     }
 
     @Override

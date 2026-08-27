@@ -9,7 +9,7 @@ import android.view.View;
 import com.aitsuki.swipe.SwipeMenuRecyclerView;
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.m3man.R;
-import com.m3man.adapter.HistoryAdapter;
+import com.m3man.adapter.V9MmanItemAdapter;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.ui.MvpActivity;
 
@@ -31,7 +31,7 @@ public class HistoryActivity extends MvpActivity<HistoryView, HistoryPresenter> 
     @BindView(R.id.recyclerView)
     SwipeMenuRecyclerView recyclerView;
 
-    private HistoryAdapter mUnLimit91Adapter;
+    private V9MmanItemAdapter mUnLimit91Adapter;
     private List<V9MmanItem> mV9MmanItemList;
 
     @Inject
@@ -44,7 +44,7 @@ public class HistoryActivity extends MvpActivity<HistoryView, HistoryPresenter> 
         ButterKnife.bind(this);
         initToolBar(toolbar);
         mV9MmanItemList = new ArrayList<>();
-        mUnLimit91Adapter = new HistoryAdapter(R.layout.item_v_9mman, mV9MmanItemList);
+        mUnLimit91Adapter = new V9MmanItemAdapter(R.layout.item_v_9mman, mV9MmanItemList);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 

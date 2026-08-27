@@ -4,6 +4,7 @@ import android.content.Context;
 import android.support.annotation.NonNull;
 import android.support.multidex.MultiDex;
 import android.support.v7.app.AppCompatDelegate;
+import android.text.TextUtils;
 
 import com.helper.loadviewhelper.load.LoadViewHelper;
 import com.liulishuo.filedownloader.FileDownloader;
@@ -92,7 +93,13 @@ public class MyApplication extends DaggerApplication {
             //初始化bug收集
           //  Bugsnag.init(this);
         }
-        CrashReport.initCrashReport(getApplicationContext(), "e426041d83", BuildConfig.DEBUG);
+        // H-17: Bugly App ID 从 BuildConfig 注入，不硬编码
+        String buglyAppId = BuildConfig.BUGLY_APP_ID;
+        if (!TextUtils.isEmpty(buglyAppId)) {
+            CrashReport.initCrashReport(getApplicationContext(), buglyAppId, BuildConfig.DEBUG);
+        } else {
+            // 未配置时跳过初始化，避免空 ID 导致异常
+        }
         BGASwipeBackHelper.init(this, null);
     }
 

@@ -419,7 +419,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
             // 这里的requestCode就是申请时设置的requestCode。
             // 和onActivityResult()的requestCode一样，用来区分多个不同的请求。
             if (requestCode == permisionCode) {
-                // TODO ...
+                // M-13: 权限授予成功后，检查存储权限并创建下载目录
                 if (hasStorageAccess()) {
                     if (!file.exists()) {
                         if (!file.mkdirs()) {
@@ -436,7 +436,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         public void onFailed(int requestCode, @NonNull List<String> deniedPermissions) {
             // 权限申请失败回调。
             if (requestCode == permisionCode) {
-                // TODO ...
+                // M-13: 权限被拒绝，检查存储权限并引导用户去设置
                 if (!hasStorageAccess()) {
                     // 是否有不再提示并拒绝的权限。
                     if (AndPermission.hasAlwaysDeniedPermission(MainActivity.this, deniedPermissions)) {

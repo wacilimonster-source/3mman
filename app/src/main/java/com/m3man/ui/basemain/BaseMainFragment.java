@@ -43,6 +43,7 @@ import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.Collections;
 import java.util.List;
 
@@ -240,6 +241,8 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
 
     private boolean isNeedUpdate() {
         boolean needUpdate = false;
+        // H-09：批量加载分类到 Map，避免循环中 N+1 查询 DB
+        Map<Long, Category> oldCategoryMap = presenter.loadCategoryMap(getCategoryType());
         for (Category category : sortCategoryList) {
             //先检查排序
             int newSortId = sortCategoryList.indexOf(category);
@@ -248,8 +251,8 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
                 needUpdate = true;
             }
             //在检查是否可见
-            Category oldCategory = presenter.findCategoryById(category.getId());
-            if (oldCategory.getIsShow() != category.getIsShow()) {
+            Category oldCategory = oldCategoryMap.get(category.getId());
+            if (oldCategory != null && oldCategory.getIsShow() != category.getIsShow()) {
                 needUpdate = true;
             }
         }

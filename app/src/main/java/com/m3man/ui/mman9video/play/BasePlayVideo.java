@@ -30,7 +30,7 @@ import com.m3man.R;
 import com.m3man.MyApplication;
 import com.liulishuo.filedownloader.model.FileDownloadStatus;
 import android.support.v4.content.LocalBroadcastManager;
-import com.m3man.adapter.PlayFragmentAdapter;
+import com.m3man.adapter.SimpleFragmentPagerAdapter;
 import com.m3man.constants.Keys;
 import com.m3man.constants.KeysActivityRequestResultCode;
 import com.m3man.data.db.entity.AuthorFavorite;
@@ -122,7 +122,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     protected AuthorFragment authorFragment;
 
     @Inject
-    protected PlayFragmentAdapter playFragmentAdapter;
+    protected SimpleFragmentPagerAdapter playFragmentAdapter;
 
     @Inject
     protected PlayVideoPresenter playVideoPresenter;
@@ -191,7 +191,8 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
                 fragments.add(videoListFragment);
             }
         } else {
-            //TODO
+            // M-13: category 为 null 时（如直接进入播放页），不显示分类视频标签
+            // 仅保留评论和作者标签，避免空指针
         }
 
         fragments.add(authorFragment);
@@ -615,19 +616,14 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.play_video, menu);
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
         if (id == R.id.menu_play_collect) {
             favoriteVideo();
             return true;
@@ -670,7 +666,8 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         String customDir = MyApplication.getInstance().getDataManager().getCustomDownloadVideoDirPath();
         final String savePath = v9MmanItem.getDownLoadPath(customDir);
         // 落「下载中」记录，使其出现在「我的下载」列表（伪 downloadId 避免与 FileDownloader 真实 id 冲突）
-        int pseudoId = Math.abs(videoUrl.hashCode());
+        // 使用 (hashCode & 0x7FFFFFFF) 避免 Math.abs(Integer.MIN_VALUE) 返回负数的已知 bug
+        int pseudoId = videoUrl.hashCode() & 0x7FFFFFFF;
         v9MmanItem.setDownloadId(pseudoId);
         v9MmanItem.setStatus(FileDownloadStatus.progress);
         if (v9MmanItem.getAddDownloadDate() == null) {
@@ -766,7 +763,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         // 误用 ActivityInfo.SCREEN_ORIENTATION_*（横屏=0）导致横竖屏分支永远判不中。
         try {
             if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                //这里没必要，因为我们使用的是setColorForSwipeBack，并不会有这个虚拟的view，而是设置的padding
+                // 横屏时隐藏虚拟状态栏占位并显示悬浮返回按钮
                 StatusBarUtil.hideFakeStatusBarView(this);
                 updateFloatingBackVisibility(true);
             } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT) {

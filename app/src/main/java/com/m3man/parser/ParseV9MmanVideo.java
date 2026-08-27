@@ -20,9 +20,12 @@ import org.jsoup.select.Elements;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import android.support.annotation.WorkerThread;
+import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
@@ -30,10 +33,20 @@ import okhttp3.Response;
  * @author flymegoc
  * @date 2017/11/15
  * @fix tech on 2020/04/12
- * @describe
+ * @describe 9mman 站点 HTML 解析器：列表/搜索/作者/收藏页结构与分页、播放地址抽取、strencode 解密
  */
 
 public class ParseV9MmanVideo {
+
+    /** 正则：匹配 strencode2 单参数格式 document.write(strencode2("...")) */
+    private static final Pattern STR_ENCODE2_PATTERN = Pattern.compile(
+            "document\\.write\\(\\s*strencode2\\(\"([^\"]+)\"\\s*\\)"
+    );
+
+    /** 正则：匹配 strencode 三参数格式 document.write(strencode("...","...","...")) */
+    private static final Pattern STR_ENCODE_PATTERN = Pattern.compile(
+            "document\\.write\\(strencode\\(\"([A-Za-z0-9+/=]+?)\",\"([A-Za-z0-9+/=]+?)\",\"([A-Za-z0-9+/=]+?)\""
+    );
 
     private static final String TAG = ParseV9MmanVideo.class.getSimpleName();
     /** M95：通用 Chrome UA（与 CommonHeaderInterceptor 保持一致），供分享链接兜底请求使用 */
@@ -56,6 +69,9 @@ public class ParseV9MmanVideo {
         }
 
         Element container = body.selectFirst("div.container");
+        if (container == null) {
+            return new ArrayList<>();
+        }
 
         return parserByDivContainer(container);
 
@@ -89,79 +105,18 @@ public class ParseV9MmanVideo {
         int totalPage = 1;
         Element paging = body.getElementById("paging");
         // M73：paging 缺失（拦截页/改版）时按单页处理，不 NPE
-        Elements a;
+        Elements pagingLinks;
         if (paging == null) {
-            a = new Elements();
+            pagingLinks = new Elements();
         } else {
-            a = paging.select("a");
+            pagingLinks = paging.select("a");
         }
-        if (a.size() > 2) {
-            String ppp = a.get(a.size() - 2).text();
-            if (TextUtils.isDigitsOnly(ppp)) {
-                totalPage = Integer.parseInt(ppp);
-                //Logger.d("总页数：" + totalPage);
+        if (pagingLinks.size() > 2) {
+            String lastPageText = pagingLinks.get(pagingLinks.size() - 2).text();
+            if (TextUtils.isDigitsOnly(lastPageText)) {
+                totalPage = Integer.parseInt(lastPageText);
             }
         }
-
-        /*
-        int totalPage = 1;
-        List<V9MmanItem> v9MmanItemList = new ArrayList<>();
-        Document doc = Jsoup.parse(html);
-        Element body = doc.getElementById("fullside");
-
-        Elements listchannel = body.getElementsByClass("listchannel");
-        for (Element element : listchannel) {
-            V9MmanItem v9MmanItem = new V9MmanItem();
-            String contentUrl = element.select("a").first().attr("href");
-            //Logger.d(contentUrl);
-            contentUrl = contentUrl.substring(0, contentUrl.indexOf("&"));
-            // Logger.d(contentUrl);
-            String viewKey = contentUrl.substring(contentUrl.indexOf("=") + 1);
-            v9MmanItem.setViewKey(viewKey);
-            // M66b：解析时打持久化来源标记（9mman），供路由权威判定
-            v9MmanItem.setSourceName("mman9");
-
-            String imgUrl = element.select("a").first().select("img").first().attr("src");
-            //  Logger.d(imgUrl);
-            v9MmanItem.setImgUrl(imgUrl);
-
-            String title = element.select("a").first().select("img").first().attr("title");
-            //  Logger.d(title);
-            v9MmanItem.setTitle(title);
-
-
-            String allInfo = element.text();
-
-            int sindex = allInfo.indexOf("时长");
-
-            String duration = allInfo.substring(sindex + 3, sindex + 8);
-            v9MmanItem.setDuration(duration);
-
-            int start = allInfo.indexOf("添加时间");
-            // M62：start==-1 时直接 substring 会越界并拖垮整页列表
-            String info = start >= 0 ? allInfo.substring(start) : allInfo;
-            v9MmanItem.setInfo(info.replace("还未被评分", ""));
-            //  Logger.d(info);
-
-            v9MmanItemList.add(v9MmanItem);
-        }
-        //总页数
-        Element pagingnav = body.getElementById("paging");
-        // M73：paging 缺失（拦截页/改版）时按单页处理，不 NPE
-        Elements a;
-        if (pagingnav == null) {
-            a = new Elements();
-        } else {
-            a = pagingnav.select("a");
-        }
-        if (a.size() > 2) {
-            String ppp = a.get(a.size() - 2).text();
-            if (TextUtils.isDigitsOnly(ppp)) {
-                totalPage = Integer.parseInt(ppp);
-                //    Logger.d("总页数：" + totalPage);
-            }
-        }
-        */
 
         BaseResult<List<V9MmanItem>> baseResult = new BaseResult<>();
         baseResult.setTotalPage(totalPage);
@@ -171,6 +126,9 @@ public class ParseV9MmanVideo {
 
 
     private static List<V9MmanItem> parserByDivContainer(Element container) {
+        if (container == null) {
+            return new ArrayList<>();
+        }
         List<V9MmanItem> v9MmanItemList = new ArrayList<>();
         // 按「标题 + 封面」去重：站点常把同一个片子/同封面用不同 viewKey 发多遍，
         // 仅按 viewKey 去重无法合并这些同名同图的重复条目。
@@ -187,14 +145,14 @@ public class ParseV9MmanVideo {
             if (item.hasClass("col-lg-8")) {
                 continue;
             }
-            Element a = item.selectFirst("a");
-            if (a == null) {
+            Element anchor = item.selectFirst("a");
+            if (anchor == null) {
                 continue;
             }
             V9MmanItem v9MmanItem = new V9MmanItem();
 
             // M73：video-title 缺失时跳过该条目，避免 NPE 炸掉整页列表
-            Element titleEle = a.getElementsByClass("video-title").first();
+            Element titleEle = anchor.getElementsByClass("video-title").first();
             if (titleEle == null) {
                 Logger.w(TAG, "parserByDivContainer: 条目缺 video-title，跳过 class=" + item.className());
                 continue;
@@ -202,13 +160,13 @@ public class ParseV9MmanVideo {
             String title = titleEle.text().trim();
             v9MmanItem.setTitle(title);
 
-            Element imgEle = a.selectFirst("img.img-responsive");
+            Element imgEle = anchor.selectFirst("img.img-responsive");
             String imgUrl = (imgEle != null) ? imgEle.attr("src") : "";
             if (imgEle != null) {
                 v9MmanItem.setImgUrl(imgUrl);
             }
 
-            Element durationEle = a.selectFirst("span.duration");
+            Element durationEle = anchor.selectFirst("span.duration");
             if (durationEle != null) {
                 v9MmanItem.setDuration(durationEle.text().trim());
             } else {
@@ -216,7 +174,7 @@ public class ParseV9MmanVideo {
             }
 
 
-            String contentUrl = a.attr("href");
+            String contentUrl = anchor.attr("href");
 
             // 稳健抽取 viewkey 参数值。站点不同页面（分类 / 作者 / 收藏）的视频链接结构不一：
             // 作者页 href 形如 uvideos.php?UID=xxx&viewkey=ABC&type=public，旧的
@@ -273,7 +231,6 @@ public class ParseV9MmanVideo {
                 e.printStackTrace();
             }
             v9MmanItem.setInfo(info);
-            // Logger.d(info);
             v9MmanItemList.add(v9MmanItem);
 
         }
@@ -405,13 +362,11 @@ public class ParseV9MmanVideo {
             }
             Element imgInA = firstA.select("img").first();
             String contentUrl = firstA.attr("href");
-            //Logger.d(contentUrl);
             // M34：href 可能为空或不含 &，直接 substring(0, indexOf("&")) 会在空串上抛
             // StringIndexOutOfBoundsException（begin 0, end -1, length 0）
             if (!TextUtils.isEmpty(contentUrl) && contentUrl.contains("&")) {
                 contentUrl = contentUrl.substring(0, contentUrl.indexOf("&"));
             }
-            //Logger.d(contentUrl);
 
             String viewKey = "";
             int eqIdx = contentUrl.indexOf("=");
@@ -421,14 +376,11 @@ public class ParseV9MmanVideo {
             v9MmanItem.setViewKey(viewKey);
             // M66b：解析时打持久化来源标记（9mman），供路由权威判定
             v9MmanItem.setSourceName("mman9");
-            //Logger.d(viewKey);
 
             String imgUrl = imgInA != null ? imgInA.attr("src") : "";
-            //Logger.d(imgUrl);
             v9MmanItem.setImgUrl(imgUrl);
 
             String title = element.select("span.title").text();
-            //Logger.d(title);
             v9MmanItem.setTitle(title);
 
             String duration = element.select("span.duration").text();
@@ -446,24 +398,22 @@ public class ParseV9MmanVideo {
             // M62：start==-1 时直接 substring 会越界并拖垮整页列表
             String info = start >= 0 ? allInfo.substring(start) : allInfo;
             v9MmanItem.setInfo(info.replace("还未被评分", ""));
-            //Logger.d(info);
 
             v9MmanItemList.add(v9MmanItem);
         }
         //总页数
         Element pagingnav = body.getElementById("paging");
         // M73：paging 缺失（拦截页/改版）时按单页处理，不 NPE
-        Elements a;
+        Elements pagingLinks;
         if (pagingnav == null) {
-            a = new Elements();
+            pagingLinks = new Elements();
         } else {
-            a = pagingnav.select("a");
+            pagingLinks = pagingnav.select("a");
         }
-        if (a.size() > 2) {
-            String ppp = a.get(a.size() - 2).text();
-            if (TextUtils.isDigitsOnly(ppp)) {
-                totalPage = Integer.parseInt(ppp);
-                //Logger.d("总页数：" + totalPage);
+        if (pagingLinks.size() > 2) {
+            String lastPageText = pagingLinks.get(pagingLinks.size() - 2).text();
+            if (TextUtils.isDigitsOnly(lastPageText)) {
+                totalPage = Integer.parseInt(lastPageText);
             }
         }
         BaseResult<List<V9MmanItem>> baseResult = new BaseResult<>();
@@ -473,11 +423,12 @@ public class ParseV9MmanVideo {
     }
 
     /**
-     * 解析视频播放连接
+     * 解析视频播放地址（兜底逻辑含同步网络调用，必须在 IO 线程执行）
      *
      * @param html 视频页
      * @return 视频连接
      */
+    @WorkerThread
     public static VideoResult parseVideoPlayUrl(String html, User user) {
         VideoResult videoResult = new VideoResult();
         if (TextUtils.isEmpty(html)) {
@@ -516,6 +467,11 @@ public class ParseV9MmanVideo {
             videoUrl = "";
             // M95：裸 Jsoup.connect 每次新建连接池且绕过全局 Cookie/代理配置，
             // 改走 NetworkClientHolder 统一持有的 OkHttpClient（MyApplication 主进程启动时注入）。
+            // 兜底请求使用短超时（5s），避免 CDN 慢响应长时间占用 IO 线程
+            OkHttpClient fallbackClient = NetworkClientHolder.get().newBuilder()
+                    .connectTimeout(5, TimeUnit.SECONDS)
+                    .readTimeout(5, TimeUnit.SECONDS)
+                    .build();
             Response response = null;
             try {
                 String shareLink = doc.select("#linkForm2 #fm-video_link").text();
@@ -524,7 +480,7 @@ public class ParseV9MmanVideo {
                             .url(shareLink)
                             .header("User-Agent", FALLBACK_UA)
                             .build();
-                    response = NetworkClientHolder.get().newCall(request).execute();
+                    response = fallbackClient.newCall(request).execute();
                     String shareHtml = response.body() != null ? response.body().string() : "";
                     videoUrl = decodeVideoUrl(shareHtml);
                 }
@@ -649,6 +605,37 @@ public class ParseV9MmanVideo {
         return videoResult;
     }
 
+    /**
+     * 从 91porn/91porny 视频页面 HTML 中解码提取真实视频 URL。
+     * <p>
+     * 站点采用两种加密格式混淆视频地址，本方法按顺序尝试两种格式：
+     * <ol>
+     *   <li><strong>strencode2 单参数格式（新版）</strong>：
+     *       HTML 中含 <code>document.write(strencode2("...%3c%73..."))</code>，
+     *       参数为百分号编码的 <code><source src="..."></code> 片段。
+     *       解码流程：正则提取参数 -> {@link Uri#decode} 还原百分号编码 ->
+     *       Jsoup 解析 <code><source></code> 标签提取 <code>src</code> 属性。
+     *   </li>
+     *   <li><strong>strencode 三参数格式（旧版兼容）</strong>：
+     *       HTML 中含 <code>document.write(strencode("param1","param2","param3"))</code>，
+     *       三个参数均为 Base64 编码。
+     *       解码流程：
+     *       <ul>
+     *         <li>若第三个参数以 "2" 结尾，交换前两个参数顺序（历史版本差异）</li>
+     *         <li>param1: Base64 解码 -> 得到字节数组 A</li>
+     *         <li>param2: Base64 解码 -> 得到字节数组 B（作为密钥）</li>
+     *         <li>逐字节异或：C[i] = A[i] ^ B[i % B.length]（循环密钥 XOR）</li>
+     *         <li>将异或结果 C 再次 Base64 解码 -> 得到包含 <code><source></code> 的 HTML</li>
+     *         <li>Jsoup 解析提取 <code>src</code> 属性</li>
+     *       </ul>
+     *   </li>
+     * </ol>
+     * 两种格式均以 <code>document.write(strencode...</code> 为特征，正则已预编译为
+     * {@link #STR_ENCODE2_PATTERN} 与 {@link #STR_ENCODE_PATTERN}。
+     *
+     * @param html 视频播放页完整 HTML
+     * @return 视频真实 URL；若解析失败返回空字符串
+     */
     private static String decodeVideoUrl(String html) {
         if (TextUtils.isEmpty(html)) {
             return "";
@@ -656,9 +643,7 @@ public class ParseV9MmanVideo {
 
         // M96：91porn 当前页面使用 strencode2("%3c%73...") 单参数格式。
         // 该参数是百分号编码后的 <source ...> HTML，Android 的 Uri.decode 可直接还原。
-        Matcher encoded = Pattern.compile(
-                "document\\.write\\(\\s*strencode2\\(\"([^\"]+)\"\\s*\\)"
-        ).matcher(html);
+        Matcher encoded = STR_ENCODE2_PATTERN.matcher(html);
         if (encoded.find()) {
             String decodedHtml = Uri.decode(encoded.group(1));
             if (!TextUtils.isEmpty(decodedHtml)) {
@@ -672,8 +657,7 @@ public class ParseV9MmanVideo {
         }
 
         // 兼容旧版 strencode 三参数格式，保留 M95 的非贪婪/字符集限制。
-        final String reg = "document\\.write\\(strencode\\(\"([A-Za-z0-9+/=]+?)\",\"([A-Za-z0-9+/=]+?)\",\"([A-Za-z0-9+/=]+?)\"";
-        Matcher m = Pattern.compile(reg).matcher(html);
+        Matcher m = STR_ENCODE_PATTERN.matcher(html);
         if (m.find()) {
             String param1 = m.group(1);
             String param2 = m.group(2);
@@ -793,19 +777,25 @@ public class ParseV9MmanVideo {
         }
 
         Element container = body.selectFirst("div.container");
+        if (container == null) {
+            BaseResult<List<V9MmanItem>> emptyResult = new BaseResult<>();
+            emptyResult.setTotalPage(1);
+            emptyResult.setData(new ArrayList<>());
+            return emptyResult;
+        }
 
         List<V9MmanItem> v9MmanItemList = new ArrayList<>();
         java.util.Set<String> seenViewKeys = new java.util.HashSet<>();
         Elements select = container.select("div.row>div.col-sm-12>div.row>div");
         for (Element item : select) {
-            Element a = item.selectFirst("a");
-            if (a == null) {
+            Element anchor = item.selectFirst("a");
+            if (anchor == null) {
                 continue;
             }
             V9MmanItem v9MmanItem = new V9MmanItem();
 
             // M73：video-title 缺失时跳过该条目，避免 NPE 炸掉整页列表（parserByDivContainer 同步修复）
-            Element titleEle = a.getElementsByClass("video-title").first();
+            Element titleEle = anchor.getElementsByClass("video-title").first();
             if (titleEle == null) {
                 Logger.w(TAG, "parseMyFavorite: 条目缺 video-title，跳过 class=" + item.className());
                 continue;
@@ -813,12 +803,12 @@ public class ParseV9MmanVideo {
             String title = titleEle.text().trim();
             v9MmanItem.setTitle(title);
 
-            Element imgEle = a.selectFirst("img.img-responsive");
+            Element imgEle = anchor.selectFirst("img.img-responsive");
             if (imgEle != null) {
                 v9MmanItem.setImgUrl(imgEle.attr("src"));
             }
 
-            Element durationEle = a.selectFirst("span.duration");
+            Element durationEle = anchor.selectFirst("span.duration");
             if (durationEle != null) {
                 v9MmanItem.setDuration(durationEle.text().trim());
             } else {
@@ -826,7 +816,7 @@ public class ParseV9MmanVideo {
             }
 
 
-            String contentUrl = a.attr("href");
+            String contentUrl = anchor.attr("href");
 
             // 与列表解析一致：稳健抽取 viewkey 参数（见 extractViewKey 注释）
             String viewKey = extractViewKey(contentUrl);
@@ -868,7 +858,6 @@ public class ParseV9MmanVideo {
                 e.printStackTrace();
             }
             v9MmanItem.setInfo(info);
-            // Logger.d(info);
             // M73：input 元素缺失时跳过 rvid 提取（保留条目，仅 videoId 为空），
             // 避免 NPE 炸掉整个"我的收藏"页
             Element rvidInput = item.select("input").first();
@@ -889,17 +878,16 @@ public class ParseV9MmanVideo {
         int totalPage = 1;
         Element paging = body.getElementById("paging");
         // M73：paging 缺失（拦截页/改版）时按单页处理，不 NPE
-        Elements a;
+        Elements pagingLinks;
         if (paging == null) {
-            a = new Elements();
+            pagingLinks = new Elements();
         } else {
-            a = paging.select("a");
+            pagingLinks = paging.select("a");
         }
-        if (a.size() > 2) {
-            String ppp = a.get(a.size() - 2).text();
-            if (TextUtils.isDigitsOnly(ppp)) {
-                totalPage = Integer.parseInt(ppp);
-                //Logger.d("总页数：" + totalPage);
+        if (pagingLinks.size() > 2) {
+            String lastPageText = pagingLinks.get(pagingLinks.size() - 2).text();
+            if (TextUtils.isDigitsOnly(lastPageText)) {
+                totalPage = Integer.parseInt(lastPageText);
             }
         }
 
@@ -950,18 +938,23 @@ public class ParseV9MmanVideo {
         }
 
         Element container = body.selectFirst("div.container");
+        if (container == null) {
+            BaseResult<List<V9MmanItem>> emptyResult = new BaseResult<>();
+            emptyResult.setTotalPage(1);
+            emptyResult.setData(new ArrayList<>());
+            return emptyResult;
+        }
         List<V9MmanItem> v9MmanItemList = parserByDivContainer(container);
 
 
         //总页数
         Element pagingnav = doc.getElementById("paging");
         if (pagingnav != null) {
-            Elements a = pagingnav.select("a");
-            if (a.size() >= 2) {
-                String ppp = a.get(a.size() - 2).text();
-                if (TextUtils.isDigitsOnly(ppp)) {
-                    totalPage = Integer.parseInt(ppp);
-                    //Logger.d("总页数：" + totalPage);
+            Elements pagingLinks = pagingnav.select("a");
+            if (pagingLinks.size() >= 2) {
+                String lastPageText = pagingLinks.get(pagingLinks.size() - 2).text();
+                if (TextUtils.isDigitsOnly(lastPageText)) {
+                    totalPage = Integer.parseInt(lastPageText);
                 }
             }
         }
@@ -977,7 +970,7 @@ public class ParseV9MmanVideo {
      * 解析错误提示
      *
      * @param html html
-     * @return 错误洗洗脑
+     * @return 错误信息
      */
     public static String parseErrorInfo(String html) {
         String errorInfo = "";

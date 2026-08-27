@@ -20,20 +20,20 @@ public class AppCacheUtils {
     private final static String GLIDE_DIS_CACHE_DIR = "/glide_cache_dir";
 
     /**
-     * 获取RxCache 缓存目录
+     * H-15: 通用缓存目录获取逻辑，消除三个方法的重复代码
      *
      * @param context context
+     * @param dirSuffix 目录后缀（如 "/rx_cache"、"/video_cache"、"/glide_cache_dir"）
      * @return 缓存目录
      */
-    @NonNull
-    public static File getRxCacheDir(Context context) {
+    private static File getCacheDirInternal(Context context, String dirSuffix) {
         String path;
         if (SDCardUtils.isSDCardMounted()) {
             // M99：getExternalCacheDir 可能返回 null（外存未挂载/被清空），回退内部缓存目录
             File externalCacheDir = context.getExternalCacheDir();
-            path = (externalCacheDir != null ? externalCacheDir.getAbsolutePath() : context.getCacheDir().getAbsolutePath()) + RX_CACHE_DIR;
+            path = (externalCacheDir != null ? externalCacheDir.getAbsolutePath() : context.getCacheDir().getAbsolutePath()) + dirSuffix;
         } else {
-            path = context.getCacheDir() + RX_CACHE_DIR;
+            path = context.getCacheDir() + dirSuffix;
         }
         File file = new File(path);
         if (!file.exists()) {
@@ -43,26 +43,25 @@ public class AppCacheUtils {
     }
 
     /**
+     * 获取RxCache 缓存目录
+     *
+     * @param context context
+     * @return 缓存目录
+     */
+    @NonNull
+    public static File getRxCacheDir(Context context) {
+        return getCacheDirInternal(context, RX_CACHE_DIR);
+    }
+
+    /**
      * 获取视频缓存目录
      *
-     * @param context cotext
+     * @param context context
      * @return 缓存目录
      */
     @NonNull
     public static File getVideoCacheDir(Context context) {
-        String path;
-        if (SDCardUtils.isSDCardMounted()) {
-            // M99：getExternalCacheDir 可能返回 null（外存未挂载/被清空），回退内部缓存目录
-            File externalCacheDir = context.getExternalCacheDir();
-            path = (externalCacheDir != null ? externalCacheDir.getAbsolutePath() : context.getCacheDir().getAbsolutePath()) + VIDEO_CACHE_DIR;
-        } else {
-            path = context.getCacheDir() + VIDEO_CACHE_DIR;
-        }
-        File file = new File(path);
-        if (!file.exists()) {
-            file.mkdirs();
-        }
-        return file.getAbsoluteFile();
+        return getCacheDirInternal(context, VIDEO_CACHE_DIR);
     }
 
     /**
@@ -72,19 +71,7 @@ public class AppCacheUtils {
      * @return 缓存目录
      */
     public static File getGlideDiskCacheDir(Context context) {
-        String path;
-        if (SDCardUtils.isSDCardMounted()) {
-            // M99：getExternalCacheDir 可能返回 null（外存未挂载/被清空），回退内部缓存目录
-            File externalCacheDir = context.getExternalCacheDir();
-            path = (externalCacheDir != null ? externalCacheDir.getAbsolutePath() : context.getCacheDir().getAbsolutePath()) + GLIDE_DIS_CACHE_DIR;
-        } else {
-            path = context.getCacheDir() + GLIDE_DIS_CACHE_DIR;
-        }
-        File file = new File(path);
-        if (!file.exists()) {
-            file.mkdirs();
-        }
-        return file.getAbsoluteFile();
+        return getCacheDirInternal(context, GLIDE_DIS_CACHE_DIR);
     }
 
     /**

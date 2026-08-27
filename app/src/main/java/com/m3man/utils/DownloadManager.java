@@ -220,9 +220,9 @@ public class DownloadManager {
                     if (item != null) {
                         item.setStatus(FileDownloadStatus.completed);
                         item.setProgress(100);
-                        // M99：字段已改 long，去掉 int 强转避免 >2GB 文件尺寸截断
-                        item.setSoFarBytes((int) f.length());
-                        item.setTotalFarBytes((int) f.length());
+                        // M99：实体字段已改为 long，直接存真实字节数，避免 >2GB 截断
+                        item.setSoFarBytes(f.length());
+                        item.setTotalFarBytes(f.length());
                         item.setFinishedDownloadDate(new Date());
                         dataManager.updateV9MmanItem(item);
                     }

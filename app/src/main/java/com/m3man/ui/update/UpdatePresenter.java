@@ -19,7 +19,7 @@ import io.reactivex.schedulers.Schedulers;
  * @author flymegoc
  * @date 2017/12/22
  */
-public class UpdatePresenter extends MvpBasePresenter<UpdateView> implements IUpdate {
+public class UpdatePresenter extends MvpBasePresenter<UpdateView> implements IBaseUpdate {
 
     private LifecycleProvider<Lifecycle.Event> provider;
 

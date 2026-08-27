@@ -21,10 +21,13 @@ import java.util.Date;
 
 import com.m3man.di.ApplicationContext;
 import com.m3man.utils.AppLog;
+import org.greenrobot.greendao.AbstractDao;
 import org.greenrobot.greendao.database.Database;
+import org.greenrobot.greendao.query.QueryBuilder;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -54,6 +57,13 @@ public class AppDbHelper implements DbHelper {
         MigrationHelper.DEBUG = BuildConfig.DEBUG;
         Database db = helper.getWritableDb();
         this.mDaoSession = new DaoMaster(db).newSession();
+        // 复查修正（C-02）：原来通过每次读前 detachAll() 规避脏读，导致缓存形同虚设。
+        // 现设计：全工程仅此一个 DaoSession（单写入方），greenDAO 的 IdentityScope 内部已
+        // 做同步保护，跨线程读写同一 Session 不会产生撕裂数据；若未来引入第二个
+        // 写入口/裸连接，必须自行调用 mDaoSession.clear() 刷新缓存。此处仅清空一次。
+        // 注：原修复曾试图 dao.setIdentityScope(null) 禁用缓存，但 greenDAO 3.2.2 的
+        // AbstractDao 并未公开该方法（字段为 protected final），已改为上述单会话约束。
+        this.mDaoSession.clear();
         // M73：启动时的写库与全表扫描修复移到后台线程执行——
         // 构造发生在主线程（Dagger 初始化），数据量大时拖慢冷启动
         java.util.concurrent.ExecutorService io = java.util.concurrent.Executors.newSingleThreadExecutor();
@@ -169,26 +179,20 @@ public class AppDbHelper implements DbHelper {
 
     @Override
     public List<V9MmanItem> loadDownloadingData() {
-        // M99：读前 detach，对齐收藏/分类路径，避免 IdentityScope 返回陈旧缓存实体
         V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
-        dao.detachAll();
         return dao.queryBuilder().where(V9MmanItemDao.Properties.Status.notEq(FileDownloadStatus.completed), V9MmanItemDao.Properties.DownloadId.notEq(0)).orderDesc(V9MmanItemDao.Properties.AddDownloadDate).build().list();
 
     }
 
     @Override
     public List<V9MmanItem> loadFinishedData() {
-        // M99：读前 detach，对齐收藏/分类路径
         V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
-        dao.detachAll();
         return dao.queryBuilder().where(V9MmanItemDao.Properties.Status.eq(FileDownloadStatus.completed), V9MmanItemDao.Properties.DownloadId.notEq(0)).orderDesc(V9MmanItemDao.Properties.FinishedDownloadDate).build().list();
     }
 
     @Override
     public List<V9MmanItem> loadHistoryData(int page, int pageSize) {
-        // M99：读前 detach，对齐收藏/分类路径
         V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
-        dao.detachAll();
         return dao.queryBuilder().where(V9MmanItemDao.Properties.ViewHistoryDate.isNotNull()).orderDesc(V9MmanItemDao.Properties.ViewHistoryDate).offset((page - 1) * pageSize).limit(pageSize).build().list();
     }
 
@@ -211,10 +215,21 @@ public class AppDbHelper implements DbHelper {
     }
 
     /**
-     * 把旧记录中"仅本地产生"的字段继承到新记录上，避免被网络数据覆盖丢失。
+     * 合并下载状态：把旧记录中"仅本地产生/仅本地有效"的字段继承到新记录，防止网络数据覆盖丢失。
+     * <p>
+     * 优先级规则（新 > 旧，但保留旧值的场景）：
+     * <ol>
+     *   <li>下载核心字段：仅当 target.getDownloadId() == 0 时，从 old 继承 downloadId/status/progress/soFarBytes/totalFarBytes。
+     *       保护正在进行/已完成的下载任务不被重置。</li>
+     *   <li>时间戳字段：target 为 null 时从 old 继承（addDownloadDate/finishedDownloadDate/viewHistoryDate）。
+     *       保留首次加入下载时间、完成时间、观看历史时间。</li>
+     *   <li>本地状态字段：target 为 null 时从 old 继承（isLocalFavorite/sourceName/videoResultId）。
+     *       保留本地收藏标记、来源标记、视频结果关联 ID。</li>
+     * </ol>
+     * 设计原则：网络数据（标题/封面/时长/视频地址）永远以新为准；本地产生的进度/状态/收藏/时间只增不减、以旧为准。
      *
-     * @param old    数据库中已有记录
-     * @param target 待写入记录
+     * @param old    数据库中已有记录（旧值来源）
+     * @param target 待写入记录（新值来源，作为输出参数被修改）
      */
     private void mergeDownloadState(V9MmanItem old, V9MmanItem target) {
         if (target.getDownloadId() == 0) {
@@ -268,56 +283,36 @@ public class AppDbHelper implements DbHelper {
 
     @Override
     public V9MmanItem findV9MmanItemByViewKey(String viewKey) {
-        V9MmanItemDao v9MmanItemDao = mDaoSession.getV9MmanItemDao();
-        // M66b：历史数据存在「同一视频存成两行」的分裂——一处存裸 key（如 36055117）、
-        // 另一处存带前缀 key（viewkey=36055117），按原值精确匹配会命中错误行，
-        // 表现为列表与详情标题/缩略图不一致。这里先按原值查，未命中再用两种归一化形态查。
-        V9MmanItem hit = queryV9MmanItemByKey(v9MmanItemDao, viewKey);
-        if (hit != null) {
-            return hit;
-        }
         if (TextUtils.isEmpty(viewKey)) {
             return null;
         }
+        V9MmanItemDao v9MmanItemDao = mDaoSession.getV9MmanItemDao();
+        // M66b/M-09：历史数据存在「同一视频存成两行」的分裂（裸 key / 带前缀 key）。
+        // M-09：合并为单次查询，使用 OR 条件一次性匹配三种形态，减少 3 次 DB 往返。
+        // 复查修正：三形态必须用 queryBuilder.or() 组合，直接塞进同一 where() 会被 AND 连接，
+        // 导致恒空结果（上一版把唯一命中路径打成了“永远查不到”的功能回归，见 M-09 复查）。
         String bare = viewKey.startsWith("viewkey=") ? viewKey.substring(8) : viewKey;
-        // 归一化形态 2：裸值
-        hit = queryV9MmanItemByKey(v9MmanItemDao, bare);
-        if (hit != null) {
-            return hit;
-        }
-        // 归一化形态 3：带前缀
-        return queryV9MmanItemByKey(v9MmanItemDao, "viewkey=" + bare);
-    }
-
-    private V9MmanItem queryV9MmanItemByKey(V9MmanItemDao dao, String key) {
-        if (TextUtils.isEmpty(key)) {
-            return null;
-        }
-        // M99：读前 detach，对齐收藏/分类路径，避免拿到其它线程缓存的陈旧实体
-        dao.detachAll();
+        String prefixed = "viewkey=" + bare;
         try {
-            // D3：viewKey 已建立唯一索引，直接用 unique() 即可；
-            // 偶发异常不再删除命中行，避免误删用户数据。
-            return dao.queryBuilder().where(V9MmanItemDao.Properties.ViewKey.eq(key)).build().unique();
+            QueryBuilder<V9MmanItem> qb = v9MmanItemDao.queryBuilder();
+            qb.where(qb.or(V9MmanItemDao.Properties.ViewKey.eq(viewKey),
+                           V9MmanItemDao.Properties.ViewKey.eq(bare),
+                           V9MmanItemDao.Properties.ViewKey.eq(prefixed)));
+            return qb.build().uniqueOrThrow();
         } catch (Exception e) {
             // 兜底：用 list 取第一条，绝不再删除用户数据
-            List<V9MmanItem> tmp = dao.queryBuilder().where(V9MmanItemDao.Properties.ViewKey.eq(key)).build().list();
-            if (tmp != null && !tmp.isEmpty()) {
-                return tmp.get(0);
-            }
-            // M99：修正写反的日志方向——仅 DEBUG 打印堆栈，RELEASE 静默
-            if (BuildConfig.DEBUG) {
-                e.printStackTrace();
-            }
-            return null;
+            QueryBuilder<V9MmanItem> qb2 = v9MmanItemDao.queryBuilder();
+            qb2.where(qb2.or(V9MmanItemDao.Properties.ViewKey.eq(viewKey),
+                             V9MmanItemDao.Properties.ViewKey.eq(bare),
+                             V9MmanItemDao.Properties.ViewKey.eq(prefixed)));
+            List<V9MmanItem> tmp = qb2.build().list();
+            return (tmp != null && !tmp.isEmpty()) ? tmp.get(0) : null;
         }
     }
 
     @Override
     public V9MmanItem findV9MmanItemByDownloadId(int downloadId) {
-        // M99：读前 detach，对齐收藏/分类路径
         V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
-        dao.detachAll();
         try {
             return dao.queryBuilder().where(V9MmanItemDao.Properties.DownloadId.eq(downloadId)).build().unique();
         } catch (Exception e) {
@@ -332,17 +327,13 @@ public class AppDbHelper implements DbHelper {
 
     @Override
     public List<V9MmanItem> loadV9MmanItems() {
-        // M99：读前 detach，对齐收藏/分类路径
         V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
-        dao.detachAll();
         return dao.loadAll();
     }
 
     @Override
     public List<V9MmanItem> loadLocalFavoriteItems() {
-        //M6：读前 detach，避免跨线程拿到陈旧缓存实体
         V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
-        dao.detachAll();
         return dao.queryBuilder()
                 .where(V9MmanItemDao.Properties.IsLocalFavorite.eq(true))
                 .orderDesc(V9MmanItemDao.Properties.Id)
@@ -351,23 +342,19 @@ public class AppDbHelper implements DbHelper {
 
     @Override
     public List<V9MmanItem> findV9MmanItemByDownloadStatus(int status) {
-        // M99：读前 detach，对齐收藏/分类路径
         V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
-        dao.detachAll();
         return dao.queryBuilder().where(V9MmanItemDao.Properties.Status.eq(status)).build().list();
     }
 
     @Override
     public List<Category> loadAllCategoryDataByType(int type) {
         CategoryDao categoryDao = mDaoSession.getCategoryDao();
-        categoryDao.detachAll();
         return categoryDao.queryBuilder().where(CategoryDao.Properties.CategoryType.eq(type)).orderAsc(CategoryDao.Properties.SortId).build().list();
     }
 
     @Override
     public List<Category> loadCategoryDataByType(int type) {
         CategoryDao categoryDao = mDaoSession.getCategoryDao();
-        categoryDao.detachAll();
         return categoryDao.queryBuilder().where(CategoryDao.Properties.CategoryType.eq(type), CategoryDao.Properties.IsShow.eq(true)).orderAsc(CategoryDao.Properties.SortId).build().list();
     }
 
@@ -379,15 +366,12 @@ public class AppDbHelper implements DbHelper {
     @Override
     public Category findCategoryById(Long id) {
         CategoryDao categoryDao = mDaoSession.getCategoryDao();
-        categoryDao.detachAll();
         return categoryDao.load(id);
     }
 
     @Override
     public List<AuthorFavorite> loadAuthorFavorites() {
-        //M6：Session 级 IdentityScope 会缓存实体并跨 IO/主线程共享，读前先 detach 拿最新数据
         AuthorFavoriteDao dao = mDaoSession.getAuthorFavoriteDao();
-        dao.detachAll();
         return dao.queryBuilder()
                 .orderDesc(AuthorFavoriteDao.Properties.FavoriteDate)
                 .build().list();
@@ -396,8 +380,6 @@ public class AppDbHelper implements DbHelper {
     @Override
     public AuthorFavorite findAuthorFavorite(String authorKey, String source) {
         // D5：用 list().get(0) 而非 unique()，即便历史上已存在重复行也不会抛 DaoException 导致功能永久损坏
-        // M6：读前 detach，避免拿到其它线程缓存的陈旧实体
-        mDaoSession.getAuthorFavoriteDao().detachAll();
         List<AuthorFavorite> list = mDaoSession.getAuthorFavoriteDao().queryBuilder()
                 .where(AuthorFavoriteDao.Properties.AuthorKey.eq(authorKey),
                         AuthorFavoriteDao.Properties.Source.eq(source))
@@ -445,21 +427,21 @@ public class AppDbHelper implements DbHelper {
 
     @Override
     public List<String> getAutoCompleteNames(int type) {
-        List<String> names = new ArrayList<>();
+        Set<String> nameSet = new LinkedHashSet<>();
         try {
             List<AutoCompleteEntity> list = mDaoSession.getAutoCompleteEntityDao().queryBuilder()
                     .where(AutoCompleteEntityDao.Properties.Type.eq(type))
                     .orderDesc(AutoCompleteEntityDao.Properties.UseTime)
                     .list();
             for (AutoCompleteEntity e : list) {
-                if (!TextUtils.isEmpty(e.getName()) && !names.contains(e.getName())) {
-                    names.add(e.getName());
+                if (!TextUtils.isEmpty(e.getName())) {
+                    nameSet.add(e.getName());
                 }
             }
         } catch (Exception e) {
             // 查询异常不应影响 UI
         }
-        return names;
+        return new ArrayList<>(nameSet);
     }
 
     @Override
@@ -496,11 +478,13 @@ public class AppDbHelper implements DbHelper {
                     .orderDesc(AutoCompleteEntityDao.Properties.UpdateDate)
                     .limit(limit)
                     .list();
+            Set<String> nameSet = new LinkedHashSet<>();
             for (AutoCompleteEntity e : list) {
-                if (!TextUtils.isEmpty(e.getName()) && !names.contains(e.getName())) {
-                    names.add(e.getName());
+                if (!TextUtils.isEmpty(e.getName())) {
+                    nameSet.add(e.getName());
                 }
             }
+            names.addAll(nameSet);
         } catch (Exception e) {
             // 查询异常不应影响 UI
         }

@@ -28,7 +28,7 @@ import com.m3man.utils.SDCardUtils;
 import com.m3man.utils.VideoCacheFileNameGenerator;
 
 import java.io.File;
-import java.io.IOException;
+
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
@@ -48,7 +48,7 @@ import io.reactivex.schedulers.Schedulers;
 /**
  * @author flymegoc
  * @date 2017/11/27
- * @describe
+ * @describe 下载管理 Presenter，负责视频下载任务的创建、监控、暂停/恢复、断点续传、缓存拷贝及重试降级逻辑
  */
 
 public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements IDownload {
@@ -57,8 +57,6 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
     private LifecycleProvider<Lifecycle.Event> provider;
     private Context context;
     private OkHttpClient okHttpClient;
-    // M74：缓存拷贝分支回退到正常下载时，用此标志防止再次命中缓存分支造成递归
-    private volatile boolean bypassCacheCopy = false;
 
     @Inject
     public DownloadPresenter(DataManager dataManager, LifecycleProvider<Lifecycle.Event> provider,
@@ -71,7 +69,82 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
 
     @Override
     public void favorite(String uId, String videoId, String ownnerId) {
+        // L-17：IBaseFavorite 经 IDownload → IBaseDownload 继承链要求实现本方法，
+        // 但下载模块不承担收藏职责（收藏统一由 FavoritePresenter 处理），刻意留空。
+    }
 
+    /**
+     * 校验参数、从 DB 查找并用内存对象兜底回写。
+     * @return 校验通过的 DB 对象；null 表示应中止下载（已通知 listener）
+     */
+    private V9MmanItem validateAndResolveItem(V9MmanItem item, DownloadListener listener) {
+        if (item == null) {
+            if (listener != null) {
+                listener.onError("视频信息为空");
+            }
+            return null;
+        }
+        V9MmanItem resolvedItem = dataManager.findV9MmanItemByViewKey(item.getViewKey());
+        if (resolvedItem == null) {
+            AppLog.e("Download", "数据库找不到视频 viewKey=" + item.getViewKey());
+        } else if (resolvedItem.getVideoResultId() == 0) {
+            AppLog.w("Download", "DB行无解析结果 videoResultId=0 viewKey=" + item.getViewKey());
+        }
+        // M68：DB 行缺失或无解析结果时，用刚解析成功的内存对象兜底并回写，
+        // 避免「明明刚解析成功却提示还未解析成功视频地址」的死路。
+        if ((resolvedItem == null || resolvedItem.getVideoResultId() == 0)
+                && item.getVideoResult() != null
+                && !TextUtils.isEmpty(item.getVideoResult().getVideoUrl())) {
+            AppLog.w("Download", "用内存解析结果兜底并回写DB viewKey=" + item.getViewKey());
+            try {
+                if (item.getSourceName() == null) {
+                    item.setSourceName(PlayVideoPresenter.SOURCE_MMAN9_PERSIST);
+                }
+                dataManager.saveV9MmanItem(item);
+                resolvedItem = dataManager.findV9MmanItemByViewKey(item.getViewKey());
+                AppLog.i("Download", "兜底回写完成 videoResultId=" + (resolvedItem == null ? -1 : resolvedItem.getVideoResultId()));
+            } catch (Exception e) {
+                AppLog.e("Download", "兜底回写失败 " + AppLog.cause(e));
+            }
+        }
+        if (resolvedItem == null || resolvedItem.getVideoResultId() == 0) {
+            AppLog.e("Download", "下载中止：无可用解析结果 viewKey=" + item.getViewKey());
+            if (listener != null) {
+                listener.onError("还未解析成功视频地址");
+            } else {
+                ifViewAttached(new ViewAction<DownloadView>() {
+                    @Override
+                    public void run(@NonNull DownloadView view) {
+                        view.showMessage("还未解析成功视频地址", TastyToast.WARNING);
+                    }
+                });
+            }
+            return null;
+        }
+        return resolvedItem;
+    }
+
+    /**
+     * M61：检查文件是否已下载（兼容回退目录），已下载则通知 listener 并返回 true
+     */
+    private boolean isAlreadyDownloaded(V9MmanItem item, DownloadListener listener) {
+        File toFile = SDCardUtils.resolveExistingDownloadFile(context,
+                item.getDownLoadPath(getCustomDownloadVideoDirPath()));
+        if (toFile != null && toFile.exists() && toFile.length() > 0) {
+            AppLog.w("Download", "文件已存在，跳过下载 path=" + toFile.getAbsolutePath());
+            if (listener != null) {
+                listener.onError("已经下载过了，请查看下载目录");
+            } else {
+                ifViewAttached(new ViewAction<DownloadView>() {
+                    @Override
+                    public void run(@NonNull DownloadView view) {
+                        view.showMessage("已经下载过了，请查看下载目录", TastyToast.INFO);
+                    }
+                });
+            }
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -87,9 +160,9 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         if (v9MmanItem == null) {
             return;
         }
-        V9MmanItem tmp = dataManager.findV9MmanItemByViewKey(v9MmanItem.getViewKey());
-        if (tmp == null || tmp.getVideoResult() == null
-                || TextUtils.isEmpty(tmp.getVideoResult().getVideoUrl())) {
+        V9MmanItem resolvedItem = dataManager.findV9MmanItemByViewKey(v9MmanItem.getViewKey());
+        if (resolvedItem == null || resolvedItem.getVideoResult() == null
+                || TextUtils.isEmpty(resolvedItem.getVideoResult().getVideoUrl())) {
             ifViewAttached(new ViewAction<DownloadView>() {
                 @Override
                 public void run(@NonNull DownloadView view) {
@@ -99,7 +172,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
             return;
         }
         String path = SDCardUtils.ensureDownloadDir(
-                tmp.getDownLoadPath(getCustomDownloadVideoDirPath()), context);
+                resolvedItem.getDownLoadPath(getCustomDownloadVideoDirPath()), context);
         if (TextUtils.isEmpty(path)) {
             ifViewAttached(new ViewAction<DownloadView>() {
                 @Override
@@ -109,145 +182,144 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
             });
             return;
         }
-        startDownloadInternal(tmp, tmp.getVideoResult().getVideoUrl(), path,
+        startDownloadInternal(resolvedItem, resolvedItem.getVideoResult().getVideoUrl(), path,
                 dataManager.isDownloadVideoNeedWifi(), true, null);
+    }
+
+    /**
+     * M68/M69：pause 探针检测僵尸下载任务并清理残留。
+     * @return true = 真实任务已暂停（后续可断点续传）；false = 僵尸已清理或无任务
+     */
+    private boolean probeAndCleanupZombieTask(V9MmanItem item, boolean force) {
+        if (item.getStatus() != FileDownloadStatus.progress || item.getDownloadId() == 0 || force) {
+            return false;
+        }
+        boolean resumedRealTask = false;
+        try {
+            if (FileDownloader.getImpl().isServiceConnected()) {
+                int pausedCount = FileDownloader.getImpl().pause(item.getDownloadId());
+                resumedRealTask = pausedCount > 0;
+                AppLog.i("Download", "pause探针 downloadId=" + item.getDownloadId()
+                        + " pausedCount=" + pausedCount + " realTask=" + resumedRealTask);
+            } else {
+                AppLog.w("Download", "下载服务未连接且DB状态progress，按僵尸处理 downloadId="
+                        + item.getDownloadId());
+            }
+        } catch (Throwable ignored) {
+        }
+        if (!resumedRealTask) {
+            AppLog.w("Download", "检测到僵尸下载任务(downloadId=" + item.getDownloadId()
+                    + ")，清除残留后重新下载 viewKey=" + item.getViewKey());
+            try {
+                String clearPath = item.getDownLoadPath(getCustomDownloadVideoDirPath());
+                FileDownloader.getImpl().clear(item.getDownloadId(), clearPath);
+                deleteFileWithTemp(clearPath);
+                File fallback = SDCardUtils.resolveExistingDownloadFile(context, clearPath);
+                if (fallback != null && !fallback.getAbsolutePath().equals(clearPath)) {
+                    deleteFileWithTemp(fallback.getAbsolutePath());
+                }
+            } catch (Exception e) {
+                AppLog.w("Download", "僵尸清理异常(忽略) " + AppLog.cause(e));
+            }
+            item.setStatus(FileDownloadStatus.error);
+            item.setSoFarBytes(0);
+            item.setProgress(0);
+            dataManager.updateV9MmanItem(item);
+        }
+        return resumedRealTask;
+    }
+
+    /**
+     * M102：断点续传优先——探活旧 URL，有效则续传，失效则重解析。
+     * @return true 表示已处理（续传或重解析已发起），调用方应 return；false 表示不满足续传条件
+     */
+    private boolean tryResumeDownload(V9MmanItem item, String path, boolean resumedRealTask,
+                                      boolean force, DownloadListener listener) {
+        if (force || isPornyVideo(item)) {
+            return false;
+        }
+        String oldUrl = item.getVideoResult() == null ? null : item.getVideoResult().getVideoUrl();
+        if (TextUtils.isEmpty(oldUrl) || item.getSoFarBytes() <= 0) {
+            return false;
+        }
+        if (!resumedRealTask
+                && item.getStatus() != FileDownloadStatus.paused
+                && item.getStatus() != FileDownloadStatus.error) {
+            return false;
+        }
+        if (!hasFileDownloaderCheckpoint(path)) {
+            return false;
+        }
+        final V9MmanItem resumeItem = item;
+        final String resumePath = path;
+        final String resumeOldUrl = oldUrl;
+        final boolean resumeForce = force;
+        final boolean resumeWifi = dataManager.isDownloadVideoNeedWifi();
+        final DownloadListener resumeListener = listener;
+        Observable.create(new ObservableOnSubscribe<Boolean>() {
+            @Override
+            public void subscribe(ObservableEmitter<Boolean> emitter) throws Exception {
+                emitter.onNext(PornyFallbackResolver.isAlive(okHttpClient, resumeOldUrl));
+                emitter.onComplete();
+            }
+        })
+                .compose(RxSchedulersHelper.<Boolean>ioMainThread())
+                .compose(provider.<Boolean>bindUntilEvent(Lifecycle.Event.ON_DESTROY))
+                .subscribe(new CallBackWrapper<Boolean>() {
+                    @Override
+                    public void onBegin(Disposable d) {
+                    }
+
+                    @Override
+                    public void onSuccess(Boolean alive) {
+                        if (alive != null && alive) {
+                            AppLog.i("Download", "继续下载：旧地址仍有效，断点续传 viewKey="
+                                    + resumeItem.getViewKey()
+                                    + " 已下=" + resumeItem.getSoFarBytes() + "B");
+                            startDownloadInternal(resumeItem, resumeOldUrl, resumePath,
+                                    resumeWifi, false, resumeListener);
+                        } else {
+                            AppLog.i("Download", "继续下载：旧地址已失效，重解析后下载 viewKey="
+                                    + resumeItem.getViewKey());
+                            reparseThenDownload(resumeItem, resumePath, resumeWifi,
+                                    resumeForce, resumeListener);
+                        }
+                    }
+
+                    @Override
+                    public void onError(String msg, int code) {
+                        AppLog.e("Download", "续传探活失败(" + msg + ")，重解析后下载 viewKey="
+                                + resumeItem.getViewKey());
+                        reparseThenDownload(resumeItem, resumePath, resumeWifi,
+                                resumeForce, resumeListener);
+                    }
+                });
+        return true;
     }
 
     @Override
     public void downloadVideo(V9MmanItem v9MmanItem, boolean isForceReDownload, DownloadListener downloadListener) {
         AppLog.i("Download", "下载请求 viewKey=" + (v9MmanItem == null ? "null" : v9MmanItem.getViewKey())
                 + " force=" + isForceReDownload);
-        if (v9MmanItem == null) {
-            if (downloadListener != null) {
-                downloadListener.onError("视频信息为空");
-            }
+        V9MmanItem item = validateAndResolveItem(v9MmanItem, downloadListener);
+        if (item == null) {
             return;
         }
-        V9MmanItem tmp = dataManager.findV9MmanItemByViewKey(v9MmanItem.getViewKey());
-        if (tmp == null) {
-            AppLog.e("Download", "数据库找不到视频 viewKey=" + v9MmanItem.getViewKey());
-        } else if (tmp.getVideoResultId() == 0) {
-            AppLog.w("Download", "DB行无解析结果 videoResultId=0 viewKey=" + v9MmanItem.getViewKey());
-        }
-        // M68：DB 行缺失或无解析结果时，用刚解析成功的内存对象兜底并回写，
-        // 避免「明明刚解析成功却提示还未解析成功视频地址」的死路。
-        if ((tmp == null || tmp.getVideoResultId() == 0)
-                && v9MmanItem.getVideoResult() != null
-                && !TextUtils.isEmpty(v9MmanItem.getVideoResult().getVideoUrl())) {
-            AppLog.w("Download", "用内存解析结果兜底并回写DB viewKey=" + v9MmanItem.getViewKey());
-            try {
-                if (v9MmanItem.getSourceName() == null) {
-                    v9MmanItem.setSourceName(PlayVideoPresenter.SOURCE_MMAN9_PERSIST);
-                }
-                dataManager.saveV9MmanItem(v9MmanItem);
-                tmp = dataManager.findV9MmanItemByViewKey(v9MmanItem.getViewKey());
-                AppLog.i("Download", "兜底回写完成 videoResultId=" + (tmp == null ? -1 : tmp.getVideoResultId()));
-            } catch (Exception e) {
-                AppLog.e("Download", "兜底回写失败 " + AppLog.cause(e));
-            }
-        }
-        if (tmp == null || tmp.getVideoResultId() == 0) {
-            AppLog.e("Download", "下载中止：无可用解析结果 viewKey=" + v9MmanItem.getViewKey());
-            if (downloadListener != null) {
-                downloadListener.onError("还未解析成功视频地址");
-            } else {
-                ifViewAttached(new ViewAction<DownloadView>() {
-                    @Override
-                    public void run(@NonNull DownloadView view) {
-                        view.showMessage("还未解析成功视频地址", TastyToast.WARNING);
-                    }
-                });
-            }
-            return;
-        }
-        VideoResult videoResult = tmp.getVideoResult();
+        VideoResult videoResult = item.getVideoResult();
         //先检查文件（M61：兼容回退目录，避免重复下载）
-        File toFile = SDCardUtils.resolveExistingDownloadFile(context,
-                tmp.getDownLoadPath(getCustomDownloadVideoDirPath()));
-        if (toFile != null && toFile.exists() && toFile.length() > 0) {
-            AppLog.w("Download", "文件已存在，跳过下载 path=" + toFile.getAbsolutePath());
-            if (downloadListener != null) {
-                downloadListener.onError("已经下载过了，请查看下载目录");
-            } else {
-                ifViewAttached(new ViewAction<DownloadView>() {
-                    @Override
-                    public void run(@NonNull DownloadView view) {
-                        view.showMessage("已经下载过了，请查看下载目录", TastyToast.INFO);
-                    }
-                });
-            }
+        if (isAlreadyDownloaded(item, downloadListener)) {
             return;
         }
         //如果已经缓存完成，直接使用缓存代理完成
-        // M74：缓存拷贝回退场景下置位 bypassCacheCopy，跳过本分支，避免再次进入 copyCacheFile 递归
-        if (!bypassCacheCopy && dataManager.isVideoCacheByProxy(videoResult.getVideoUrl())) {
-            AppLog.i("Download", "命中播放缓存，走缓存拷贝路径 viewKey=" + tmp.getViewKey());
-            try {
-                copyCacheFile(AppCacheUtils.getVideoCacheDir(context), tmp, downloadListener);
-            } catch (IOException e) {
-                if (downloadListener != null) {
-                    downloadListener.onError("缓存文件错误，无法拷贝");
-                } else {
-                    ifViewAttached(new ViewAction<DownloadView>() {
-                        @Override
-                        public void run(@NonNull DownloadView view) {
-                            view.showMessage("缓存文件错误，无法拷贝", TastyToast.ERROR);
-                        }
-                    });
-                }
-                e.printStackTrace();
-            }
+        // M74：先同步检查缓存文件是否存在，存在再异步拷贝，避免 TOCTOU 递归 hack
+        File cacheFile = getCacheFileIfExists(item);
+        if (cacheFile != null) {
+            AppLog.i("Download", "命中播放缓存，走缓存拷贝路径 viewKey=" + item.getViewKey());
+            copyCacheFile(item, cacheFile, downloadListener);
             return;
         }
-        // M74：走到这里说明未走缓存拷贝分支（未命中或 bypassCacheCopy 回退），清除标志
-        bypassCacheCopy = false;
-        //检查当前状态
-        // M102：pause 探针判定结果提升为方法级变量——后面的"继续下载续传优先"分支需要知道任务是否真实存在
-        boolean resumedRealTask = false;
-        if (tmp.getStatus() == FileDownloadStatus.progress && tmp.getDownloadId() != 0 && !isForceReDownload) {
-            // M68：僵尸任务防护——DB 状态是 progress 但下载器里已没有该任务
-            //（App 重启后状态残留 / 历史遗留），永远不会再有回调，点下载会被永远封锁。
-            // FileDownloader 无公开查询 API，用 pause 探针：pause 返回被暂停的任务数，
-            // >0 = 真有任务（已转为暂停态，走下面的重新入队即断点续传）；
-            // =0 或服务未连接 = 僵尸记录，清掉状态后照常重新下载。
-            try {
-                if (FileDownloader.getImpl().isServiceConnected()) {
-                    int pausedCount = FileDownloader.getImpl().pause(tmp.getDownloadId());
-                    resumedRealTask = pausedCount > 0;
-                    AppLog.i("Download", "pause探针 downloadId=" + tmp.getDownloadId()
-                            + " pausedCount=" + pausedCount + " realTask=" + resumedRealTask);
-                } else {
-                    AppLog.w("Download", "下载服务未连接且DB状态progress，按僵尸处理 downloadId="
-                            + tmp.getDownloadId());
-                }
-            } catch (Throwable ignored) {
-            }
-            if (!resumedRealTask) {
-                AppLog.w("Download", "检测到僵尸下载任务(downloadId=" + tmp.getDownloadId()
-                        + ")，清除残留后重新下载 viewKey=" + tmp.getViewKey());
-                // M69：用户日志实锤「IOException: No such file or directory」——
-                // DB 进度偏移还在但 .fddownload 临时文件已丢，直接续传会 ENOENT。
-                // 必须 clear 掉下载器侧的旧任务与坏临时文件，从头下。
-                try {
-                    String clearPath = tmp.getDownLoadPath(getCustomDownloadVideoDirPath());
-                    FileDownloader.getImpl().clear(tmp.getDownloadId(), clearPath);
-                    deleteFileWithTemp(clearPath);
-                    // 回退目录里的残留也清掉
-                    File fallback = SDCardUtils.resolveExistingDownloadFile(context, clearPath);
-                    if (fallback != null && !fallback.getAbsolutePath().equals(clearPath)) {
-                        deleteFileWithTemp(fallback.getAbsolutePath());
-                    }
-                } catch (Exception e) {
-                    AppLog.w("Download", "僵尸清理异常(忽略) " + AppLog.cause(e));
-                }
-                tmp.setStatus(FileDownloadStatus.error);
-                tmp.setSoFarBytes(0);
-                tmp.setProgress(0);
-                dataManager.updateV9MmanItem(tmp);
-            }
-            // 无论真实任务(已暂停)还是僵尸记录，都继续往下走统一重新入队：
-            // 真实任务若旧地址仍有效则断点续传（见下方 M102 分支）；僵尸任务已清残留，从头下不会报错。
-        }
+        //检查当前状态 — M68 僵尸任务防护 + M102 pause 探针
+        boolean resumedRealTask = probeAndCleanupZombieTask(item, isForceReDownload);
         Logger.d("视频连接：" + videoResult.getVideoUrl());
         String path = v9MmanItem.getDownLoadPath(getCustomDownloadVideoDirPath());
         String requestedPath = path;
@@ -260,85 +332,30 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
             return;
         }
         Logger.d(path);
-        AppLog.i("Download", "开始下载 viewKey=" + tmp.getViewKey()
-                + " 标题=" + tmp.getTitle() + " 源=" + (tmp.getSource() == null ? "9mman" : tmp.getSource())
+        AppLog.i("Download", "开始下载 viewKey=" + item.getViewKey()
+                + " 标题=" + item.getTitle() + " 源=" + (item.getSource() == null ? "9mman" : item.getSource())
                 + " 地址=" + dataManager.getMman9VideoAddress()
                 + " 代理=" + (dataManager.isOpenHttpProxy()
                         ? dataManager.getProxyIpAddress() + ":" + dataManager.getProxyPort() : "关"));
         boolean isDownloadNeedWifi = dataManager.isDownloadVideoNeedWifi();
-        // M102：「继续下载」断点续传优先——FileDownloader 以 url+path 哈希生成任务 id，
-        // 换新地址等于新任务、断点全部作废（表现为“继续下载”却从头重下）。
-        // 对有进度的暂停/失败记录（含 pause 探针确认的真实任务）：先探活 DB 旧地址（Range 取 1 字节），
-        // 仍放行则保持旧地址不变直接入队续传；旧地址已过期才重新解析拿新地址
-        // （此时 CDN 连 Range 都拒绝，旧断点本来就无法使用，只能从头下）。
-        // 仅作用于 91mman 直链源；porny 直链地址无时效性，维持原直连逻辑。
-        final V9MmanItem resumeItem = tmp;
-        final String resumePath = path;
-        final String resumeOldUrl = videoResult == null ? null : videoResult.getVideoUrl();
-        final boolean resumeForce = isForceReDownload;
-        final boolean resumeWifi = isDownloadNeedWifi;
-        final DownloadListener resumeListener = downloadListener;
-        if (!resumeForce && !isPornyVideo(resumeItem)
-                && !TextUtils.isEmpty(resumeOldUrl)
-                && resumeItem.getSoFarBytes() > 0
-                && (resumedRealTask
-                || resumeItem.getStatus() == FileDownloadStatus.paused
-                || resumeItem.getStatus() == FileDownloadStatus.error)
-                && hasFileDownloaderCheckpoint(resumePath)) {
-            Observable.create(new ObservableOnSubscribe<Boolean>() {
-                @Override
-                public void subscribe(ObservableEmitter<Boolean> emitter) throws Exception {
-                    emitter.onNext(PornyFallbackResolver.isAlive(okHttpClient, resumeOldUrl));
-                    emitter.onComplete();
-                }
-            })
-                    .compose(RxSchedulersHelper.<Boolean>ioMainThread())
-                    .compose(provider.<Boolean>bindUntilEvent(Lifecycle.Event.ON_DESTROY))
-                    .subscribe(new CallBackWrapper<Boolean>() {
-                        @Override
-                        public void onBegin(Disposable d) {
-                        }
-
-                        @Override
-                        public void onSuccess(Boolean alive) {
-                            if (alive != null && alive) {
-                                AppLog.i("Download", "继续下载：旧地址仍有效，断点续传 viewKey="
-                                        + resumeItem.getViewKey()
-                                        + " 已下=" + resumeItem.getSoFarBytes() + "B");
-                                startDownloadInternal(resumeItem, resumeOldUrl, resumePath,
-                                        resumeWifi, false, resumeListener);
-                            } else {
-                                AppLog.i("Download", "继续下载：旧地址已失效，重解析后下载 viewKey="
-                                        + resumeItem.getViewKey());
-                                reparseThenDownload(resumeItem, resumePath, resumeWifi,
-                                        resumeForce, resumeListener);
-                            }
-                        }
-
-                        @Override
-                        public void onError(String msg, int code) {
-                            AppLog.e("Download", "续传探活失败(" + msg + ")，重解析后下载 viewKey="
-                                    + resumeItem.getViewKey());
-                            reparseThenDownload(resumeItem, resumePath, resumeWifi,
-                                    resumeForce, resumeListener);
-                        }
-                    });
+        // M102：断点续传优先——探活旧 URL，有效则续传，失效则重解析（详见 tryResumeDownload 文档）
+        if (tryResumeDownload(item, path, resumedRealTask, isForceReDownload, downloadListener)) {
             return;
         }
         // 91mman 视频分类源：直链带时效签名（st/f 参数），DB 里存的旧 URL 过期后 CDN 拒绝
         // （表现为进度 0% 无速度）。下载前先重新解析播放页拿新鲜 URL；其它源（91porny 等）直接用。
         // M68：isPornyVideo 已与 PlayVideoPresenter.isPornySource 权威逻辑对齐。
-        if (!isPornyVideo(tmp)) {
-            reparseThenDownload(tmp, path, isDownloadNeedWifi, isForceReDownload, downloadListener);
+        if (!isPornyVideo(item)) {
+            reparseThenDownload(item, path, isDownloadNeedWifi, isForceReDownload, downloadListener);
             return;
         }
-        startDownloadInternal(tmp, videoResult.getVideoUrl(), path, isDownloadNeedWifi, isForceReDownload, downloadListener);
+        startDownloadInternal(item, videoResult.getVideoUrl(), path, isDownloadNeedWifi, isForceReDownload, downloadListener);
     }
 
     /** 下载前重新解析 91mman 播放页，拿到带新时效签名的直链再下载（失败则退回旧地址尝试） */
-    private void reparseThenDownload(final V9MmanItem tmp, final String path, final boolean wifi,
+    private void reparseThenDownload(final V9MmanItem item, final String path, final boolean wifi,
                                      final boolean force, final DownloadListener listener) {
-        dataManager.loadMman9VideoUrl(tmp.getViewKey())
+        dataManager.loadMman9VideoUrl(item.getViewKey())
                 .compose(RxSchedulersHelper.<VideoResult>ioMainThread())
                 .compose(provider.<VideoResult>bindUntilEvent(Lifecycle.Event.ON_DESTROY))
                 .subscribe(new CallBackWrapper<VideoResult>() {
@@ -350,33 +367,33 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                     public void onSuccess(VideoResult fresh) {
                         String freshUrl = fresh == null ? null : fresh.getVideoUrl();
                         if (TextUtils.isEmpty(freshUrl)) {
-                            AppLog.w("Download", "重新解析为空，走91porny兜底 viewKey=" + tmp.getViewKey());
+                            AppLog.w("Download", "重新解析为空，走91porny兜底 viewKey=" + item.getViewKey());
                             // 观看次数超限等：直接尝试备用源
-                            tryPornyFallback(tmp, path, wifi, force, listener);
+                            tryPornyFallback(item, path, wifi, force, listener);
                             return;
                         }
                         // 写回 DB，保证「我的下载」等其它入口下次直接命中新鲜地址
                         try {
                             dataManager.saveVideoResult(fresh);
-                            tmp.setVideoResult(fresh);
-                            dataManager.updateV9MmanItem(tmp);
+                            item.setVideoResult(fresh);
+                            dataManager.updateV9MmanItem(item);
                         } catch (Exception ignored) {
                         }
                         // 直链 CDN 可能封锁当前网络（下载 error/0% 无速度）：先探活，被拒则走 91porny 备用源
                         if (!PornyFallbackResolver.isAlive(okHttpClient, freshUrl)) {
-                            AppLog.w("Download", "直链探活失败，走91porny兜底 viewKey=" + tmp.getViewKey());
-                            tryPornyFallback(tmp, path, wifi, force, listener);
+                            AppLog.w("Download", "直链探活失败，走91porny兜底 viewKey=" + item.getViewKey());
+                            tryPornyFallback(item, path, wifi, force, listener);
                             return;
                         }
-                        AppLog.i("Download", "重新解析成功，开始下载 viewKey=" + tmp.getViewKey()
+                        AppLog.i("Download", "重新解析成功，开始下载 viewKey=" + item.getViewKey()
                                 + " host=" + AppLog.hostOf(freshUrl));
-                        startDownloadInternal(tmp, freshUrl, path, wifi, force, listener);
+                        startDownloadInternal(item, freshUrl, path, wifi, force, listener);
                     }
 
                     @Override
                     public void onError(String msg, int code) {
-                        AppLog.e("Download", "重新解析失败(" + msg + ")，走91porny兜底 viewKey=" + tmp.getViewKey());
-                        tryPornyFallback(tmp, path, wifi, force, listener);
+                        AppLog.e("Download", "重新解析失败(" + msg + ")，走91porny兜底 viewKey=" + item.getViewKey());
+                        tryPornyFallback(item, path, wifi, force, listener);
                     }
                 });
     }
@@ -385,14 +402,14 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
      * 91mman 直链不可用（CDN 封锁 / 观看超限 / 解析失败）时：
      * 用标题反查 91porny → 命中则改走 HLS 下载；未命中退回 DB 旧地址。
      */
-    private void tryPornyFallback(final V9MmanItem tmp, final String path, final boolean wifi,
+    private void tryPornyFallback(final V9MmanItem item, final String path, final boolean wifi,
                                   final boolean force, final DownloadListener listener) {
         // 解析 91porny 是网络请求，放 IO 线程
         io.reactivex.Observable
                 .create(new ObservableOnSubscribe<VideoResult>() {
                     @Override
                     public void subscribe(io.reactivex.ObservableEmitter<VideoResult> emitter) throws Exception {
-                        VideoResult pr = PornyFallbackResolver.resolve(dataManager, tmp.getTitle());
+                        VideoResult pr = PornyFallbackResolver.resolve(dataManager, item.getTitle());
                         if (pr == null) {
                             emitter.onNext(null);
                         } else {
@@ -411,10 +428,10 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                     @Override
                     public void onSuccess(VideoResult pornyResult) {
                         if (pornyResult != null && !TextUtils.isEmpty(pornyResult.getVideoUrl())) {
-                            AppLog.i("Download", "91porny兜底命中，改HLS下载 viewKey=" + tmp.getViewKey()
+                            AppLog.i("Download", "91porny兜底命中，改HLS下载 viewKey=" + item.getViewKey()
                                     + " host=" + AppLog.hostOf(pornyResult.getVideoUrl()));
-                            PornyFallbackResolver.applyPornyResult(dataManager, tmp, pornyResult);
-                            PornyFallbackResolver.enqueueHlsDownload(context, tmp, pornyResult.getVideoUrl(), path);
+                            PornyFallbackResolver.applyPornyResult(dataManager, item, pornyResult);
+                            PornyFallbackResolver.enqueueHlsDownload(context, item, pornyResult.getVideoUrl(), path);
                             if (listener != null) {
                                 listener.onSuccess("源站受限，已改用 91porny 源下载");
                             } else {
@@ -427,22 +444,22 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                             }
                             return;
                         }
-                        AppLog.w("Download", "91porny兜底未命中，退回旧地址 viewKey=" + tmp.getViewKey());
+                        AppLog.w("Download", "91porny兜底未命中，退回旧地址 viewKey=" + item.getViewKey());
                         // 备用源未命中：退回旧地址尝试
-                        startDownloadWithFallback(tmp, path, wifi, force, listener);
+                        startDownloadWithFallback(item, path, wifi, force, listener);
                     }
 
                     @Override
                     public void onError(String msg, int code) {
-                        AppLog.e("Download", "91porny兜底解析失败(" + msg + ")，退回旧地址 viewKey=" + tmp.getViewKey());
-                        startDownloadWithFallback(tmp, path, wifi, force, listener);
+                        AppLog.e("Download", "91porny兜底解析失败(" + msg + ")，退回旧地址 viewKey=" + item.getViewKey());
+                        startDownloadWithFallback(item, path, wifi, force, listener);
                     }
                 });
     }
 
     /** 重新解析失败时退回 DB 旧地址尝试（可能恰好仍有效） */
-    private void startDownloadWithFallback(V9MmanItem tmp, String path, boolean wifi, boolean force, DownloadListener listener) {
-        VideoResult old = tmp.getVideoResult();
+    private void startDownloadWithFallback(V9MmanItem item, String path, boolean wifi, boolean force, DownloadListener listener) {
+        VideoResult old = item.getVideoResult();
         String oldUrl = old == null ? null : old.getVideoUrl();
         if (TextUtils.isEmpty(oldUrl)) {
             if (listener != null) {
@@ -457,16 +474,16 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
             }
             return;
         }
-        startDownloadInternal(tmp, oldUrl, path, wifi, force, listener);
+        startDownloadInternal(item, oldUrl, path, wifi, force, listener);
     }
 
     /** 真正启动下载（带 Referer/UA 请求头） */
-    private void startDownloadInternal(V9MmanItem tmp, String url, String path, boolean wifi, boolean force, DownloadListener listener) {
+    private void startDownloadInternal(V9MmanItem item, String url, String path, boolean wifi, boolean force, DownloadListener listener) {
         // M61：m3u8 绝不能交给 FileDownloader（会把播放列表文本秒下成假 mp4），改走 HLS 服务
         if (DownloadManager.isHlsUrl(url)) {
-            AppLog.i("Download", "HLS地址改走HLS服务下载 viewKey=" + tmp.getViewKey()
+            AppLog.i("Download", "HLS地址改走HLS服务下载 viewKey=" + item.getViewKey()
                     + " host=" + AppLog.hostOf(url));
-            PornyFallbackResolver.enqueueHlsDownload(context, tmp, url, path);
+            PornyFallbackResolver.enqueueHlsDownload(context, item, url, path);
             if (listener != null) {
                 listener.onSuccess("已加入后台下载");
             } else {
@@ -479,12 +496,12 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
             }
             return;
         }
-        int id = DownloadManager.getImpl().startDownload(url, path, wifi, force, buildReferer(tmp.getViewKey()));
-        if (tmp.getAddDownloadDate() == null) {
-            tmp.setAddDownloadDate(new Date());
+        int id = DownloadManager.getImpl().startDownload(url, path, wifi, force, buildReferer(item.getViewKey()));
+        if (item.getAddDownloadDate() == null) {
+            item.setAddDownloadDate(new Date());
         }
-        tmp.setDownloadId(id);
-        dataManager.updateV9MmanItem(tmp);
+        item.setDownloadId(id);
+        dataManager.updateV9MmanItem(item);
         if (listener != null) {
             listener.onSuccess("开始下载");
         } else {
@@ -503,15 +520,15 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
      * 实际僵尸判定用 pause 探针（见 downloadVideo）。
      */
     @SuppressWarnings("unused")
-    private static Boolean findRunningTask(V9MmanItem tmp, String path) {
+    private static Boolean findRunningTask(V9MmanItem item, String path) {
         try {
-            String url = tmp.getVideoResult() == null ? null : tmp.getVideoResult().getVideoUrl();
+            String url = item.getVideoResult() == null ? null : item.getVideoResult().getVideoUrl();
             if (TextUtils.isEmpty(url)) {
                 return null;
             }
             int regeneratedId = com.liulishuo.filedownloader.util.FileDownloadUtils
                     .generateId(url, path);
-            if (regeneratedId != tmp.getDownloadId()) {
+            if (regeneratedId != item.getDownloadId()) {
                 return null;
             }
             return Boolean.TRUE;
@@ -560,8 +577,8 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                                     item.setStatus(FileDownloadStatus.completed);
                                     item.setProgress(100);
                                     // M99：字段已改 long，去掉 int 强转避免 >2GB 文件尺寸截断
-                                    item.setSoFarBytes((int) f.length());
-                                    item.setTotalFarBytes((int) f.length());
+                                    item.setSoFarBytes(f.length());
+                                    item.setTotalFarBytes(f.length());
                                     item.setFinishedDownloadDate(new Date());
                                     dataManager.updateV9MmanItem(item);
                                     it.remove();
@@ -711,9 +728,10 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         if (f.exists()) {
             f.delete();
         }
-        File tmp = new File(path + ".fddownload");
-        if (tmp.exists()) {
-            tmp.delete();
+        // FileDownloader 断点临时文件句柄，属真·临时变量
+        File fdTempFile = new File(path + ".fddownload");
+        if (fdTempFile.exists()) {
+            fdTempFile.delete();
         }
         File soload = new File(path + ".fddownload.soload");
         if (soload.exists()) {
@@ -784,35 +802,30 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
 
 
     /**
-     * 直接拷贝缓存好的视频即可
-     *
-     * @param v9MmanItem v
+     * 同步检查播放缓存文件是否存在（用于 downloadVideo 分支决策，避免 TOCTOU 递归）
      */
-    private void copyCacheFile(final File videoCacheDir, final V9MmanItem v9MmanItem, final DownloadListener downloadListener) throws IOException {
+    private File getCacheFileIfExists(V9MmanItem item) {
+        if (item == null || item.getVideoResult() == null
+                || TextUtils.isEmpty(item.getVideoResult().getVideoUrl())) {
+            return null;
+        }
+        VideoCacheFileNameGenerator gen = new VideoCacheFileNameGenerator();
+        String cacheFileName = gen.generate(item.getVideoResult().getVideoUrl());
+        File file = new File(AppCacheUtils.getVideoCacheDir(context), cacheFileName);
+        return (file.exists() && file.length() > 0) ? file : null;
+    }
+
+    /**
+     * 拷贝播放缓存到下载目录。
+     * M74：缓存文件在 isVideoCacheByProxy 判定后可能被 LRU 淘汰（TOCTOU），
+     * 不再用递归 + bypassCacheCopy hack，改为调用方先同步检查缓存文件是否存在，
+     * 存在再调用本方法，缺失时直接走正常下载。
+     */
+    private void copyCacheFile(final V9MmanItem v9MmanItem, final File fromFile,
+                               final DownloadListener downloadListener) {
         Observable.create(new ObservableOnSubscribe<File>() {
             @Override
             public void subscribe(ObservableEmitter<File> e) throws Exception {
-                VideoCacheFileNameGenerator myFileNameGenerator = new VideoCacheFileNameGenerator();
-                String cacheFileName = myFileNameGenerator.generate(v9MmanItem.getVideoResult().getVideoUrl());
-                File fromFile = new File(videoCacheDir, cacheFileName);
-                if (!fromFile.exists() || fromFile.length() <= 0) {
-                    // M74：代理缓存可能在「命中判断(isCached)」与「实际拷贝」之间被 LRU 淘汰（TOCTOU），
-                    // 命中分支已进、源文件却已消失。不再抛“缓存文件错误”，而是回退到正常重新下载，
-                    // 保证用户最终拿到视频（bypassCacheCopy 防止再次命中缓存分支导致递归）。
-                    AppLog.w("Download", "缓存文件缺失，回退重新下载 viewKey=" + v9MmanItem.getViewKey()
-                            + " cacheFile=" + fromFile.getAbsolutePath());
-                    final V9MmanItem fbItem = v9MmanItem;
-                    final DownloadListener fbListener = downloadListener;
-                    bypassCacheCopy = true;
-                    new android.os.Handler(android.os.Looper.getMainLooper()).post(new Runnable() {
-                        @Override
-                        public void run() {
-                            downloadVideo(fbItem, true, fbListener);
-                        }
-                    });
-                    e.onComplete();
-                    return;
-                }
                 e.onNext(fromFile);
                 e.onComplete();
             }
@@ -850,8 +863,8 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                 }
                 FileUtils.copyFile(fromFile, toFile);
                 // M99：字段已改 long，去掉 int 强转避免 >2GB 文件尺寸截断
-                v9MmanItem.setTotalFarBytes((int) fromFile.length());
-                v9MmanItem.setSoFarBytes((int) fromFile.length());
+                v9MmanItem.setTotalFarBytes(fromFile.length());
+                v9MmanItem.setSoFarBytes(fromFile.length());
                 return v9MmanItem;
             }
         }).map(new Function<V9MmanItem, String>() {

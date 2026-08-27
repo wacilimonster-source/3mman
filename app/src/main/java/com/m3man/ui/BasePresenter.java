@@ -3,8 +3,6 @@ package com.m3man.ui;
 import android.arch.lifecycle.Lifecycle;
 
 import com.trello.rxlifecycle2.LifecycleProvider;
-import com.m3man.data.cache.CacheProviders;
-import com.m3man.data.AppDataManager;
 
 /**
  * @author flymegoc
@@ -12,36 +10,11 @@ import com.m3man.data.AppDataManager;
  */
 
 public class BasePresenter {
-    protected CacheProviders cacheProviders;
+    // L-07：6 个构造重载中全工程实际只走到 provider 这一条链，其余重载与
+    // cacheProviders/appDataManager 字段一并移除；provider 由子类（SettingPresenter）使用。
     protected LifecycleProvider<Lifecycle.Event> provider;
-    protected AppDataManager appDataManager;
-
-    public BasePresenter(AppDataManager appDataManager) {
-        this.appDataManager = appDataManager;
-    }
-
-    public BasePresenter(CacheProviders cacheProviders) {
-        this.cacheProviders = cacheProviders;
-    }
 
     public BasePresenter(LifecycleProvider<Lifecycle.Event> provider) {
         this.provider = provider;
-    }
-
-
-    public BasePresenter(CacheProviders cacheProviders, LifecycleProvider<Lifecycle.Event> provider) {
-        this.cacheProviders = cacheProviders;
-        this.provider = provider;
-    }
-
-    public BasePresenter(LifecycleProvider<Lifecycle.Event> provider, AppDataManager appDataManager) {
-        this.provider = provider;
-        this.appDataManager = appDataManager;
-    }
-
-    public BasePresenter(CacheProviders cacheProviders, LifecycleProvider<Lifecycle.Event> provider, AppDataManager appDataManager) {
-        this.cacheProviders = cacheProviders;
-        this.provider = provider;
-        this.appDataManager = appDataManager;
     }
 }

@@ -11,18 +11,21 @@ import android.view.animation.RotateAnimation;
  */
 
 public class AnimationUtils {
+
     public static void rotateUp(View view) {
-        RotateAnimation rotate = new RotateAnimation(0f, 180f, Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
-        LinearInterpolator lin = new LinearInterpolator();
-        rotate.setInterpolator(lin);
-        rotate.setDuration(200);
-        rotate.setRepeatCount(0);
-        rotate.setFillAfter(true);
-        rotate.setStartOffset(10);
-        view.startAnimation(rotate);
+        rotate(view, 0f, 180f);
     }
+
     public static void rotateDown(View view) {
-        RotateAnimation rotate = new RotateAnimation(180f, 0f, Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
+        rotate(view, 180f, 0f);
+    }
+
+    /**
+     * L-04：rotateUp/rotateDown 仅起始角度不同，动画主体统一收敛到本方法。
+     */
+    private static void rotate(View view, float fromDegrees, float toDegrees) {
+        RotateAnimation rotate = new RotateAnimation(fromDegrees, toDegrees,
+                Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
         LinearInterpolator lin = new LinearInterpolator();
         rotate.setInterpolator(lin);
         rotate.setDuration(200);

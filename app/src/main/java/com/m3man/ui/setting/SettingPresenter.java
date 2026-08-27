@@ -1,6 +1,7 @@
 package com.m3man.ui.setting;
 
 import android.arch.lifecycle.Lifecycle;
+import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.text.TextUtils;
 
@@ -246,7 +247,8 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
             public Boolean call() throws Exception {
                 if (!TextUtils.isEmpty(dataManager.getCustomDownloadVideoDirPath())) {
                     File file = new File(dataManager.getCustomDownloadVideoDirPath());
-                    return file.listFiles() != null && file.listFiles().length != 0;
+                    File[] files = file.listFiles();
+                    return files != null && files.length != 0;
                 }
                 File file = new File(SDCardUtils.DOWNLOAD_VIDEO_PATH);
                 //检查是否有MP4文件
@@ -254,8 +256,8 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
                 if (children == null) {
                     return false;
                 }
-                for (File file1 : children) {
-                    if (file1.getName().endsWith(".mp4")) {
+                for (File childFile : children) {
+                    if (childFile.getName().endsWith(".mp4")) {
                         return true;
                     }
                 }
@@ -290,6 +292,10 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
      */
     @Override
     public boolean isHaveUnFinishDownloadVideo() {
+        // M-07: 运行时强制检查，防止误在主线程调用
+        if (Looper.getMainLooper() == Looper.myLooper()) {
+            throw new IllegalStateException("isHaveUnFinishDownloadVideo() 禁止在主线程调用，请使用 checkHaveUnFinishDownloadVideo()");
+        }
         return dataManager.loadDownloadingData().size() != 0;
     }
 
@@ -299,9 +305,15 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
      */
     @Override
     public boolean isHaveFinishDownloadVideoFile() {
+        // M-07: 运行时强制检查，防止误在主线程调用
+        if (Looper.getMainLooper() == Looper.myLooper()) {
+            throw new IllegalStateException("isHaveFinishDownloadVideoFile() 禁止在主线程调用，请使用 checkHaveFinishDownloadVideoFile()");
+        }
         if (!TextUtils.isEmpty(dataManager.getCustomDownloadVideoDirPath())) {
             File file = new File(dataManager.getCustomDownloadVideoDirPath());
-            return file.listFiles() != null && file.listFiles().length != 0;
+            // 复查修正（M-02 残留）：原为两次 listFiles()，存在 TOCTOU 竞态，收敛为单次调用
+            File[] files = file.listFiles();
+            return files != null && files.length != 0;
         }
         File file = new File(SDCardUtils.DOWNLOAD_VIDEO_PATH);
         //检查是否有MP4文件
@@ -309,8 +321,8 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
         if (children == null) {
             return false;
         }
-        for (File file1 : children) {
-            if (file1.getName().endsWith(".mp4")) {
+        for (File childFile : children) {
+            if (childFile.getName().endsWith(".mp4")) {
                 return true;
             }
         }

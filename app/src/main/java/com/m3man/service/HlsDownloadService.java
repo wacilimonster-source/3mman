@@ -119,7 +119,8 @@ public class HlsDownloadService extends Service {
         if (ACTION_START.equals(action)) {
             String url = intent.getStringExtra(EXTRA_VIDEO_URL);
             String title = intent.getStringExtra(EXTRA_TITLE);
-            String fileName = intent.getStringExtra(EXTRA_FILE_NAME);
+            // L-16：EXTRA_FILE_NAME 各调用方传入的都是视频标题（不含 .mp4 后缀），按语义命名
+            String videoTitle = intent.getStringExtra(EXTRA_FILE_NAME);
             // M62/M97：先快照"被替换的旧任务"上下文——
             // 旧 worker 线程的迟到回调必须按它自己的归属落库，不得读写新任务的共享字段
             final TaskState previous = state;
@@ -146,10 +147,10 @@ public class HlsDownloadService extends Service {
                 return START_NOT_STICKY;
             }
             notifyTitle = TextUtils.isEmpty(title) ? "视频下载" : title;
-            // 优先使用调用方算好的完整路径（与「我的下载」播放路径一致），否则回退旧 fileName 逻辑
+            // 优先使用调用方算好的完整路径（与「我的下载」播放路径一致），否则回退旧的标题拼接 .mp4 路径逻辑
             String newTargetMp4Path;
             if (TextUtils.isEmpty(newSavePath)) {
-                newTargetMp4Path = SDCardUtils.DOWNLOAD_VIDEO_PATH + fileName + ".mp4";
+                newTargetMp4Path = SDCardUtils.DOWNLOAD_VIDEO_PATH + videoTitle + ".mp4";
             } else {
                 newTargetMp4Path = newSavePath;
             }
@@ -344,13 +345,12 @@ public class HlsDownloadService extends Service {
             }
             if (item != null) {
                 long len = mp4File.length();
-                // M99：字段已改 long，直接存真实字节数，去掉 int 钳制
+                // M99：实体字段已改为 long，直接存真实字节数，避免 >2GB 截断
                 item.setStatus(FileDownloadStatus.completed);
                 item.setProgress(100);
                 item.setFinishedDownloadDate(new Date());
-                // M99：实体字段保持 int（greenDAO 插件对 long 改造不友好，见评审遗留），>2GB 截断风险已知
-                item.setSoFarBytes((int) len);
-                item.setTotalFarBytes((int) len);
+                item.setSoFarBytes(len);
+                item.setTotalFarBytes(len);
                 item.setDownloadId(taskPseudoId);
                 getDataManager().updateV9MmanItem(item);
             }
@@ -450,11 +450,10 @@ public class HlsDownloadService extends Service {
             item.setStatus(FileDownloadStatus.completed);
             item.setProgress(100);
             item.setFinishedDownloadDate(new Date());
-            // M99：字段已改 long，直接存真实字节数，去掉 int 钳制（原 >2GB 时钳到 Integer.MAX_VALUE）
+            // M99：实体字段已改为 long，直接存真实字节数，避免 >2GB 截断
             long len = mp4File.length();
-            // M99：同上 int 截断说明
-            item.setSoFarBytes((int) len);
-            item.setTotalFarBytes((int) len);
+            item.setSoFarBytes(len);
+            item.setTotalFarBytes(len);
             item.setDownloadId(s.pseudoDownloadId);
             getDataManager().updateV9MmanItem(item);
         }

@@ -5,7 +5,6 @@ import android.net.ParseException;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSyntaxException;
 import com.orhanobut.logger.Logger;
-import com.m3man.BuildConfig;
 import org.apache.http.conn.ConnectTimeoutException;
 import org.greenrobot.greendao.DaoException;
 import org.json.JSONException;
@@ -113,9 +112,7 @@ public class ApiException extends Exception {
             ex.message = "无法解析该域名";
             return ex;
         } else if (e instanceof NullPointerException) {
-            if (!BuildConfig.DEBUG) {
-                //Bugsnag.notify(new Throwable("NullPointerException:" + MyApplication.getInstance().getDataManager().getMman9VideoAddress(), e), Severity.WARNING);
-            }
+            // L-09：原被注释的 Bugsnag.notify 调用已随空 if(!BuildConfig.DEBUG) 外壳一并移除
             ex = new ApiException(e, Error.NULLPOINTER_EXCEPTION);
             ex.message = "NullPointerException";
             return ex;

@@ -16,7 +16,7 @@ import javax.inject.Inject;
  * @author flymegoc
  * @date 2018/1/26
  */
-public class NoticePresenter extends MvpBasePresenter<NoticeView> implements INotice {
+public class NoticePresenter extends MvpBasePresenter<NoticeView> implements IBaseNotice {
 
     private LifecycleProvider<Lifecycle.Event> provider;
 

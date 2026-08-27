@@ -647,7 +647,8 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
             return false;
         }
         List<String> pathSegments = httpUrl.pathSegments();
-        if (!"".equals(pathSegments.get(pathSegments.size() - 1))) {
+        // 修复 AIOOBE：pathSegments 可能为空（如 http://example.com 无路径时）
+        if (pathSegments.isEmpty() || !"".equals(pathSegments.get(pathSegments.size() - 1))) {
             showMessage("设置失败，输入地址格式不正确，(不要忘了最后面的“/”)", TastyToast.ERROR);
             return false;
         }

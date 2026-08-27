@@ -4,10 +4,8 @@ import android.arch.lifecycle.Lifecycle;
 import android.support.v4.app.FragmentManager;
 import android.support.v7.app.AppCompatActivity;
 
-import com.trello.lifecycle2.android.lifecycle.AndroidLifecycle;
-import com.trello.rxlifecycle2.LifecycleProvider;
+import com.m3man.di.module.BaseActivityModule;
 import com.m3man.di.PerFragment;
-import com.m3man.ui.about.AboutActivity;
 import com.m3man.ui.mman9video.author.AuthorFragment;
 import com.m3man.ui.mman9video.comment.CommentFragment;
 import com.m3man.ui.mman9video.favorite.FavoriteFragment;
@@ -18,12 +16,11 @@ import dagger.Module;
 import dagger.Provides;
 import dagger.android.ContributesAndroidInjector;
 
-@Module
+@Module(includes = BaseActivityModule.class)
 public abstract class ExoPlayerVideoModule {
     @PerFragment
     @ContributesAndroidInjector
     abstract AuthorFragment authorFragment();
-
 
     @PerFragment
     @ContributesAndroidInjector
@@ -42,13 +39,8 @@ public abstract class ExoPlayerVideoModule {
     abstract VideoListFragment videoListFragment();
 
     @Provides
-    static AppCompatActivity provideAppCompatActivity(ExoMediaPlayerActivity exoMediaPlayerActivity){
+    static AppCompatActivity provideAppCompatActivity(ExoMediaPlayerActivity exoMediaPlayerActivity) {
         return exoMediaPlayerActivity;
-    }
-
-    @Provides
-    static LifecycleProvider<Lifecycle.Event> providerLifecycleProvider(AppCompatActivity mAppCompatActivity) {
-        return AndroidLifecycle.createLifecycleProvider(mAppCompatActivity);
     }
 
     @Provides

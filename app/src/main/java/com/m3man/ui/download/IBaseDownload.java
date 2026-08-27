@@ -6,7 +6,7 @@ import com.m3man.ui.mman9video.favorite.IBaseFavorite;
 /**
  * @author flymegoc
  * @date 2017/11/26
- * @describe
+ * @describe 基础下载接口，继承收藏基础接口，定义基础下载入口
  */
 
 public interface IBaseDownload extends IBaseFavorite{

@@ -15,7 +15,7 @@ import com.helper.loadviewhelper.help.OnLoadViewListener;
 import com.helper.loadviewhelper.load.LoadViewHelper;
 import com.sdsmdg.tastytoast.TastyToast;
 import com.m3man.R;
-import com.m3man.adapter.FavoriteAdapter;
+import com.m3man.adapter.V9MmanItemAdapter;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.ui.MvpActivity;
 import com.m3man.utils.DialogUtils;
@@ -46,7 +46,7 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
     @BindView(R.id.contentView)
     SwipeRefreshLayout contentView;
 
-    private FavoriteAdapter mUnLimit91Adapter;
+    private V9MmanItemAdapter mUnLimit91Adapter;
 
     private LoadViewHelper helper;
     private AlertDialog deleteAlertDialog;
@@ -72,7 +72,7 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
         contentView.setOnRefreshListener(this);
 
         List<V9MmanItem> mV9MmanItemList = new ArrayList<>();
-        mUnLimit91Adapter = new FavoriteAdapter(R.layout.item_right_menu_delete, mV9MmanItemList);
+        mUnLimit91Adapter = new V9MmanItemAdapter(R.layout.item_right_menu_delete, mV9MmanItemList);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 

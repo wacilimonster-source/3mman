@@ -23,8 +23,6 @@ import android.support.annotation.UiThread;
 import com.hannesdorfmann.mosby3.mvp.MvpPresenter;
 import com.hannesdorfmann.mosby3.mvp.MvpView;
 import com.trello.rxlifecycle2.LifecycleProvider;
-import com.m3man.data.cache.CacheProviders;
-import com.m3man.data.AppDataManager;
 
 import java.lang.ref.WeakReference;
 
@@ -53,28 +51,9 @@ import java.lang.ref.WeakReference;
 public class MvpBasePresenter<V extends MvpView> extends BasePresenter implements MvpPresenter<V> {
 
 
-    public MvpBasePresenter(AppDataManager appDataManager) {
-        super(appDataManager);
-    }
-
-    public MvpBasePresenter(CacheProviders cacheProviders) {
-        super(cacheProviders);
-    }
-
+    // L-07：全工程唯一子类 SettingPresenter 只走 provider 构造链，其余重载移除
     public MvpBasePresenter(LifecycleProvider<Lifecycle.Event> provider) {
         super(provider);
-    }
-
-    public MvpBasePresenter(LifecycleProvider<Lifecycle.Event> provider, AppDataManager appDataManager) {
-        super(provider, appDataManager);
-    }
-
-    public MvpBasePresenter(CacheProviders cacheProviders, LifecycleProvider<Lifecycle.Event> provider) {
-        super(cacheProviders, provider);
-    }
-
-    public MvpBasePresenter(CacheProviders cacheProviders, LifecycleProvider<Lifecycle.Event> provider, AppDataManager appDataManager) {
-        super(cacheProviders, provider, appDataManager);
     }
 
     /**

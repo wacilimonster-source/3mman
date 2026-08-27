@@ -5,10 +5,15 @@ gen_reco_tags.py — 推荐视频「标签词典」抽取脚本（开发期用�
 
 作用
 ----
-把全量视频标题语料做分词 + 统计文档频率（df），产出 assets/reco/tag_dictionary.json，
-随包发布。运行时（RecoTagDictionary）不做中文分词模型加载，而是用「词典正向最大匹配」
-把标题切成标签：命中词典的词才成为标签；完全未命中的中文片段退化为相邻二元组（bigram），
-保证即使词典很小算法也能工作。
+把全量视频标题语料做两轮处理，产出 assets/reco/tag_dictionary.json，随包发布：
+
+  第一轮（领域词挖掘）：统计语料中高频中文 n-gram，挑出 jieba 不认识但语料里
+  高内聚的词（演员名、行话、题材组合），作为领域用户词典注入 jieba。
+  第二轮（正式分词）：jieba + 领域用户词典重新切分全部标题，统计文档频率 df。
+
+运行时（RecoTagDictionary）不做中文分词模型加载，而是用「词典正向最大匹配」
+把标题切成标签：命中词典的词才成为标签；完全未命中的中文片段退化为相邻
+二元组（bigram），保证即使词典很小算法也能工作。
 
 词典格式（与 RecoTagDictionary.loadFromAssets 对齐）
 ---------------------------------------------------
@@ -19,22 +24,17 @@ gen_reco_tags.py — 推荐视频「标签词典」抽取脚本（开发期用�
   "tags": { "制服": 3201, "户外": 890, ... }
 }
 
-分词策略
---------
-1. 优先 jieba（pip install jieba）。能切出真实中文词，词典质量最高。
-2. 无 jieba 时退化为 n-gram 候选（2~maxTagLen 的中文片段），再按词频过滤。
-   这一步不需要任何第三方依赖，保证脚本在任何环境都能跑。
-
 用法
 ----
-  # 仅用内置种子词（无语料时也能产出可用词典）
-  python gen_reco_tags.py
-
-  # 用标题语料生成（.txt 一行一条 / .json 字符串数组或 {"titles":[...]} / .csv 指定列）
-  python gen_reco_tags.py --input titles.txt --output ../../app/src/main/assets/reco/tag_dictionary.json
+  # 全流程：挖领域词 → jieba 分词 → 统计 df → 写词典
+  python gen_reco_tags.py --input reco_titles_9mman.txt --version 3
 
   # 控制参数
-  python gen_reco_tags.py --input titles.txt --min-df 3 --max-tags 2000 --version 1
+  python gen_reco_tags.py --input titles.txt --min-df 5 --max-tags 4000 \\
+      --max-len 8 --min-freq 20 --version 3
+
+  # 关闭领域词挖掘（纯 jieba）
+  python gen_reco_tags.py --input titles.txt --no-mine
 """
 
 import argparse
@@ -103,6 +103,83 @@ try:
     JIEBA_AVAILABLE = True
 except Exception:
     JIEBA_AVAILABLE = False
+
+
+# ---------------------------------------------------------------------------
+# 第一轮：领域词挖掘（jieba 不认识但语料里高频、高内聚的中文组合）
+# ---------------------------------------------------------------------------
+def _jieba_known(word):
+    """该词是否已在 jieba 主词典中"""
+    return jieba.dt.FREQ.get(word, 0) > 0
+
+
+# 含虚词/代词/常用单字的组合几乎不可能是领域实义词，直接排除
+FUNC_CHARS = set('的了吗呢吧呀哦啊么之乎者也被把很太更还又再就都只才让给对'
+                 '从向于以为会能要想看说做来去和与及这那不没真最是个有我你'
+                 '他她它们们地过得着起来上下里外前后中间左右')
+
+
+def mine_domain_terms(titles, max_len, min_freq, max_terms, cohesion=15.0,
+                      userdict_path=None):
+    """统计 CJK n-gram 频次，挑出「高频 + 高内聚 + jieba 不认识」的领域词。
+
+    内聚度 = f(w) * N / max_split(f_left * f_right)
+      - N 为语料 CJK 总字数；内聚度远大于 1 说明两部分总是结伴出现，
+        是真词而不是碰巧相邻（如「人妻」远高于「人」×「妻」的独立频率积）。
+      - 拆分含单字部分（unigram 也计数），因此 2 字词同样受内聚度约束，
+        避免「的太」「的小」这类高频垃圾搭配混入。
+    返回 {word: freq}，并可选写出 jieba 用户词典文件。
+    """
+    from collections import Counter
+
+    gram = Counter()
+    total_chars = 0
+    for t in titles:
+        for run in CJK_RE.findall(t):
+            total_chars += len(run)
+            n = len(run)
+            for i in range(n):
+                gram[run[i]] += 1                      # unigram：供 2 字词内聚度拆分
+                cap = min(max_len, n - i)
+                for length in range(2, cap + 1):
+                    gram[run[i:i + length]] += 1
+
+    if total_chars == 0:
+        return {}
+
+    mined = {}
+    for w, c in gram.items():
+        if c < min_freq or _jieba_known(w):
+            continue
+        if any(ch in FUNC_CHARS for ch in w):
+            continue
+        best = 0
+        for i in range(1, len(w)):
+            prod = gram.get(w[:i], 0) * gram.get(w[i:], 0)
+            if prod > best:
+                best = prod
+        if best == 0:
+            continue
+        score = c * float(total_chars) / best
+        if score < cohesion:
+            continue
+        mined[w] = c
+
+    items = sorted(mined.items(), key=lambda kv: (-kv[1], -len(kv[0])))
+    if max_terms and len(items) > max_terms:
+        items = items[:max_terms]
+    result = dict(items)
+
+    if userdict_path:
+        try:
+            with open(userdict_path, 'w', encoding='utf-8') as f:
+                for w, c in items:
+                    f.write('%s %d\n' % (w, c))
+            print('[gen_reco_tags] 领域用户词典已写出：%s' %
+                  os.path.abspath(userdict_path))
+        except Exception as e:
+            print('[gen_reco_tags] 用户词典写盘失败（不影响主流程）：%s' % e)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -257,17 +334,30 @@ def main(argv=None):
                                             '..', 'app', 'src', 'main', 'assets', 'reco',
                                             'tag_dictionary.json'),
                         help='输出路径，默认 build-tools/../app/src/main/assets/reco/tag_dictionary.json')
-    parser.add_argument('--min-df', type=int, default=3,
+    parser.add_argument('--min-df', type=int, default=5,
                         help='语料词进入词典的最小文档频率（种子词不受此限）')
-    parser.add_argument('--max-tags', type=int, default=2000,
+    parser.add_argument('--max-tags', type=int, default=4000,
                         help='词典容量上限（按 df 降序截断），0 表示不限制')
-    parser.add_argument('--max-len', type=int, default=6,
+    parser.add_argument('--max-len', type=int, default=8,
                         help='单标签最大长度（字符数）')
-    parser.add_argument('--version', type=int, default=1, help='词典版本号')
+    parser.add_argument('--version', type=int, default=4, help='词典版本号')
     parser.add_argument('--no-seed', action='store_true', help='不合并内置种子词')
+    parser.add_argument('--no-mine', action='store_true',
+                        help='关闭领域词挖掘（纯 jieba 分词）')
+    parser.add_argument('--min-freq', type=int, default=20,
+                        help='领域词准入的最小语料频次')
+    parser.add_argument('--max-terms', type=int, default=800,
+                        help='领域用户词典容量上限')
+    parser.add_argument('--cohesion', type=float, default=15.0,
+                        help='领域词内聚度阈值（越大越严格）')
     parser.add_argument('--force-jieba', action='store_true',
                         help='强制使用 jieba（未安装则报错，而不是退化为 n-gram）')
     args = parser.parse_args(argv)
+
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
     use_jieba = JIEBA_AVAILABLE
     if args.force_jieba:
@@ -278,10 +368,26 @@ def main(argv=None):
     seed = {} if args.no_seed else dict(SEED_TAGS)
 
     titles = []
+    domain_terms = {}
     if args.input:
         titles = read_corpus(args.input)
         print('[gen_reco_tags] 读取语料 %d 条（分词：%s）'
               % (len(titles), 'jieba' if use_jieba else 'n-gram 退化'))
+
+        # ---- 第一轮：领域词挖掘 → 注入 jieba 用户词典 ----
+        if use_jieba and not args.no_mine:
+            # 写到 build-tools 目录（开发期产物，不进 APK 的 assets）
+            userdict_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                'reco_userdict.txt')
+            domain_terms = mine_domain_terms(titles, args.max_len,
+                                             args.min_freq, args.max_terms,
+                                             cohesion=args.cohesion,
+                                             userdict_path=userdict_path)
+            for w, c in domain_terms.items():
+                jieba.add_word(w, freq=c)
+            print('[gen_reco_tags] 已注入领域词 %d 个'
+                  % len(domain_terms))
     else:
         print('[gen_reco_tags] 未提供语料，仅输出内置种子词（%d 个）' % len(seed))
 

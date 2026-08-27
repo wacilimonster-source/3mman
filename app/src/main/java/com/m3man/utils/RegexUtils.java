@@ -5,6 +5,7 @@ import com.m3man.constants.RegexConstants;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,8 +19,18 @@ import java.util.regex.Pattern;
  */
 public final class RegexUtils {
 
+    // M-08: 正则编译缓存，避免重复编译同一正则
+    private static final ConcurrentHashMap<String, Pattern> PATTERN_CACHE = new ConcurrentHashMap<>();
+
     private RegexUtils() {
         throw new UnsupportedOperationException("u can't instantiate me...");
+    }
+
+    /**
+     * 获取或编译正则模式（带缓存）
+     */
+    private static Pattern getPattern(String regex) {
+        return PATTERN_CACHE.computeIfAbsent(regex, Pattern::compile);
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -158,7 +169,7 @@ public final class RegexUtils {
     public static List<String> getMatches(final String regex, final CharSequence input) {
         if (input == null) return null;
         List<String> matches = new ArrayList<>();
-        Pattern pattern = Pattern.compile(regex);
+        Pattern pattern = getPattern(regex);
         Matcher matcher = pattern.matcher(input);
         while (matcher.find()) {
             matches.add(matcher.group());
@@ -190,7 +201,7 @@ public final class RegexUtils {
                                          final String regex,
                                          final String replacement) {
         if (input == null) return null;
-        return Pattern.compile(regex).matcher(input).replaceFirst(replacement);
+        return getPattern(regex).matcher(input).replaceFirst(replacement);
     }
 
     /**
@@ -205,6 +216,6 @@ public final class RegexUtils {
                                        final String regex,
                                        final String replacement) {
         if (input == null) return null;
-        return Pattern.compile(regex).matcher(input).replaceAll(replacement);
+        return getPattern(regex).matcher(input).replaceAll(replacement);
     }
 }
