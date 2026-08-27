@@ -764,13 +764,17 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         super.onConfigurationChanged(newConfig);
         // M96：修复回归——newConfig.orientation 是 Configuration.ORIENTATION_*（横屏=2/竖屏=1），
         // 误用 ActivityInfo.SCREEN_ORIENTATION_*（横屏=0）导致横竖屏分支永远判不中。
-        if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            //这里没必要，因为我们使用的是setColorForSwipeBack，并不会有这个虚拟的view，而是设置的padding
-            StatusBarUtil.hideFakeStatusBarView(this);
-            updateFloatingBackVisibility(true);
-        } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT) {
-            setStatusBarColor(ContextCompat.getColor(this, R.color.colorPrimary));
-            updateFloatingBackVisibility(false);
+        try {
+            if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                //这里没必要，因为我们使用的是setColorForSwipeBack，并不会有这个虚拟的view，而是设置的padding
+                StatusBarUtil.hideFakeStatusBarView(this);
+                updateFloatingBackVisibility(true);
+            } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT) {
+                setStatusBarColor(ContextCompat.getColor(this, R.color.colorPrimary));
+                updateFloatingBackVisibility(false);
+            }
+        } catch (Exception e) {
+            AppLog.w(TAG, "onConfigurationChanged 处理异常: " + e.getMessage());
         }
     }
 

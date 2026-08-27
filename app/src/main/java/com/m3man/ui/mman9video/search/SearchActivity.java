@@ -92,10 +92,17 @@ public class SearchActivity extends MvpActivity<SearchView, SearchPresenter> imp
         }
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        searchView.onActionViewCollapsed();
+        searchView.clearFocus();
+    }
+
     private void init() {
         initToolBar(toolbar);
         searchView.setQueryHint("搜索视频");
-        searchView.onActionViewExpanded();
+        searchView.setIconified(true);
 
         List<String> dataSetSortBy = new LinkedList<>(Arrays.asList(getResources().getStringArray(R.array.sort_by)));
         niceSpinnerSortBy.attachDataSource(dataSetSortBy);

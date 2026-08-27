@@ -505,10 +505,9 @@ public class RecommendFeedFragment extends BaseFragment
         if (adapter.getItemCount() == 0) {
             showEmpty("加载失败，点击重试");
         } else {
-            showMessage("加载失败", TastyToast.ERROR);
-            // M98：已有内容时也把重试入口亮出来，用户可手动恢复
-            emptyText.setText("加载失败，点击重试");
-            emptyLayout.setVisibility(View.VISIBLE);
+            // M100：已有内容时不再弹出全屏重试遮罩——视频正在播放，遮罩会挡住画面，
+            // 改用 Toast 提示用户，下次滑动会自动重试加载更多
+            showMessage("加载失败，下滑重试", TastyToast.WARNING);
         }
     }
 

@@ -310,11 +310,21 @@ public class ExoVideoControlsMobile extends ExoVideoControls {
         //hideSystemUI();
         ActivityUtils.setRequestedOrientation(getContext(), ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
 
-        ViewGroup viewGroup = ActivityUtils.getWindow(getContext()).getDecorView().findViewById(android.R.id.content);
+        Window window = ActivityUtils.getWindow(getContext());
+        if (window == null || window.getDecorView() == null) {
+            return;
+        }
+        ViewGroup viewGroup = window.getDecorView().findViewById(android.R.id.content);
+        if (viewGroup == null) {
+            return;
+        }
         //就是这里了,有些statusbar库为了模拟状态栏，可能设置了padding,会在视频上方出现一条横幅，看上去好像状态栏没隐藏，其实已经隐藏了，这个是假的，错觉，所以重新设置padding为0即可
         viewGroup.setPadding(0, 0, 0, 0);
         //这里还可以写的更完美些，因为我这里知道我的视图的parent只有一个child，所以不用管其他的，只需add和removed即可，其他情况则要获取LayoutParams以及其他子view的属性
         parentViewGroup = (ViewGroup) videoView.getParent();
+        if (parentViewGroup == null) {
+            return;
+        }
         parentViewGroup.removeView(videoView);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
@@ -322,11 +332,13 @@ public class ExoVideoControlsMobile extends ExoVideoControls {
         viewGroup.addView(videoView, lp);
 
         RelativeLayout parent = (RelativeLayout) controlsContainer.getParent();
-        ViewGroup.LayoutParams layoutParams = parent.getLayoutParams();
-        // 修复：旧逻辑 width=getWidth()+1000 用的是旋转前的竖屏宽度，横屏后比窗口窄，
-        // 导致进度条右侧空出一截。改为 MATCH_PARENT 跟随窗口，旋转前后都能铺满。
-        layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
-        parent.setLayoutParams(layoutParams);
+        if (parent != null) {
+            ViewGroup.LayoutParams layoutParams = parent.getLayoutParams();
+            // 修复：旧逻辑 width=getWidth()+1000 用的是旋转前的竖屏宽度，横屏后比窗口窄，
+            // 导致进度条右侧空出一截。改为 MATCH_PARENT 跟随窗口，旋转前后都能铺满。
+            layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
+            parent.setLayoutParams(layoutParams);
+        }
     }
 
     protected void exitFullScreen() {
@@ -336,12 +348,21 @@ public class ExoVideoControlsMobile extends ExoVideoControls {
         setUiFlags(false);
         ActivityUtils.setRequestedOrientation(getContext(), ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 
-        ViewGroup viewGroup = ActivityUtils.getWindow(getContext()).getDecorView().findViewById(android.R.id.content);
+        Window window = ActivityUtils.getWindow(getContext());
+        if (window == null || window.getDecorView() == null) {
+            return;
+        }
+        ViewGroup viewGroup = window.getDecorView().findViewById(android.R.id.content);
+        if (viewGroup == null) {
+            return;
+        }
         viewGroup.removeView(videoView);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
 
-        parentViewGroup.addView(videoView, 0, lp);
+        if (parentViewGroup != null) {
+            parentViewGroup.addView(videoView, 0, lp);
+        }
     }
 
     /**
@@ -414,7 +435,11 @@ public class ExoVideoControlsMobile extends ExoVideoControls {
      * @param fullscreen True if entering fullscreen mode
      */
     private void setUiFlags(boolean fullscreen) {
-        View decorView = ActivityUtils.getWindow(getContext()).getDecorView();
+        Window window = ActivityUtils.getWindow(getContext());
+        if (window == null || window.getDecorView() == null) {
+            return;
+        }
+        View decorView = window.getDecorView();
         if (decorView != null) {
             decorView.setSystemUiVisibility(fullscreen ? getFullscreenUiFlags() : View.SYSTEM_UI_FLAG_VISIBLE);
         }
@@ -450,7 +475,11 @@ public class ExoVideoControlsMobile extends ExoVideoControls {
                     | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                     | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
         }
-        View decorView = ActivityUtils.getWindow(getContext()).getDecorView();
+        Window window = ActivityUtils.getWindow(getContext());
+        if (window == null || window.getDecorView() == null) {
+            return;
+        }
+        View decorView = window.getDecorView();
         if (decorView != null) {
             decorView.setSystemUiVisibility(flags);
             decorView.setOnSystemUiVisibilityChangeListener(fullScreenListener);

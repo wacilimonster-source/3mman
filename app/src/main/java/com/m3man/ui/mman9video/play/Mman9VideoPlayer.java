@@ -323,7 +323,12 @@ public class Mman9VideoPlayer extends JZVideoPlayerStandard {
 
     @Override
     public void startWindowFullscreen() {
-        super.startWindowFullscreen();
+        try {
+            super.startWindowFullscreen();
+        } catch (Exception e) {
+            // M100：全屏创建失败（Activity 已销毁/Window 无效等），安全回退
+            return;
+        }
         // JZVD 会反射创建全屏克隆实例；把当前实例回调复制到克隆实例，
         // 不使用 static，避免跨页面引用旧 Activity。
         cn.jzvd.JZVideoPlayer current = JZVideoPlayerManager.getCurrentJzvd();
@@ -337,7 +342,10 @@ public class Mman9VideoPlayer extends JZVideoPlayerStandard {
 
     @Override
     public void clearFullscreenLayout() {
-        super.clearFullscreenLayout();
+        try {
+            super.clearFullscreenLayout();
+        } catch (Exception ignored) {
+        }
         if (fullscreenButton != null) {
             fullscreenButton.setVisibility(View.VISIBLE);
         }

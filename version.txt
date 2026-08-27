@@ -1,7 +1,7 @@
 {
-  "versionCode": 132,
-  "versionName": "1.0.99",
-  "updateMessage": "下载修复：暂停后「继续下载」改为真正断点续传，不再从头重下（直链/HLS 均生效）；转 91porny 源下载后状态误显示暂停中已修；播放已下载视频时作者作品列表为空已修；「我的」页登录头部精简。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.99.apk",
-  "sha256": "5314820c96dd64d5b4d3662583759a4dfb58d718a2fbcec4ee39d4b0c806f354"
+  "versionCode": 133,
+  "versionName": "1.0.100",
+  "updateMessage": "播放器全屏崩溃修复；推荐页加载失败重试按钮误显示修复；搜索历史点击自动触发搜索优化。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.100.apk",
+  "sha256": "068838132e6f6a7fdf835e73c4d7932c0bcc010202d3eab9a73dc3777ea09192"
 }

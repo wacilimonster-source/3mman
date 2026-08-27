@@ -41,8 +41,10 @@ public class ActivityUtils {
             getAppCompActivity(context).setRequestedOrientation(
                     orientation);
         } else {
-            scanForActivity(context).setRequestedOrientation(
-                    orientation);
+            Activity activity = scanForActivity(context);
+            if (activity != null) {
+                activity.setRequestedOrientation(orientation);
+            }
         }
     }
 
@@ -50,7 +52,8 @@ public class ActivityUtils {
         if (getAppCompActivity(context) != null) {
             return getAppCompActivity(context).getWindow();
         } else {
-            return scanForActivity(context).getWindow();
+            Activity activity = scanForActivity(context);
+            return activity != null ? activity.getWindow() : null;
         }
     }
 }
