@@ -1,7 +1,7 @@
 {
-  "versionCode": 133,
-  "versionName": "1.0.100",
-  "updateMessage": "播放器全屏崩溃修复；推荐页加载失败重试按钮误显示修复；搜索历史点击自动触发搜索优化。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.100.apk",
-  "sha256": "068838132e6f6a7fdf835e73c4d7932c0bcc010202d3eab9a73dc3777ea09192"
+  "versionCode": 134,
+  "versionName": "1.0.101",
+  "updateMessage": "全量代码审查修复：修复下载任务识别已解析视频的查询问题（M-09 回归）；编译链修复；推荐页与横屏逻辑重构收尾；多处空指针防护与性能优化。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.101.apk",
+  "sha256": "ea1277ec2d9d97bc3c54b7731f9ca646f18ec509c2a8268a12f9dc897937774a"
 }
