@@ -110,7 +110,10 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
                         return baseResult.getData();
                     }
                 })
-                .retryWhen(new RetryWhenProcess(2))
+                // L-fix：搜索属于前台即时操作，原 2 次后台静默重试会拖到 ~36s 才提示失败，
+                // 用户感知就是「点了历史毫无反应」。改为首败即回传（no-retry），
+                // 网络抖动由用户手动下滑/重试兜底。
+                .retryWhen(new RetryWhenProcess(0))
                 .compose(RxSchedulersHelper.<List<V9MmanItem>>ioMainThread())
                 .compose(provider.<List<V9MmanItem>>bindUntilEvent(Lifecycle.Event.ON_DESTROY))
                 .subscribe(new CallBackWrapper<List<V9MmanItem>>() {

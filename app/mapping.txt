@@ -3,8 +3,8 @@
 # min_api: 19
 # common_typos_disable
 # {"id":"com.android.tools.r8.mapping","version":"2.1"}
-# pg_map_id: 94eabc5
-# pg_map_hash: SHA-256 94eabc5d44940a326c01a728556999590bf252c02e07c57326f41719103fd571
+# pg_map_id: 11608bd
+# pg_map_hash: SHA-256 11608bdd004eb2a2725d0e0fd86b15d42bd7a5ea5b6ad8a4c1904507277c622a
 android.arch.core.executor.ArchTaskExecutor -> a.a:
     android.arch.core.executor.ArchTaskExecutor sInstance -> c
     java.util.concurrent.Executor sMainThreadExecutor -> d
@@ -38265,13 +38265,14 @@ com.m3man.ui.mman9video.search.SearchPornyFragment -> com.m3man.ui.mman9video.se
     void loadMoreDataComplete() -> a
     void showSearchHint(int) -> a4
     void loadMoreFailed() -> b
-    java.lang.String textOf(java.util.List,org.angmarch.views.NiceSpinner) -> b4
+    void showSearchHintText(java.lang.String) -> b4
     void setMoreData(java.util.List) -> c
     com.hannesdorfmann.mosby3.mvp.MvpPresenter createPresenter() -> c0
-    void triggerSearch(boolean) -> c4
+    java.lang.String textOf(java.util.List,org.angmarch.views.NiceSpinner) -> c4
     void noMoreData() -> d
-    void updateSkipBar() -> d4
+    void triggerSearch(boolean) -> d4
     void setData(java.util.List) -> e
+    void updateSkipBar() -> e4
     void showMessage(java.lang.String,int) -> g
     void onResume() -> j2
     void showLoading(boolean) -> m

@@ -1,7 +1,7 @@
 {
-  "versionCode": 136,
-  "versionName": "1.0.103",
-  "updateMessage": "修复进入推荐的报错：作者召回源的临时 token 过期导致 404 时自动降级为探索分类补一批，不再整批失败；新增「推荐页预加载」设置开关（我的-更多设置），开启时进推荐先秒显上次内容并预取下一条视频。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.103.apk",
-  "sha256": "d1631dbbde4c3a158131b69a2e0c6c121e11cf5cb0390913ba6a6adf621515e4"
+  "versionCode": 137,
+  "versionName": "1.0.104",
+  "updateMessage": "修复搜索历史点击后长时间无反馈的问题：搜索失败现在约 1 秒内即可看到「搜索失败了」的明确提示（原先要等约 36 秒且几乎不可见）；历史条目点击可靠性加固。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.104.apk",
+  "sha256": "09af2a13ff5a4d1496b88f98d3a3ca632208773cbb1a5e5369841585113f8cef"
 }

@@ -535,5 +535,22 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         showMessage(message, TastyToast.ERROR);
         helper.showError();
         LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, "搜索失败了，点击重试");
+        // L-fix：历史面板/hint 层叠在结果区之上，失败时仅 toast+loadError 用户无感
+        // （表现为点了历史后毫无反应）。直接把顶层提示换成失败信息并收起面板，确保可见。
+        if (!TextUtils.isEmpty(message)) {
+            showSearchHintText("搜索失败了：" + message);
+            if (searchHistoryPanel != null) {
+                searchHistoryPanel.hide();
+            }
+        }
+    }
+
+    /** L-fix：以任意文本显示顶层提示层 */
+    private void showSearchHintText(String text) {
+        if (tvSearchHint == null) {
+            return;
+        }
+        tvSearchHint.setText(text);
+        tvSearchHint.setVisibility(View.VISIBLE);
     }
 }
