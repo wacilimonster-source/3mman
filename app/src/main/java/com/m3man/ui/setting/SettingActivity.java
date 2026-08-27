@@ -23,6 +23,7 @@ import com.qmuiteam.qmui.widget.grouplist.QMUICommonListItemView;
 import com.qmuiteam.qmui.widget.grouplist.QMUIGroupListView;
 import com.sdsmdg.tastytoast.TastyToast;
 import com.m3man.R;
+import com.m3man.utils.PlayUiPrefs;
 import com.m3man.constants.Constants;
 import com.m3man.data.DataManager;
 import com.m3man.data.network.Api;
@@ -318,6 +319,17 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
             }
         });
         sec.addItemView(nightModeItemWithSwitch, null);
+        // L-fix：「推荐页预加载」——控制推荐流本地缓存秒显 + 预取下一视频（元数据/封面/首包）
+        QMUICommonListItemView recoPrefetchItemWithSwitch = qmuiGroupListView.createItemView("推荐页预加载");
+        recoPrefetchItemWithSwitch.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_SWITCH);
+        recoPrefetchItemWithSwitch.getSwitch().setChecked(PlayUiPrefs.isRecoPrefetchEnabled(this));
+        recoPrefetchItemWithSwitch.getSwitch().setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                PlayUiPrefs.setRecoPrefetchEnabled(SettingActivity.this, isChecked);
+            }
+        });
+        sec.addItemView(recoPrefetchItemWithSwitch, null);
 
         //禁用自动释放内存功能
         boolean isForbidden = presenter.isForbiddenAutoReleaseMemory();

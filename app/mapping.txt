@@ -3,8 +3,8 @@
 # min_api: 19
 # common_typos_disable
 # {"id":"com.android.tools.r8.mapping","version":"2.1"}
-# pg_map_id: 363576a
-# pg_map_hash: SHA-256 363576ac81abfbbdfbd33903428fce24646353f0c7accc4c2a5793c736f8b43d
+# pg_map_id: 94eabc5
+# pg_map_hash: SHA-256 94eabc5d44940a326c01a728556999590bf252c02e07c57326f41719103fd571
 android.arch.core.executor.ArchTaskExecutor -> a.a:
     android.arch.core.executor.ArchTaskExecutor sInstance -> c
     java.util.concurrent.Executor sMainThreadExecutor -> d
@@ -33651,85 +33651,92 @@ com.m3man.data.reco.RecoProfile$2 -> com.m3man.data.reco.d$b:
     com.m3man.data.reco.RecoProfile this$0 -> a
     int compare(java.util.Map$Entry,java.util.Map$Entry) -> a
 com.m3man.data.reco.RecoRepository -> com.m3man.data.reco.RecoRepository:
-    boolean autoRotateLandscape -> j
-    int consecutiveFailures -> h
-    int orientationFilter -> i
+    int orientationFilter -> j
+    boolean autoRotateLandscape -> k
+    int consecutiveFailures -> i
     java.util.Random random -> c
-    io.reactivex.disposables.CompositeDisposable batchDisposables -> k
-    java.util.regex.Pattern YEAR_PATTERN -> m
-    java.lang.String[] RECO_CATEGORIES -> l
+    java.util.regex.Pattern YEAR_PATTERN -> n
+    io.reactivex.disposables.CompositeDisposable batchDisposables -> l
+    java.lang.String[] RECO_CATEGORIES -> m
+    java.util.Set skippedAuthors -> h
     java.util.List pool -> d
     com.m3man.data.DataManager dataManager -> a
     com.m3man.data.reco.RecoEngine engine -> b
     java.util.Map servedKeys -> e
     java.util.Map categoryPage -> f
     java.util.Map authorPage -> g
-    void probeOrientation(com.m3man.data.reco.RecoCandidate) -> A
-    void probeOrientationsParallel(java.util.List) -> B
-    java.lang.String randomCategory() -> C
-    void resetSession() -> D
-    void setAutoRotateLandscape(boolean) -> E
-    void setOrientationFilter(int) -> F
-    java.util.List take(int) -> G
-    java.util.List toCandidates(com.m3man.data.model.BaseResult,java.lang.String,int) -> H
+    boolean passesOrientation(com.m3man.data.reco.RecoCandidate) -> A
+    java.lang.String pickCategoryByWeight(com.m3man.data.reco.RecoProfile) -> B
+    void probeOrientation(com.m3man.data.reco.RecoCandidate) -> C
+    void probeOrientationsParallel(java.util.List) -> D
+    java.lang.String randomCategory() -> E
+    void resetSession() -> F
+    void setAutoRotateLandscape(boolean) -> G
+    void setOrientationFilter(int) -> H
+    java.util.List take(int) -> I
+    java.util.List toCandidates(com.m3man.data.model.BaseResult,java.lang.String,int) -> J
     void access$000(com.m3man.data.reco.RecoRepository,com.m3man.data.reco.RecoCandidate) -> a
     io.reactivex.disposables.CompositeDisposable access$100(com.m3man.data.reco.RecoRepository) -> b
     int access$1008(com.m3man.data.reco.RecoRepository) -> c
     java.util.List access$1100(com.m3man.data.reco.RecoRepository,com.m3man.data.model.BaseResult,java.lang.String,int) -> d
-    int access$200(com.m3man.data.reco.RecoRepository) -> e
-    boolean access$300(com.m3man.data.reco.RecoRepository) -> f
-    java.util.List access$400(com.m3man.data.reco.RecoRepository) -> g
-    void access$500(com.m3man.data.reco.RecoRepository,java.util.List) -> h
-    int access$600(com.m3man.data.reco.RecoRepository) -> i
-    java.util.List access$700(com.m3man.data.reco.RecoRepository,int) -> j
-    void access$800(com.m3man.data.reco.RecoRepository,java.util.List) -> k
-    io.reactivex.Observable access$900(com.m3man.data.reco.RecoRepository) -> l
-    void addToPool(java.util.List) -> m
-    void bump(java.util.Map,java.lang.String) -> n
-    int countOf(java.util.Map,java.lang.String) -> o
-    int countPassing() -> p
-    java.lang.String diversityAuthorKey(com.m3man.data.reco.RecoCandidate) -> q
-    java.lang.String diversityTopTag(com.m3man.data.reco.RecoCandidate) -> r
-    io.reactivex.Observable fetchAuthor(java.lang.String) -> s
-    io.reactivex.Observable fetchCategory(java.lang.String,int) -> t
-    io.reactivex.Observable fetchOneSource() -> u
-    io.reactivex.Observable nextBatch(int) -> v
-    int nextPage(java.util.Map,java.lang.String) -> w
-    int parseAddYear(java.lang.String) -> x
-    boolean passesOrientation(com.m3man.data.reco.RecoCandidate) -> y
-    java.lang.String pickCategoryByWeight(com.m3man.data.reco.RecoProfile) -> z
-com.m3man.data.reco.RecoRepository$2 -> com.m3man.data.reco.RecoRepository$a:
+    java.util.Set access$1200(com.m3man.data.reco.RecoRepository) -> e
+    io.reactivex.Observable access$1300(com.m3man.data.reco.RecoRepository,java.lang.String,int) -> f
+    int access$200(com.m3man.data.reco.RecoRepository) -> g
+    boolean access$300(com.m3man.data.reco.RecoRepository) -> h
+    java.util.List access$400(com.m3man.data.reco.RecoRepository) -> i
+    void access$500(com.m3man.data.reco.RecoRepository,java.util.List) -> j
+    int access$600(com.m3man.data.reco.RecoRepository) -> k
+    java.util.List access$700(com.m3man.data.reco.RecoRepository,int) -> l
+    void access$800(com.m3man.data.reco.RecoRepository,java.util.List) -> m
+    io.reactivex.Observable access$900(com.m3man.data.reco.RecoRepository) -> n
+    void addToPool(java.util.List) -> o
+    void bump(java.util.Map,java.lang.String) -> p
+    int countOf(java.util.Map,java.lang.String) -> q
+    int countPassing() -> r
+    java.lang.String diversityAuthorKey(com.m3man.data.reco.RecoCandidate) -> s
+    java.lang.String diversityTopTag(com.m3man.data.reco.RecoCandidate) -> t
+    io.reactivex.Observable fetchAuthor(java.lang.String) -> u
+    io.reactivex.Observable fetchCategory(java.lang.String,int) -> v
+    io.reactivex.Observable fetchOneSource() -> w
+    io.reactivex.Observable nextBatch(int) -> x
+    int nextPage(java.util.Map,java.lang.String) -> y
+    int parseAddYear(java.lang.String) -> z
+com.m3man.data.reco.RecoRepository$10 -> com.m3man.data.reco.RecoRepository$a:
+    com.m3man.data.reco.RecoRepository this$0 -> b
+    java.lang.String val$uid -> a
+    java.util.List apply(com.m3man.data.model.BaseResult) -> a
+com.m3man.data.reco.RecoRepository$2 -> com.m3man.data.reco.RecoRepository$b:
     com.m3man.data.reco.RecoRepository this$0 -> a
     io.reactivex.Observable apply(com.m3man.data.reco.RecoCandidate) -> a
-com.m3man.data.reco.RecoRepository$2$1 -> com.m3man.data.reco.RecoRepository$a$a:
+com.m3man.data.reco.RecoRepository$2$1 -> com.m3man.data.reco.RecoRepository$b$a:
     com.m3man.data.reco.RecoCandidate val$c -> a
     com.m3man.data.reco.RecoRepository$2 this$1 -> b
     com.m3man.data.reco.RecoCandidate call() -> a
-com.m3man.data.reco.RecoRepository$3 -> com.m3man.data.reco.RecoRepository$b:
+com.m3man.data.reco.RecoRepository$3 -> com.m3man.data.reco.RecoRepository$c:
     com.m3man.data.reco.RecoRepository this$0 -> a
     void accept(io.reactivex.disposables.Disposable) -> a
-com.m3man.data.reco.RecoRepository$4 -> com.m3man.data.reco.RecoRepository$c:
+com.m3man.data.reco.RecoRepository$4 -> com.m3man.data.reco.RecoRepository$d:
     com.m3man.data.reco.RecoRepository this$0 -> b
     int val$want -> a
     io.reactivex.Observable call() -> a
-com.m3man.data.reco.RecoRepository$4$1 -> com.m3man.data.reco.RecoRepository$c$a:
+com.m3man.data.reco.RecoRepository$4$1 -> com.m3man.data.reco.RecoRepository$d$a:
     com.m3man.data.reco.RecoRepository$4 this$1 -> a
     java.util.List apply(java.util.List) -> a
-com.m3man.data.reco.RecoRepository$6 -> com.m3man.data.reco.RecoRepository$d:
+com.m3man.data.reco.RecoRepository$6 -> com.m3man.data.reco.RecoRepository$e:
     com.m3man.data.reco.RecoRepository this$0 -> a
     void accept(java.lang.Throwable) -> a
-com.m3man.data.reco.RecoRepository$7 -> com.m3man.data.reco.RecoRepository$e:
+com.m3man.data.reco.RecoRepository$7 -> com.m3man.data.reco.RecoRepository$f:
     com.m3man.data.reco.RecoRepository this$0 -> c
     java.lang.String val$rawCategory -> a
     int val$from -> b
     java.util.List apply(com.m3man.data.model.BaseResult) -> a
-com.m3man.data.reco.RecoRepository$8 -> com.m3man.data.reco.RecoRepository$f:
-    com.m3man.data.reco.RecoRepository this$0 -> a
-    void accept(java.lang.Throwable) -> a
-com.m3man.data.reco.RecoRepository$9 -> com.m3man.data.reco.RecoRepository$g:
+com.m3man.data.reco.RecoRepository$8 -> com.m3man.data.reco.RecoRepository$g:
     com.m3man.data.reco.RecoRepository this$0 -> b
     java.lang.String val$uid -> a
-    java.util.List apply(com.m3man.data.model.BaseResult) -> a
+    io.reactivex.ObservableSource apply(java.lang.Throwable) -> a
+com.m3man.data.reco.RecoRepository$9 -> com.m3man.data.reco.RecoRepository$h:
+    com.m3man.data.reco.RecoRepository this$0 -> a
+    void accept(java.lang.Throwable) -> a
 com.m3man.data.reco.RecoScorer -> com.m3man.data.reco.e:
     java.util.regex.Pattern VIEW_PATTERN -> d
     com.m3man.data.reco.RecoParams params -> b
@@ -39849,36 +39856,38 @@ com.m3man.ui.recommend.RecommendFeedFragment -> com.m3man.ui.recommend.Recommend
     int access$2000(com.m3man.ui.recommend.RecommendFeedFragment) -> N3
     void resumeCurrentPlaybackIfNeeded() -> N4
     com.m3man.ui.recommend.RecommendPrefetcher access$202(com.m3man.ui.recommend.RecommendFeedFragment,com.m3man.ui.recommend.RecommendPrefetcher) -> O3
-    void saveFavorite(com.m3man.data.db.entity.V9MmanItem,boolean) -> O4
+    void saveBatchToCache(java.util.List) -> O4
     void access$2100(com.m3man.ui.recommend.RecommendFeedFragment,int) -> P3
-    void showEmpty(java.lang.String) -> P4
+    void saveFavorite(com.m3man.data.db.entity.V9MmanItem,boolean) -> P4
     com.m3man.ui.recommend.RecommendFeedAdapter getAdapter() -> Q
     void access$2200(com.m3man.ui.recommend.RecommendFeedFragment,int,com.m3man.data.reco.RecoCandidate,java.lang.String) -> Q3
-    void showOrientationFilterMenu() -> Q4
+    void showCachedBatchFirst() -> Q4
     void onSpeedClick(int) -> R
     void access$2300(com.m3man.ui.recommend.RecommendFeedFragment,int,java.lang.String) -> R3
-    void showPlayError(int,java.lang.String) -> R4
+    void showEmpty(java.lang.String) -> R4
     java.lang.String access$2400(long) -> S3
-    void startCoverWatcher(int) -> S4
+    void showOrientationFilterMenu() -> S4
     android.view.View onCreateView(android.view.LayoutInflater,android.view.ViewGroup,android.os.Bundle) -> T1
     boolean access$2500(com.m3man.ui.recommend.RecommendFeedFragment) -> T3
-    void startPlay(int) -> T4
+    void showPlayError(int,java.lang.String) -> T4
     boolean access$2502(com.m3man.ui.recommend.RecommendFeedFragment,boolean) -> U3
-    void startProgressTicker(int) -> U4
+    void startCoverWatcher(int) -> U4
     boolean access$2600(com.m3man.ui.recommend.RecommendFeedFragment) -> V3
-    void stopCoverWatcher() -> V4
+    void startPlay(int) -> V4
     void onFullscreenClick(int) -> W
     void onDestroyView() -> W1
     java.lang.Runnable access$2702(com.m3man.ui.recommend.RecommendFeedFragment,java.lang.Runnable) -> W3
-    void stopPlaybackForLeavingPage() -> W4
+    void startProgressTicker(int) -> W4
     com.m3man.ui.recommend.RecommendFeedAdapter$PageHolder access$2800(com.m3man.ui.recommend.RecommendFeedFragment,int) -> X3
-    void stopProgressTicker() -> X4
+    void stopCoverWatcher() -> X4
     android.os.Handler access$2900(com.m3man.ui.recommend.RecommendFeedFragment) -> Y3
-    void updateOrientationPill(int) -> Y4
+    void stopPlaybackForLeavingPage() -> Y4
     void onHiddenChanged(boolean) -> Z1
     com.m3man.ui.recommend.RecommendFeedAdapter access$300(com.m3man.ui.recommend.RecommendFeedFragment) -> Z3
+    void stopProgressTicker() -> Z4
     void onFavoriteClick(int) -> a0
     java.lang.Runnable access$3002(com.m3man.ui.recommend.RecommendFeedFragment,java.lang.Runnable) -> a4
+    void updateOrientationPill(int) -> a5
     void onDownloadClick(int) -> b0
     void access$3100(com.m3man.ui.recommend.RecommendFeedFragment,java.lang.String,int) -> b4
     void access$3200(com.m3man.ui.recommend.RecommendFeedFragment,java.lang.String,int) -> c4
@@ -40355,82 +40364,84 @@ com.m3man.ui.setting.SettingActivity$12 -> com.m3man.ui.setting.SettingActivity$
 com.m3man.ui.setting.SettingActivity$13 -> com.m3man.ui.setting.SettingActivity$e:
     com.m3man.ui.setting.SettingActivity this$0 -> a
 com.m3man.ui.setting.SettingActivity$14 -> com.m3man.ui.setting.SettingActivity$f:
-    com.qmuiteam.qmui.widget.grouplist.QMUICommonListItemView val$qmuiCommonListItemView -> a
-    com.m3man.ui.setting.SettingActivity this$0 -> b
-    void onResult(boolean) -> a
+    com.m3man.ui.setting.SettingActivity this$0 -> a
 com.m3man.ui.setting.SettingActivity$15 -> com.m3man.ui.setting.SettingActivity$g:
     com.qmuiteam.qmui.widget.grouplist.QMUICommonListItemView val$qmuiCommonListItemView -> a
     com.m3man.ui.setting.SettingActivity this$0 -> b
-    void onFilePicked(java.lang.String) -> a
-com.m3man.ui.setting.SettingActivity$15$1 -> com.m3man.ui.setting.SettingActivity$g$a:
-    com.m3man.ui.setting.SettingActivity$15 this$1 -> b
-    java.lang.String val$currentPath -> a
     void onResult(boolean) -> a
 com.m3man.ui.setting.SettingActivity$16 -> com.m3man.ui.setting.SettingActivity$h:
+    com.qmuiteam.qmui.widget.grouplist.QMUICommonListItemView val$qmuiCommonListItemView -> a
+    com.m3man.ui.setting.SettingActivity this$0 -> b
+    void onFilePicked(java.lang.String) -> a
+com.m3man.ui.setting.SettingActivity$16$1 -> com.m3man.ui.setting.SettingActivity$h$a:
+    com.m3man.ui.setting.SettingActivity$16 this$1 -> b
+    java.lang.String val$currentPath -> a
+    void onResult(boolean) -> a
+com.m3man.ui.setting.SettingActivity$17 -> com.m3man.ui.setting.SettingActivity$i:
     com.qmuiteam.qmui.widget.grouplist.QMUICommonListItemView val$qmuiCommonListItemView -> b
     java.lang.String val$newDirPath -> a
     com.m3man.ui.setting.SettingActivity this$0 -> c
     void onClick(com.qmuiteam.qmui.widget.dialog.QMUIDialog,int) -> a
-com.m3man.ui.setting.SettingActivity$17 -> com.m3man.ui.setting.SettingActivity$i:
+com.m3man.ui.setting.SettingActivity$18 -> com.m3man.ui.setting.SettingActivity$j:
     com.qmuiteam.qmui.widget.grouplist.QMUICommonListItemView val$qmuiCommonListItemView -> a
     java.lang.String val$newDirPath -> b
     com.m3man.ui.setting.SettingActivity this$0 -> c
     void onClick(com.qmuiteam.qmui.widget.dialog.QMUIDialog,int) -> a
-com.m3man.ui.setting.SettingActivity$18 -> com.m3man.ui.setting.SettingActivity$j:
+com.m3man.ui.setting.SettingActivity$19 -> com.m3man.ui.setting.SettingActivity$k:
     com.m3man.ui.setting.SettingActivity this$0 -> a
     void onClick(com.qmuiteam.qmui.widget.dialog.QMUIDialog,int) -> a
-com.m3man.ui.setting.SettingActivity$19 -> com.m3man.ui.setting.SettingActivity$k:
-    android.support.v7.widget.AppCompatAutoCompleteTextView val$autoCompleteTextView -> a
-    com.qmuiteam.qmui.widget.grouplist.QMUICommonListItemView val$qmuiCommonListItemView -> d
-    com.m3man.ui.setting.SettingActivity this$0 -> e
-    java.lang.String val$key -> b
-    android.support.v7.app.AlertDialog val$alertDialog -> c
-com.m3man.ui.setting.SettingActivity$2 -> com.m3man.ui.setting.SettingActivity$s:
+com.m3man.ui.setting.SettingActivity$2 -> com.m3man.ui.setting.SettingActivity$t:
     com.m3man.ui.setting.SettingActivity this$0 -> b
     com.m3man.data.reco.RecoEngine val$engine -> a
     void onParamsChanged(com.m3man.data.reco.RecoParams) -> a
     void onMemoryCleared() -> b
 com.m3man.ui.setting.SettingActivity$20 -> com.m3man.ui.setting.SettingActivity$l:
-    java.lang.String val$key -> a
-    android.support.v7.app.AlertDialog val$alertDialog -> b
-    com.m3man.ui.setting.SettingActivity this$0 -> c
-com.m3man.ui.setting.SettingActivity$21 -> com.m3man.ui.setting.SettingActivity$m:
     android.support.v7.widget.AppCompatAutoCompleteTextView val$autoCompleteTextView -> a
     com.qmuiteam.qmui.widget.grouplist.QMUICommonListItemView val$qmuiCommonListItemView -> d
     com.m3man.ui.setting.SettingActivity this$0 -> e
     java.lang.String val$key -> b
     android.support.v7.app.AlertDialog val$alertDialog -> c
+com.m3man.ui.setting.SettingActivity$21 -> com.m3man.ui.setting.SettingActivity$m:
+    java.lang.String val$key -> a
+    android.support.v7.app.AlertDialog val$alertDialog -> b
+    com.m3man.ui.setting.SettingActivity this$0 -> c
 com.m3man.ui.setting.SettingActivity$22 -> com.m3man.ui.setting.SettingActivity$n:
+    android.support.v7.widget.AppCompatAutoCompleteTextView val$autoCompleteTextView -> a
+    com.qmuiteam.qmui.widget.grouplist.QMUICommonListItemView val$qmuiCommonListItemView -> d
+    com.m3man.ui.setting.SettingActivity this$0 -> e
+    java.lang.String val$key -> b
+    android.support.v7.app.AlertDialog val$alertDialog -> c
+com.m3man.ui.setting.SettingActivity$23 -> com.m3man.ui.setting.SettingActivity$o:
     com.qmuiteam.qmui.widget.grouplist.QMUICommonListItemView val$qmuiCommonListItemView -> a
     java.lang.String val$key -> b
     com.m3man.ui.setting.SettingActivity this$0 -> c
-com.m3man.ui.setting.SettingActivity$23 -> com.m3man.ui.setting.SettingActivity$o:
+com.m3man.ui.setting.SettingActivity$24 -> com.m3man.ui.setting.SettingActivity$p:
     com.qmuiteam.qmui.widget.grouplist.QMUICommonListItemView val$qmuiCommonListItemView -> b
     java.lang.String val$key -> a
     java.lang.String val$address -> c
     com.m3man.ui.setting.SettingActivity this$0 -> d
-com.m3man.ui.setting.SettingActivity$24 -> com.m3man.ui.setting.SettingActivity$p:
+com.m3man.ui.setting.SettingActivity$25 -> com.m3man.ui.setting.SettingActivity$q:
     com.m3man.ui.setting.SettingActivity this$0 -> a
     void onClick(com.qmuiteam.qmui.widget.dialog.QMUIDialog,int) -> a
-com.m3man.ui.setting.SettingActivity$25 -> com.m3man.ui.setting.SettingActivity$q:
+com.m3man.ui.setting.SettingActivity$26 -> com.m3man.ui.setting.SettingActivity$r:
     com.qmuiteam.qmui.widget.grouplist.QMUICommonListItemView val$qmuiCommonListItemView -> a
     com.m3man.ui.setting.SettingActivity this$0 -> b
-com.m3man.ui.setting.SettingActivity$26 -> com.m3man.ui.setting.SettingActivity$r:
+com.m3man.ui.setting.SettingActivity$27 -> com.m3man.ui.setting.SettingActivity$s:
     com.m3man.ui.setting.SettingActivity this$0 -> a
-com.m3man.ui.setting.SettingActivity$3 -> com.m3man.ui.setting.SettingActivity$t:
+com.m3man.ui.setting.SettingActivity$3 -> com.m3man.ui.setting.SettingActivity$u:
     com.m3man.ui.setting.SettingActivity this$0 -> a
-com.m3man.ui.setting.SettingActivity$4 -> com.m3man.ui.setting.SettingActivity$u:
+com.m3man.ui.setting.SettingActivity$4 -> com.m3man.ui.setting.SettingActivity$v:
     com.m3man.ui.setting.SettingActivity this$0 -> a
-com.m3man.ui.setting.SettingActivity$5 -> com.m3man.ui.setting.SettingActivity$v:
+com.m3man.ui.setting.SettingActivity$5 -> com.m3man.ui.setting.SettingActivity$w:
     com.m3man.ui.setting.SettingActivity this$0 -> a
-com.m3man.ui.setting.SettingActivity$6 -> com.m3man.ui.setting.SettingActivity$w:
+com.m3man.ui.setting.SettingActivity$6 -> com.m3man.ui.setting.SettingActivity$x:
     com.m3man.ui.setting.SettingActivity this$0 -> a
-com.m3man.ui.setting.SettingActivity$7 -> com.m3man.ui.setting.SettingActivity$x:
+com.m3man.ui.setting.SettingActivity$7 -> com.m3man.ui.setting.SettingActivity$y:
     com.m3man.ui.setting.SettingActivity this$0 -> a
-com.m3man.ui.setting.SettingActivity$8 -> com.m3man.ui.setting.SettingActivity$y:
+com.m3man.ui.setting.SettingActivity$8 -> com.m3man.ui.setting.SettingActivity$z:
     com.qmuiteam.qmui.widget.grouplist.QMUICommonListItemView val$customDownloadPathItemWithChevron -> a
     com.m3man.ui.setting.SettingActivity this$0 -> b
-com.m3man.ui.setting.SettingActivity$9 -> com.m3man.ui.setting.SettingActivity$z:
+com.m3man.ui.setting.SettingActivity$9 -> com.m3man.ui.setting.SettingActivity$a0:
     com.m3man.ui.setting.SettingActivity this$0 -> a
 com.m3man.ui.setting.SettingActivityModule -> n6.a:
     android.support.v7.app.AppCompatActivity provideAppCompatActivity(com.m3man.ui.setting.SettingActivity) -> a
@@ -41107,12 +41118,16 @@ com.m3man.utils.PasswordVault$$ExternalSyntheticApiModelOutline3 -> com.m3man.ut
       # {"id":"com.android.tools.r8.synthesized"}
 com.m3man.utils.PlayUiPrefs -> com.m3man.utils.d0:
     int getOrientationFilter(android.content.Context) -> a
-    boolean isAutoRotateLandscape(android.content.Context) -> b
-    boolean isHideActionBar(android.content.Context) -> c
-    android.content.SharedPreferences prefs(android.content.Context) -> d
-    void setAutoRotateLandscape(android.content.Context,boolean) -> e
-    void setHideActionBar(android.content.Context,boolean) -> f
-    void setOrientationFilter(android.content.Context,int) -> g
+    java.lang.String getRecoCacheBatch(android.content.Context) -> b
+    boolean isAutoRotateLandscape(android.content.Context) -> c
+    boolean isHideActionBar(android.content.Context) -> d
+    boolean isRecoPrefetchEnabled(android.content.Context) -> e
+    android.content.SharedPreferences prefs(android.content.Context) -> f
+    void setAutoRotateLandscape(android.content.Context,boolean) -> g
+    void setHideActionBar(android.content.Context,boolean) -> h
+    void setOrientationFilter(android.content.Context,int) -> i
+    void setRecoCacheBatch(android.content.Context,java.lang.String) -> j
+    void setRecoPrefetchEnabled(android.content.Context,boolean) -> k
 com.m3man.utils.PlaybackEngine -> com.m3man.utils.e0:
     java.lang.String[] PLAY_ENGINE_ITEMS -> a
     android.content.Intent getPlaybackEngineIntent(android.content.Context,int) -> a
@@ -41214,14 +41229,16 @@ com.orhanobut.logger.LoggerPrinter -> p6.g:
     java.util.List logAdapters -> b
     java.lang.ThreadLocal localTag -> a
     void addAdapter(com.orhanobut.logger.LogAdapter) -> a
-    com.orhanobut.logger.Printer t(java.lang.String) -> b
-    void e(java.lang.String,java.lang.Object[]) -> c
-    void w(java.lang.String,java.lang.Object[]) -> d
-    void d(java.lang.Object) -> f
-    java.lang.String createMessage(java.lang.String,java.lang.Object[]) -> g
-    java.lang.String getTag() -> h
-    void log(int,java.lang.String,java.lang.String,java.lang.Throwable) -> i
-    void log(int,java.lang.Throwable,java.lang.String,java.lang.Object[]) -> j
+    void d(java.lang.String,java.lang.Object[]) -> b
+    com.orhanobut.logger.Printer t(java.lang.String) -> c
+    void e(java.lang.String,java.lang.Object[]) -> d
+    void w(java.lang.String,java.lang.Object[]) -> e
+    void e(java.lang.Throwable,java.lang.String,java.lang.Object[]) -> f
+    void d(java.lang.Object) -> g
+    java.lang.String createMessage(java.lang.String,java.lang.Object[]) -> h
+    java.lang.String getTag() -> i
+    void log(int,java.lang.String,java.lang.String,java.lang.Throwable) -> j
+    void log(int,java.lang.Throwable,java.lang.String,java.lang.Object[]) -> k
 com.orhanobut.logger.PrettyFormatStrategy -> p6.h:
     int methodOffset -> b
     boolean showThreadInfo -> c
@@ -41252,10 +41269,12 @@ com.orhanobut.logger.PrettyFormatStrategy$Builder -> p6.h$b:
     com.orhanobut.logger.PrettyFormatStrategy$Builder showThreadInfo(boolean) -> d
 com.orhanobut.logger.Printer -> p6.i:
     void addAdapter(com.orhanobut.logger.LogAdapter) -> a
-    com.orhanobut.logger.Printer t(java.lang.String) -> b
-    void e(java.lang.String,java.lang.Object[]) -> c
-    void w(java.lang.String,java.lang.Object[]) -> d
-    void d(java.lang.Object) -> f
+    void d(java.lang.String,java.lang.Object[]) -> b
+    com.orhanobut.logger.Printer t(java.lang.String) -> c
+    void e(java.lang.String,java.lang.Object[]) -> d
+    void w(java.lang.String,java.lang.Object[]) -> e
+    void e(java.lang.Throwable,java.lang.String,java.lang.Object[]) -> f
+    void d(java.lang.Object) -> g
 com.orhanobut.logger.Utils -> p6.j:
     java.lang.Object checkNotNull(java.lang.Object) -> a
     boolean equals(java.lang.CharSequence,java.lang.CharSequence) -> b

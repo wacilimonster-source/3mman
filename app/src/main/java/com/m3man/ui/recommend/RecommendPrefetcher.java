@@ -8,6 +8,7 @@ import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.db.entity.VideoResult;
 import com.m3man.data.reco.RecoCandidate;
 import com.m3man.utils.AppLog;
+import com.m3man.utils.PlayUiPrefs;
 import com.m3man.utils.GlideApp;
 import com.orhanobut.logger.Logger;
 
@@ -240,6 +241,10 @@ public class RecommendPrefetcher {
      * 预加载：从 startIndex 开始往后 ahead 条。
      */
     public void prefetch(List<RecoCandidate> list, int startIndex, int ahead) {
+        // L-fix：设置「推荐页预加载」关闭时直接短路，不解析、不预热、不耗流量
+        if (appContext != null && !PlayUiPrefs.isRecoPrefetchEnabled(appContext)) {
+            return;
+        }
         if (released || list == null || ahead <= 0) {
             return;
         }

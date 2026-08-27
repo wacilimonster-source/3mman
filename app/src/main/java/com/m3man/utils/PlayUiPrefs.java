@@ -17,6 +17,10 @@ public final class PlayUiPrefs {
     private static final String KEY_AUTO_ROTATE_LANDSCAPE = "auto_rotate_landscape";
     private static final String KEY_HIDE_ACTION_BAR = "hide_action_bar";
     private static final String KEY_ORIENTATION_FILTER = "orientation_filter";
+    /** L-fix：推荐页预加载总开关（本地缓存首显 + 预取下一视频），默认开 */
+    private static final String KEY_RECO_PREFETCH = "reco_prefetch_enabled";
+    /** L-fix：最近一次成功推荐的候选批次快照（JSON），供冷启动秒显 */
+    private static final String KEY_RECO_CACHE_BATCH = "reco_cache_batch";
 
     /** 方向筛选取值 */
     public static final int FILTER_ALL = 0;
@@ -52,5 +56,21 @@ public final class PlayUiPrefs {
 
     public static void setOrientationFilter(Context context, int value) {
         prefs(context).edit().putInt(KEY_ORIENTATION_FILTER, value).apply();
+    }
+
+    public static boolean isRecoPrefetchEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_RECO_PREFETCH, true);
+    }
+
+    public static void setRecoPrefetchEnabled(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_RECO_PREFETCH, value).apply();
+    }
+
+    public static String getRecoCacheBatch(Context context) {
+        return prefs(context).getString(KEY_RECO_CACHE_BATCH, null);
+    }
+
+    public static void setRecoCacheBatch(Context context, String json) {
+        prefs(context).edit().putString(KEY_RECO_CACHE_BATCH, json).apply();
     }
 }

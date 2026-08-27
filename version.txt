@@ -1,7 +1,7 @@
 {
-  "versionCode": 135,
-  "versionName": "1.0.102",
-  "updateMessage": "修复正在下载列表：HLS/备用源下载现已显示已下载大小与实时速度，并消除缩略图反复缩放闪烁；直链探活增加 Referer 重试，减少「源站受限」误判转备用源；提示文案更准确。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.102.apk",
-  "sha256": "d6a522d7ccc750ac3f88e2667f35fb1525fb3df096c922aaf80b06e15e980b9c"
+  "versionCode": 136,
+  "versionName": "1.0.103",
+  "updateMessage": "修复进入推荐的报错：作者召回源的临时 token 过期导致 404 时自动降级为探索分类补一批，不再整批失败；新增「推荐页预加载」设置开关（我的-更多设置），开启时进推荐先秒显上次内容并预取下一条视频。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.103.apk",
+  "sha256": "d1631dbbde4c3a158131b69a2e0c6c121e11cf5cb0390913ba6a6adf621515e4"
 }

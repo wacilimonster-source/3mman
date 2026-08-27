@@ -102,6 +102,8 @@ public class RecoRepository {
             });
     private final Map<String, Integer> categoryPage = new HashMap<>();
     private final Map<String, Integer> authorPage = new HashMap<>();
+    /** L-fix：本会话内已确认失效的作者 UID（token 过期 404），不再重复选中 */
+    private final java.util.Set<String> skippedAuthors = new java.util.HashSet<>();
 
     /** 连续拉取失败次数，用于让 UI 提示错误 */
     private volatile int consecutiveFailures = 0;
@@ -329,10 +331,21 @@ public class RecoRepository {
         RecoParams params = engine.getParams();
 
         List<String> topAuthors = profile.topAuthors(5, 1.0d);
-        boolean useAuthor = !topAuthors.isEmpty()
+        // L-fix：过滤本会话已失效的作者 token，避免反复打 404 后整批失败
+        java.util.List<String> usableAuthors = new java.util.ArrayList<>();
+        if (!topAuthors.isEmpty()) {
+            synchronized (skippedAuthors) {
+                for (String a : topAuthors) {
+                    if (a != null && !skippedAuthors.contains(a)) {
+                        usableAuthors.add(a);
+                    }
+                }
+            }
+        }
+        boolean useAuthor = !usableAuthors.isEmpty()
                 && random.nextFloat() < params.authorRecallRatio;
         if (useAuthor) {
-            String uid = topAuthors.get(random.nextInt(topAuthors.size()));
+            String uid = usableAuthors.get(random.nextInt(usableAuthors.size()));
             return fetchAuthor(uid);
         }
         boolean explore = random.nextFloat() < params.explorationRate;
@@ -394,6 +407,21 @@ public class RecoRepository {
                     @Override
                     public void accept(Throwable throwable) {
                         consecutiveFailures++;
+                    }
+                })
+                // L-fix（Bug1 复查修复）：作者 UID 是加密临时 token，过期后 uvideos.php 必 404
+                // （与 M92g 作者页同一问题，但推荐链路此前未接入自愈）。这里不再让单路炸掉整批：
+                // 先把该作者标记为本会话跳过，再降级到探索分类补一批，保证推荐始终有内容。
+                .onErrorResumeNext(new io.reactivex.functions.Function<
+                        Throwable, io.reactivex.ObservableSource<? extends java.util.List<RecoCandidate>>>() {
+                    @Override
+                    public io.reactivex.ObservableSource<? extends java.util.List<RecoCandidate>> apply(Throwable t) {
+                        synchronized (skippedAuthors) {
+                            skippedAuthors.add(uid);
+                        }
+                        consecutiveFailures++;
+                        android.util.Log.w("RecoRepo", "作者源 token 失效已降级为探索分类");
+                        return fetchCategory(randomCategory(), RecoCandidate.FROM_EXPLORE);
                     }
                 });
     }

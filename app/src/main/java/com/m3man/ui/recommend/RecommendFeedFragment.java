@@ -66,6 +66,7 @@ import javax.inject.Inject;
 
 import cn.jzvd.JZVideoPlayer;
 import cn.jzvd.JZVideoPlayerStandard;
+import com.google.gson.Gson;
 import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -425,9 +426,64 @@ public class RecommendFeedFragment extends BaseFragment
 
     // ==================== 数据 ====================
 
+    /**
+     * L-fix：读取上次会话的本地缓存批次并立即上屏。条目点击后走既有播放解析流程。
+     * 与后续网络批次的衔接：网络批次 append 在尾部，用户滑过缓存条目即进入新内容。
+     */
+    private void showCachedBatchFirst() {
+        try {
+            android.content.Context ctx = getContext() != null
+                    ? getContext().getApplicationContext() : null;
+            String json = ctx == null ? null : PlayUiPrefs.getRecoCacheBatch(ctx);
+            if (TextUtils.isEmpty(json)) {
+                return;
+            }
+            V9MmanItem[] arr = new Gson().fromJson(json, V9MmanItem[].class);
+            java.util.List<RecoCandidate> cached = new ArrayList<>();
+            for (V9MmanItem it : (arr == null ? new V9MmanItem[0] : arr)) {
+                if (it != null && !TextUtils.isEmpty(it.getViewKey())) {
+                    cached.add(new RecoCandidate(it, null, RecoCandidate.FROM_EXPLORE));
+                }
+            }
+            if (!cached.isEmpty() && adapter.getItemCount() == 0) {
+                adapter.appendData(cached);
+                globalLoading.setVisibility(View.GONE);
+            }
+        } catch (Exception e) {
+            Logger.t(TAG).d("展示推荐本地缓存被跳过: %s", e.getMessage());
+        }
+    }
+
+    /** L-fix：把本批候选序列化进本地缓存（保留最近一屏），供冷启动秒显 */
+    private void saveBatchToCache(java.util.List<RecoCandidate> list) {
+        try {
+            android.content.Context ctx = getContext() != null
+                    ? getContext().getApplicationContext() : null;
+            if (ctx == null || list == null || list.isEmpty()) {
+                return;
+            }
+            ArrayList<V9MmanItem> keep = new ArrayList<>();
+            for (RecoCandidate c : list) {
+                if (c != null && c.item != null && !TextUtils.isEmpty(c.item.getViewKey())) {
+                    keep.add(c.item);
+                }
+            }
+            if (keep.size() > BATCH_SIZE) {
+                keep.subList(0, keep.size() - BATCH_SIZE).clear();
+            }
+            PlayUiPrefs.setRecoCacheBatch(ctx, new Gson().toJson(keep));
+        } catch (Exception ignored) {
+        }
+    }
+
     private void loadMore(final boolean first) {
         if (loading || (noMore && !first) || repository == null) {
             return;
+        }
+        // L-fix：进入推荐先渲染上次会话的本地缓存批次（秒开，不转圈），随后照常拉取新批次追加在后
+        if (first && PlayUiPrefs.isRecoPrefetchEnabled(
+                getContext() != null ? getContext().getApplicationContext() : null)) {
+            showCachedBatchFirst();
         }
         if (first) {
             firstLoadStarted = true;
@@ -476,6 +532,8 @@ public class RecommendFeedFragment extends BaseFragment
         lastLoadHadError = false;
         boolean wasEmpty = adapter.getItemCount() == 0;
         adapter.appendData(list);
+        // L-fix：成功出批后保存本批到本地缓存（保留最近一屏），供下次冷启动秒显
+        saveBatchToCache(list);
         emptyLayout.setVisibility(View.GONE);
         if (wasEmpty) {
             recyclerView.post(new Runnable() {
