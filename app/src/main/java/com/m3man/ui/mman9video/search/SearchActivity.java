@@ -84,7 +84,7 @@ public class SearchActivity extends MvpActivity<SearchView, SearchPresenter> imp
                         presenter.searchVideos(searchId, sort, true);
                         searchHistoryPanel.hide();
                     }
-                });
+                }, searchView);
         searchHistoryPanel.show();
         boolean isFirst = presenter.isFirstInSearchMman91Video();
         if (isFirst) {

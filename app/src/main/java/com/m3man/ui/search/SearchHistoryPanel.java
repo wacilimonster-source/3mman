@@ -2,6 +2,7 @@ package com.m3man.ui.search;
 
 import android.content.DialogInterface;
 import android.support.v7.app.AlertDialog;
+import android.support.v7.widget.SearchView;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.TextUtils;
@@ -40,11 +41,17 @@ public class SearchHistoryPanel {
     private final SearchHistoryAdapter adapter;
     private final DataManager dm;
     private final OnHistoryItemClickListener clickListener;
+    private final SearchView searchView;
 
     public SearchHistoryPanel(View container, DataManager dm, OnHistoryItemClickListener listener) {
+        this(container, dm, listener, null);
+    }
+
+    public SearchHistoryPanel(View container, DataManager dm, OnHistoryItemClickListener listener, SearchView searchView) {
         this.container = container;
         this.dm = dm;
         this.clickListener = listener;
+        this.searchView = searchView;
 
         this.rv = container.findViewById(R.id.rv_search_history);
         this.tvClear = container.findViewById(R.id.tv_clear_search_history);
@@ -83,6 +90,10 @@ public class SearchHistoryPanel {
 
     /** 加载并展示历史；无历史时自动隐藏。M73：查询切 IO 线程后回主线程更新 UI */
     public void show() {
+        // 收起 SearchView，防止其拦截历史面板的点击事件
+        if (searchView != null && !searchView.isIconified()) {
+            searchView.setIconified(true);
+        }
         io.reactivex.Observable.just(1)
                 .subscribeOn(io.reactivex.schedulers.Schedulers.io())
                 .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())

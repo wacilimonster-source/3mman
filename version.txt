@@ -1,7 +1,7 @@
 {
-  "versionCode": 137,
-  "versionName": "1.0.104",
-  "updateMessage": "修复搜索历史点击后长时间无反馈的问题：搜索失败约 1 秒内即显示「搜索失败了」的明确提示（原先要等约 36 秒且几乎不可见）；历史条目点击可靠性加固；清理不可达的旧搜索页面。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.104.apk",
-  "sha256": "93b316feb906b40452005fa80e50b0c3e94bd98c48c65de0f5972e7b142cf857"
+  "versionCode": 138,
+  "versionName": "1.0.105",
+  "updateMessage": "搜索历史面板点击可靠性修复：SearchHistoryPanel 新增带 SearchView 的重载构造，展开态自动收起以避免拦截历史条目点击；SearchActivity/SearchPornyFragment 同步传入 SearchView。Release 关闭 R8 混淆与资源压缩以提升稳定性。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.105.apk",
+  "sha256": "71eac9aaa6eed0653b6870a05595b8508b5210d19cd2f0a46c879423db9dbdb9"
 }

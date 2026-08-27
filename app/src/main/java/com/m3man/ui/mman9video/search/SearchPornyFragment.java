@@ -198,7 +198,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                         triggerSearch(true);
                         searchHistoryPanel.hide();
                     }
-                });
+                }, searchView);
         searchHistoryPanel.show();
     }
 
