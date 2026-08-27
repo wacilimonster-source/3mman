@@ -1,7 +1,7 @@
 {
   "versionCode": 137,
   "versionName": "1.0.104",
-  "updateMessage": "修复搜索历史点击后长时间无反馈的问题：搜索失败现在约 1 秒内即可看到「搜索失败了」的明确提示（原先要等约 36 秒且几乎不可见）；历史条目点击可靠性加固。",
+  "updateMessage": "修复搜索历史点击后长时间无反馈的问题：搜索失败约 1 秒内即显示「搜索失败了」的明确提示（原先要等约 36 秒且几乎不可见）；历史条目点击可靠性加固；清理不可达的旧搜索页面。",
   "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.104.apk",
-  "sha256": "09af2a13ff5a4d1496b88f98d3a3ca632208773cbb1a5e5369841585113f8cef"
+  "sha256": "93b316feb906b40452005fa80e50b0c3e94bd98c48c65de0f5972e7b142cf857"
 }

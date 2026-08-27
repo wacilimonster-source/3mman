@@ -3,8 +3,8 @@
 # min_api: 19
 # common_typos_disable
 # {"id":"com.android.tools.r8.mapping","version":"2.1"}
-# pg_map_id: 11608bd
-# pg_map_hash: SHA-256 11608bdd004eb2a2725d0e0fd86b15d42bd7a5ea5b6ad8a4c1904507277c622a
+# pg_map_id: 808d9e3
+# pg_map_hash: SHA-256 808d9e35ee944d864299d7aab20b9c33e2b810af2dce926e557b9b14750d130c
 android.arch.core.executor.ArchTaskExecutor -> a.a:
     android.arch.core.executor.ArchTaskExecutor sInstance -> c
     java.util.concurrent.Executor sMainThreadExecutor -> d
@@ -33828,149 +33828,144 @@ com.m3man.di.component.AppComponent$Builder -> o5.a$a:
     com.m3man.di.component.AppComponent$Builder application(android.app.Application) -> a
 com.m3man.di.component.DaggerAppComponent -> o5.b:
     javax.inject.Provider downloadActivitySubcomponentBuilderProvider -> c
-    javax.inject.Provider providesRulerProvider -> F
-    javax.inject.Provider commonHeaderInterceptorProvider -> B
-    javax.inject.Provider providePreferenceNameProvider -> x
-    javax.inject.Provider providesPersistentCookieJarProvider -> W
-    javax.inject.Provider downloadVideoServiceSubcomponentBuilderProvider -> s
-    javax.inject.Provider providesHttpProxyCacheServerProvider -> V
-    javax.inject.Provider provideDataManagerProvider -> a0
-    javax.inject.Provider authorFavoriteActivitySubcomponentBuilderProvider -> o
-    javax.inject.Provider appApiHelperProvider -> R
-    javax.inject.Provider jiaoZiVideoPlayerActivitySubcomponentBuilderProvider -> k
-    javax.inject.Provider providesProxyServiceApiProvider -> N
+    javax.inject.Provider providesListProxyProvider -> F
+    javax.inject.Provider providesHttpLoggingInterceptorProvider -> B
+    javax.inject.Provider appPreferencesHelperProvider -> x
+    javax.inject.Provider appCookieManagerProvider -> W
+    javax.inject.Provider applicationProvider -> s
+    javax.inject.Provider providesPersistentCookieJarProvider -> V
+    javax.inject.Provider proxySettingActivitySubcomponentBuilderProvider -> o
+    javax.inject.Provider providesApiHelperProvider -> R
+    javax.inject.Provider userLoginActivitySubcomponentBuilderProvider -> k
+    javax.inject.Provider providesPornyServiceApiProvider -> N
     javax.inject.Provider pornyFavoriteActivitySubcomponentBuilderProvider -> g
-    javax.inject.Provider providesOkHttpClientProvider -> J
+    javax.inject.Provider providesRetrofitProvider -> J
     javax.inject.Provider favoriteActivitySubcomponentBuilderProvider -> f
-    javax.inject.Provider providesSetCookieCacheProvider -> E
+    javax.inject.Provider providesRulerProvider -> E
     javax.inject.Provider mainActivitySubcomponentBuilderProvider -> b
-    javax.inject.Provider providesCacheProvidersProvider -> A
-    javax.inject.Provider provideDbHelperProvider -> w
-    javax.inject.Provider appDataManagerProvider -> Z
-    javax.inject.Provider appDbHelperProvider -> v
-    javax.inject.Provider providesHeaderInjectorProvider -> U
-    javax.inject.Provider updateActivitySubcomponentBuilderProvider -> r
-    javax.inject.Provider userProvider -> Q
-    javax.inject.Provider authorActivitySubcomponentBuilderProvider -> n
-    javax.inject.Provider providesGitHubServiceApiProvider -> M
-    javax.inject.Provider exoMediaPlayerActivitySubcomponentBuilderProvider -> j
-    javax.inject.Provider providesAddressHelperProvider -> I
-    javax.inject.Provider providesSharedPrefsCookiePersistorProvider -> D
+    javax.inject.Provider commonHeaderInterceptorProvider -> A
+    javax.inject.Provider providePreferenceNameProvider -> w
+    javax.inject.Provider provideDataManagerProvider -> Z
+    javax.inject.Provider provideDbHelperProvider -> v
+    javax.inject.Provider providesHttpProxyCacheServerProvider -> U
+    javax.inject.Provider downloadVideoServiceSubcomponentBuilderProvider -> r
+    javax.inject.Provider appApiHelperProvider -> Q
+    javax.inject.Provider authorFavoriteActivitySubcomponentBuilderProvider -> n
+    javax.inject.Provider providesProxyServiceApiProvider -> M
+    javax.inject.Provider jiaoZiVideoPlayerActivitySubcomponentBuilderProvider -> j
+    javax.inject.Provider providesOkHttpClientProvider -> I
+    javax.inject.Provider providesSetCookieCacheProvider -> D
     javax.inject.Provider aboutActivitySubcomponentBuilderProvider -> e
-    javax.inject.Provider providePreferencesHelperProvider -> z
-    javax.inject.Provider providesCookieManagerProvider -> Y
-    javax.inject.Provider myHeaderInjectorProvider -> T
-    javax.inject.Provider mySQLiteOpenHelperProvider -> u
-    javax.inject.Provider providesGsonProvider -> P
-    javax.inject.Provider historyActivitySubcomponentBuilderProvider -> q
-    javax.inject.Provider provides91MmanVideoServiceApiProvider -> L
-    javax.inject.Provider userRegisterActivitySubcomponentBuilderProvider -> m
-    javax.inject.Provider myProxySelectorProvider -> H
-    javax.inject.Provider searchPornyActivitySubcomponentBuilderProvider -> i
+    javax.inject.Provider providesCacheProvidersProvider -> z
+    javax.inject.Provider appDataManagerProvider -> Y
+    javax.inject.Provider providesHeaderInjectorProvider -> T
+    javax.inject.Provider appDbHelperProvider -> u
+    javax.inject.Provider userProvider -> P
+    javax.inject.Provider updateActivitySubcomponentBuilderProvider -> q
+    javax.inject.Provider providesGitHubServiceApiProvider -> L
+    javax.inject.Provider authorActivitySubcomponentBuilderProvider -> m
+    javax.inject.Provider providesAddressHelperProvider -> H
+    javax.inject.Provider exoMediaPlayerActivitySubcomponentBuilderProvider -> i
     javax.inject.Provider settingActivitySubcomponentBuilderProvider -> d
-    javax.inject.Provider providesHttpLoggingInterceptorProvider -> C
-    javax.inject.Provider appCookieManagerProvider -> X
-    javax.inject.Provider appPreferencesHelperProvider -> y
-    javax.inject.Provider applicationProvider -> t
-    javax.inject.Provider providesApiHelperProvider -> S
+    javax.inject.Provider providesSharedPrefsCookiePersistorProvider -> C
+    javax.inject.Provider providesCookieManagerProvider -> X
+    javax.inject.Provider providePreferencesHelperProvider -> y
+    javax.inject.Provider mySQLiteOpenHelperProvider -> t
+    javax.inject.Provider myHeaderInjectorProvider -> S
     android.app.Application application -> a
-    javax.inject.Provider proxySettingActivitySubcomponentBuilderProvider -> p
-    javax.inject.Provider providesPornyServiceApiProvider -> O
-    javax.inject.Provider userLoginActivitySubcomponentBuilderProvider -> l
-    javax.inject.Provider providesRetrofitProvider -> K
+    javax.inject.Provider historyActivitySubcomponentBuilderProvider -> p
+    javax.inject.Provider providesGsonProvider -> O
+    javax.inject.Provider userRegisterActivitySubcomponentBuilderProvider -> l
+    javax.inject.Provider provides91MmanVideoServiceApiProvider -> K
     javax.inject.Provider searchActivitySubcomponentBuilderProvider -> h
-    javax.inject.Provider providesListProxyProvider -> G
-    dagger.android.DispatchingAndroidInjector getDispatchingAndroidInjectorOfActivity() -> A
-    dagger.android.DispatchingAndroidInjector getDispatchingAndroidInjectorOfBroadcastReceiver() -> B
-    dagger.android.DispatchingAndroidInjector getDispatchingAndroidInjectorOfContentProvider() -> C
-    dagger.android.DispatchingAndroidInjector getDispatchingAndroidInjectorOfFragment() -> D
-    dagger.android.DispatchingAndroidInjector getDispatchingAndroidInjectorOfFragment2() -> E
-    dagger.android.DispatchingAndroidInjector getDispatchingAndroidInjectorOfService() -> F
-    java.util.Map getMapOfClassOfAndProviderOfFactoryOf() -> G
-    void initialize(com.m3man.di.module.ApiServiceModule,android.app.Application) -> H
-    void inject(com.m3man.MyApplication) -> I
-    com.m3man.MyApplication injectMyApplication(com.m3man.MyApplication) -> J
+    javax.inject.Provider myProxySelectorProvider -> G
+    dagger.android.DispatchingAndroidInjector getDispatchingAndroidInjectorOfBroadcastReceiver() -> A
+    dagger.android.DispatchingAndroidInjector getDispatchingAndroidInjectorOfContentProvider() -> B
+    dagger.android.DispatchingAndroidInjector getDispatchingAndroidInjectorOfFragment() -> C
+    dagger.android.DispatchingAndroidInjector getDispatchingAndroidInjectorOfFragment2() -> D
+    dagger.android.DispatchingAndroidInjector getDispatchingAndroidInjectorOfService() -> E
+    java.util.Map getMapOfClassOfAndProviderOfFactoryOf() -> F
+    void initialize(com.m3man.di.module.ApiServiceModule,android.app.Application) -> G
+    void inject(com.m3man.MyApplication) -> H
+    com.m3man.MyApplication injectMyApplication(com.m3man.MyApplication) -> I
     void inject(java.lang.Object) -> a
-    javax.inject.Provider access$2100(com.m3man.di.component.DaggerAppComponent) -> b
-    javax.inject.Provider access$2200(com.m3man.di.component.DaggerAppComponent) -> c
-    javax.inject.Provider access$2300(com.m3man.di.component.DaggerAppComponent) -> d
-    javax.inject.Provider access$2400(com.m3man.di.component.DaggerAppComponent) -> e
-    javax.inject.Provider access$2500(com.m3man.di.component.DaggerAppComponent) -> f
-    javax.inject.Provider access$2600(com.m3man.di.component.DaggerAppComponent) -> g
-    javax.inject.Provider access$2700(com.m3man.di.component.DaggerAppComponent) -> h
-    javax.inject.Provider access$2800(com.m3man.di.component.DaggerAppComponent) -> i
-    javax.inject.Provider access$2900(com.m3man.di.component.DaggerAppComponent) -> j
-    javax.inject.Provider access$3000(com.m3man.di.component.DaggerAppComponent) -> k
-    javax.inject.Provider access$3100(com.m3man.di.component.DaggerAppComponent) -> l
-    javax.inject.Provider access$3200(com.m3man.di.component.DaggerAppComponent) -> m
-    javax.inject.Provider access$3300(com.m3man.di.component.DaggerAppComponent) -> n
-    javax.inject.Provider access$3400(com.m3man.di.component.DaggerAppComponent) -> o
-    javax.inject.Provider access$3500(com.m3man.di.component.DaggerAppComponent) -> p
-    javax.inject.Provider access$3600(com.m3man.di.component.DaggerAppComponent) -> q
-    javax.inject.Provider access$3700(com.m3man.di.component.DaggerAppComponent) -> r
-    javax.inject.Provider access$3800(com.m3man.di.component.DaggerAppComponent) -> s
-    javax.inject.Provider access$3900(com.m3man.di.component.DaggerAppComponent) -> t
+    javax.inject.Provider access$2000(com.m3man.di.component.DaggerAppComponent) -> b
+    javax.inject.Provider access$2100(com.m3man.di.component.DaggerAppComponent) -> c
+    javax.inject.Provider access$2200(com.m3man.di.component.DaggerAppComponent) -> d
+    javax.inject.Provider access$2300(com.m3man.di.component.DaggerAppComponent) -> e
+    javax.inject.Provider access$2400(com.m3man.di.component.DaggerAppComponent) -> f
+    javax.inject.Provider access$2500(com.m3man.di.component.DaggerAppComponent) -> g
+    javax.inject.Provider access$2600(com.m3man.di.component.DaggerAppComponent) -> h
+    javax.inject.Provider access$2700(com.m3man.di.component.DaggerAppComponent) -> i
+    javax.inject.Provider access$2800(com.m3man.di.component.DaggerAppComponent) -> j
+    javax.inject.Provider access$2900(com.m3man.di.component.DaggerAppComponent) -> k
+    javax.inject.Provider access$3000(com.m3man.di.component.DaggerAppComponent) -> l
+    javax.inject.Provider access$3100(com.m3man.di.component.DaggerAppComponent) -> m
+    javax.inject.Provider access$3200(com.m3man.di.component.DaggerAppComponent) -> n
+    javax.inject.Provider access$3300(com.m3man.di.component.DaggerAppComponent) -> o
+    javax.inject.Provider access$3400(com.m3man.di.component.DaggerAppComponent) -> p
+    javax.inject.Provider access$3500(com.m3man.di.component.DaggerAppComponent) -> q
+    javax.inject.Provider access$3600(com.m3man.di.component.DaggerAppComponent) -> r
+    javax.inject.Provider access$3700(com.m3man.di.component.DaggerAppComponent) -> s
+    javax.inject.Provider access$5300(com.m3man.di.component.DaggerAppComponent) -> t
     javax.inject.Provider access$5500(com.m3man.di.component.DaggerAppComponent) -> u
-    javax.inject.Provider access$5700(com.m3man.di.component.DaggerAppComponent) -> v
-    android.app.Application access$5900(com.m3man.di.component.DaggerAppComponent) -> w
-    dagger.android.DispatchingAndroidInjector access$6700(com.m3man.di.component.DaggerAppComponent) -> x
-    dagger.android.DispatchingAndroidInjector access$6800(com.m3man.di.component.DaggerAppComponent) -> y
-    com.m3man.di.component.AppComponent$Builder builder() -> z
-com.m3man.di.component.DaggerAppComponent$1 -> o5.b$j:
+    android.app.Application access$5700(com.m3man.di.component.DaggerAppComponent) -> v
+    dagger.android.DispatchingAndroidInjector access$6500(com.m3man.di.component.DaggerAppComponent) -> w
+    dagger.android.DispatchingAndroidInjector access$6600(com.m3man.di.component.DaggerAppComponent) -> x
+    com.m3man.di.component.AppComponent$Builder builder() -> y
+    dagger.android.DispatchingAndroidInjector getDispatchingAndroidInjectorOfActivity() -> z
+com.m3man.di.component.DaggerAppComponent$1 -> o5.b$i:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
     com.m3man.di.module.ActivityBindingModule_MainActivity$MainActivitySubcomponent$Builder get() -> a
 com.m3man.di.component.DaggerAppComponent$10 -> o5.b$a:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
-    com.m3man.di.module.ActivityBindingModule_JiaoZiVideoPlayerActivity$JiaoZiVideoPlayerActivitySubcomponent$Builder get() -> a
+    com.m3man.di.module.ActivityBindingModule_UserLoginActivity$UserLoginActivitySubcomponent$Builder get() -> a
 com.m3man.di.component.DaggerAppComponent$11 -> o5.b$b:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
-    com.m3man.di.module.ActivityBindingModule_UserLoginActivity$UserLoginActivitySubcomponent$Builder get() -> a
+    com.m3man.di.module.ActivityBindingModule_UserRegisterActivity$UserRegisterActivitySubcomponent$Builder get() -> a
 com.m3man.di.component.DaggerAppComponent$12 -> o5.b$c:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
-    com.m3man.di.module.ActivityBindingModule_UserRegisterActivity$UserRegisterActivitySubcomponent$Builder get() -> a
+    com.m3man.di.module.ActivityBindingModule_AuthorActivity$AuthorActivitySubcomponent$Builder get() -> a
 com.m3man.di.component.DaggerAppComponent$13 -> o5.b$d:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
-    com.m3man.di.module.ActivityBindingModule_AuthorActivity$AuthorActivitySubcomponent$Builder get() -> a
+    com.m3man.di.module.ActivityBindingModule_AuthorFavoriteActivity$AuthorFavoriteActivitySubcomponent$Builder get() -> a
 com.m3man.di.component.DaggerAppComponent$14 -> o5.b$e:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
-    com.m3man.di.module.ActivityBindingModule_AuthorFavoriteActivity$AuthorFavoriteActivitySubcomponent$Builder get() -> a
+    com.m3man.di.module.ActivityBindingModule_ProxySettingActivity$ProxySettingActivitySubcomponent$Builder get() -> a
 com.m3man.di.component.DaggerAppComponent$15 -> o5.b$f:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
-    com.m3man.di.module.ActivityBindingModule_ProxySettingActivity$ProxySettingActivitySubcomponent$Builder get() -> a
+    com.m3man.di.module.ActivityBindingModule_HistoryActivity$HistoryActivitySubcomponent$Builder get() -> a
 com.m3man.di.component.DaggerAppComponent$16 -> o5.b$g:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
-    com.m3man.di.module.ActivityBindingModule_HistoryActivity$HistoryActivitySubcomponent$Builder get() -> a
+    com.m3man.di.module.ActivityBindingModule_UpdateActivity$UpdateActivitySubcomponent$Builder get() -> a
 com.m3man.di.component.DaggerAppComponent$17 -> o5.b$h:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
-    com.m3man.di.module.ActivityBindingModule_UpdateActivity$UpdateActivitySubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$18 -> o5.b$i:
-    com.m3man.di.component.DaggerAppComponent this$0 -> a
     com.m3man.di.module.ServiceBindingModule_DownloadVideoService$DownloadVideoServiceSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$2 -> o5.b$k:
+com.m3man.di.component.DaggerAppComponent$2 -> o5.b$j:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
     com.m3man.di.module.ActivityBindingModule_DownloadActivity$DownloadActivitySubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$3 -> o5.b$l:
+com.m3man.di.component.DaggerAppComponent$3 -> o5.b$k:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
     com.m3man.di.module.ActivityBindingModule_SettingActivity$SettingActivitySubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$4 -> o5.b$m:
+com.m3man.di.component.DaggerAppComponent$4 -> o5.b$l:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
     com.m3man.di.module.ActivityBindingModule_AboutActivity$AboutActivitySubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$5 -> o5.b$n:
+com.m3man.di.component.DaggerAppComponent$5 -> o5.b$m:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
     com.m3man.di.module.ActivityBindingModule_FavoriteActivity$FavoriteActivitySubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$6 -> o5.b$o:
+com.m3man.di.component.DaggerAppComponent$6 -> o5.b$n:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
     com.m3man.di.module.ActivityBindingModule_PornyFavoriteActivity$PornyFavoriteActivitySubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$7 -> o5.b$p:
+com.m3man.di.component.DaggerAppComponent$7 -> o5.b$o:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
     com.m3man.di.module.ActivityBindingModule_SearchActivity$SearchActivitySubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$8 -> o5.b$q:
-    com.m3man.di.component.DaggerAppComponent this$0 -> a
-    com.m3man.di.module.ActivityBindingModule_SearchPornyActivity$SearchPornyActivitySubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$9 -> o5.b$r:
+com.m3man.di.component.DaggerAppComponent$8 -> o5.b$p:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
     com.m3man.di.module.ActivityBindingModule_ExoMediaPlayerActivity$ExoMediaPlayerActivitySubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$AboutActivitySubcomponentBuilder -> o5.b$s:
+com.m3man.di.component.DaggerAppComponent$9 -> o5.b$q:
+    com.m3man.di.component.DaggerAppComponent this$0 -> a
+    com.m3man.di.module.ActivityBindingModule_JiaoZiVideoPlayerActivity$JiaoZiVideoPlayerActivitySubcomponent$Builder get() -> a
+com.m3man.di.component.DaggerAppComponent$AboutActivitySubcomponentBuilder -> o5.b$r:
     com.m3man.di.component.DaggerAppComponent this$0 -> c
     com.m3man.ui.about.AboutActivityModule aboutActivityModule -> a
     com.m3man.ui.about.AboutActivity seedInstance -> b
@@ -33978,7 +33973,7 @@ com.m3man.di.component.DaggerAppComponent$AboutActivitySubcomponentBuilder -> o5
     void seedInstance(java.lang.Object) -> c
     com.m3man.di.module.ActivityBindingModule_AboutActivity$AboutActivitySubcomponent build() -> d
     void seedInstance(com.m3man.ui.about.AboutActivity) -> e
-com.m3man.di.component.DaggerAppComponent$AboutActivitySubcomponentImpl -> o5.b$t:
+com.m3man.di.component.DaggerAppComponent$AboutActivitySubcomponentImpl -> o5.b$s:
     com.m3man.di.component.DaggerAppComponent this$0 -> c
     com.m3man.ui.about.AboutActivityModule aboutActivityModule -> b
     com.m3man.ui.about.AboutActivity seedInstance -> a
@@ -33989,7 +33984,7 @@ com.m3man.di.component.DaggerAppComponent$AboutActivitySubcomponentImpl -> o5.b$
     com.m3man.ui.update.UpdatePresenter getUpdatePresenter() -> e
     void inject(com.m3man.ui.about.AboutActivity) -> f
     com.m3man.ui.about.AboutActivity injectAboutActivity(com.m3man.ui.about.AboutActivity) -> g
-com.m3man.di.component.DaggerAppComponent$AuthorActivitySubcomponentBuilder -> o5.b$u:
+com.m3man.di.component.DaggerAppComponent$AuthorActivitySubcomponentBuilder -> o5.b$t:
     com.m3man.di.component.DaggerAppComponent this$0 -> c
     com.m3man.ui.mman9video.author.AuthorActivity seedInstance -> b
     com.m3man.ui.mman9video.author.AuthorActivityModule authorActivityModule -> a
@@ -33997,7 +33992,7 @@ com.m3man.di.component.DaggerAppComponent$AuthorActivitySubcomponentBuilder -> o
     void seedInstance(java.lang.Object) -> c
     com.m3man.di.module.ActivityBindingModule_AuthorActivity$AuthorActivitySubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.author.AuthorActivity) -> e
-com.m3man.di.component.DaggerAppComponent$AuthorActivitySubcomponentImpl -> o5.b$v:
+com.m3man.di.component.DaggerAppComponent$AuthorActivitySubcomponentImpl -> o5.b$u:
     com.m3man.di.component.DaggerAppComponent this$0 -> c
     com.m3man.ui.mman9video.author.AuthorActivity seedInstance -> a
     com.m3man.ui.mman9video.author.AuthorActivityModule authorActivityModule -> b
@@ -34007,38 +34002,38 @@ com.m3man.di.component.DaggerAppComponent$AuthorActivitySubcomponentImpl -> o5.b
     com.trello.rxlifecycle2.LifecycleProvider getLifecycleProviderOfEvent() -> d
     void inject(com.m3man.ui.mman9video.author.AuthorActivity) -> e
     com.m3man.ui.mman9video.author.AuthorActivity injectAuthorActivity(com.m3man.ui.mman9video.author.AuthorActivity) -> f
-com.m3man.di.component.DaggerAppComponent$AuthorFavoriteActivitySubcomponentBuilder -> o5.b$w:
+com.m3man.di.component.DaggerAppComponent$AuthorFavoriteActivitySubcomponentBuilder -> o5.b$v:
     com.m3man.di.component.DaggerAppComponent this$0 -> b
     com.m3man.ui.mman9video.author.AuthorFavoriteActivity seedInstance -> a
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.di.module.ActivityBindingModule_AuthorFavoriteActivity$AuthorFavoriteActivitySubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.author.AuthorFavoriteActivity) -> e
-com.m3man.di.component.DaggerAppComponent$AuthorFavoriteActivitySubcomponentImpl -> o5.b$x:
+com.m3man.di.component.DaggerAppComponent$AuthorFavoriteActivitySubcomponentImpl -> o5.b$w:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
     void inject(java.lang.Object) -> a
     void inject(com.m3man.ui.mman9video.author.AuthorFavoriteActivity) -> b
     com.m3man.ui.mman9video.author.AuthorFavoriteActivity injectAuthorFavoriteActivity(com.m3man.ui.mman9video.author.AuthorFavoriteActivity) -> c
-com.m3man.di.component.DaggerAppComponent$Builder -> o5.b$y:
+com.m3man.di.component.DaggerAppComponent$Builder -> o5.b$x:
     android.app.Application application -> b
     com.m3man.di.module.ApiServiceModule apiServiceModule -> a
     com.m3man.di.component.AppComponent$Builder application(android.app.Application) -> a
     com.m3man.di.component.DaggerAppComponent$Builder application(android.app.Application) -> b
-com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentBuilder -> o5.b$z:
+com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentBuilder -> o5.b$y:
     com.m3man.di.component.DaggerAppComponent this$0 -> b
     com.m3man.ui.download.DownloadActivity seedInstance -> a
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.di.module.ActivityBindingModule_DownloadActivity$DownloadActivitySubcomponent build() -> d
     void seedInstance(com.m3man.ui.download.DownloadActivity) -> e
-com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl -> o5.b$a0:
+com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl -> o5.b$z:
     javax.inject.Provider finishedFragmentSubcomponentBuilderProvider -> c
     com.m3man.di.component.DaggerAppComponent this$0 -> d
     javax.inject.Provider downloadingFragmentSubcomponentBuilderProvider -> b
     com.m3man.ui.download.DownloadActivity seedInstance -> a
     void inject(java.lang.Object) -> a
-    dagger.android.DispatchingAndroidInjector access$6300(com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl) -> b
-    com.m3man.ui.download.DownloadPresenter access$6400(com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl) -> c
+    dagger.android.DispatchingAndroidInjector access$6100(com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl) -> b
+    com.m3man.ui.download.DownloadPresenter access$6200(com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl) -> c
     android.support.v7.app.AppCompatActivity getAppCompatActivity() -> d
     dagger.android.DispatchingAndroidInjector getDispatchingAndroidInjectorOfFragment() -> e
     dagger.android.DispatchingAndroidInjector getDispatchingAndroidInjectorOfFragment2() -> f
@@ -34054,56 +34049,56 @@ com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl -> o5
     com.m3man.ui.download.DownloadActivity injectDownloadActivity(com.m3man.ui.download.DownloadActivity) -> p
     com.m3man.ui.download.DownloadingFragment injectDownloadingFragment(com.m3man.ui.download.DownloadingFragment) -> q
     com.m3man.ui.download.FinishedFragment injectFinishedFragment(com.m3man.ui.download.FinishedFragment) -> r
-com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl$1 -> o5.b$a0$a:
+com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl$1 -> o5.b$z$a:
     com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.download.DownloadActivityModule_DownloadingFragment$DownloadingFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl$2 -> o5.b$a0$b:
+com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl$2 -> o5.b$z$b:
     com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.download.DownloadActivityModule_FinishedFragment$FinishedFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl$DownloadingFragmentSubcomponentBuilder -> o5.b$a0$c:
+com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl$DownloadingFragmentSubcomponentBuilder -> o5.b$z$c:
     com.m3man.ui.download.DownloadingFragment seedInstance -> a
     com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl this$1 -> b
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.download.DownloadActivityModule_DownloadingFragment$DownloadingFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.download.DownloadingFragment) -> e
-com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl$DownloadingFragmentSubcomponentImpl -> o5.b$a0$d:
+com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl$DownloadingFragmentSubcomponentImpl -> o5.b$z$d:
     com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     void inject(com.m3man.ui.download.DownloadingFragment) -> b
     com.m3man.ui.download.DownloadingFragment injectDownloadingFragment(com.m3man.ui.download.DownloadingFragment) -> c
-com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl$FinishedFragmentSubcomponentBuilder -> o5.b$a0$e:
+com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl$FinishedFragmentSubcomponentBuilder -> o5.b$z$e:
     com.m3man.ui.download.FinishedFragment seedInstance -> a
     com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl this$1 -> b
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.download.DownloadActivityModule_FinishedFragment$FinishedFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.download.FinishedFragment) -> e
-com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl$FinishedFragmentSubcomponentImpl -> o5.b$a0$f:
+com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl$FinishedFragmentSubcomponentImpl -> o5.b$z$f:
     com.m3man.di.component.DaggerAppComponent$DownloadActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     void inject(com.m3man.ui.download.FinishedFragment) -> b
     com.m3man.ui.download.FinishedFragment injectFinishedFragment(com.m3man.ui.download.FinishedFragment) -> c
-com.m3man.di.component.DaggerAppComponent$DownloadVideoServiceSubcomponentBuilder -> o5.b$b0:
+com.m3man.di.component.DaggerAppComponent$DownloadVideoServiceSubcomponentBuilder -> o5.b$a0:
     com.m3man.di.component.DaggerAppComponent this$0 -> b
     com.m3man.service.DownloadVideoService seedInstance -> a
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.di.module.ServiceBindingModule_DownloadVideoService$DownloadVideoServiceSubcomponent build() -> d
     void seedInstance(com.m3man.service.DownloadVideoService) -> e
-com.m3man.di.component.DaggerAppComponent$DownloadVideoServiceSubcomponentImpl -> o5.b$c0:
+com.m3man.di.component.DaggerAppComponent$DownloadVideoServiceSubcomponentImpl -> o5.b$b0:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
     void inject(java.lang.Object) -> a
     void inject(com.m3man.service.DownloadVideoService) -> b
     com.m3man.service.DownloadVideoService injectDownloadVideoService(com.m3man.service.DownloadVideoService) -> c
-com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentBuilder -> o5.b$d0:
+com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentBuilder -> o5.b$c0:
     com.m3man.di.component.DaggerAppComponent this$0 -> b
     com.m3man.ui.mman9video.play.ExoMediaPlayerActivity seedInstance -> a
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.di.module.ActivityBindingModule_ExoMediaPlayerActivity$ExoMediaPlayerActivitySubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.play.ExoMediaPlayerActivity) -> e
-com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl -> o5.b$e0:
+com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl -> o5.b$d0:
     javax.inject.Provider commentFragmentSubcomponentBuilderProvider -> d
     javax.inject.Provider favoriteFragmentSubcomponentBuilderProvider -> c
     javax.inject.Provider videoListFragmentSubcomponentBuilderProvider -> f
@@ -34112,11 +34107,11 @@ com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl
     com.m3man.di.component.DaggerAppComponent this$0 -> g
     com.m3man.ui.mman9video.play.ExoMediaPlayerActivity seedInstance -> a
     void inject(java.lang.Object) -> a
-    dagger.android.DispatchingAndroidInjector access$8100(com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl) -> b
-    com.m3man.ui.mman9video.author.AuthorPresenter access$8200(com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl) -> c
-    com.m3man.ui.mman9video.favorite.FavoritePresenter access$8400(com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl) -> d
-    com.m3man.ui.mman9video.comment.CommentPresenter access$8600(com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl) -> e
-    com.trello.rxlifecycle2.LifecycleProvider access$8800(com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl) -> f
+    dagger.android.DispatchingAndroidInjector access$7800(com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl) -> b
+    com.m3man.ui.mman9video.author.AuthorPresenter access$7900(com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl) -> c
+    com.m3man.ui.mman9video.favorite.FavoritePresenter access$8100(com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl) -> d
+    com.m3man.ui.mman9video.comment.CommentPresenter access$8300(com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl) -> e
+    com.trello.rxlifecycle2.LifecycleProvider access$8500(com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl) -> f
     android.support.v7.app.AppCompatActivity getAppCompatActivity() -> g
     com.m3man.ui.mman9video.author.AuthorFragment getAuthorFragment() -> h
     com.m3man.ui.mman9video.author.AuthorPresenter getAuthorPresenter() -> i
@@ -34136,84 +34131,84 @@ com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl
     com.m3man.ui.mman9video.author.AuthorFragment injectAuthorFragment(com.m3man.ui.mman9video.author.AuthorFragment) -> w
     com.m3man.ui.mman9video.comment.CommentFragment injectCommentFragment(com.m3man.ui.mman9video.comment.CommentFragment) -> x
     com.m3man.ui.mman9video.play.ExoMediaPlayerActivity injectExoMediaPlayerActivity(com.m3man.ui.mman9video.play.ExoMediaPlayerActivity) -> y
-com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$1 -> o5.b$e0$a:
+com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$1 -> o5.b$d0$a:
     com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.mman9video.play.ExoPlayerVideoModule_AuthorFragment$AuthorFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$2 -> o5.b$e0$b:
+com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$2 -> o5.b$d0$b:
     com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.mman9video.play.ExoPlayerVideoModule_FavoriteFragment$FavoriteFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$3 -> o5.b$e0$c:
+com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$3 -> o5.b$d0$c:
     com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.mman9video.play.ExoPlayerVideoModule_CommentFragment$CommentFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$4 -> o5.b$e0$d:
+com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$4 -> o5.b$d0$d:
     com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.mman9video.play.ExoPlayerVideoModule_IndexFragment$IndexFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$5 -> o5.b$e0$e:
+com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$5 -> o5.b$d0$e:
     com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.mman9video.play.ExoPlayerVideoModule_VideoListFragment$VideoListFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_AF_AuthorFragmentSubcomponentBuilder -> o5.b$e0$f:
+com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_AF_AuthorFragmentSubcomponentBuilder -> o5.b$d0$f:
     com.m3man.ui.mman9video.author.AuthorFragment seedInstance -> a
     com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl this$1 -> b
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.mman9video.play.ExoPlayerVideoModule_AuthorFragment$AuthorFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.author.AuthorFragment) -> e
-com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_AF_AuthorFragmentSubcomponentImpl -> o5.b$e0$g:
+com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_AF_AuthorFragmentSubcomponentImpl -> o5.b$d0$g:
     com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     void inject(com.m3man.ui.mman9video.author.AuthorFragment) -> b
     com.m3man.ui.mman9video.author.AuthorFragment injectAuthorFragment(com.m3man.ui.mman9video.author.AuthorFragment) -> c
-com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_CF_CommentFragmentSubcomponentBuilder -> o5.b$e0$h:
+com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_CF_CommentFragmentSubcomponentBuilder -> o5.b$d0$h:
     com.m3man.ui.mman9video.comment.CommentFragment seedInstance -> a
     com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl this$1 -> b
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.mman9video.play.ExoPlayerVideoModule_CommentFragment$CommentFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.comment.CommentFragment) -> e
-com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_CF_CommentFragmentSubcomponentImpl -> o5.b$e0$i:
+com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_CF_CommentFragmentSubcomponentImpl -> o5.b$d0$i:
     com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     void inject(com.m3man.ui.mman9video.comment.CommentFragment) -> b
     com.m3man.ui.mman9video.comment.CommentFragment injectCommentFragment(com.m3man.ui.mman9video.comment.CommentFragment) -> c
-com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_FF_FavoriteFragmentSubcomponentBuilder -> o5.b$e0$j:
+com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_FF_FavoriteFragmentSubcomponentBuilder -> o5.b$d0$j:
     com.m3man.ui.mman9video.favorite.FavoriteFragment seedInstance -> a
     com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl this$1 -> b
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.mman9video.play.ExoPlayerVideoModule_FavoriteFragment$FavoriteFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.favorite.FavoriteFragment) -> e
-com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_FF_FavoriteFragmentSubcomponentImpl -> o5.b$e0$k:
+com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_FF_FavoriteFragmentSubcomponentImpl -> o5.b$d0$k:
     com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     void inject(com.m3man.ui.mman9video.favorite.FavoriteFragment) -> b
     com.m3man.ui.mman9video.favorite.FavoriteFragment injectFavoriteFragment(com.m3man.ui.mman9video.favorite.FavoriteFragment) -> c
-com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_IF_IndexFragmentSubcomponentBuilder -> o5.b$e0$l:
+com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_IF_IndexFragmentSubcomponentBuilder -> o5.b$d0$l:
     com.m3man.ui.mman9video.index.IndexFragment seedInstance -> a
     com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl this$1 -> b
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.mman9video.play.ExoPlayerVideoModule_IndexFragment$IndexFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.index.IndexFragment) -> e
-com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_IF_IndexFragmentSubcomponentImpl -> o5.b$e0$m:
+com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_IF_IndexFragmentSubcomponentImpl -> o5.b$d0$m:
     com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     com.m3man.ui.mman9video.index.IndexPresenter getIndexPresenter() -> b
     void inject(com.m3man.ui.mman9video.index.IndexFragment) -> c
     com.m3man.ui.mman9video.index.IndexFragment injectIndexFragment(com.m3man.ui.mman9video.index.IndexFragment) -> d
-com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_VLF_VideoListFragmentSubcomponentBuilder -> o5.b$e0$n:
+com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_VLF_VideoListFragmentSubcomponentBuilder -> o5.b$d0$n:
     com.m3man.ui.mman9video.videolist.VideoListFragment seedInstance -> a
     com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl this$1 -> b
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.mman9video.play.ExoPlayerVideoModule_VideoListFragment$VideoListFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.videolist.VideoListFragment) -> e
-com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_VLF_VideoListFragmentSubcomponentImpl -> o5.b$e0$o:
+com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl$EPVM_VLF_VideoListFragmentSubcomponentImpl -> o5.b$d0$o:
     com.m3man.di.component.DaggerAppComponent$ExoMediaPlayerActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     com.m3man.ui.mman9video.videolist.VideoListPresenter getVideoListPresenter() -> b
     void inject(com.m3man.ui.mman9video.videolist.VideoListFragment) -> c
     com.m3man.ui.mman9video.videolist.VideoListFragment injectVideoListFragment(com.m3man.ui.mman9video.videolist.VideoListFragment) -> d
-com.m3man.di.component.DaggerAppComponent$FavoriteActivitySubcomponentBuilder -> o5.b$f0:
+com.m3man.di.component.DaggerAppComponent$FavoriteActivitySubcomponentBuilder -> o5.b$e0:
     com.m3man.di.component.DaggerAppComponent this$0 -> c
     com.m3man.ui.mman9video.favorite.FavoriteActivityModule favoriteActivityModule -> a
     com.m3man.ui.mman9video.favorite.FavoriteActivity seedInstance -> b
@@ -34221,7 +34216,7 @@ com.m3man.di.component.DaggerAppComponent$FavoriteActivitySubcomponentBuilder ->
     void seedInstance(java.lang.Object) -> c
     com.m3man.di.module.ActivityBindingModule_FavoriteActivity$FavoriteActivitySubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.favorite.FavoriteActivity) -> e
-com.m3man.di.component.DaggerAppComponent$FavoriteActivitySubcomponentImpl -> o5.b$g0:
+com.m3man.di.component.DaggerAppComponent$FavoriteActivitySubcomponentImpl -> o5.b$f0:
     com.m3man.di.component.DaggerAppComponent this$0 -> c
     com.m3man.ui.mman9video.favorite.FavoriteActivityModule favoriteActivityModule -> b
     com.m3man.ui.mman9video.favorite.FavoriteActivity seedInstance -> a
@@ -34231,7 +34226,7 @@ com.m3man.di.component.DaggerAppComponent$FavoriteActivitySubcomponentImpl -> o5
     com.trello.rxlifecycle2.LifecycleProvider getLifecycleProviderOfEvent() -> d
     void inject(com.m3man.ui.mman9video.favorite.FavoriteActivity) -> e
     com.m3man.ui.mman9video.favorite.FavoriteActivity injectFavoriteActivity(com.m3man.ui.mman9video.favorite.FavoriteActivity) -> f
-com.m3man.di.component.DaggerAppComponent$HistoryActivitySubcomponentBuilder -> o5.b$h0:
+com.m3man.di.component.DaggerAppComponent$HistoryActivitySubcomponentBuilder -> o5.b$g0:
     com.m3man.di.component.DaggerAppComponent this$0 -> c
     com.m3man.ui.mman9video.history.HistoryActivityModule historyActivityModule -> a
     com.m3man.ui.mman9video.history.HistoryActivity seedInstance -> b
@@ -34239,7 +34234,7 @@ com.m3man.di.component.DaggerAppComponent$HistoryActivitySubcomponentBuilder -> 
     void seedInstance(java.lang.Object) -> c
     com.m3man.di.module.ActivityBindingModule_HistoryActivity$HistoryActivitySubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.history.HistoryActivity) -> e
-com.m3man.di.component.DaggerAppComponent$HistoryActivitySubcomponentImpl -> o5.b$i0:
+com.m3man.di.component.DaggerAppComponent$HistoryActivitySubcomponentImpl -> o5.b$h0:
     com.m3man.di.component.DaggerAppComponent this$0 -> c
     com.m3man.ui.mman9video.history.HistoryActivityModule historyActivityModule -> b
     com.m3man.ui.mman9video.history.HistoryActivity seedInstance -> a
@@ -34249,14 +34244,14 @@ com.m3man.di.component.DaggerAppComponent$HistoryActivitySubcomponentImpl -> o5.
     com.trello.rxlifecycle2.LifecycleProvider getLifecycleProviderOfEvent() -> d
     void inject(com.m3man.ui.mman9video.history.HistoryActivity) -> e
     com.m3man.ui.mman9video.history.HistoryActivity injectHistoryActivity(com.m3man.ui.mman9video.history.HistoryActivity) -> f
-com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentBuilder -> o5.b$j0:
+com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentBuilder -> o5.b$i0:
     com.m3man.ui.mman9video.play.JiaoZiVideoPlayerActivity seedInstance -> a
     com.m3man.di.component.DaggerAppComponent this$0 -> b
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.di.module.ActivityBindingModule_JiaoZiVideoPlayerActivity$JiaoZiVideoPlayerActivitySubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.play.JiaoZiVideoPlayerActivity) -> e
-com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl -> o5.b$k0:
+com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl -> o5.b$j0:
     javax.inject.Provider commentFragmentSubcomponentBuilderProvider -> d
     com.m3man.ui.mman9video.play.JiaoZiVideoPlayerActivity seedInstance -> a
     javax.inject.Provider favoriteFragmentSubcomponentBuilderProvider -> c
@@ -34265,11 +34260,11 @@ com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentI
     javax.inject.Provider authorFragmentSubcomponentBuilderProvider -> b
     com.m3man.di.component.DaggerAppComponent this$0 -> g
     void inject(java.lang.Object) -> a
-    com.m3man.ui.mman9video.favorite.FavoritePresenter access$10000(com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl) -> b
-    com.m3man.ui.mman9video.comment.CommentPresenter access$10200(com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl) -> c
-    com.trello.rxlifecycle2.LifecycleProvider access$10400(com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl) -> d
-    dagger.android.DispatchingAndroidInjector access$9700(com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl) -> e
-    com.m3man.ui.mman9video.author.AuthorPresenter access$9800(com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl) -> f
+    com.trello.rxlifecycle2.LifecycleProvider access$10100(com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl) -> b
+    dagger.android.DispatchingAndroidInjector access$9400(com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl) -> c
+    com.m3man.ui.mman9video.author.AuthorPresenter access$9500(com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl) -> d
+    com.m3man.ui.mman9video.favorite.FavoritePresenter access$9700(com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl) -> e
+    com.m3man.ui.mman9video.comment.CommentPresenter access$9900(com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl) -> f
     android.support.v7.app.AppCompatActivity getAppCompatActivity() -> g
     com.m3man.ui.mman9video.author.AuthorFragment getAuthorFragment() -> h
     com.m3man.ui.mman9video.author.AuthorPresenter getAuthorPresenter() -> i
@@ -34289,91 +34284,91 @@ com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentI
     com.m3man.ui.mman9video.author.AuthorFragment injectAuthorFragment(com.m3man.ui.mman9video.author.AuthorFragment) -> w
     com.m3man.ui.mman9video.comment.CommentFragment injectCommentFragment(com.m3man.ui.mman9video.comment.CommentFragment) -> x
     com.m3man.ui.mman9video.play.JiaoZiVideoPlayerActivity injectJiaoZiVideoPlayerActivity(com.m3man.ui.mman9video.play.JiaoZiVideoPlayerActivity) -> y
-com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$1 -> o5.b$k0$a:
+com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$1 -> o5.b$j0$a:
     com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.mman9video.play.JiaoZiVideoPlayerModule_AuthorFragment$AuthorFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$2 -> o5.b$k0$b:
+com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$2 -> o5.b$j0$b:
     com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.mman9video.play.JiaoZiVideoPlayerModule_FavoriteFragment$FavoriteFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$3 -> o5.b$k0$c:
+com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$3 -> o5.b$j0$c:
     com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.mman9video.play.JiaoZiVideoPlayerModule_CommentFragment$CommentFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$4 -> o5.b$k0$d:
+com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$4 -> o5.b$j0$d:
     com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.mman9video.play.JiaoZiVideoPlayerModule_IndexFragment$IndexFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$5 -> o5.b$k0$e:
+com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$5 -> o5.b$j0$e:
     com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.mman9video.play.JiaoZiVideoPlayerModule_VideoListFragment$VideoListFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_AF_AuthorFragmentSubcomponentBuilder -> o5.b$k0$f:
+com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_AF_AuthorFragmentSubcomponentBuilder -> o5.b$j0$f:
     com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl this$1 -> b
     com.m3man.ui.mman9video.author.AuthorFragment seedInstance -> a
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.mman9video.play.JiaoZiVideoPlayerModule_AuthorFragment$AuthorFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.author.AuthorFragment) -> e
-com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_AF_AuthorFragmentSubcomponentImpl -> o5.b$k0$g:
+com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_AF_AuthorFragmentSubcomponentImpl -> o5.b$j0$g:
     com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     void inject(com.m3man.ui.mman9video.author.AuthorFragment) -> b
     com.m3man.ui.mman9video.author.AuthorFragment injectAuthorFragment(com.m3man.ui.mman9video.author.AuthorFragment) -> c
-com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_CF_CommentFragmentSubcomponentBuilder -> o5.b$k0$h:
+com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_CF_CommentFragmentSubcomponentBuilder -> o5.b$j0$h:
     com.m3man.ui.mman9video.comment.CommentFragment seedInstance -> a
     com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl this$1 -> b
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.mman9video.play.JiaoZiVideoPlayerModule_CommentFragment$CommentFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.comment.CommentFragment) -> e
-com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_CF_CommentFragmentSubcomponentImpl -> o5.b$k0$i:
+com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_CF_CommentFragmentSubcomponentImpl -> o5.b$j0$i:
     com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     void inject(com.m3man.ui.mman9video.comment.CommentFragment) -> b
     com.m3man.ui.mman9video.comment.CommentFragment injectCommentFragment(com.m3man.ui.mman9video.comment.CommentFragment) -> c
-com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_FF_FavoriteFragmentSubcomponentBuilder -> o5.b$k0$j:
+com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_FF_FavoriteFragmentSubcomponentBuilder -> o5.b$j0$j:
     com.m3man.ui.mman9video.favorite.FavoriteFragment seedInstance -> a
     com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl this$1 -> b
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.mman9video.play.JiaoZiVideoPlayerModule_FavoriteFragment$FavoriteFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.favorite.FavoriteFragment) -> e
-com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_FF_FavoriteFragmentSubcomponentImpl -> o5.b$k0$k:
+com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_FF_FavoriteFragmentSubcomponentImpl -> o5.b$j0$k:
     com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     void inject(com.m3man.ui.mman9video.favorite.FavoriteFragment) -> b
     com.m3man.ui.mman9video.favorite.FavoriteFragment injectFavoriteFragment(com.m3man.ui.mman9video.favorite.FavoriteFragment) -> c
-com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_IF_IndexFragmentSubcomponentBuilder -> o5.b$k0$l:
+com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_IF_IndexFragmentSubcomponentBuilder -> o5.b$j0$l:
     com.m3man.ui.mman9video.index.IndexFragment seedInstance -> a
     com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl this$1 -> b
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.mman9video.play.JiaoZiVideoPlayerModule_IndexFragment$IndexFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.index.IndexFragment) -> e
-com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_IF_IndexFragmentSubcomponentImpl -> o5.b$k0$m:
+com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_IF_IndexFragmentSubcomponentImpl -> o5.b$j0$m:
     com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     com.m3man.ui.mman9video.index.IndexPresenter getIndexPresenter() -> b
     void inject(com.m3man.ui.mman9video.index.IndexFragment) -> c
     com.m3man.ui.mman9video.index.IndexFragment injectIndexFragment(com.m3man.ui.mman9video.index.IndexFragment) -> d
-com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_VLF_VideoListFragmentSubcomponentBuilder -> o5.b$k0$n:
+com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_VLF_VideoListFragmentSubcomponentBuilder -> o5.b$j0$n:
     com.m3man.ui.mman9video.videolist.VideoListFragment seedInstance -> a
     com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl this$1 -> b
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.mman9video.play.JiaoZiVideoPlayerModule_VideoListFragment$VideoListFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.videolist.VideoListFragment) -> e
-com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_VLF_VideoListFragmentSubcomponentImpl -> o5.b$k0$o:
+com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl$JZVPM_VLF_VideoListFragmentSubcomponentImpl -> o5.b$j0$o:
     com.m3man.di.component.DaggerAppComponent$JiaoZiVideoPlayerActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     com.m3man.ui.mman9video.videolist.VideoListPresenter getVideoListPresenter() -> b
     void inject(com.m3man.ui.mman9video.videolist.VideoListFragment) -> c
     com.m3man.ui.mman9video.videolist.VideoListFragment injectVideoListFragment(com.m3man.ui.mman9video.videolist.VideoListFragment) -> d
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentBuilder -> o5.b$l0:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentBuilder -> o5.b$k0:
     com.m3man.di.component.DaggerAppComponent this$0 -> b
     com.m3man.ui.main.MainActivity seedInstance -> a
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.di.module.ActivityBindingModule_MainActivity$MainActivitySubcomponent build() -> d
     void seedInstance(com.m3man.ui.main.MainActivity) -> e
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl -> o5.b$m0:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl -> o5.b$l0:
     javax.inject.Provider mineFragmentSubcomponentBuilderProvider -> d
     javax.inject.Provider indexFragmentSubcomponentBuilderProvider -> c
     javax.inject.Provider main9MmanVideoFragmentSubcomponentBuilderProvider -> f
@@ -34384,8 +34379,8 @@ com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl -> o5.b$m
     javax.inject.Provider recommendFeedFragmentSubcomponentBuilderProvider -> h
     javax.inject.Provider searchPornyFragmentSubcomponentBuilderProvider -> g
     void inject(java.lang.Object) -> a
-    com.trello.rxlifecycle2.LifecycleProvider access$4800(com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl) -> b
-    dagger.android.DispatchingAndroidInjector access$4900(com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl) -> c
+    com.trello.rxlifecycle2.LifecycleProvider access$4600(com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl) -> b
+    dagger.android.DispatchingAndroidInjector access$4700(com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl) -> c
     android.support.v7.app.AppCompatActivity getAppCompatActivity() -> d
     dagger.android.DispatchingAndroidInjector getDispatchingAndroidInjectorOfFragment() -> e
     dagger.android.DispatchingAndroidInjector getDispatchingAndroidInjectorOfFragment2() -> f
@@ -34397,118 +34392,118 @@ com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl -> o5.b$m
     void initialize(com.m3man.ui.main.MainActivity) -> l
     void inject(com.m3man.ui.main.MainActivity) -> m
     com.m3man.ui.main.MainActivity injectMainActivity(com.m3man.ui.main.MainActivity) -> n
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$1 -> o5.b$m0$a:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$1 -> o5.b$l0$a:
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.main.MainActivityModule_VideoListFragment$VideoListFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$2 -> o5.b$m0$b:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$2 -> o5.b$l0$b:
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.main.MainActivityModule_IndexFragment$IndexFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$3 -> o5.b$m0$c:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$3 -> o5.b$l0$c:
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.main.MainActivityModule_MineFragment$MineFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$4 -> o5.b$m0$d:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$4 -> o5.b$l0$d:
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.main.MainActivityModule_CommentFragment$CommentFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$5 -> o5.b$m0$e:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$5 -> o5.b$l0$e:
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.main.MainActivityModule_Main9MmanVideoFragment$Main9MmanVideoFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$6 -> o5.b$m0$f:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$6 -> o5.b$l0$f:
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.main.MainActivityModule_SearchPornyFragment$SearchPornyFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$7 -> o5.b$m0$g:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$7 -> o5.b$l0$g:
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> a
     com.m3man.ui.main.MainActivityModule_RecommendFeedFragment$RecommendFeedFragmentSubcomponent$Builder get() -> a
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$MAM_CF_CommentFragmentSubcomponentBuilder -> o5.b$m0$h:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$MAM_CF_CommentFragmentSubcomponentBuilder -> o5.b$l0$h:
     com.m3man.ui.mman9video.comment.CommentFragment seedInstance -> a
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> b
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.main.MainActivityModule_CommentFragment$CommentFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.comment.CommentFragment) -> e
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$MAM_CF_CommentFragmentSubcomponentImpl -> o5.b$m0$i:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$MAM_CF_CommentFragmentSubcomponentImpl -> o5.b$l0$i:
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     com.m3man.ui.mman9video.comment.CommentPresenter getCommentPresenter() -> b
     void inject(com.m3man.ui.mman9video.comment.CommentFragment) -> c
     com.m3man.ui.mman9video.comment.CommentFragment injectCommentFragment(com.m3man.ui.mman9video.comment.CommentFragment) -> d
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$MAM_IF_IndexFragmentSubcomponentBuilder -> o5.b$m0$j:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$MAM_IF_IndexFragmentSubcomponentBuilder -> o5.b$l0$j:
     com.m3man.ui.mman9video.index.IndexFragment seedInstance -> a
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> b
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.main.MainActivityModule_IndexFragment$IndexFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.index.IndexFragment) -> e
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$MAM_IF_IndexFragmentSubcomponentImpl -> o5.b$m0$k:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$MAM_IF_IndexFragmentSubcomponentImpl -> o5.b$l0$k:
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     com.m3man.ui.mman9video.index.IndexPresenter getIndexPresenter() -> b
     void inject(com.m3man.ui.mman9video.index.IndexFragment) -> c
     com.m3man.ui.mman9video.index.IndexFragment injectIndexFragment(com.m3man.ui.mman9video.index.IndexFragment) -> d
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$MAM_VLF_VideoListFragmentSubcomponentBuilder -> o5.b$m0$l:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$MAM_VLF_VideoListFragmentSubcomponentBuilder -> o5.b$l0$l:
     com.m3man.ui.mman9video.videolist.VideoListFragment seedInstance -> a
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> b
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.main.MainActivityModule_VideoListFragment$VideoListFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.videolist.VideoListFragment) -> e
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$MAM_VLF_VideoListFragmentSubcomponentImpl -> o5.b$m0$m:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$MAM_VLF_VideoListFragmentSubcomponentImpl -> o5.b$l0$m:
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     com.m3man.ui.mman9video.videolist.VideoListPresenter getVideoListPresenter() -> b
     void inject(com.m3man.ui.mman9video.videolist.VideoListFragment) -> c
     com.m3man.ui.mman9video.videolist.VideoListFragment injectVideoListFragment(com.m3man.ui.mman9video.videolist.VideoListFragment) -> d
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$Main9MmanVideoFragmentSubcomponentBuilder -> o5.b$m0$n:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$Main9MmanVideoFragmentSubcomponentBuilder -> o5.b$l0$n:
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> b
     com.m3man.ui.mman9video.Main9MmanVideoFragment seedInstance -> a
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.main.MainActivityModule_Main9MmanVideoFragment$Main9MmanVideoFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.Main9MmanVideoFragment) -> e
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$Main9MmanVideoFragmentSubcomponentImpl -> o5.b$m0$o:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$Main9MmanVideoFragmentSubcomponentImpl -> o5.b$l0$o:
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     com.m3man.ui.basemain.BaseMainPresenter getBaseMainPresenter() -> b
     void inject(com.m3man.ui.mman9video.Main9MmanVideoFragment) -> c
     com.m3man.ui.mman9video.Main9MmanVideoFragment injectMain9MmanVideoFragment(com.m3man.ui.mman9video.Main9MmanVideoFragment) -> d
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$MineFragmentSubcomponentBuilder -> o5.b$m0$p:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$MineFragmentSubcomponentBuilder -> o5.b$l0$p:
     com.m3man.ui.mine.MineFragment seedInstance -> a
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> b
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.main.MainActivityModule_MineFragment$MineFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.mine.MineFragment) -> e
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$MineFragmentSubcomponentImpl -> o5.b$m0$q:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$MineFragmentSubcomponentImpl -> o5.b$l0$q:
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     com.m3man.ui.mine.MinePresenter getMinePresenter() -> b
     void inject(com.m3man.ui.mine.MineFragment) -> c
     com.m3man.ui.mine.MineFragment injectMineFragment(com.m3man.ui.mine.MineFragment) -> d
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$RecommendFeedFragmentSubcomponentBuilder -> o5.b$m0$r:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$RecommendFeedFragmentSubcomponentBuilder -> o5.b$l0$r:
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> b
     com.m3man.ui.recommend.RecommendFeedFragment seedInstance -> a
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.main.MainActivityModule_RecommendFeedFragment$RecommendFeedFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.recommend.RecommendFeedFragment) -> e
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$RecommendFeedFragmentSubcomponentImpl -> o5.b$m0$s:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$RecommendFeedFragmentSubcomponentImpl -> o5.b$l0$s:
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     void inject(com.m3man.ui.recommend.RecommendFeedFragment) -> b
     com.m3man.ui.recommend.RecommendFeedFragment injectRecommendFeedFragment(com.m3man.ui.recommend.RecommendFeedFragment) -> c
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$SearchPornyFragmentSubcomponentBuilder -> o5.b$m0$t:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$SearchPornyFragmentSubcomponentBuilder -> o5.b$l0$t:
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> b
     com.m3man.ui.mman9video.search.SearchPornyFragment seedInstance -> a
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.ui.main.MainActivityModule_SearchPornyFragment$SearchPornyFragmentSubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.search.SearchPornyFragment) -> e
-com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$SearchPornyFragmentSubcomponentImpl -> o5.b$m0$u:
+com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl$SearchPornyFragmentSubcomponentImpl -> o5.b$l0$u:
     com.m3man.di.component.DaggerAppComponent$MainActivitySubcomponentImpl this$1 -> a
     void inject(java.lang.Object) -> a
     com.m3man.ui.mman9video.search.SearchPornyPresenter getSearchPornyPresenter() -> b
     void inject(com.m3man.ui.mman9video.search.SearchPornyFragment) -> c
     com.m3man.ui.mman9video.search.SearchPornyFragment injectSearchPornyFragment(com.m3man.ui.mman9video.search.SearchPornyFragment) -> d
-com.m3man.di.component.DaggerAppComponent$PornyFavoriteActivitySubcomponentBuilder -> o5.b$n0:
+com.m3man.di.component.DaggerAppComponent$PornyFavoriteActivitySubcomponentBuilder -> o5.b$m0:
     com.m3man.ui.mman9video.favorite.PornyFavoriteActivityModule pornyFavoriteActivityModule -> a
     com.m3man.di.component.DaggerAppComponent this$0 -> c
     com.m3man.ui.mman9video.favorite.PornyFavoriteActivity seedInstance -> b
@@ -34516,7 +34511,7 @@ com.m3man.di.component.DaggerAppComponent$PornyFavoriteActivitySubcomponentBuild
     void seedInstance(java.lang.Object) -> c
     com.m3man.di.module.ActivityBindingModule_PornyFavoriteActivity$PornyFavoriteActivitySubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.favorite.PornyFavoriteActivity) -> e
-com.m3man.di.component.DaggerAppComponent$PornyFavoriteActivitySubcomponentImpl -> o5.b$o0:
+com.m3man.di.component.DaggerAppComponent$PornyFavoriteActivitySubcomponentImpl -> o5.b$n0:
     com.m3man.ui.mman9video.favorite.PornyFavoriteActivity seedInstance -> a
     com.m3man.di.component.DaggerAppComponent this$0 -> c
     com.m3man.ui.mman9video.favorite.PornyFavoriteActivityModule pornyFavoriteActivityModule -> b
@@ -34526,14 +34521,14 @@ com.m3man.di.component.DaggerAppComponent$PornyFavoriteActivitySubcomponentImpl 
     com.trello.rxlifecycle2.LifecycleProvider getLifecycleProviderOfEvent() -> d
     void inject(com.m3man.ui.mman9video.favorite.PornyFavoriteActivity) -> e
     com.m3man.ui.mman9video.favorite.PornyFavoriteActivity injectPornyFavoriteActivity(com.m3man.ui.mman9video.favorite.PornyFavoriteActivity) -> f
-com.m3man.di.component.DaggerAppComponent$ProxySettingActivitySubcomponentBuilder -> o5.b$p0:
+com.m3man.di.component.DaggerAppComponent$ProxySettingActivitySubcomponentBuilder -> o5.b$o0:
     com.m3man.di.component.DaggerAppComponent this$0 -> b
     com.m3man.ui.proxy.ProxySettingActivity seedInstance -> a
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.di.module.ActivityBindingModule_ProxySettingActivity$ProxySettingActivitySubcomponent build() -> d
     void seedInstance(com.m3man.ui.proxy.ProxySettingActivity) -> e
-com.m3man.di.component.DaggerAppComponent$ProxySettingActivitySubcomponentImpl -> o5.b$q0:
+com.m3man.di.component.DaggerAppComponent$ProxySettingActivitySubcomponentImpl -> o5.b$p0:
     com.m3man.di.component.DaggerAppComponent this$0 -> b
     com.m3man.ui.proxy.ProxySettingActivity seedInstance -> a
     void inject(java.lang.Object) -> a
@@ -34542,14 +34537,14 @@ com.m3man.di.component.DaggerAppComponent$ProxySettingActivitySubcomponentImpl -
     com.m3man.ui.proxy.ProxyPresenter getProxyPresenter() -> d
     void inject(com.m3man.ui.proxy.ProxySettingActivity) -> e
     com.m3man.ui.proxy.ProxySettingActivity injectProxySettingActivity(com.m3man.ui.proxy.ProxySettingActivity) -> f
-com.m3man.di.component.DaggerAppComponent$SearchActivitySubcomponentBuilder -> o5.b$r0:
+com.m3man.di.component.DaggerAppComponent$SearchActivitySubcomponentBuilder -> o5.b$q0:
     com.m3man.di.component.DaggerAppComponent this$0 -> b
     com.m3man.ui.mman9video.search.SearchActivity seedInstance -> a
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.di.module.ActivityBindingModule_SearchActivity$SearchActivitySubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.search.SearchActivity) -> e
-com.m3man.di.component.DaggerAppComponent$SearchActivitySubcomponentImpl -> o5.b$s0:
+com.m3man.di.component.DaggerAppComponent$SearchActivitySubcomponentImpl -> o5.b$r0:
     com.m3man.di.component.DaggerAppComponent this$0 -> b
     com.m3man.ui.mman9video.search.SearchActivity seedInstance -> a
     void inject(java.lang.Object) -> a
@@ -34558,23 +34553,7 @@ com.m3man.di.component.DaggerAppComponent$SearchActivitySubcomponentImpl -> o5.b
     com.m3man.ui.mman9video.search.SearchPresenter getSearchPresenter() -> d
     void inject(com.m3man.ui.mman9video.search.SearchActivity) -> e
     com.m3man.ui.mman9video.search.SearchActivity injectSearchActivity(com.m3man.ui.mman9video.search.SearchActivity) -> f
-com.m3man.di.component.DaggerAppComponent$SearchPornyActivitySubcomponentBuilder -> o5.b$t0:
-    com.m3man.di.component.DaggerAppComponent this$0 -> b
-    com.m3man.ui.mman9video.search.SearchPornyActivity seedInstance -> a
-    dagger.android.AndroidInjector build() -> b
-    void seedInstance(java.lang.Object) -> c
-    com.m3man.di.module.ActivityBindingModule_SearchPornyActivity$SearchPornyActivitySubcomponent build() -> d
-    void seedInstance(com.m3man.ui.mman9video.search.SearchPornyActivity) -> e
-com.m3man.di.component.DaggerAppComponent$SearchPornyActivitySubcomponentImpl -> o5.b$u0:
-    com.m3man.di.component.DaggerAppComponent this$0 -> b
-    com.m3man.ui.mman9video.search.SearchPornyActivity seedInstance -> a
-    void inject(java.lang.Object) -> a
-    android.support.v7.app.AppCompatActivity getAppCompatActivity() -> b
-    com.trello.rxlifecycle2.LifecycleProvider getLifecycleProviderOfEvent() -> c
-    com.m3man.ui.mman9video.search.SearchPornyPresenter getSearchPornyPresenter() -> d
-    void inject(com.m3man.ui.mman9video.search.SearchPornyActivity) -> e
-    com.m3man.ui.mman9video.search.SearchPornyActivity injectSearchPornyActivity(com.m3man.ui.mman9video.search.SearchPornyActivity) -> f
-com.m3man.di.component.DaggerAppComponent$SettingActivitySubcomponentBuilder -> o5.b$v0:
+com.m3man.di.component.DaggerAppComponent$SettingActivitySubcomponentBuilder -> o5.b$s0:
     com.m3man.ui.setting.SettingActivityModule settingActivityModule -> a
     com.m3man.di.component.DaggerAppComponent this$0 -> c
     com.m3man.ui.setting.SettingActivity seedInstance -> b
@@ -34582,7 +34561,7 @@ com.m3man.di.component.DaggerAppComponent$SettingActivitySubcomponentBuilder -> 
     void seedInstance(java.lang.Object) -> c
     com.m3man.di.module.ActivityBindingModule_SettingActivity$SettingActivitySubcomponent build() -> d
     void seedInstance(com.m3man.ui.setting.SettingActivity) -> e
-com.m3man.di.component.DaggerAppComponent$SettingActivitySubcomponentImpl -> o5.b$w0:
+com.m3man.di.component.DaggerAppComponent$SettingActivitySubcomponentImpl -> o5.b$t0:
     com.m3man.ui.setting.SettingActivityModule settingActivityModule -> b
     com.m3man.di.component.DaggerAppComponent this$0 -> c
     com.m3man.ui.setting.SettingActivity seedInstance -> a
@@ -34592,26 +34571,26 @@ com.m3man.di.component.DaggerAppComponent$SettingActivitySubcomponentImpl -> o5.
     com.m3man.ui.setting.SettingPresenter getSettingPresenter() -> d
     void inject(com.m3man.ui.setting.SettingActivity) -> e
     com.m3man.ui.setting.SettingActivity injectSettingActivity(com.m3man.ui.setting.SettingActivity) -> f
-com.m3man.di.component.DaggerAppComponent$UpdateActivitySubcomponentBuilder -> o5.b$x0:
+com.m3man.di.component.DaggerAppComponent$UpdateActivitySubcomponentBuilder -> o5.b$u0:
     com.m3man.di.component.DaggerAppComponent this$0 -> b
     com.m3man.ui.update.UpdateActivity seedInstance -> a
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.di.module.ActivityBindingModule_UpdateActivity$UpdateActivitySubcomponent build() -> d
     void seedInstance(com.m3man.ui.update.UpdateActivity) -> e
-com.m3man.di.component.DaggerAppComponent$UpdateActivitySubcomponentImpl -> o5.b$y0:
+com.m3man.di.component.DaggerAppComponent$UpdateActivitySubcomponentImpl -> o5.b$v0:
     com.m3man.di.component.DaggerAppComponent this$0 -> a
     void inject(java.lang.Object) -> a
     void inject(com.m3man.ui.update.UpdateActivity) -> b
     com.m3man.ui.update.UpdateActivity injectUpdateActivity(com.m3man.ui.update.UpdateActivity) -> c
-com.m3man.di.component.DaggerAppComponent$UserLoginActivitySubcomponentBuilder -> o5.b$z0:
+com.m3man.di.component.DaggerAppComponent$UserLoginActivitySubcomponentBuilder -> o5.b$w0:
     com.m3man.di.component.DaggerAppComponent this$0 -> b
     com.m3man.ui.mman9video.user.UserLoginActivity seedInstance -> a
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.di.module.ActivityBindingModule_UserLoginActivity$UserLoginActivitySubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.user.UserLoginActivity) -> e
-com.m3man.di.component.DaggerAppComponent$UserLoginActivitySubcomponentImpl -> o5.b$a1:
+com.m3man.di.component.DaggerAppComponent$UserLoginActivitySubcomponentImpl -> o5.b$x0:
     com.m3man.di.component.DaggerAppComponent this$0 -> b
     com.m3man.ui.mman9video.user.UserLoginActivity seedInstance -> a
     void inject(java.lang.Object) -> a
@@ -34620,14 +34599,14 @@ com.m3man.di.component.DaggerAppComponent$UserLoginActivitySubcomponentImpl -> o
     com.m3man.ui.mman9video.user.UserPresenter getUserPresenter() -> d
     void inject(com.m3man.ui.mman9video.user.UserLoginActivity) -> e
     com.m3man.ui.mman9video.user.UserLoginActivity injectUserLoginActivity(com.m3man.ui.mman9video.user.UserLoginActivity) -> f
-com.m3man.di.component.DaggerAppComponent$UserRegisterActivitySubcomponentBuilder -> o5.b$b1:
+com.m3man.di.component.DaggerAppComponent$UserRegisterActivitySubcomponentBuilder -> o5.b$y0:
     com.m3man.di.component.DaggerAppComponent this$0 -> b
     com.m3man.ui.mman9video.user.UserRegisterActivity seedInstance -> a
     dagger.android.AndroidInjector build() -> b
     void seedInstance(java.lang.Object) -> c
     com.m3man.di.module.ActivityBindingModule_UserRegisterActivity$UserRegisterActivitySubcomponent build() -> d
     void seedInstance(com.m3man.ui.mman9video.user.UserRegisterActivity) -> e
-com.m3man.di.component.DaggerAppComponent$UserRegisterActivitySubcomponentImpl -> o5.b$c1:
+com.m3man.di.component.DaggerAppComponent$UserRegisterActivitySubcomponentImpl -> o5.b$z0:
     com.m3man.di.component.DaggerAppComponent this$0 -> b
     com.m3man.ui.mman9video.user.UserRegisterActivity seedInstance -> a
     void inject(java.lang.Object) -> a
@@ -34660,17 +34639,15 @@ com.m3man.di.module.ActivityBindingModule_ProxySettingActivity$ProxySettingActiv
 com.m3man.di.module.ActivityBindingModule_ProxySettingActivity$ProxySettingActivitySubcomponent$Builder -> p5.k$a:
 com.m3man.di.module.ActivityBindingModule_SearchActivity$SearchActivitySubcomponent -> p5.l:
 com.m3man.di.module.ActivityBindingModule_SearchActivity$SearchActivitySubcomponent$Builder -> p5.l$a:
-com.m3man.di.module.ActivityBindingModule_SearchPornyActivity$SearchPornyActivitySubcomponent -> p5.m:
-com.m3man.di.module.ActivityBindingModule_SearchPornyActivity$SearchPornyActivitySubcomponent$Builder -> p5.m$a:
-com.m3man.di.module.ActivityBindingModule_SettingActivity$SettingActivitySubcomponent -> p5.n:
-com.m3man.di.module.ActivityBindingModule_SettingActivity$SettingActivitySubcomponent$Builder -> p5.n$a:
-com.m3man.di.module.ActivityBindingModule_UpdateActivity$UpdateActivitySubcomponent -> p5.o:
-com.m3man.di.module.ActivityBindingModule_UpdateActivity$UpdateActivitySubcomponent$Builder -> p5.o$a:
-com.m3man.di.module.ActivityBindingModule_UserLoginActivity$UserLoginActivitySubcomponent -> p5.p:
-com.m3man.di.module.ActivityBindingModule_UserLoginActivity$UserLoginActivitySubcomponent$Builder -> p5.p$a:
-com.m3man.di.module.ActivityBindingModule_UserRegisterActivity$UserRegisterActivitySubcomponent -> p5.q:
-com.m3man.di.module.ActivityBindingModule_UserRegisterActivity$UserRegisterActivitySubcomponent$Builder -> p5.q$a:
-com.m3man.di.module.ApiServiceModule -> p5.r:
+com.m3man.di.module.ActivityBindingModule_SettingActivity$SettingActivitySubcomponent -> p5.m:
+com.m3man.di.module.ActivityBindingModule_SettingActivity$SettingActivitySubcomponent$Builder -> p5.m$a:
+com.m3man.di.module.ActivityBindingModule_UpdateActivity$UpdateActivitySubcomponent -> p5.n:
+com.m3man.di.module.ActivityBindingModule_UpdateActivity$UpdateActivitySubcomponent$Builder -> p5.n$a:
+com.m3man.di.module.ActivityBindingModule_UserLoginActivity$UserLoginActivitySubcomponent -> p5.o:
+com.m3man.di.module.ActivityBindingModule_UserLoginActivity$UserLoginActivitySubcomponent$Builder -> p5.o$a:
+com.m3man.di.module.ActivityBindingModule_UserRegisterActivity$UserRegisterActivitySubcomponent -> p5.p:
+com.m3man.di.module.ActivityBindingModule_UserRegisterActivity$UserRegisterActivitySubcomponent$Builder -> p5.p$a:
+com.m3man.di.module.ApiServiceModule -> p5.q:
     com.m3man.data.network.apiservice.V9MmanServiceApi provides91MmanVideoServiceApi(retrofit2.Retrofit) -> a
     com.m3man.data.network.apiservice.GitHubServiceApi providesGitHubServiceApi(retrofit2.Retrofit) -> b
     okhttp3.logging.HttpLoggingInterceptor providesHttpLoggingInterceptor() -> c
@@ -34683,31 +34660,31 @@ com.m3man.di.module.ApiServiceModule -> p5.r:
     com.m3man.cookie.RulerCookie providesRuler(com.m3man.cookie.SharedPrefsCookiePersistor,com.m3man.cookie.SetCookieCache) -> j
     com.m3man.cookie.SetCookieCache providesSetCookieCache() -> k
     com.m3man.cookie.SharedPrefsCookiePersistor providesSharedPrefsCookiePersistor(android.content.Context) -> l
-com.m3man.di.module.ApiServiceModule$1 -> p5.r$a:
+com.m3man.di.module.ApiServiceModule$1 -> p5.q$a:
     com.m3man.di.module.ApiServiceModule this$0 -> a
-com.m3man.di.module.ApiServiceModule_Provides91MmanVideoServiceApiFactory -> p5.s:
+com.m3man.di.module.ApiServiceModule_Provides91MmanVideoServiceApiFactory -> p5.r:
     com.m3man.di.module.ApiServiceModule module -> a
     javax.inject.Provider retrofitProvider -> b
     com.m3man.di.module.ApiServiceModule_Provides91MmanVideoServiceApiFactory create(com.m3man.di.module.ApiServiceModule,javax.inject.Provider) -> a
     com.m3man.data.network.apiservice.V9MmanServiceApi get() -> b
     com.m3man.data.network.apiservice.V9MmanServiceApi proxyProvides91MmanVideoServiceApi(com.m3man.di.module.ApiServiceModule,retrofit2.Retrofit) -> c
-com.m3man.di.module.ApiServiceModule_ProvidesGitHubServiceApiFactory -> p5.t:
+com.m3man.di.module.ApiServiceModule_ProvidesGitHubServiceApiFactory -> p5.s:
     com.m3man.di.module.ApiServiceModule module -> a
     javax.inject.Provider retrofitProvider -> b
     com.m3man.di.module.ApiServiceModule_ProvidesGitHubServiceApiFactory create(com.m3man.di.module.ApiServiceModule,javax.inject.Provider) -> a
     com.m3man.data.network.apiservice.GitHubServiceApi get() -> b
     com.m3man.data.network.apiservice.GitHubServiceApi proxyProvidesGitHubServiceApi(com.m3man.di.module.ApiServiceModule,retrofit2.Retrofit) -> c
-com.m3man.di.module.ApiServiceModule_ProvidesHttpLoggingInterceptorFactory -> p5.u:
+com.m3man.di.module.ApiServiceModule_ProvidesHttpLoggingInterceptorFactory -> p5.t:
     com.m3man.di.module.ApiServiceModule module -> a
     com.m3man.di.module.ApiServiceModule_ProvidesHttpLoggingInterceptorFactory create(com.m3man.di.module.ApiServiceModule) -> a
     okhttp3.logging.HttpLoggingInterceptor get() -> b
     okhttp3.logging.HttpLoggingInterceptor proxyProvidesHttpLoggingInterceptor(com.m3man.di.module.ApiServiceModule) -> c
-com.m3man.di.module.ApiServiceModule_ProvidesListProxyFactory -> p5.v:
+com.m3man.di.module.ApiServiceModule_ProvidesListProxyFactory -> p5.u:
     com.m3man.di.module.ApiServiceModule module -> a
     com.m3man.di.module.ApiServiceModule_ProvidesListProxyFactory create(com.m3man.di.module.ApiServiceModule) -> a
     java.util.List get() -> b
     java.util.List proxyProvidesListProxy(com.m3man.di.module.ApiServiceModule) -> c
-com.m3man.di.module.ApiServiceModule_ProvidesOkHttpClientFactory -> p5.w:
+com.m3man.di.module.ApiServiceModule_ProvidesOkHttpClientFactory -> p5.v:
     javax.inject.Provider rulerCookieProvider -> d
     javax.inject.Provider httpLoggingInterceptorProvider -> c
     javax.inject.Provider addressHelperProvider -> f
@@ -34717,50 +34694,50 @@ com.m3man.di.module.ApiServiceModule_ProvidesOkHttpClientFactory -> p5.w:
     com.m3man.di.module.ApiServiceModule_ProvidesOkHttpClientFactory create(com.m3man.di.module.ApiServiceModule,javax.inject.Provider,javax.inject.Provider,javax.inject.Provider,javax.inject.Provider,javax.inject.Provider) -> a
     okhttp3.OkHttpClient get() -> b
     okhttp3.OkHttpClient proxyProvidesOkHttpClient(com.m3man.di.module.ApiServiceModule,com.m3man.data.network.okhttp.CommonHeaderInterceptor,okhttp3.logging.HttpLoggingInterceptor,com.m3man.cookie.RulerCookie,com.m3man.data.network.okhttp.MyProxySelector,com.m3man.utils.AddressHelper) -> c
-com.m3man.di.module.ApiServiceModule_ProvidesPersistentCookieJarFactory -> p5.x:
+com.m3man.di.module.ApiServiceModule_ProvidesPersistentCookieJarFactory -> p5.w:
     javax.inject.Provider setCookieCacheProvider -> c
     com.m3man.di.module.ApiServiceModule module -> a
     javax.inject.Provider sharedPrefsCookiePersistorProvider -> b
     com.m3man.di.module.ApiServiceModule_ProvidesPersistentCookieJarFactory create(com.m3man.di.module.ApiServiceModule,javax.inject.Provider,javax.inject.Provider) -> a
     com.franmontiel.persistentcookiejar.PersistentCookieJar get() -> b
     com.franmontiel.persistentcookiejar.PersistentCookieJar proxyProvidesPersistentCookieJar(com.m3man.di.module.ApiServiceModule,com.m3man.cookie.SharedPrefsCookiePersistor,com.m3man.cookie.SetCookieCache) -> c
-com.m3man.di.module.ApiServiceModule_ProvidesPornyServiceApiFactory -> p5.y:
+com.m3man.di.module.ApiServiceModule_ProvidesPornyServiceApiFactory -> p5.x:
     com.m3man.di.module.ApiServiceModule module -> a
     javax.inject.Provider retrofitProvider -> b
     com.m3man.di.module.ApiServiceModule_ProvidesPornyServiceApiFactory create(com.m3man.di.module.ApiServiceModule,javax.inject.Provider) -> a
     com.m3man.data.network.apiservice.PornyServiceApi get() -> b
     com.m3man.data.network.apiservice.PornyServiceApi proxyProvidesPornyServiceApi(com.m3man.di.module.ApiServiceModule,retrofit2.Retrofit) -> c
-com.m3man.di.module.ApiServiceModule_ProvidesProxyServiceApiFactory -> p5.z:
+com.m3man.di.module.ApiServiceModule_ProvidesProxyServiceApiFactory -> p5.y:
     com.m3man.di.module.ApiServiceModule module -> a
     javax.inject.Provider retrofitProvider -> b
     com.m3man.di.module.ApiServiceModule_ProvidesProxyServiceApiFactory create(com.m3man.di.module.ApiServiceModule,javax.inject.Provider) -> a
     com.m3man.data.network.apiservice.ProxyServiceApi get() -> b
     com.m3man.data.network.apiservice.ProxyServiceApi proxyProvidesProxyServiceApi(com.m3man.di.module.ApiServiceModule,retrofit2.Retrofit) -> c
-com.m3man.di.module.ApiServiceModule_ProvidesRetrofitFactory -> p5.a0:
+com.m3man.di.module.ApiServiceModule_ProvidesRetrofitFactory -> p5.z:
     com.m3man.di.module.ApiServiceModule module -> a
     javax.inject.Provider okHttpClientProvider -> b
     com.m3man.di.module.ApiServiceModule_ProvidesRetrofitFactory create(com.m3man.di.module.ApiServiceModule,javax.inject.Provider) -> a
     retrofit2.Retrofit get() -> b
     retrofit2.Retrofit proxyProvidesRetrofit(com.m3man.di.module.ApiServiceModule,okhttp3.OkHttpClient) -> c
-com.m3man.di.module.ApiServiceModule_ProvidesRulerFactory -> p5.b0:
+com.m3man.di.module.ApiServiceModule_ProvidesRulerFactory -> p5.a0:
     javax.inject.Provider setCookieCacheProvider -> c
     com.m3man.di.module.ApiServiceModule module -> a
     javax.inject.Provider sharedPrefsCookiePersistorProvider -> b
     com.m3man.di.module.ApiServiceModule_ProvidesRulerFactory create(com.m3man.di.module.ApiServiceModule,javax.inject.Provider,javax.inject.Provider) -> a
     com.m3man.cookie.RulerCookie get() -> b
     com.m3man.cookie.RulerCookie proxyProvidesRuler(com.m3man.di.module.ApiServiceModule,com.m3man.cookie.SharedPrefsCookiePersistor,com.m3man.cookie.SetCookieCache) -> c
-com.m3man.di.module.ApiServiceModule_ProvidesSetCookieCacheFactory -> p5.c0:
+com.m3man.di.module.ApiServiceModule_ProvidesSetCookieCacheFactory -> p5.b0:
     com.m3man.di.module.ApiServiceModule module -> a
     com.m3man.di.module.ApiServiceModule_ProvidesSetCookieCacheFactory create(com.m3man.di.module.ApiServiceModule) -> a
     com.m3man.cookie.SetCookieCache get() -> b
     com.m3man.cookie.SetCookieCache proxyProvidesSetCookieCache(com.m3man.di.module.ApiServiceModule) -> c
-com.m3man.di.module.ApiServiceModule_ProvidesSharedPrefsCookiePersistorFactory -> p5.d0:
+com.m3man.di.module.ApiServiceModule_ProvidesSharedPrefsCookiePersistorFactory -> p5.c0:
     com.m3man.di.module.ApiServiceModule module -> a
     javax.inject.Provider contextProvider -> b
     com.m3man.di.module.ApiServiceModule_ProvidesSharedPrefsCookiePersistorFactory create(com.m3man.di.module.ApiServiceModule,javax.inject.Provider) -> a
     com.m3man.cookie.SharedPrefsCookiePersistor get() -> b
     com.m3man.cookie.SharedPrefsCookiePersistor proxyProvidesSharedPrefsCookiePersistor(com.m3man.di.module.ApiServiceModule,android.content.Context) -> c
-com.m3man.di.module.ApplicationModule -> p5.e0:
+com.m3man.di.module.ApplicationModule -> p5.d0:
     com.m3man.data.DataManager provideDataManager(com.m3man.data.AppDataManager) -> a
     com.m3man.data.db.DbHelper provideDbHelper(com.m3man.data.db.AppDbHelper) -> b
     java.lang.String providePreferenceName(android.content.Context) -> c
@@ -34773,73 +34750,73 @@ com.m3man.di.module.ApplicationModule -> p5.e0:
     com.google.gson.Gson providesGson() -> j
     com.danikula.videocache.headers.HeaderInjector providesHeaderInjector(com.m3man.utils.MyHeaderInjector) -> k
     com.danikula.videocache.HttpProxyCacheServer providesHttpProxyCacheServer(android.content.Context,com.danikula.videocache.headers.HeaderInjector) -> l
-com.m3man.di.module.ApplicationModule_ProvideDataManagerFactory -> p5.f0:
+com.m3man.di.module.ApplicationModule_ProvideDataManagerFactory -> p5.e0:
     javax.inject.Provider appDataManagerProvider -> a
     com.m3man.di.module.ApplicationModule_ProvideDataManagerFactory create(javax.inject.Provider) -> a
     com.m3man.data.DataManager get() -> b
     com.m3man.data.DataManager proxyProvideDataManager(com.m3man.data.AppDataManager) -> c
-com.m3man.di.module.ApplicationModule_ProvideDbHelperFactory -> p5.g0:
+com.m3man.di.module.ApplicationModule_ProvideDbHelperFactory -> p5.f0:
     javax.inject.Provider appDbHelperProvider -> a
     com.m3man.di.module.ApplicationModule_ProvideDbHelperFactory create(javax.inject.Provider) -> a
     com.m3man.data.db.DbHelper get() -> b
     com.m3man.data.db.DbHelper proxyProvideDbHelper(com.m3man.data.db.AppDbHelper) -> c
-com.m3man.di.module.ApplicationModule_ProvidePreferenceNameFactory -> p5.h0:
+com.m3man.di.module.ApplicationModule_ProvidePreferenceNameFactory -> p5.g0:
     javax.inject.Provider contextProvider -> a
     com.m3man.di.module.ApplicationModule_ProvidePreferenceNameFactory create(javax.inject.Provider) -> a
     java.lang.String get() -> b
     java.lang.String proxyProvidePreferenceName(android.content.Context) -> c
-com.m3man.di.module.ApplicationModule_ProvidePreferencesHelperFactory -> p5.i0:
+com.m3man.di.module.ApplicationModule_ProvidePreferencesHelperFactory -> p5.h0:
     javax.inject.Provider appPreferencesHelperProvider -> a
     com.m3man.di.module.ApplicationModule_ProvidePreferencesHelperFactory create(javax.inject.Provider) -> a
     com.m3man.data.prefs.PreferencesHelper get() -> b
     com.m3man.data.prefs.PreferencesHelper proxyProvidePreferencesHelper(com.m3man.data.prefs.AppPreferencesHelper) -> c
-com.m3man.di.module.ApplicationModule_ProvidesAddressHelperFactory -> p5.j0:
+com.m3man.di.module.ApplicationModule_ProvidesAddressHelperFactory -> p5.i0:
     javax.inject.Provider preferencesHelperProvider -> a
     com.m3man.di.module.ApplicationModule_ProvidesAddressHelperFactory create(javax.inject.Provider) -> a
     com.m3man.utils.AddressHelper get() -> b
     com.m3man.utils.AddressHelper proxyProvidesAddressHelper(com.m3man.data.prefs.PreferencesHelper) -> c
-com.m3man.di.module.ApplicationModule_ProvidesApiHelperFactory -> p5.k0:
+com.m3man.di.module.ApplicationModule_ProvidesApiHelperFactory -> p5.j0:
     javax.inject.Provider appApiHelperProvider -> a
     com.m3man.di.module.ApplicationModule_ProvidesApiHelperFactory create(javax.inject.Provider) -> a
     com.m3man.data.network.ApiHelper get() -> b
     com.m3man.data.network.ApiHelper proxyProvidesApiHelper(com.m3man.data.network.AppApiHelper) -> c
-com.m3man.di.module.ApplicationModule_ProvidesCacheProvidersFactory -> p5.l0:
+com.m3man.di.module.ApplicationModule_ProvidesCacheProvidersFactory -> p5.k0:
     javax.inject.Provider contextProvider -> a
     com.m3man.di.module.ApplicationModule_ProvidesCacheProvidersFactory create(javax.inject.Provider) -> a
     com.m3man.data.cache.CacheProviders get() -> b
     com.m3man.data.cache.CacheProviders proxyProvidesCacheProviders(android.content.Context) -> c
-com.m3man.di.module.ApplicationModule_ProvidesCookieManagerFactory -> p5.m0:
+com.m3man.di.module.ApplicationModule_ProvidesCookieManagerFactory -> p5.l0:
     javax.inject.Provider appCookieManagerProvider -> a
     com.m3man.di.module.ApplicationModule_ProvidesCookieManagerFactory create(javax.inject.Provider) -> a
     com.m3man.cookie.CookieManager get() -> b
     com.m3man.cookie.CookieManager proxyProvidesCookieManager(com.m3man.cookie.AppCookieManager) -> c
-com.m3man.di.module.ApplicationModule_ProvidesDatabaseNameFactory -> p5.n0:
+com.m3man.di.module.ApplicationModule_ProvidesDatabaseNameFactory -> p5.m0:
     com.m3man.di.module.ApplicationModule_ProvidesDatabaseNameFactory INSTANCE -> a
     com.m3man.di.module.ApplicationModule_ProvidesDatabaseNameFactory create() -> a
     java.lang.String get() -> b
     java.lang.String proxyProvidesDatabaseName() -> c
-com.m3man.di.module.ApplicationModule_ProvidesGsonFactory -> p5.o0:
+com.m3man.di.module.ApplicationModule_ProvidesGsonFactory -> p5.n0:
     com.m3man.di.module.ApplicationModule_ProvidesGsonFactory INSTANCE -> a
     com.m3man.di.module.ApplicationModule_ProvidesGsonFactory create() -> a
     com.google.gson.Gson get() -> b
     com.google.gson.Gson proxyProvidesGson() -> c
-com.m3man.di.module.ApplicationModule_ProvidesHeaderInjectorFactory -> p5.p0:
+com.m3man.di.module.ApplicationModule_ProvidesHeaderInjectorFactory -> p5.o0:
     javax.inject.Provider myHeaderInjectorProvider -> a
     com.m3man.di.module.ApplicationModule_ProvidesHeaderInjectorFactory create(javax.inject.Provider) -> a
     com.danikula.videocache.headers.HeaderInjector get() -> b
     com.danikula.videocache.headers.HeaderInjector proxyProvidesHeaderInjector(com.m3man.utils.MyHeaderInjector) -> c
-com.m3man.di.module.ApplicationModule_ProvidesHttpProxyCacheServerFactory -> p5.q0:
+com.m3man.di.module.ApplicationModule_ProvidesHttpProxyCacheServerFactory -> p5.p0:
     javax.inject.Provider headerInjectorProvider -> b
     javax.inject.Provider contextProvider -> a
     com.m3man.di.module.ApplicationModule_ProvidesHttpProxyCacheServerFactory create(javax.inject.Provider,javax.inject.Provider) -> a
     com.danikula.videocache.HttpProxyCacheServer get() -> b
     com.danikula.videocache.HttpProxyCacheServer proxyProvidesHttpProxyCacheServer(android.content.Context,com.danikula.videocache.headers.HeaderInjector) -> c
-com.m3man.di.module.BaseActivityModule -> p5.r0:
+com.m3man.di.module.BaseActivityModule -> p5.q0:
     com.trello.rxlifecycle2.LifecycleProvider provideLifecycleProvider(android.support.v7.app.AppCompatActivity) -> a
-com.m3man.di.module.BaseActivityModule_ProvideLifecycleProviderFactory -> p5.s0:
+com.m3man.di.module.BaseActivityModule_ProvideLifecycleProviderFactory -> p5.r0:
     com.trello.rxlifecycle2.LifecycleProvider proxyProvideLifecycleProvider(android.support.v7.app.AppCompatActivity) -> a
-com.m3man.di.module.ServiceBindingModule_DownloadVideoService$DownloadVideoServiceSubcomponent -> p5.t0:
-com.m3man.di.module.ServiceBindingModule_DownloadVideoService$DownloadVideoServiceSubcomponent$Builder -> p5.t0$a:
+com.m3man.di.module.ServiceBindingModule_DownloadVideoService$DownloadVideoServiceSubcomponent -> p5.s0:
+com.m3man.di.module.ServiceBindingModule_DownloadVideoService$DownloadVideoServiceSubcomponent$Builder -> p5.s0$a:
 com.m3man.eventbus.LowMemoryEvent -> q5.a:
     java.lang.String tag -> a
 com.m3man.exception.ApiException -> com.m3man.exception.ApiException:
@@ -38103,123 +38080,6 @@ com.m3man.ui.mman9video.search.SearchActivity_MembersInjector -> com.m3man.ui.mm
     void injectSearchPresenter(com.m3man.ui.mman9video.search.SearchActivity,com.m3man.ui.mman9video.search.SearchPresenter) -> b
 com.m3man.ui.mman9video.search.SearchActivity_ViewBinding -> com.m3man.ui.mman9video.search.SearchActivity_ViewBinding:
     com.m3man.ui.mman9video.search.SearchActivity target -> a
-com.m3man.ui.mman9video.search.SearchPornyActivity -> com.m3man.ui.mman9video.search.SearchPornyActivity:
-    com.m3man.data.DataManager dataManager -> G
-    java.lang.String searchId -> x
-    com.m3man.adapter.V91MmanAdapter mV91MmanAdapter -> y
-    com.m3man.ui.mman9video.search.SearchPornyPresenter searchPornyPresenter -> F
-    com.m3man.ui.search.SearchHistoryPanel searchHistoryPanel -> z
-    com.helper.loadviewhelper.load.LoadViewHelper helper -> A
-    com.m3man.adapter.SkipPageAdapter skipPageAdapter -> B
-    java.lang.String currentSort -> C
-    java.lang.String currentViews -> E
-    java.lang.String currentTime -> D
-    com.m3man.adapter.SkipPageAdapter access$900(com.m3man.ui.mman9video.search.SearchPornyActivity) -> A1
-    com.m3man.ui.mman9video.search.SearchPornyPresenter createPresenter() -> B1
-    int indexOf(java.util.List,java.lang.String) -> C1
-    void init() -> D1
-    void initSkipPageBar() -> E1
-    void lambda$showFilterDialog$0(org.angmarch.views.NiceSpinner,org.angmarch.views.NiceSpinner,org.angmarch.views.NiceSpinner,android.content.DialogInterface,int) -> F1
-    void lambda$showFilterDialog$1(java.util.List,org.angmarch.views.NiceSpinner,java.util.List,org.angmarch.views.NiceSpinner,java.util.List,org.angmarch.views.NiceSpinner,boolean[],android.content.DialogInterface,int) -> G1
-    void lambda$showFilterDialog$2(boolean[],android.content.DialogInterface) -> H1
-    void showContent() -> I0
-    void restoreSearchFilters() -> I1
-    void saveSearchFilters() -> J1
-    void setListener() -> K1
-    void showFilterDialog() -> L1
-    java.lang.String textOf(java.util.List,org.angmarch.views.NiceSpinner) -> M1
-    void triggerSearch(boolean) -> N1
-    void updateSkipBar() -> O1
-    void loadMoreDataComplete() -> a
-    void loadMoreFailed() -> b
-    void setMoreData(java.util.List) -> c
-    com.hannesdorfmann.mosby3.mvp.MvpPresenter createPresenter() -> c0
-    void noMoreData() -> d
-    void setData(java.util.List) -> e
-    void showMessage(java.lang.String,int) -> g
-    void showLoading(boolean) -> m
-    void $r8$lambda$0aSAVJsXu-VfHCVZnCr6IGduuSw(com.m3man.ui.mman9video.search.SearchPornyActivity,boolean[],android.content.DialogInterface) -> n1
-      # {"id":"com.android.tools.r8.synthesized"}
-    void $r8$lambda$fStMbEh5TeLb27iM8C6zavKnrqE(org.angmarch.views.NiceSpinner,org.angmarch.views.NiceSpinner,org.angmarch.views.NiceSpinner,android.content.DialogInterface,int) -> o1
-      # {"id":"com.android.tools.r8.synthesized"}
-    void $r8$lambda$g5fSIMmtNlmSWUgI6uuwZMjXa9M(com.m3man.ui.mman9video.search.SearchPornyActivity,java.util.List,org.angmarch.views.NiceSpinner,java.util.List,org.angmarch.views.NiceSpinner,java.util.List,org.angmarch.views.NiceSpinner,boolean[],android.content.DialogInterface,int) -> p1
-      # {"id":"com.android.tools.r8.synthesized"}
-    void access$000(com.m3man.ui.mman9video.search.SearchPornyActivity,com.m3man.data.db.entity.V9MmanItem,int) -> q1
-    void access$100(com.m3man.ui.mman9video.search.SearchPornyActivity,boolean) -> r1
-    java.lang.String access$200(com.m3man.ui.mman9video.search.SearchPornyActivity) -> s1
-    java.lang.String access$202(com.m3man.ui.mman9video.search.SearchPornyActivity,java.lang.String) -> t1
-    com.m3man.ui.search.SearchHistoryPanel access$300(com.m3man.ui.mman9video.search.SearchPornyActivity) -> u1
-    com.hannesdorfmann.mosby3.mvp.MvpPresenter access$400(com.m3man.ui.mman9video.search.SearchPornyActivity) -> v1
-    java.lang.String access$500(com.m3man.ui.mman9video.search.SearchPornyActivity) -> w1
-    void showError(java.lang.String) -> x
-    java.lang.String access$600(com.m3man.ui.mman9video.search.SearchPornyActivity) -> x1
-    java.lang.String access$700(com.m3man.ui.mman9video.search.SearchPornyActivity) -> y1
-    com.hannesdorfmann.mosby3.mvp.MvpPresenter access$800(com.m3man.ui.mman9video.search.SearchPornyActivity) -> z1
-com.m3man.ui.mman9video.search.SearchPornyActivity$$ExternalSyntheticLambda0 -> g6.c:
-# {"id":"sourceFile","fileName":"R8$$SyntheticClass"}
-# {"id":"com.android.tools.r8.synthesized"}
-    org.angmarch.views.NiceSpinner com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$0.f$1 -> b
-    org.angmarch.views.NiceSpinner com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$0.f$2 -> c
-    org.angmarch.views.NiceSpinner com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$0.f$0 -> a
-    void com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$0.<init>(org.angmarch.views.NiceSpinner,org.angmarch.views.NiceSpinner,org.angmarch.views.NiceSpinner) -> <init>
-      # {"id":"com.android.tools.r8.synthesized"}
-    void com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$0.onClick(android.content.DialogInterface,int) -> onClick
-      # {"id":"com.android.tools.r8.synthesized"}
-com.m3man.ui.mman9video.search.SearchPornyActivity$$ExternalSyntheticLambda1 -> g6.d:
-# {"id":"sourceFile","fileName":"R8$$SyntheticClass"}
-# {"id":"com.android.tools.r8.synthesized"}
-    java.util.List com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$1.f$1 -> b
-    org.angmarch.views.NiceSpinner com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$1.f$2 -> c
-    org.angmarch.views.NiceSpinner com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$1.f$4 -> e
-    boolean[] com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$1.f$7 -> h
-    java.util.List com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$1.f$5 -> f
-    com.m3man.ui.mman9video.search.SearchPornyActivity com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$1.f$0 -> a
-    org.angmarch.views.NiceSpinner com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$1.f$6 -> g
-    java.util.List com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$1.f$3 -> d
-    void com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$1.<init>(com.m3man.ui.mman9video.search.SearchPornyActivity,java.util.List,org.angmarch.views.NiceSpinner,java.util.List,org.angmarch.views.NiceSpinner,java.util.List,org.angmarch.views.NiceSpinner,boolean[]) -> <init>
-      # {"id":"com.android.tools.r8.synthesized"}
-    void com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$1.onClick(android.content.DialogInterface,int) -> onClick
-      # {"id":"com.android.tools.r8.synthesized"}
-com.m3man.ui.mman9video.search.SearchPornyActivity$$ExternalSyntheticLambda2 -> g6.e:
-# {"id":"sourceFile","fileName":"R8$$SyntheticClass"}
-# {"id":"com.android.tools.r8.synthesized"}
-    com.m3man.ui.mman9video.search.SearchPornyActivity com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$2.f$0 -> a
-    boolean[] com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$2.f$1 -> b
-    void com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$2.<init>(com.m3man.ui.mman9video.search.SearchPornyActivity,boolean[]) -> <init>
-      # {"id":"com.android.tools.r8.synthesized"}
-    void com.m3man.ui.mman9video.search.SearchPornyActivity$$InternalSyntheticLambda$1$7eb401760dae6c290a1cb74ab20c94f739bcc6613846dd01934daaf054bc01aa$2.onDismiss(android.content.DialogInterface) -> onDismiss
-      # {"id":"com.android.tools.r8.synthesized"}
-com.m3man.ui.mman9video.search.SearchPornyActivity$1 -> com.m3man.ui.mman9video.search.SearchPornyActivity$a:
-    com.m3man.ui.mman9video.search.SearchPornyActivity this$0 -> a
-com.m3man.ui.mman9video.search.SearchPornyActivity$2 -> com.m3man.ui.mman9video.search.SearchPornyActivity$b:
-    com.m3man.ui.mman9video.search.SearchPornyActivity this$0 -> a
-com.m3man.ui.mman9video.search.SearchPornyActivity$3 -> com.m3man.ui.mman9video.search.SearchPornyActivity$c:
-    com.m3man.ui.mman9video.search.SearchPornyActivity this$0 -> a
-    void onRetryClick() -> a
-com.m3man.ui.mman9video.search.SearchPornyActivity$4 -> com.m3man.ui.mman9video.search.SearchPornyActivity$d:
-    com.m3man.ui.mman9video.search.SearchPornyActivity this$0 -> a
-    void onHistoryItemClick(java.lang.String) -> a
-com.m3man.ui.mman9video.search.SearchPornyActivity$5 -> com.m3man.ui.mman9video.search.SearchPornyActivity$e:
-    com.m3man.ui.mman9video.search.SearchPornyActivity this$0 -> a
-com.m3man.ui.mman9video.search.SearchPornyActivity$6 -> com.m3man.ui.mman9video.search.SearchPornyActivity$f:
-    com.m3man.ui.mman9video.search.SearchPornyActivity this$0 -> b
-    int val$currentPage -> a
-com.m3man.ui.mman9video.search.SearchPornyActivity$7 -> com.m3man.ui.mman9video.search.SearchPornyActivity$g:
-    com.m3man.ui.mman9video.search.SearchPornyActivity this$0 -> a
-    boolean onQueryTextChange(java.lang.String) -> a
-    boolean onQueryTextSubmit(java.lang.String) -> b
-com.m3man.ui.mman9video.search.SearchPornyActivity$8 -> com.m3man.ui.mman9video.search.SearchPornyActivity$h:
-    com.m3man.ui.mman9video.search.SearchPornyActivity this$0 -> a
-    boolean onClose() -> a
-com.m3man.ui.mman9video.search.SearchPornyActivityModule -> g6.f:
-    android.support.v7.app.AppCompatActivity provideAppCompatActivity(com.m3man.ui.mman9video.search.SearchPornyActivity) -> a
-com.m3man.ui.mman9video.search.SearchPornyActivityModule_ProvideAppCompatActivityFactory -> g6.g:
-    android.support.v7.app.AppCompatActivity proxyProvideAppCompatActivity(com.m3man.ui.mman9video.search.SearchPornyActivity) -> a
-com.m3man.ui.mman9video.search.SearchPornyActivity_MembersInjector -> com.m3man.ui.mman9video.search.b:
-    void injectDataManager(com.m3man.ui.mman9video.search.SearchPornyActivity,com.m3man.data.DataManager) -> a
-    void injectSearchPornyPresenter(com.m3man.ui.mman9video.search.SearchPornyActivity,com.m3man.ui.mman9video.search.SearchPornyPresenter) -> b
-com.m3man.ui.mman9video.search.SearchPornyActivity_ViewBinding -> com.m3man.ui.mman9video.search.SearchPornyActivity_ViewBinding:
-    com.m3man.ui.mman9video.search.SearchPornyActivity target -> a
 com.m3man.ui.mman9video.search.SearchPornyFragment -> com.m3man.ui.mman9video.search.SearchPornyFragment:
     java.lang.String searchId -> j0
     com.m3man.ui.search.SearchHistoryPanel searchHistoryPanel -> n0
@@ -38291,7 +38151,7 @@ com.m3man.ui.mman9video.search.SearchPornyFragment -> com.m3man.ui.mman9video.se
     com.m3man.adapter.SkipPageAdapter access$1000(com.m3man.ui.mman9video.search.SearchPornyFragment) -> x3
     android.view.View access$1100(com.m3man.ui.mman9video.search.SearchPornyFragment,java.lang.String) -> y3
     java.lang.String access$200(com.m3man.ui.mman9video.search.SearchPornyFragment) -> z3
-com.m3man.ui.mman9video.search.SearchPornyFragment$$ExternalSyntheticLambda0 -> g6.h:
+com.m3man.ui.mman9video.search.SearchPornyFragment$$ExternalSyntheticLambda0 -> g6.c:
 # {"id":"sourceFile","fileName":"R8$$SyntheticClass"}
 # {"id":"com.android.tools.r8.synthesized"}
     com.m3man.ui.mman9video.search.SearchPornyFragment com.m3man.ui.mman9video.search.SearchPornyFragment$$InternalSyntheticLambda$1$859f9dfa78951b79abb79ac03ee29f4f5a5d273eaac41ec041ce1214e752095d$0.f$0 -> a
@@ -38299,7 +38159,7 @@ com.m3man.ui.mman9video.search.SearchPornyFragment$$ExternalSyntheticLambda0 -> 
       # {"id":"com.android.tools.r8.synthesized"}
     boolean com.m3man.ui.mman9video.search.SearchPornyFragment$$InternalSyntheticLambda$1$859f9dfa78951b79abb79ac03ee29f4f5a5d273eaac41ec041ce1214e752095d$0.onMenuItemClick(android.view.MenuItem) -> onMenuItemClick
       # {"id":"com.android.tools.r8.synthesized"}
-com.m3man.ui.mman9video.search.SearchPornyFragment$$ExternalSyntheticLambda1 -> g6.i:
+com.m3man.ui.mman9video.search.SearchPornyFragment$$ExternalSyntheticLambda1 -> g6.d:
 # {"id":"sourceFile","fileName":"R8$$SyntheticClass"}
 # {"id":"com.android.tools.r8.synthesized"}
     org.angmarch.views.NiceSpinner com.m3man.ui.mman9video.search.SearchPornyFragment$$InternalSyntheticLambda$2$14291e90e3576d7644b6442e1ad85316cb64a8d9661ae070130d1e4b7d7cff73$0.f$1 -> b
@@ -38309,7 +38169,7 @@ com.m3man.ui.mman9video.search.SearchPornyFragment$$ExternalSyntheticLambda1 -> 
       # {"id":"com.android.tools.r8.synthesized"}
     void com.m3man.ui.mman9video.search.SearchPornyFragment$$InternalSyntheticLambda$2$14291e90e3576d7644b6442e1ad85316cb64a8d9661ae070130d1e4b7d7cff73$0.onClick(android.content.DialogInterface,int) -> onClick
       # {"id":"com.android.tools.r8.synthesized"}
-com.m3man.ui.mman9video.search.SearchPornyFragment$$ExternalSyntheticLambda2 -> g6.j:
+com.m3man.ui.mman9video.search.SearchPornyFragment$$ExternalSyntheticLambda2 -> g6.e:
 # {"id":"sourceFile","fileName":"R8$$SyntheticClass"}
 # {"id":"com.android.tools.r8.synthesized"}
     java.util.List com.m3man.ui.mman9video.search.SearchPornyFragment$$InternalSyntheticLambda$2$14291e90e3576d7644b6442e1ad85316cb64a8d9661ae070130d1e4b7d7cff73$1.f$1 -> b
@@ -38324,7 +38184,7 @@ com.m3man.ui.mman9video.search.SearchPornyFragment$$ExternalSyntheticLambda2 -> 
       # {"id":"com.android.tools.r8.synthesized"}
     void com.m3man.ui.mman9video.search.SearchPornyFragment$$InternalSyntheticLambda$2$14291e90e3576d7644b6442e1ad85316cb64a8d9661ae070130d1e4b7d7cff73$1.onClick(android.content.DialogInterface,int) -> onClick
       # {"id":"com.android.tools.r8.synthesized"}
-com.m3man.ui.mman9video.search.SearchPornyFragment$$ExternalSyntheticLambda3 -> g6.k:
+com.m3man.ui.mman9video.search.SearchPornyFragment$$ExternalSyntheticLambda3 -> g6.f:
 # {"id":"sourceFile","fileName":"R8$$SyntheticClass"}
 # {"id":"com.android.tools.r8.synthesized"}
     boolean[] com.m3man.ui.mman9video.search.SearchPornyFragment$$InternalSyntheticLambda$2$14291e90e3576d7644b6442e1ad85316cb64a8d9661ae070130d1e4b7d7cff73$2.f$1 -> b
@@ -38359,13 +38219,13 @@ com.m3man.ui.mman9video.search.SearchPornyFragment$9 -> com.m3man.ui.mman9video.
     com.m3man.ui.mman9video.search.SearchPornyFragment this$0 -> a
     boolean onQueryTextChange(java.lang.String) -> a
     boolean onQueryTextSubmit(java.lang.String) -> b
-com.m3man.ui.mman9video.search.SearchPornyFragment_MembersInjector -> com.m3man.ui.mman9video.search.c:
+com.m3man.ui.mman9video.search.SearchPornyFragment_MembersInjector -> com.m3man.ui.mman9video.search.b:
     void injectDataManager(com.m3man.ui.mman9video.search.SearchPornyFragment,com.m3man.data.DataManager) -> a
     void injectPreferencesHelper(com.m3man.ui.mman9video.search.SearchPornyFragment,com.m3man.data.prefs.PreferencesHelper) -> b
     void injectSearchPornyPresenter(com.m3man.ui.mman9video.search.SearchPornyFragment,com.m3man.ui.mman9video.search.SearchPornyPresenter) -> c
 com.m3man.ui.mman9video.search.SearchPornyFragment_ViewBinding -> com.m3man.ui.mman9video.search.SearchPornyFragment_ViewBinding:
     com.m3man.ui.mman9video.search.SearchPornyFragment target -> a
-com.m3man.ui.mman9video.search.SearchPornyPresenter -> g6.l:
+com.m3man.ui.mman9video.search.SearchPornyPresenter -> g6.g:
     com.m3man.data.DataManager dataManager -> i
     java.lang.Integer totalPage -> f
     java.lang.String TAG -> j
@@ -38391,7 +38251,7 @@ com.m3man.ui.mman9video.search.SearchPornyPresenter -> g6.l:
     void jumpToPage(int,java.lang.String,java.lang.String,java.lang.String,java.lang.String) -> t
     java.lang.String normalizeFilter(java.lang.String) -> u
     void searchVideos(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean) -> v
-com.m3man.ui.mman9video.search.SearchPornyPresenter$1 -> g6.l$a:
+com.m3man.ui.mman9video.search.SearchPornyPresenter$1 -> g6.g$a:
     com.m3man.ui.mman9video.search.SearchPornyPresenter this$0 -> e
     long val$generation -> b
     int val$currentPage -> c
@@ -38400,26 +38260,26 @@ com.m3man.ui.mman9video.search.SearchPornyPresenter$1 -> g6.l$a:
     void onError(java.lang.String,int) -> c
     void onSuccess(java.lang.Object) -> d
     void onSuccess(java.util.List) -> e
-com.m3man.ui.mman9video.search.SearchPornyPresenter$1$1 -> g6.l$a$a:
+com.m3man.ui.mman9video.search.SearchPornyPresenter$1$1 -> g6.g$a$a:
     com.m3man.ui.mman9video.search.SearchPornyPresenter$1 this$1 -> a
     void run(java.lang.Object) -> a
     void run(com.m3man.ui.mman9video.search.SearchView) -> b
-com.m3man.ui.mman9video.search.SearchPornyPresenter$1$2 -> g6.l$a$b:
+com.m3man.ui.mman9video.search.SearchPornyPresenter$1$2 -> g6.g$a$b:
     java.util.List val$v9MmanItems -> a
     com.m3man.ui.mman9video.search.SearchPornyPresenter$1 this$1 -> b
     void run(java.lang.Object) -> a
     void run(com.m3man.ui.mman9video.search.SearchView) -> b
-com.m3man.ui.mman9video.search.SearchPornyPresenter$1$3 -> g6.l$a$c:
+com.m3man.ui.mman9video.search.SearchPornyPresenter$1$3 -> g6.g$a$c:
     java.lang.String val$msg -> a
     com.m3man.ui.mman9video.search.SearchPornyPresenter$1 this$1 -> b
     void run(java.lang.Object) -> a
     void run(com.m3man.ui.mman9video.search.SearchView) -> b
-com.m3man.ui.mman9video.search.SearchPornyPresenter$2 -> g6.l$b:
+com.m3man.ui.mman9video.search.SearchPornyPresenter$2 -> g6.g$b:
     long val$generation -> a
     com.m3man.ui.mman9video.search.SearchPornyPresenter this$0 -> c
     int val$currentPage -> b
     java.util.List apply(com.m3man.data.model.BaseResult) -> a
-com.m3man.ui.mman9video.search.SearchPresenter -> g6.m:
+com.m3man.ui.mman9video.search.SearchPresenter -> g6.h:
     java.lang.Integer totalPage -> e
     com.m3man.data.DataManager dataManager -> h
     long searchGeneration -> g
@@ -38438,7 +38298,7 @@ com.m3man.ui.mman9video.search.SearchPresenter -> g6.m:
     int getPlayBackEngine() -> o
     boolean isFirstInSearchMman91Video() -> p
     void searchVideos(java.lang.String,java.lang.String,boolean) -> q
-com.m3man.ui.mman9video.search.SearchPresenter$1 -> g6.m$a:
+com.m3man.ui.mman9video.search.SearchPresenter$1 -> g6.h$a:
     com.m3man.ui.mman9video.search.SearchPresenter this$0 -> e
     long val$generation -> b
     int val$requestedPage -> c
@@ -38447,24 +38307,24 @@ com.m3man.ui.mman9video.search.SearchPresenter$1 -> g6.m$a:
     void onError(java.lang.String,int) -> c
     void onSuccess(java.lang.Object) -> d
     void onSuccess(java.util.List) -> e
-com.m3man.ui.mman9video.search.SearchPresenter$1$1 -> g6.m$a$a:
+com.m3man.ui.mman9video.search.SearchPresenter$1$1 -> g6.h$a$a:
     com.m3man.ui.mman9video.search.SearchPresenter$1 this$1 -> a
     void run(java.lang.Object) -> a
     void run(com.m3man.ui.mman9video.search.SearchView) -> b
-com.m3man.ui.mman9video.search.SearchPresenter$1$2 -> g6.m$a$b:
+com.m3man.ui.mman9video.search.SearchPresenter$1$2 -> g6.h$a$b:
     java.util.List val$v9MmanItems -> a
     com.m3man.ui.mman9video.search.SearchPresenter$1 this$1 -> b
     void run(java.lang.Object) -> a
     void run(com.m3man.ui.mman9video.search.SearchView) -> b
-com.m3man.ui.mman9video.search.SearchPresenter$1$3 -> g6.m$a$c:
+com.m3man.ui.mman9video.search.SearchPresenter$1$3 -> g6.h$a$c:
     com.m3man.ui.mman9video.search.SearchPresenter$1 this$1 -> b
     java.lang.String val$msg -> a
     void run(java.lang.Object) -> a
     void run(com.m3man.ui.mman9video.search.SearchView) -> b
-com.m3man.ui.mman9video.search.SearchPresenter$2 -> g6.m$b:
+com.m3man.ui.mman9video.search.SearchPresenter$2 -> g6.h$b:
     com.m3man.ui.mman9video.search.SearchPresenter this$0 -> a
     java.util.List apply(com.m3man.data.model.BaseResult) -> a
-com.m3man.ui.mman9video.search.SearchView -> g6.n:
+com.m3man.ui.mman9video.search.SearchView -> g6.i:
     void loadMoreDataComplete() -> a
     void loadMoreFailed() -> b
     void setMoreData(java.util.List) -> c
