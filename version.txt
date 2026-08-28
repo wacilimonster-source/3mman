@@ -1,7 +1,7 @@
 {
-  "versionCode": 140,
-  "versionName": "1.0.107",
-  "updateMessage": "修复搜索历史点击无反应（此前改了十几次都没修好）：根因是 BaseQuickAdapter 内部 setOnItemClickListener 在该场景未生效，点击根本没传到 onHistoryItemClick，表现为「点了历史一点反应都没有」。改为在 SearchHistoryAdapter.convert() 中手动给 itemView 设置点击/长按监听，确保历史一显示出来点击即生效。底部搜索（SearchPornyFragment）直接点击历史即可发起一次搜索。Release 仍关闭 R8 以提升稳定性（APK 体积偏大）。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.107.apk",
-  "sha256": "1cedda7726d25ad966ef41aa5ea7b6047035c6ab8d123c5dab59d4bc0222d1ab"
+  "versionCode": 141,
+  "versionName": "1.0.108",
+  "updateMessage": "修复三处关键 bug：1）视频播放页按返回键无反应无法退出——v1.0.106 把 ExoVideoControlsMobile.onBackPressed() 返回值语义理解反了（实际为非全屏返回 true、退出全屏返回 false），导致非全屏返回被当作已消费永不结束页面，已按实际语义反转判断；2）推荐页点击全屏闪退——reco_speed_width 只在 values-land 定义，竖屏点全屏瞬间资源配置仍是竖屏，Resources$NotFoundException 必现崩溃，已补齐竖屏默认值并给 applyOrientationUi 加资源降级保护（自动旋转到横屏视频同路径一并修复）；3）我的/我的下载点击闪退——v1.0.102 把 recyclerView.setItemAnimator(null) 误放进 onCreate（ButterKnife 绑定前字段为 null），必现 NPE，已移至 onViewCreated 并顺带消除 setItemAnimator(null) 后 getItemAnimator() 的空指针隐患。Release 仍关闭 R8 以提升稳定性（APK 体积偏大）。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.108.apk",
+  "sha256": "e36a954b5d2dec6a1d7ebaddcb54ba6ef907950eeb1c9a66e09c5bb7dc01afbd"
 }

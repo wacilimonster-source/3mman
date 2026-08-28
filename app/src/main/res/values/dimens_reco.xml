@@ -10,4 +10,8 @@
     <dimen name="reco_progress_margin_left">12dp</dimen>
     <dimen name="reco_progress_margin_right">12dp</dimen>
     <dimen name="reco_progress_margin_bottom">12dp</dimen>
+    <!-- M108-fix：竖屏必须提供同名默认值。此前 reco_speed_width 只在 values-land 定义，
+         竖屏点击「全屏」时 applyOrientationUi(true) 在资源配置还是竖屏的瞬间读取该资源，
+         Resources$NotFoundException 直接闪退（自动旋转到横屏视频同路径） -->
+    <dimen name="reco_speed_width">40dp</dimen>
 </resources>

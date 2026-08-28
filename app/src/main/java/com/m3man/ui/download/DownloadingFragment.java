@@ -140,10 +140,11 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
         super.onCreate(savedInstanceState);
         // M97：提前缓存 ApplicationContext，供 onDestroy 判空反注销使用
         appContext = getActivity() != null ? getActivity().getApplicationContext() : null;
-        // L-fix：关闭 RecyclerView 默认 item 变更动画——高频进度刷新时整行反复淡出淡入，
-// 视觉上即“缩略图反复缩放”。下载列表以数值刷新为主，不需要动画。
-recyclerView.setItemAnimator(null);
-DownloadManager.getImpl().addUpdater(this);
+        // M108-fix：此处绝不能触碰 recyclerView——@BindView 字段要等 onViewCreated 的
+        // ButterKnife.bind 才赋值，onCreate 阶段恒为 null，v1.0.102 误加的
+        // recyclerView.setItemAnimator(null) 让「我的下载」一打开就 NPE 闪退。
+        // 动画关闭已移至 onViewCreated（ButterKnife.bind 之后）。
+        DownloadManager.getImpl().addUpdater(this);
         FileDownloader.getImpl().addServiceConnectListener(fileDownloadConnectListener);
         IntentFilter filter = new IntentFilter();
         filter.addAction(HlsDownloadService.ACTION_HLS_PROGRESS);
@@ -166,7 +167,10 @@ DownloadManager.getImpl().addUpdater(this);
         mDownloadAdapter = new DownloadVideoAdapter(R.layout.item_right_menu_delete_download, mV9MmanItemList);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-        recyclerView.getItemAnimator().setChangeDuration(0);
+        // L-fix（M108 修正位置）：关闭默认 item 动画，避免高频进度刷新时整行淡出淡入、
+        // 缩略图反复缩放。必须在 ButterKnife.bind 之后设置；设为 null 后 getItemAnimator()
+        // 返回 null，原先的 getItemAnimator().setChangeDuration(0) 会 NPE，故直接移除。
+        recyclerView.setItemAnimator(null);
         recyclerView.setAdapter(mDownloadAdapter);
         mDownloadAdapter.setEmptyView(R.layout.empty_view, recyclerView);
 

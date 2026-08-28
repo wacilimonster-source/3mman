@@ -632,14 +632,30 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
             // M92d：参数唯一来源是 dimens_reco（values / values-land 各一份），
             // 这里按当前配置读取，杜绝 Java 常量与 XML 双份维护漂移
             android.content.res.Resources res = itemView.getResources();
+            // M108-fix：横竖屏资源存在时序差（旋转未落地时仍是竖屏配置），
+            // 缺资源时降级为 0 而不是崩溃（推荐页曾因 reco_speed_width 缺失闪退）
+            java.util.HashMap<Integer, Integer> dims = new java.util.HashMap<>();
+            int[] dimIds = {R.dimen.reco_actions_margin_end, R.dimen.reco_actions_margin_bottom,
+                    R.dimen.reco_actions_padding_h, R.dimen.reco_actions_padding_v,
+                    R.dimen.reco_progress_margin_left, R.dimen.reco_progress_margin_right,
+                    R.dimen.reco_progress_margin_bottom, R.dimen.reco_speed_width};
+            for (int id : dimIds) {
+                int value = 0;
+                try {
+                    value = res.getDimensionPixelSize(id);
+                } catch (Exception ignored) {
+                    // 当前配置缺该资源：降级为 0，不让推荐页闪退
+                }
+                dims.put(id, value);
+            }
             if (actionsContainer != null) {
                 ViewGroup.LayoutParams rawParams = actionsContainer.getLayoutParams();
                 if (rawParams instanceof ViewGroup.MarginLayoutParams) {
                     ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) rawParams;
                     margins.width = ViewGroup.LayoutParams.WRAP_CONTENT;
                     margins.height = ViewGroup.LayoutParams.WRAP_CONTENT;
-                    int right = res.getDimensionPixelSize(R.dimen.reco_actions_margin_end);
-                    int bottom = res.getDimensionPixelSize(R.dimen.reco_actions_margin_bottom);
+                    int right = dims.get(R.dimen.reco_actions_margin_end);
+                    int bottom = dims.get(R.dimen.reco_actions_margin_bottom);
                     margins.setMargins(margins.leftMargin, 0, right, bottom);
                     margins.setMarginEnd(right);
                     margins.setMarginStart(0);
@@ -649,8 +665,8 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
                     }
                     actionsContainer.setLayoutParams(rawParams);
                 }
-                int padH = res.getDimensionPixelSize(R.dimen.reco_actions_padding_h);
-                int padV = res.getDimensionPixelSize(R.dimen.reco_actions_padding_v);
+                int padH = dims.get(R.dimen.reco_actions_padding_h);
+                int padV = dims.get(R.dimen.reco_actions_padding_v);
                 actionsContainer.setPadding(padH, padV, padH, padV);
                 actionsContainer.requestLayout();
             }
@@ -658,11 +674,11 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
                 ViewGroup.LayoutParams rawParams = progressContainer.getLayoutParams();
                 if (rawParams instanceof ViewGroup.MarginLayoutParams) {
                     ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) rawParams;
-                    int right = res.getDimensionPixelSize(R.dimen.reco_progress_margin_right);
-                    int bottom = res.getDimensionPixelSize(R.dimen.reco_progress_margin_bottom);
+                    int right = dims.get(R.dimen.reco_progress_margin_right);
+                    int bottom = dims.get(R.dimen.reco_progress_margin_bottom);
                     margins.rightMargin = right;
                     margins.setMarginEnd(right);
-                    margins.leftMargin = res.getDimensionPixelSize(R.dimen.reco_progress_margin_left);
+                    margins.leftMargin = dims.get(R.dimen.reco_progress_margin_left);
                     margins.setMarginStart(margins.leftMargin);
                     margins.bottomMargin = bottom;
                     progressContainer.setLayoutParams(rawParams);
@@ -672,7 +688,7 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
                 ViewGroup.LayoutParams speedParams = speed.getLayoutParams();
                 if (speedParams != null) {
                     speedParams.width = landscape
-                            ? res.getDimensionPixelSize(R.dimen.reco_speed_width)
+                            ? dims.get(R.dimen.reco_speed_width)
                             : ViewGroup.LayoutParams.WRAP_CONTENT;
                     speed.setLayoutParams(speedParams);
                 }

@@ -335,14 +335,18 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
 
     @Override
     public void onBackPressed() {
-        // M105-fix：修正 ExoMedia 返回键逻辑。VideoControlsMobile.onBackPressed() 仅在
-        // “消费了返回（如退出全屏）”时返回 true；此时不应结束 Activity。标准写法应为
-        // “控件未消费时才结束 Activity”。原写法（true 才 finish）导致非全屏时返回无反应、
-        // 全屏时返回又直接走 finish 并在销毁链中崩溃（app 闪退）。
+        // M108-fix：修正 v1.0.106（M105-fix）把返回值语义读反的问题。
+        // 本项目 fork 的 ExoVideoControlsMobile.onBackPressed() 实际语义是：
+        //   全屏时 → exitFullScreen() 并返回 false（已消费，本次不退出页面）；
+        //   非全屏时 → 返回 true（未消费，应退出页面）。
+        // v1.0.106 按「true=已消费」处理，导致非全屏按返回永远走不到 super.onBackPressed()，
+        // 播放页无法返回；全屏按返回反而直接结束页面。此处按实际语义反转判断：
+        //   false（已退全屏）→ 结束本次返回；true（非全屏）→ 继续走 super 正常退出。
+        // 判空与异常保护沿用 M105-fix，控件库异常不让返回键崩溃整个 app。
         if (videoControlsMobile != null) {
             try {
-                if (videoControlsMobile.onBackPressed()) {
-                    // 控件已消费（退出全屏），本次不结束 Activity，等下一次返回再退出
+                if (!videoControlsMobile.onBackPressed()) {
+                    // 已消费：退出了全屏，本次不结束 Activity，等下一次返回再退出
                     return;
                 }
             } catch (Throwable t) {
