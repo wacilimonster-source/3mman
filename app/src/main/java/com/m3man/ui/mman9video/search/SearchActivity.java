@@ -185,7 +185,9 @@ public class SearchActivity extends MvpActivity<SearchView, SearchPresenter> imp
         searchView.setOnCloseListener(new android.support.v7.widget.SearchView.OnCloseListener() {
             @Override
             public boolean onClose() {
-                searchHistoryPanel.show();
+                // M109-fix：与 SearchPornyFragment 同理——onClose 里不能走 show()（内部曾收起
+                // 搜索框导致互相递归栈溢出）。showPanelOnly() 不触碰 SearchView，递归消失。
+                searchHistoryPanel.showPanelOnly();
                 return true;
             }
         });

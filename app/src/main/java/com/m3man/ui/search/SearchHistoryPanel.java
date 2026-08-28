@@ -87,10 +87,17 @@ public class SearchHistoryPanel {
 
     /** 加载并展示历史；无历史时自动隐藏。M73：查询切 IO 线程后回主线程更新 UI */
     public void show() {
-        // 收起 SearchView，防止其拦截历史面板的点击事件
-        if (searchView != null && !searchView.isIconified()) {
-            searchView.setIconified(true);
-        }
+        // M109-fix：绝不能再动 SearchView！v1.0.105 在这里加的 setIconified(true) 与
+        // 宿主 onClose()→show() 形成无限递归：点 X / 清空输入 / onResume 收起搜索框时，
+        // setIconified(true) 触发 onCloseClicked→onClose()→show()→setIconified(true)→……
+        // 直到 StackOverflowError 闪退（清空搜索 / 反复按删除键 / 搜索结果返回均触发）。
+        // 历史面板本身 match_parent 全屏覆盖在结果层之上，不需要收起搜索框来防拦截。
+        // 另外收起动作会清掉用户刚输入/回填的关键词，也是点历史不搜索的直接原因。
+        showPanelOnly();
+    }
+
+    /** M109-fix：仅展示历史面板，绝不触碰 SearchView（供 onClose 回调安全调用） */
+    public void showPanelOnly() {
         io.reactivex.Observable.just(1)
                 .subscribeOn(io.reactivex.schedulers.Schedulers.io())
                 .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())

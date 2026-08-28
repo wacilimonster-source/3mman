@@ -364,7 +364,11 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         searchView.setOnCloseListener(new android.support.v7.widget.SearchView.OnCloseListener() {
             @Override
             public boolean onClose() {
-                searchHistoryPanel.show();
+                // M109-fix：此处绝不能调 searchHistoryPanel.show()——show() 内部曾收起搜索框，
+                // 与 SearchView 的关闭回调互相触发形成无限递归（点清空/删除键/返回页面均闪退）。
+                // onClose 返回 true 表示本次关闭由历史面板展示接管；面板展示由 show() 的 IO
+                // 回调自行完成，这里只负责把面板拉出来，不再触碰 SearchView。
+                searchHistoryPanel.showPanelOnly();
                 return true;
             }
         });

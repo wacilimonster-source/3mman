@@ -1,7 +1,7 @@
 {
-  "versionCode": 141,
-  "versionName": "1.0.108",
-  "updateMessage": "修复三处问题：1）视频播放页无法返回——v1.0.106 把 ExoVideoControlsMobile.onBackPressed() 返回值语义读反（原实现：非全屏返回 true=应退出、全屏返回 false=已退全屏），导致非全屏按返回永远走不到 super.onBackPressed()。改为 if(!onBackPressed()) return，判空+异常保护保留；2）推荐页点全屏闪退——reco_speed_width 只定义在 values-land，竖屏点全屏瞬间资源配置仍是竖屏→Resources$NotFoundException。已在 values/dimens_reco.xml 补同名默认值，并给 applyOrientationUi 所有 dimen 读取加 try/catch 降级；3）我的/我的下载点击闪退——v1.0.102 误把 recyclerView.setItemAnimator(null) 插进 onCreate（@BindView 字段此时为 null）必现 NPE，已移至 onViewCreated 的 ButterKnife.bind 之后，并移除会二次 NPE 的 getItemAnimator().setChangeDuration(0)。Release 仍关闭 R8 提升稳定性（APK 体积偏大）。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.108.apk",
-  "sha256": "10403a3d097de2e6c775abfecb756bf630780ee7a9e3addb6c19780f2461b5dd"
+  "versionCode": 142,
+  "versionName": "1.0.109",
+  "updateMessage": "修复搜索历史递归闪退与点击历史不搜索（共 4 类触发链，模拟器均已复现）：1）不能清空搜索——点 X 清空触发 onClose→show()，v1.0.105 在 show() 内 setIconified(true) 收起搜索框，与 SearchView 关闭回调互相触发→无限递归 StackOverflowError 闪退。已删除 show() 中的 setIconified，并新增 showPanelOnly()（只加载并展示历史、绝不触碰 SearchView）；2）反复点删除键闪退——删光文字时 onQueryTextChange(\"\")→show()，同一递归；3）点预览后返回闪退——onResume→onActionViewCollapsed→onClose→show()，同一递归（均已随 show() 去收起动作消除）；4）点搜索历史不跳转——setQuery 回填关键词后 show() 的收起动作把刚回填的关键词清掉、面板又被重新弹出，搜索实际没发出去。修复后：清空/删除/返回页面→安全展示历史面板不再递归；点历史→关键词保留、面板收起、搜索真正发起。SearchHistoryPanel.show() 改为直接转调 showPanelOnly()，两个搜索宿主（SearchPornyFragment / SearchActivity）的 onClose 均改调 showPanelOnly()。Release 仍关闭 R8 提升稳定性（APK 体积偏大）。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.109.apk",
+  "sha256": "64152f809d82ccb9cc990ea3ff7a1ca4173b98278826a3af73c250e3e0778b31"
 }
