@@ -17,3 +17,31 @@ TestFile.java
 .workbuddy/
 __pycache__/
 *.pyc
+
+# ---- 2026-08-29 工作树清理：以下均为误建/临时/备份产物，勿提交 ----
+# 构建产物
+app/build/
+outputs/
+
+# 误建在项目内的隔离构建缓存（本应在 C:/faban/）
+gradle-home-build/
+%FABAN%/
+
+# 损坏时遗留的 .git 旧副本
+.git.corrupt/
+
+# 旧版本备份源码 / 验证脚本产物
+perf_opt_*/
+backup_preperf_*/
+emulator_verify/
+tmp/
+
+# 构建与调试日志、临时探针文件
+*.log
+*.tmp
+__rw_probe.tmp
+_p_new.tmp
+probe_new.tmp
+
+# 第三方工具配置目录
+.openclaw/
