@@ -335,9 +335,22 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
 
     @Override
     public void onBackPressed() {
-        if (videoControlsMobile.onBackPressed()) {
-            super.onBackPressed();
+        // M105-fix：修正 ExoMedia 返回键逻辑。VideoControlsMobile.onBackPressed() 仅在
+        // “消费了返回（如退出全屏）”时返回 true；此时不应结束 Activity。标准写法应为
+        // “控件未消费时才结束 Activity”。原写法（true 才 finish）导致非全屏时返回无反应、
+        // 全屏时返回又直接走 finish 并在销毁链中崩溃（app 闪退）。
+        if (videoControlsMobile != null) {
+            try {
+                if (videoControlsMobile.onBackPressed()) {
+                    // 控件已消费（退出全屏），本次不结束 Activity，等下一次返回再退出
+                    return;
+                }
+            } catch (Throwable t) {
+                // 控件库异常绝不让返回键崩溃整个 app
+                AppLog.w(TAG, "videoControlsMobile.onBackPressed 异常 " + AppLog.cause(t));
+            }
         }
+        super.onBackPressed();
     }
 
     @Override
@@ -345,10 +358,21 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
         // M96：销毁时清空看门狗与 Toast 等主线程回调，防止泄漏与迟到弹窗
         cancelWatchdog();
         watchdog.removeCallbacksAndMessages(null);
-        if (videoPlayer.getParent() != null) {
-            videoPlayerContainer.removeView(videoPlayer);
+        // M105-fix：销毁链 Null 保护，避免 removeView/release 抛异常导致 app 闪退
+        try {
+            if (videoPlayer != null && videoPlayerContainer != null && videoPlayer.getParent() != null) {
+                videoPlayerContainer.removeView(videoPlayer);
+            }
+        } catch (Throwable t) {
+            AppLog.w(TAG, "removeView 异常 " + AppLog.cause(t));
         }
-        videoPlayer.release();
+        try {
+            if (videoPlayer != null) {
+                videoPlayer.release();
+            }
+        } catch (Throwable t) {
+            AppLog.w(TAG, "videoPlayer.release 异常 " + AppLog.cause(t));
+        }
         super.onDestroy();
     }
 }

@@ -187,17 +187,21 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         // 搜索历史面板
         searchHistoryPanel = new SearchHistoryPanel(searchHistoryContainer, dataManager,
                 new SearchHistoryPanel.OnHistoryItemClickListener() {
-                    @Override
-                    public void onHistoryItemClick(String keyword) {
-                        if (TextUtils.isEmpty(keyword)) {
-                            return;
-                        }
-                        searchId = keyword;
-                        searchView.setQuery(keyword, false);
-                        hideSearchHint();
-                        triggerSearch(true);
-                        searchHistoryPanel.hide();
-                    }
+            @Override
+            public void onHistoryItemClick(String keyword) {
+                if (TextUtils.isEmpty(keyword)) {
+                    return;
+                }
+                searchId = keyword;
+                // 回填关键词到搜索框（submit=false 不重复提交），随后直接发起搜索
+                searchView.setQuery(keyword, false);
+                // M105-fix：点历史直接搜索时收起键盘，避免输入框展开/软键盘遮挡结果，
+                // 让用户明确看到“一点击历史就出结果”，而不是看似“没执行搜索”。
+                searchView.clearFocus();
+                hideSearchHint();
+                searchHistoryPanel.hide();
+                triggerSearch(true);
+            }
                 }, searchView);
         searchHistoryPanel.show();
     }

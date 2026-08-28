@@ -80,7 +80,10 @@ public class SearchActivity extends MvpActivity<SearchView, SearchPresenter> imp
                             return;
                         }
                         searchId = keyword;
+                        // 回填关键词到搜索框（submit=false 不重复提交），随后直接发起搜索
                         searchView.setQuery(keyword, false);
+                        // M105-fix：收起键盘，避免软键盘遮挡结果，确保一点击历史就直接出结果
+                        searchView.clearFocus();
                         presenter.searchVideos(searchId, sort, true);
                         searchHistoryPanel.hide();
                     }
