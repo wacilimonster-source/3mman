@@ -9,7 +9,6 @@ import android.text.TextUtils;
 import android.view.View;
 import android.widget.TextView;
 
-import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.m3man.R;
 import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.AutoCompleteEntity;
@@ -61,23 +60,21 @@ public class SearchHistoryPanel {
         this.rv.setNestedScrollingEnabled(false);
         this.rv.setAdapter(adapter);
 
-        this.adapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
+        // v1.0.107：改用适配器自带的手动点击绑定，避免 BaseQuickAdapter 内部
+        // setOnItemClickListener 在部分场景不生效导致"点击历史无反应"
+        this.adapter.setOnItemActionListener(new SearchHistoryAdapter.OnItemActionListener() {
             @Override
-            public void onItemClick(BaseQuickAdapter a, View v, int position) {
-                String kw = (String) a.getItem(position);
-                if (clickListener != null && !TextUtils.isEmpty(kw)) {
-                    clickListener.onHistoryItemClick(kw);
+            public void onItemClick(String keyword) {
+                if (clickListener != null && !TextUtils.isEmpty(keyword)) {
+                    clickListener.onHistoryItemClick(keyword);
                 }
             }
-        });
-        this.adapter.setOnItemLongClickListener(new BaseQuickAdapter.OnItemLongClickListener() {
+
             @Override
-            public boolean onItemLongClick(BaseQuickAdapter a, View v, int position) {
-                String kw = (String) a.getItem(position);
-                if (!TextUtils.isEmpty(kw)) {
-                    confirmRemove(kw);
+            public void onItemLongClick(String keyword) {
+                if (!TextUtils.isEmpty(keyword)) {
+                    confirmRemove(keyword);
                 }
-                return true;
             }
         });
         this.tvClear.setOnClickListener(new View.OnClickListener() {
