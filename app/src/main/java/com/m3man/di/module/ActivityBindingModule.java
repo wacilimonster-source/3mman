@@ -20,8 +20,6 @@ import com.m3man.ui.mman9video.play.ExoMediaPlayerActivity;
 import com.m3man.ui.mman9video.play.ExoPlayerVideoModule;
 import com.m3man.ui.mman9video.play.JiaoZiVideoPlayerActivity;
 import com.m3man.ui.mman9video.play.JiaoZiVideoPlayerModule;
-import com.m3man.ui.mman9video.search.SearchActivity;
-import com.m3man.ui.mman9video.search.SearchActivityModule;
 import com.m3man.ui.mman9video.user.UserLoginActivity;
 import com.m3man.ui.mman9video.user.UserLoginActivityModule;
 import com.m3man.ui.mman9video.user.UserRegisterActivity;
@@ -64,10 +62,6 @@ public abstract class ActivityBindingModule {
     @PerActivity
     @ContributesAndroidInjector(modules = PornyFavoriteActivityModule.class)
     abstract PornyFavoriteActivity pornyFavoriteActivity();
-
-    @PerActivity
-    @ContributesAndroidInjector(modules = SearchActivityModule.class)
-    abstract SearchActivity searchActivity();
 
     @PerActivity
     @ContributesAndroidInjector(modules = ExoPlayerVideoModule.class)

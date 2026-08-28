@@ -2,6 +2,12 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
+        android:id="@+id/action_porny_reset"
+        android:icon="@drawable/ic_refresh"
+        android:title="@string/porny_reset_title"
+        app:iconTint="@color/common_always_white_text_color"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/action_porny_filter"
         android:icon="@drawable/ic_sort"
         android:title="@string/porny_filter_title"

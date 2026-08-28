@@ -100,10 +100,7 @@
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode|keyboard|layoutDirection"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustPan" />
-        <activity
-            android:name=".ui.mman9video.search.SearchActivity"
-            android:configChanges="orientation|screenSize|keyboardHidden|uiMode|keyboard|layoutDirection"
-            android:screenOrientation="portrait" />
+        <!-- 9mman 站内搜索 SearchActivity 已删除：仅保留主界面底部「搜索」Tab 的 91porny 搜索 -->
         <activity
             android:name=".ui.mman9video.author.AuthorActivity"
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode|keyboard|layoutDirection"

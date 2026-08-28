@@ -190,21 +190,6 @@ public interface V9MmanServiceApi {
 
 
     /**
-     * <a href="xxxxxx/search_result.php?viewtype=basic&amp;page=1&amp;search_type=search_videos&amp;search_id=内射&amp;sort=addate">添加时间</a>
-     * 搜索
-     *
-     * @param viewtype   basic
-     * @param page       页码
-     * @param searchType 类型
-     * @param searchId   搜索内容
-     * @param sort       排序
-     * @return ob
-     */
-    @Headers({"Domain-Name: " + Api.PORN9_VIDEO_DOMAIN_NAME})
-    @GET("/search_result.php")
-    Observable<String> searchVideo(@Query("viewtype") String viewtype, @Query("page") int page, @Query("search_type") String searchType, @Query("search_id") String searchId, @Query("sort") String sort, @Header("Referer") String referer, @Header("X-Forwarded-For") String ipAddress);
-
-    /**
      * xxxxxxxxx/uvideos.php?UID=6465533&type=public&page=1
      * 查看作者所有视频
      *

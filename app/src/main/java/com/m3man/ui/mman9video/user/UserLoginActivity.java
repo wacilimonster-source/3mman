@@ -28,7 +28,6 @@ import com.m3man.data.DataManager;
 import com.m3man.data.model.User;
 import com.m3man.ui.MvpActivity;
 import com.m3man.ui.mman9video.favorite.FavoriteActivity;
-import com.m3man.ui.mman9video.search.SearchActivity;
 import com.m3man.ui.setting.SettingActivity;
 import com.m3man.utils.CaptchaOcr;
 import com.m3man.utils.DialogUtils;
@@ -273,11 +272,6 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
             case KeysActivityRequestResultCode.LOGIN_ACTION_FOR_LOOK_MY_FAVORITE:
                 Intent intent = new Intent(this, FavoriteActivity.class);
                 startActivityWithAnimation(intent);
-                finish();
-                break;
-            case KeysActivityRequestResultCode.LOGIN_ACTION_FOR_SEARCH_91PRON_VIDEO:
-                Intent intentSearch = new Intent(this, SearchActivity.class);
-                startActivityWithAnimation(intentSearch);
                 finish();
                 break;
             case KeysActivityRequestResultCode.LOGIN_ACTION_FOR_GET_UID:

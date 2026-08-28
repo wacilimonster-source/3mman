@@ -40,8 +40,6 @@ public interface ApiHelper {
 
     Observable<String> replyMman9VideoComment(String comment, String username, String vid, String commentId, String viewKey);
 
-    Observable<BaseResult<List<V9MmanItem>>> searchMman9Videos(String viewType, int page, String searchType, String searchId, String sort);
-
     Observable<BaseResult<List<V9MmanItem>>> searchPornyVideos(String keywords, int page);
 
     Observable<BaseResult<List<V9MmanItem>>> searchPornyVideos(String keywords, int page, String sort, String time, String views);

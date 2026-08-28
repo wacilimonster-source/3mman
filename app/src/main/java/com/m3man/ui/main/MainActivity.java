@@ -23,9 +23,7 @@ import com.qmuiteam.qmui.widget.dialog.QMUIDialog;
 import com.sdsmdg.tastytoast.TastyToast;
 import com.m3man.BuildConfig;
 import com.m3man.R;
-import com.m3man.constants.Constants;
 import com.m3man.constants.Keys;
-import com.m3man.constants.KeysActivityRequestResultCode;
 import com.m3man.constants.PermissionConstants;
 import com.m3man.data.model.Notice;
 import com.m3man.data.model.UpdateVersion;
@@ -36,10 +34,8 @@ import com.m3man.ui.basemain.BaseMainFragment;
 import com.m3man.ui.download.DownloadActivity;
 import com.m3man.ui.mine.MineFragment;
 import com.m3man.ui.mman9video.Main9MmanVideoFragment;
-import com.m3man.ui.mman9video.search.SearchActivity;
 import com.m3man.ui.update.UpdateActivity;
 import com.m3man.ui.mman9video.search.SearchPornyFragment;
-import com.m3man.ui.mman9video.user.UserLoginActivity;
 import com.m3man.ui.recommend.RecommendFeedFragment;
 import com.m3man.ui.setting.SettingActivity;
 import com.m3man.utils.ApkVersionUtils;
@@ -126,7 +122,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         setContentView(R.layout.activity_main);
         NotificationChannelHelper.initChannel(this);
         ButterKnife.bind(this);
-        firstTagsArray.add(Tags.TAG_SEARCH_PORN_VIDEO);
+        // 9mman 站内搜索入口已移除，仅保留主界面底部「搜索」Tab（91porny 搜索）
         firstTagsArray.add(Tags.TAG_MY_DOWNLOAD);
         firstTagsArray.add(Tags.TAG_PRON_9_VIDEO);
 
@@ -215,16 +211,12 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
 
     private void showVideoBottomSheet(final int checkIndex) {
         new QMUIBottomSheet.BottomListSheetBuilder(this, true)
-                .addItem(ResourceUtil.getDrawable(this, R.drawable.ic_search_black_24dp), Tags.TAG_SEARCH_PORN_VIDEO)
                 .addItem(ResourceUtil.getDrawable(this, R.drawable.ic_my_download), Tags.TAG_MY_DOWNLOAD)
                 .addItem(ResourceUtil.getDrawable(this, R.drawable.ic_video_library_black_24dp), Tags.TAG_PRON_9_VIDEO)
                 .setCheckedIndex(checkIndex)
                 .setOnSheetItemClickListener((dialog, itemView, position, tag) -> {
                     dialog.dismiss();
                     switch (tag) {
-                        case Tags.TAG_SEARCH_PORN_VIDEO:
-                            goToSearchVideo();
-                            break;
                         case Tags.TAG_MY_DOWNLOAD:
                             Intent intent = new Intent(context, DownloadActivity.class);
                             startActivityWithAnimation(intent);
@@ -487,30 +479,6 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
             // M97：删除 postDelayed killProcess 强杀——HLS 分片合并/转码进行中进程被强杀
             // 会产生无 moov 的脏文件与残留 hls_* 临时目录；finishAffinity 后交由系统正常回收。
         }
-    }
-
-    private void goToSearchVideo() {
-        String[] items = {"搜视频地址视频"};
-        new QMUIDialog.CheckableDialogBuilder(this)
-                .setTitle("搜索啥呀")
-                .addItems(items, (dialog, which) -> {
-                    dialog.dismiss();
-                    switch (which) {
-                        case 0:
-                            if (!presenter.isUserLogin()) {
-                                showMessage("请先登录", TastyToast.INFO);
-                                Intent intent = new Intent(MainActivity.this, UserLoginActivity.class);
-                                intent.putExtra(Keys.KEY_INTENT_LOGIN_FOR_ACTION, KeysActivityRequestResultCode.LOGIN_ACTION_FOR_SEARCH_91PRON_VIDEO);
-                                startActivityForResultWithAnimation(intent, Constants.USER_LOGIN_REQUEST_CODE);
-                                return;
-                            }
-                            Intent intent = new Intent(MainActivity.this, SearchActivity.class);
-                            startActivityWithAnimation(intent);
-                            break;
-                    }
-                })
-                .show();
-
     }
 
     private void showUpdateDialog(final UpdateVersion updateVersion) {

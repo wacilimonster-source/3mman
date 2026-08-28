@@ -117,11 +117,13 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
     @Override
     public void onResume() {
         super.onResume();
-        // M42：从视频详情页返回时收起搜索框并清除焦点，避免输入法自动弹出
+        // 从视频详情页返回：只收起软键盘、清除焦点，不再 collapse 搜索框。
+        // 原实现调 onActionViewCollapsed()，它会把 query 清空 → 触发 onQueryTextChange("")
+        // → 历史面板 show() 盖住刚返回的搜索结果，同时输入框里的关键词也丢了。
         if (searchView != null) {
-            searchView.onActionViewCollapsed();
             searchView.clearFocus();
         }
+        hideSoftInput();
     }
 
     @Override
@@ -193,11 +195,18 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                     return;
                 }
                 searchId = keyword;
-                // 回填关键词到搜索框（submit=false 不重复提交），随后直接发起搜索
+                // 回填关键词到搜索框（submit=false 不重复提交），随后直接发起搜索。
+                // 注意：SearchView 处于收起（iconified）状态时 setQuery 只改内部文本，
+                // 界面上仍只显示放大镜 + hint，用户看不到"当前搜的是哪个词"。
+                // 所以先展开再回填，让搜索条件在输入框里明确可见。
+                if (searchView.isIconified()) {
+                    searchView.setIconified(false);
+                }
                 searchView.setQuery(keyword, false);
                 // M105-fix：点历史直接搜索时收起键盘，避免输入框展开/软键盘遮挡结果，
                 // 让用户明确看到“一点击历史就出结果”，而不是看似“没执行搜索”。
                 searchView.clearFocus();
+                hideSoftInput();
                 hideSearchHint();
                 searchHistoryPanel.hide();
                 triggerSearch(true);
@@ -218,8 +227,54 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                 showFilterDialog();
                 return true;
             }
+            if (item.getItemId() == R.id.action_porny_reset) {
+                resetToInitialState();
+                return true;
+            }
             return false;
         });
+    }
+
+    /**
+     * 从「搜索结果 / 加载中 / 失败 / 空结果」任一状态回到未搜索的初始状态：
+     * 清空关键词与结果、取消在途请求、重置分页、隐藏页码栏、重新展示提示与搜索历史。
+     */
+    private void resetToInitialState() {
+        // 1. 先让 presenter 取消在途请求并自增代际，避免旧响应回来改写重置后的界面
+        presenter.reset();
+        // 2. 清空关键词与输入框（submit=false，不触发 onQueryTextSubmit 再次搜索）
+        searchId = null;
+        searchView.setQuery("", false);
+        searchView.setIconified(true);
+        searchView.clearFocus();
+        hideSoftInput();
+        // 3. 清空结果列表与分页栏
+        mV91MmanAdapter.setNewData(new ArrayList<V9MmanItem>());
+        mV91MmanAdapter.loadMoreComplete();
+        skipPageLayout.setVisibility(View.GONE);
+        skipLoadingLayout.setVisibility(View.GONE);
+        // 4. LoadViewHelper 收起 loading/error 层，露出列表（此时为空列表）
+        helper.showContent();
+        // 5. 回到初始提示 + 搜索历史
+        showSearchHint(R.string.search_hint_default);
+        searchHistoryPanel.show();
+    }
+
+    /** 收起软键盘（若当前正在显示） */
+    private void hideSoftInput() {
+        if (context == null) {
+            return;
+        }
+        android.view.inputmethod.InputMethodManager imm =
+                (android.view.inputmethod.InputMethodManager) context
+                        .getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+        if (imm == null) {
+            return;
+        }
+        android.view.View focus = getView() == null ? null : getView().findFocus();
+        if (focus != null) {
+            imm.hideSoftInputFromWindow(focus.getWindowToken(), 0);
+        }
     }
 
     private void initSkipPageBar() {

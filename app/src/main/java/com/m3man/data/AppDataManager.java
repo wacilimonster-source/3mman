@@ -186,11 +186,6 @@ public class AppDataManager implements DataManager {
     }
 
     @Override
-    public Observable<BaseResult<List<V9MmanItem>>> searchMman9Videos(String viewType, int page, String searchType, String searchId, String sort) {
-        return mApiHelper.searchMman9Videos(viewType, page, searchType, searchId, sort);
-    }
-
-    @Override
     public Observable<BaseResult<List<V9MmanItem>>> searchPornyVideos(String keywords, int page) {
         return mApiHelper.searchPornyVideos(keywords, page);
     }

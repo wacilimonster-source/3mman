@@ -112,6 +112,7 @@
     <!-- 搜索页提示 -->
     <string name="search_hint_default">输入关键词，搜索视频\n如：热门 / 最新 / 女优名\n（点击此处也可直接搜索）</string>
     <string name="search_empty_result">没有找到相关的视频\n换个关键词试试</string>
+    <string name="porny_reset_title">重置</string>
 
     <!-- 推荐流 -->
     <string name="title_recommend">推荐</string>

@@ -83,6 +83,16 @@ public class SearchHistoryPanel {
                 clearAll();
             }
         });
+        // 关键：M-fix 把 layout_search_history 重新置顶。
+        // 根因：SearchPornyFragment 的 FrameLayout 中，LoadViewHelper 注入的空状态
+        // 容器（loading/error/empty，VISIBLE+CLICKABLE+match_parent）会在运行时 add 到
+        // history include 之后，绘制与触摸分发都在 history 之上。用户点「清空」/历史条目
+        // 时 touch 全部被空状态容器吃掉，表现为「清空无效 + 点击历史不搜索」。
+        // bringToFront() 把 history 容器移到父 FrameLayout 子 View 列表末尾，重新成为
+        // 最上层，触摸优先到 history（itemView / tvClear 的 click 触发回调）。
+        if (container != null) {
+            container.bringToFront();
+        }
     }
 
     /** 加载并展示历史；无历史时自动隐藏。M73：查询切 IO 线程后回主线程更新 UI */
@@ -98,6 +108,12 @@ public class SearchHistoryPanel {
 
     /** M109-fix：仅展示历史面板，绝不触碰 SearchView（供 onClose 回调安全调用） */
     public void showPanelOnly() {
+        // 见构造注释：LoadViewHelper 的空状态容器会在 history 之上，
+        // 每次展示都要重新置顶，否则 onQueryTextChange("")→show() 出来的面板
+        // 仍被空状态容器挡住、touch 不可达。
+        if (container != null) {
+            container.bringToFront();
+        }
         io.reactivex.Observable.just(1)
                 .subscribeOn(io.reactivex.schedulers.Schedulers.io())
                 .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())

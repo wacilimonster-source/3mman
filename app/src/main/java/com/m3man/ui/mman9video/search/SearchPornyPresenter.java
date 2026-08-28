@@ -68,6 +68,19 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
         doSearch(page, searchId, sort, time, views, false);
     }
 
+    /**
+     * 回到「未搜索」的初始状态：取消在途请求、重置分页与总页数。
+     * 供宿主（Fragment）点击重置按钮时调用——代际自增保证仍在途的旧请求
+     * 回调回来时因代际不匹配被直接丢弃，不会改写重置后的界面。
+     */
+    public void reset() {
+        searchGeneration++;
+        disposeInFlightSearch();
+        page = 1;
+        currentPageShown = 1;
+        totalPage = null;
+    }
+
     /** M42：分页跳转——跳转到指定页并用该页结果替换当前列表。 */
     public void jumpToPage(int targetPage, String searchId, String sort, String time, String views) {
         if (targetPage < 1) {

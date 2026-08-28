@@ -237,12 +237,6 @@ public class AppApiHelper implements ApiHelper {
     }
 
     @Override
-    public Observable<BaseResult<List<V9MmanItem>>> searchMman9Videos(String viewType, int page, String searchType, String searchId, String sort) {
-        return v9MmanServiceApi.searchVideo(viewType, page, searchType, searchId, sort, HeaderUtils.getIndexHeader(addressHelper), addressHelper.getRandomIPAddress())
-                .map(ParseV9MmanVideo::parseSearchVideos);
-    }
-
-    @Override
     public Observable<BaseResult<List<V9MmanItem>>> searchPornyVideos(String keywords, int page) {
         return searchPornyVideos(keywords, page, "", "", "");
     }
