@@ -1,7 +1,7 @@
 {
   "versionCode": 141,
   "versionName": "1.0.108",
-  "updateMessage": "修复三处关键 bug：1）视频播放页按返回键无反应无法退出——v1.0.106 把 ExoVideoControlsMobile.onBackPressed() 返回值语义理解反了（实际为非全屏返回 true、退出全屏返回 false），导致非全屏返回被当作已消费永不结束页面，已按实际语义反转判断；2）推荐页点击全屏闪退——reco_speed_width 只在 values-land 定义，竖屏点全屏瞬间资源配置仍是竖屏，Resources$NotFoundException 必现崩溃，已补齐竖屏默认值并给 applyOrientationUi 加资源降级保护（自动旋转到横屏视频同路径一并修复）；3）我的/我的下载点击闪退——v1.0.102 把 recyclerView.setItemAnimator(null) 误放进 onCreate（ButterKnife 绑定前字段为 null），必现 NPE，已移至 onViewCreated 并顺带消除 setItemAnimator(null) 后 getItemAnimator() 的空指针隐患。Release 仍关闭 R8 以提升稳定性（APK 体积偏大）。",
+  "updateMessage": "修复三处问题：1）视频播放页无法返回——v1.0.106 把 ExoVideoControlsMobile.onBackPressed() 返回值语义读反（原实现：非全屏返回 true=应退出、全屏返回 false=已退全屏），导致非全屏按返回永远走不到 super.onBackPressed()。改为 if(!onBackPressed()) return，判空+异常保护保留；2）推荐页点全屏闪退——reco_speed_width 只定义在 values-land，竖屏点全屏瞬间资源配置仍是竖屏→Resources$NotFoundException。已在 values/dimens_reco.xml 补同名默认值，并给 applyOrientationUi 所有 dimen 读取加 try/catch 降级；3）我的/我的下载点击闪退——v1.0.102 误把 recyclerView.setItemAnimator(null) 插进 onCreate（@BindView 字段此时为 null）必现 NPE，已移至 onViewCreated 的 ButterKnife.bind 之后，并移除会二次 NPE 的 getItemAnimator().setChangeDuration(0)。Release 仍关闭 R8 提升稳定性（APK 体积偏大）。",
   "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.108.apk",
-  "sha256": "e36a954b5d2dec6a1d7ebaddcb54ba6ef907950eeb1c9a66e09c5bb7dc01afbd"
+  "sha256": "10403a3d097de2e6c775abfecb756bf630780ee7a9e3addb6c19780f2461b5dd"
 }
