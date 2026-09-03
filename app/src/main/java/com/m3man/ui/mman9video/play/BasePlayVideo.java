@@ -409,7 +409,11 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
             } else {
                 tvPlayVideoTitle.setText(displayTitle);
             }
-            tvPlayVideoAuthor.setText(videoResult.getOwnerName());
+            String ownerName = videoResult.getOwnerName();
+            if (TextUtils.isEmpty(ownerName) || ownerName.trim().matches("\\d+")) {
+                ownerName = v9MmanItem.getAuthorText();
+            }
+            tvPlayVideoAuthor.setText(ownerName);
             tvPlayVideoAddDate.setText(videoResult.getAddDate());
             tvPlayVideoInfo.setText(videoResult.getUserOtherInfo());
             refreshAuthorFavoriteState();
@@ -433,7 +437,11 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
             return;
         }
         final String authorKey = v9MmanItem.getVideoResult().getOwnerId();
-        final String authorName = v9MmanItem.getVideoResult().getOwnerName();
+        String authorName = v9MmanItem.getVideoResult().getOwnerName();
+        if (TextUtils.isEmpty(authorName) || authorName.trim().matches("\\d+")) {
+            authorName = v9MmanItem.getAuthorText();
+        }
+        final String finalAuthorName = authorName;
         final String source = PlayVideoPresenter.isPornySource(v9MmanItem)
                 ? AuthorFavorite.SOURCE_PORNY : AuthorFavorite.SOURCE_MMAN9;
         mDisposables.add(Observable.just(1)
@@ -443,7 +451,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
                     if (currentlyFav) {
                         presenter.removeAuthorFavorite(authorKey, source);
                     } else {
-                        presenter.addAuthorFavorite(authorKey, authorName, source);
+                        presenter.addAuthorFavorite(authorKey, finalAuthorName, source);
                     }
                     return !currentlyFav;
                 })

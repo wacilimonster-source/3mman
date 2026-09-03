@@ -522,7 +522,7 @@ public class ParseV9MmanVideo {
                 videoResult.setOwnerId(ownerId);
                 Logger.t(TAG).d("作者Id：" + ownerId);
             }
-            String ownerName = ownerLink.text();
+            String ownerName = extractOwnerName(ownerLink);
             if (!TextUtils.isEmpty(ownerName)) {
                 videoResult.setOwnerName(ownerName);
                 Logger.t(TAG).d("作者：" + ownerName);
@@ -981,6 +981,27 @@ public class ParseV9MmanVideo {
             errorInfo = errorElements.text();
         }
         return errorInfo;
+    }
+
+    static String extractOwnerNameForDisplay(String html) {
+        Document doc = Jsoup.parse(html);
+        Element ownerLink = doc.select("a[href*=uvideos.php]").first();
+        if (ownerLink == null) {
+            ownerLink = doc.select("a[href*=UID]").first();
+        }
+        return ownerLink == null ? "" : extractOwnerName(ownerLink);
+    }
+
+    private static String extractOwnerName(Element ownerLink) {
+        Element nameElement = ownerLink.selectFirst(".username, .user-name, [class*=username], [class*=user-name]");
+        if (nameElement != null && !TextUtils.isEmpty(nameElement.text().trim())) {
+            return nameElement.text().trim();
+        }
+        String text = ownerLink.ownText().trim();
+        if (!TextUtils.isEmpty(text) && !text.matches("\\d+")) {
+            return text;
+        }
+        return "";
     }
 
     /**
