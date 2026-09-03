@@ -112,7 +112,10 @@ public class RecommendPrefetcher {
     }
 
     /**
-     * M72：判断 9mman 直链的时效签名（secure=&lt;base64&gt;,&lt;unix秒&gt;）是否已过期。
+     * M72：判断 9mman 直链的时效签名是否已过期。
+     * M152：站点已把签名格式由旧 secure=&lt;base64&gt;,&lt;unix秒&gt; 切换为新 st=&lt;token&gt;&amp;e=&lt;unix秒&gt;&amp;f=...，
+     * 旧检查只认 secure=，对新格式一律放行，导致 DB 缓存直链过期 403（2026-09-03 用户日志实证：
+     * 缓存命中条目 e= 过期 6 天仍被下发）。此处在兼容旧格式的同时识别新格式的 e= 参数。
      * 过期的直链交给 videocache 本地代理时，代理建流失败会导致播放器连不上
      * 127.0.0.1 端口而无限转圈（实测日志：Unable to connect to http://127.0.0.1:44183）。
      *
@@ -122,25 +125,34 @@ public class RecommendPrefetcher {
         if (TextUtils.isEmpty(url)) {
             return false;
         }
+        long nowSec = System.currentTimeMillis() / 1000L;
         try {
             java.net.URI uri = java.net.URI.create(url);
             String query = uri.getRawQuery();
-            if (query == null || !query.contains("secure=")) {
+            if (query == null) {
                 return false;
             }
             for (String p : query.split("&")) {
                 if (p.startsWith("secure=")) {
+                    // 旧格式：secure=<base64>%3D%3D,1787513682 或 <base64>==,1787513682（可能已 URL 编码）
                     String val = p.substring("secure=".length());
-                    // 形如 <base64>%3D%3D,1787513682 或 <base64>==,1787513682（可能已 URL 编码）
                     int comma = val.lastIndexOf(',');
                     if (comma < 0 || comma + 1 >= val.length()) {
                         return false;
                     }
                     long expireSec = Long.parseLong(val.substring(comma + 1));
                     // 提前 5 分钟视为过期，避免起播途中跨过有效期
-                    return System.currentTimeMillis() / 1000L >= expireSec - 300;
+                    return nowSec >= expireSec - 300;
+                }
+                if (p.startsWith("e=")) {
+                    // M152 新格式：st=<token>&e=<unix秒>&f=...；e= 为整型 unix 秒，
+                    // 同样提前 5 分钟视为过期；非法值（非数字）继续 fail-open 走原逻辑
+                    long expireSec = Long.parseLong(p.substring(2));
+                    return nowSec >= expireSec - 300;
                 }
             }
+        } catch (NumberFormatException ignored) {
+            // 签名参数不是数字，判不了时效，当未过期走原逻辑
         } catch (Throwable ignored) {
             // 解析不了就当没过期，走原有逻辑
         }
