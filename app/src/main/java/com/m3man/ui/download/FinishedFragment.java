@@ -254,6 +254,8 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
 
     @Override
     public String getTitle() {
+        // M113：setupWithViewPager 在 Fragment attach 前调 getPageTitle() → getString() → 崩溃
+        if (!isAdded()) return "";
         return getString(R.string.finished_title);
     }
 

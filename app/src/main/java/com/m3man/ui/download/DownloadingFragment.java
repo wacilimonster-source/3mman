@@ -343,6 +343,8 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
 
     @Override
     public String getTitle() {
+        // M113：setupWithViewPager 在 Fragment attach 前调 getPageTitle() → getString() → 崩溃
+        if (!isAdded()) return "";
         return getString(R.string.downloading_title);
     }
 

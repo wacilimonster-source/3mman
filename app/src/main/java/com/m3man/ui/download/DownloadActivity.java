@@ -58,6 +58,14 @@ public class DownloadActivity extends BaseAppCompatActivity {
 
         downloadViewpager.setAdapter(downloadAdapter);
         downloadTab.setupWithViewPager(downloadViewpager);
+        // M113：setupWithViewPager 调 getPageTitle() 时 Fragment 可能未 attach，
+        // getTitle() 返回空串；用 Activity 上下文覆盖正确的 tab 标题
+        if (downloadTab.getTabCount() > 0) {
+            downloadTab.getTabAt(0).setText(R.string.downloading_title);
+        }
+        if (downloadTab.getTabCount() > 1) {
+            downloadTab.getTabAt(1).setText(R.string.finished_title);
+        }
     }
 
     @Override
