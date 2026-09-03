@@ -1,6 +1,6 @@
 package com.m3man.ui.proxy;
 
-import android.support.v7.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.m3man.di.module.BaseActivityModule;
 

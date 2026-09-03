@@ -1,6 +1,6 @@
 package com.m3man.ui.mman9video.play;
 
-import android.arch.lifecycle.Lifecycle;
+import androidx.lifecycle.Lifecycle;
 import android.text.TextUtils;
 import android.webkit.WebView;
 

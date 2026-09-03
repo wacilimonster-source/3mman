@@ -1,8 +1,8 @@
 package com.m3man.ui.mman9video.play;
 
-import android.arch.lifecycle.Lifecycle;
-import android.support.v4.app.FragmentManager;
-import android.support.v7.app.AppCompatActivity;
+import androidx.lifecycle.Lifecycle;
+import androidx.fragment.app.FragmentManager;
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.m3man.di.module.BaseActivityModule;
 import com.m3man.di.PerFragment;

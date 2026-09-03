@@ -1,14 +1,12 @@
 package com.m3man;
 
 import android.content.Context;
-import android.support.annotation.NonNull;
-import android.support.multidex.MultiDex;
-import android.support.v7.app.AppCompatDelegate;
-import android.text.TextUtils;
+import androidx.annotation.NonNull;
+import androidx.multidex.MultiDex;
+import androidx.appcompat.app.AppCompatDelegate;
 
 import com.helper.loadviewhelper.load.LoadViewHelper;
 import com.liulishuo.filedownloader.FileDownloader;
-import com.tencent.bugly.crashreport.CrashReport;
 import com.m3man.cookie.RulerCookie;
 import com.m3man.cookie.SetCookieCache;
 import com.m3man.cookie.SharedPrefsCookiePersistor;
@@ -89,17 +87,7 @@ public class MyApplication extends DaggerApplication {
         //C4：通知渠道必须在进程启动时创建，否则Service被系统单独拉起时
         //startForeground会因渠道不存在抛"Bad notification for startForeground"
         NotificationChannelHelper.initChannel(this);
-        if (!BuildConfig.DEBUG) {
-            //初始化bug收集
-          //  Bugsnag.init(this);
-        }
-        // H-17: Bugly App ID 从 BuildConfig 注入，不硬编码
-        String buglyAppId = BuildConfig.BUGLY_APP_ID;
-        if (!TextUtils.isEmpty(buglyAppId)) {
-            CrashReport.initCrashReport(getApplicationContext(), buglyAppId, BuildConfig.DEBUG);
-        } else {
-            // 未配置时跳过初始化，避免空 ID 导致异常
-        }
+        // H-17/M153：Bugly 崩溃上报已整体移除（含依赖、proguard 规则与 App ID 配置）
         BGASwipeBackHelper.init(this, null);
     }
 

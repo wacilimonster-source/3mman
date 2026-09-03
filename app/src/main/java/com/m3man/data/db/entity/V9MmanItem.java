@@ -11,6 +11,7 @@ import org.greenrobot.greendao.annotation.Generated;
 import org.greenrobot.greendao.annotation.Id;
 import org.greenrobot.greendao.annotation.Index;
 import org.greenrobot.greendao.annotation.NotNull;
+import org.greenrobot.greendao.annotation.Property;
 import org.greenrobot.greendao.annotation.ToOne;
 import org.greenrobot.greendao.annotation.Transient;
 
@@ -46,6 +47,13 @@ public class V9MmanItem implements Serializable {
     private String sourceName;
     /** 是否本地收藏（分分钟视频的本地收藏标记）；用 Boolean 而非 boolean，避免升级迁移时 NOT NULL 无默认值导致整表被清空（D1） */
     private Boolean isLocalFavorite;
+    /**
+     * Scoped Storage（targetSdk 34）：下载完成后归档进 MediaStore 公共 Movies/3mman 的成品
+     * 物理路径（V13，Android 10+ 生效）。null/空 = 未归档或老数据，走原路径解析（后退兼容）。
+     * 历史行为对该列 NULL → 用 String 包装类型，避免拆箱 NPE。
+     */
+    @Property
+    private String localFilePath;
     private long videoResultId;
     @ToOne(joinProperty = "videoResultId")
     private VideoResult videoResult;
@@ -69,9 +77,9 @@ public class V9MmanItem implements Serializable {
     private transient V9MmanItemDao myDao;
 
 
-    @Generated(hash = 615533494)
-    public V9MmanItem(Long id, String viewKey, String title, String imgUrl, String duration, String info, String sourceName, Boolean isLocalFavorite, long videoResultId, int downloadId, int progress, long speed,
-            long soFarBytes, long totalFarBytes, int status, Date addDownloadDate, Date finishedDownloadDate, Date viewHistoryDate) {
+    @Generated(hash = 324508229)
+    public V9MmanItem(Long id, String viewKey, String title, String imgUrl, String duration, String info, String sourceName, Boolean isLocalFavorite, String localFilePath, long videoResultId, int downloadId,
+            int progress, long speed, long soFarBytes, long totalFarBytes, int status, Date addDownloadDate, Date finishedDownloadDate, Date viewHistoryDate) {
         this.id = id;
         this.viewKey = viewKey;
         this.title = title;
@@ -80,6 +88,7 @@ public class V9MmanItem implements Serializable {
         this.info = info;
         this.sourceName = sourceName;
         this.isLocalFavorite = isLocalFavorite;
+        this.localFilePath = localFilePath;
         this.videoResultId = videoResultId;
         this.downloadId = downloadId;
         this.progress = progress;
@@ -278,6 +287,14 @@ public class V9MmanItem implements Serializable {
 
     public void setDownloadId(int downloadId) {
         this.downloadId = downloadId;
+    }
+
+    public String getLocalFilePath() {
+        return this.localFilePath;
+    }
+
+    public void setLocalFilePath(String localFilePath) {
+        this.localFilePath = localFilePath;
     }
 
     public int getProgress() {

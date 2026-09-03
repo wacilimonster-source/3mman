@@ -1,7 +1,8 @@
 package com.m3man.ui.mman9video.favorite;
 
-import android.arch.lifecycle.Lifecycle;
-import android.support.annotation.NonNull;
+import androidx.lifecycle.Lifecycle;
+import androidx.annotation.NonNull;
+import android.os.Build;
 import android.text.TextUtils;
 
 import com.hannesdorfmann.mosby3.mvp.MvpBasePresenter;
@@ -15,7 +16,9 @@ import com.m3man.exception.ApiException;
 import com.m3man.rxjava.CallBackWrapper;
 import com.m3man.rxjava.RetryWhenProcess;
 import com.m3man.rxjava.RxSchedulersHelper;
+import com.m3man.MyApplication;
 import com.m3man.utils.SDCardUtils;
+import com.m3man.utils.MediaStoreArchiver;
 
 import java.io.File;
 import java.util.List;
@@ -271,6 +274,35 @@ public class FavoritePresenter extends MvpBasePresenter<FavoriteView> implements
         }).map(new Function<List<V9MmanItem>, String>() {
             @Override
             public String apply(List<V9MmanItem> v9MmanItems) throws Exception {
+                StringBuilder sb = new StringBuilder();
+                if (onlyUrl) {
+                    for (V9MmanItem v9MmanItem : v9MmanItems) {
+                        String url = v9MmanItem.getVideoResult() != null ? v9MmanItem.getVideoResult().getVideoUrl() : null;
+                        if (TextUtils.isEmpty(url)) {
+                            continue;
+                        }
+                        sb.append(url).append("\r\n\r\n");
+                    }
+                } else {
+                    for (V9MmanItem v9MmanItem : v9MmanItems) {
+                        String title = v9MmanItem.getTitle();
+                        String videoUrl = v9MmanItem.getVideoResult() != null ? v9MmanItem.getVideoResult().getVideoUrl() : null;
+                        if (TextUtils.isEmpty(videoUrl)) {
+                            continue;
+                        }
+                        sb.append(title).append("\r\n").append(videoUrl).append("\r\n\r\n");
+                    }
+                }
+                String content = sb.toString();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    // V13：Scoped Storage，导出写到公共 下载/3mman（系统文件管理器可见）
+                    if (MediaStoreArchiver.archiveTextToDownloads(MyApplication.getInstance(),
+                            content, "m3man收藏导出.txt")) {
+                        return "导出成功，已保存到 下载/3mman";
+                    }
+                    throw new Exception("导出失败,写入系统下载目录失败");
+                }
+                // API<29（Android 9 及以下，仍可写老公共路径）：写 /sdcard/3mman/export.txt
                 File file = new File(SDCardUtils.EXPORT_FILE);
                 // M74：确保父目录存在（与下载路径一致）。EXPORT_FILE 位于 /3mman/ 下，
                 // 此前直接 createNewFile 而父目录可能未创建，导致 IOException: No such file or directory。
@@ -278,34 +310,13 @@ public class FavoritePresenter extends MvpBasePresenter<FavoriteView> implements
                 if (exportParent != null && !exportParent.exists() && !exportParent.mkdirs()) {
                     throw new Exception("导出失败,无法创建导出目录");
                 }
-                if (file.exists()) {
-                    if (!file.delete()) {
-                        throw new Exception("导出失败,因为删除原文件失败了");
-                    }
-
+                if (file.exists() && !file.delete()) {
+                    throw new Exception("导出失败,因为删除原文件失败了");
                 }
                 if (!file.createNewFile()) {
                     throw new Exception("导出失败,创建新文件失败了");
                 }
-                if (onlyUrl) {
-                    for (V9MmanItem v9MmanItem : v9MmanItems) {
-                        CharSequence data = v9MmanItem.getVideoResult().getVideoUrl() + "\r\n\r\n";
-                        if (TextUtils.isEmpty(data)) {
-                            continue;
-                        }
-                        FileUtils.writeChars(file, "UTF-8", data);
-                    }
-                } else {
-                    for (V9MmanItem v9MmanItem : v9MmanItems) {
-                        String title = v9MmanItem.getTitle();
-                        String videoUrl = v9MmanItem.getVideoResult().getVideoUrl();
-                        CharSequence data = title + "\r\n" + videoUrl + "\r\n\r\n";
-                        if (TextUtils.isEmpty(data)) {
-                            continue;
-                        }
-                        FileUtils.writeChars(file, "UTF-8", data);
-                    }
-                }
+                FileUtils.writeChars(file, "UTF-8", content);
                 return "导出成功";
             }
         })

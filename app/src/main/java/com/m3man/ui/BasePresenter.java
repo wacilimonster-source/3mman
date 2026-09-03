@@ -1,6 +1,6 @@
 package com.m3man.ui;
 
-import android.arch.lifecycle.Lifecycle;
+import androidx.lifecycle.Lifecycle;
 
 import com.trello.rxlifecycle2.LifecycleProvider;
 

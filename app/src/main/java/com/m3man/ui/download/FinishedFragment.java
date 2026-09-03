@@ -10,13 +10,13 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.app.Fragment;
-import android.support.v4.content.FileProvider;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.core.content.FileProvider;
+import androidx.appcompat.app.AlertDialog;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -37,7 +37,7 @@ import com.m3man.service.HlsDownloadService;
 import com.m3man.ui.mman9video.play.PlayVideoPresenter;
 
 import android.content.BroadcastReceiver;
-import android.support.v4.content.LocalBroadcastManager;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import android.text.TextUtils;
 
 import java.io.File;
@@ -133,9 +133,12 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
                     SwipeItemLayout swipeItemLayout = (SwipeItemLayout) view.getParent();
                     swipeItemLayout.close();
                     // M61：兼容 ensureDownloadDir 回退目录，文件可能不在原路径
-                    File file = SDCardUtils.resolveExistingDownloadFile(getContext(),
+                    // V13：优先 MediaStore 归档路径（Scoped Storage 下载完成成品）
+                    String localPath = SDCardUtils.resolvePlayablePath(getContext(),
+                            v9MmanItem.getLocalFilePath(),
                             v9MmanItem.getDownLoadPath(presenter.getCustomDownloadVideoDirPath()));
-                    if (file.exists()) {
+                    File file = localPath != null ? new File(localPath) : null;
+                    if (file != null && file.exists()) {
                         showDeleteFileDialog(v9MmanItem);
                     } else {
                         presenter.deleteDownloadedTask(v9MmanItem, false);
@@ -176,9 +179,12 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
     private void openMp4File(V9MmanItem v9MmanItem) {
         // M61：下载目录不可写时文件被写进应用专属回退目录，按原路径找会误报“文件不存在”；
         // 这里按「原路径 → 回退目录」解析真实文件再播放。
-        File file = SDCardUtils.resolveExistingDownloadFile(getContext(),
+        // V13：优先 MediaStore 归档路径（Scoped Storage 下载完成成品直读公共路径）。
+        String path = SDCardUtils.resolvePlayablePath(getContext(),
+                v9MmanItem.getLocalFilePath(),
                 v9MmanItem.getDownLoadPath(presenter.getCustomDownloadVideoDirPath()));
-        if (file.exists()) {
+        File file = path != null ? new File(path) : null;
+        if (file != null && file.exists()) {
             // 统一走 App 内播放引擎，直接传入本地文件，不再请求远程视频地址。
             goToPlayLocalVideo(v9MmanItem, presenter.getPlaybackEngine(), file.getAbsolutePath());
         } else {

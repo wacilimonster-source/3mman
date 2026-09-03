@@ -12,6 +12,7 @@ import com.m3man.BuildConfig;
 import com.m3man.MyApplication;
 import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.V9MmanItem;
+import com.m3man.utils.MediaStoreArchiver;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -225,6 +226,7 @@ public class DownloadManager {
                         item.setTotalFarBytes(f.length());
                         item.setFinishedDownloadDate(new Date());
                         dataManager.updateV9MmanItem(item);
+                        archiveAndPersist(item, task.getPath());
                     }
                     complete(task);
                     return;
@@ -299,9 +301,30 @@ public class DownloadManager {
         v9MmanItem.setStatus(task.getStatus());
         dataManager.updateV9MmanItem(v9MmanItem);
         if (task.getStatus() == FileDownloadStatus.completed) {
+            // V13：下载完成后归档进 MediaStore 公共 Movies/3mman，实现相册/文件管理器可见且零副本
+            archiveAndPersist(v9MmanItem, task.getPath());
             complete(task);
         } else {
             update(task);
+        }
+    }
+
+    /**
+     * V13：把已完成文件归档进 MediaStore 并持久化成品路径（best-effort）。
+     * 归档成功 → 存 V9MmanItem.localFilePath（播放/删除直读公共路径）；失败 → 保留私有副本走原逻辑。
+     */
+    private void archiveAndPersist(V9MmanItem item, String srcPath) {
+        try {
+            if (item == null || srcPath == null || srcPath.length() == 0) {
+                return;
+            }
+            String archived = MediaStoreArchiver.archiveVideo(
+                    MyApplication.getInstance(), new File(srcPath), item.getTitle(), item.getViewKey());
+            if (archived != null) {
+                item.setLocalFilePath(archived);
+                dataManager.updateV9MmanItem(item);
+            }
+        } catch (Exception ignored) {
         }
     }
 

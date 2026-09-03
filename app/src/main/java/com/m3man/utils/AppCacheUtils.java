@@ -1,7 +1,7 @@
 package com.m3man.utils;
 
 import android.content.Context;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import android.text.format.Formatter;
 
 import java.io.File;

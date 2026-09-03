@@ -1,7 +1,7 @@
 package com.m3man.ui.main;
 
-import android.arch.lifecycle.Lifecycle;
-import android.support.v7.app.AppCompatActivity;
+import androidx.lifecycle.Lifecycle;
+import androidx.appcompat.app.AppCompatActivity;
 
 import com.m3man.di.module.BaseActivityModule;
 import com.m3man.di.PerFragment;

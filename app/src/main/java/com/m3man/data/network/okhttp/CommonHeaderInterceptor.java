@@ -1,6 +1,6 @@
 package com.m3man.data.network.okhttp;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import android.text.TextUtils;
 import android.util.Log;
 

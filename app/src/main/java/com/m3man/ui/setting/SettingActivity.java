@@ -2,15 +2,16 @@ package com.m3man.ui.setting;
 
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.support.annotation.NonNull;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.app.AppCompatDelegate;
-import android.support.v7.widget.AppCompatAutoCompleteTextView;
-import android.support.v7.widget.AppCompatButton;
-import android.support.v7.widget.Toolbar;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.appcompat.widget.AppCompatAutoCompleteTextView;
+import androidx.appcompat.widget.AppCompatButton;
+import androidx.appcompat.widget.Toolbar;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -292,15 +293,21 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         customDownloadPathItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
 
 
-        QMUIGroupListView.newSection(this)
-                .addItemView(playEngineItemWithChevron, this)
-                .addItemView(customDownloadPathItemWithChevron, new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        selectDownloadVideoDir(customDownloadPathItemWithChevron);
-                    }
-                })
-                .addTo(qmuiGroupListView);
+        QMUIGroupListView.Section downloadDirSection = QMUIGroupListView.newSection(this)
+                .addItemView(playEngineItemWithChevron, this);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // V13：Scoped Storage 强制，公共目录不能作为自定义下载目录（fileDownloader 只能写真实路径），
+            // 隐藏虚假选目录入口，改为展示固定说明，避免 Android 10+ 上选目录失效/被忽略。
+            QMUICommonListItemView scopedNoteItem = qmuiGroupListView.createItemView("下载保存位置");
+            scopedNoteItem.setOrientation(QMUICommonListItemView.VERTICAL);
+            scopedNoteItem.setDetailText("Android 10+ 由系统管辖公共存储：视频下载后存入「相册 / Movies」并可在文件管理器查看，无需手动选目录");
+            downloadDirSection.addItemView(scopedNoteItem, this);
+        } else {
+            // Android 9 及以下仍可写公共目录，保留自定义目录选择
+            downloadDirSection.addItemView(customDownloadPathItemWithChevron, v ->
+                    selectDownloadVideoDir(customDownloadPathItemWithChevron));
+        }
+        downloadDirSection.addTo(qmuiGroupListView);
 
 
         QMUIGroupListView.Section sec = QMUIGroupListView.newSection(this);

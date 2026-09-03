@@ -4,7 +4,7 @@ import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.os.IBinder;
-import android.support.v4.app.NotificationCompat;
+import androidx.core.app.NotificationCompat;
 import android.text.format.Formatter;
 
 import com.liulishuo.filedownloader.BaseDownloadTask;
@@ -39,10 +39,10 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
 
     // M97：进度 tick 节流——记录每个任务上次触发查库/写通知时的百分比与状态，
     // 仅在进度跨越 ≥5% 或状态跃迁时才查库，避免高频回调每 tick 都打 DB
-    private final android.support.v4.util.SimpleArrayMap<Integer, Integer> lastTickProgress =
-            new android.support.v4.util.SimpleArrayMap<>();
-    private final android.support.v4.util.SimpleArrayMap<Integer, Integer> lastTickStatus =
-            new android.support.v4.util.SimpleArrayMap<>();
+    private final androidx.collection.SimpleArrayMap<Integer, Integer> lastTickProgress =
+            new androidx.collection.SimpleArrayMap<>();
+    private final androidx.collection.SimpleArrayMap<Integer, Integer> lastTickStatus =
+            new androidx.collection.SimpleArrayMap<>();
 
     public DownloadVideoService() {
 

@@ -1,8 +1,8 @@
 package com.m3man.ui.download;
 
-import android.arch.lifecycle.Lifecycle;
+import androidx.lifecycle.Lifecycle;
 import android.content.Context;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import android.text.TextUtils;
 
 import com.hannesdorfmann.mosby3.mvp.MvpBasePresenter;
@@ -25,6 +25,7 @@ import com.m3man.utils.AppLog;
 import com.m3man.utils.DownloadManager;
 import com.m3man.utils.PornyFallbackResolver;
 import com.m3man.utils.SDCardUtils;
+import com.m3man.utils.MediaStoreArchiver;
 import com.m3man.utils.VideoCacheFileNameGenerator;
 
 import java.io.File;
@@ -784,10 +785,22 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
      * @param v9MmanItem v
      */
     private void deleteWithFile(V9MmanItem v9MmanItem) {
-        // M61：按真实位置删除（原路径或回退目录）
-        File file = SDCardUtils.resolveExistingDownloadFile(context,
-                v9MmanItem.getDownLoadPath(getCustomDownloadVideoDirPath()));
-        if (file != null && file.exists() && file.delete()) {
+        boolean deleted;
+        // V13：已归档（MediaStore 公共目录）的成品走 MediaStore 删除（同步清相册行 + 文件）；
+        // 未归档的按原逻辑删真实文件（原路径或回退目录）。
+        if (!TextUtils.isEmpty(v9MmanItem.getLocalFilePath())) {
+            try {
+                MediaStoreArchiver.deleteArchived(context, v9MmanItem);
+                deleted = true;
+            } catch (Exception e) {
+                deleted = false;
+            }
+        } else {
+            File file = SDCardUtils.resolveExistingDownloadFile(context,
+                    v9MmanItem.getDownLoadPath(getCustomDownloadVideoDirPath()));
+            deleted = file != null && file.exists() && file.delete();
+        }
+        if (deleted) {
             v9MmanItem.setDownloadId(0);
             dataManager.updateV9MmanItem(v9MmanItem);
         } else {

@@ -2,13 +2,13 @@ package com.m3man.ui.main;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.annotation.IntRange;
-import android.support.annotation.NonNull;
-import android.support.design.widget.CoordinatorLayout;
-import android.support.design.widget.FloatingActionButton;
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.app.FragmentTransaction;
+import androidx.annotation.IntRange;
+import androidx.annotation.NonNull;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
@@ -45,7 +45,7 @@ import com.m3man.utils.NotificationChannelHelper;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Build;
-import android.support.v4.content.ContextCompat;
+import androidx.core.content.ContextCompat;
 
 import com.m3man.utils.SDCardUtils;
 import com.m3man.utils.Tags;
@@ -82,6 +82,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
     private Fragment mCurrentFragment;
     private int permisionCode = 300;
     private int permisionReqCode = 400;
+    private int notifyPermCode = 500;
     private String[] permission = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
             ? new String[]{Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_IMAGES}
             : PermissionConstants.getPermissions(PermissionConstants.STORAGE);
@@ -135,6 +136,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         initBottomNavigationBar(selectIndex);
 
         makeDirAndCheckPermission();
+        requestNotificationPermission();
 
         fabSearch.setOnClickListener(v -> doOnFloatingActionButtonClick(selectIndex));
         firstTabShow = presenter.getMainFirstTabShow();
@@ -382,6 +384,34 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putInt(Keys.KEY_SELECT_INDEX, selectIndex);
+    }
+
+    /**
+     * M23/targetSdk34：API 33+ 通知必须运行时授权，否则下载/升级进度通知静默不显示。
+     * 申请失败不阻塞，后续相关通知仅在授权后可见。
+     */
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return;
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            AndPermission.with(this)
+                    .requestCode(notifyPermCode)
+                    .permission(Manifest.permission.POST_NOTIFICATIONS)
+                    .callback(new PermissionListener() {
+                        @Override
+                        public void onSucceed(int requestCode, @NonNull List<String> grantedPermissions) {
+                            // 已授权，后续通知正常显示
+                        }
+
+                        @Override
+                        public void onFailed(int requestCode, @NonNull List<String> deniedPermissions) {
+                            // 未授权，请求头不会弹系统通知
+                        }
+                    })
+                    .start();
+        }
     }
 
     /**

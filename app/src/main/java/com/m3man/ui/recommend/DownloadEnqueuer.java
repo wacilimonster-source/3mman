@@ -102,7 +102,9 @@ class DownloadEnqueuer {
                 throw new IllegalStateException("还未解析成功视频地址");
             }
             String path = target.getDownLoadPath(dataManager.getCustomDownloadVideoDirPath());
-            File file = SDCardUtils.resolveExistingDownloadFile(context, path);
+            // V13：查重优先 MediaStore 归档路径（Scoped Storage 下载完成成品），否则回退原路径解析
+            String checkPath = SDCardUtils.resolvePlayablePath(context, target.getLocalFilePath(), path);
+            File file = checkPath != null ? new File(checkPath) : null;
             if (file != null && file.exists() && file.length() > 0) {
                 DownloadDiag.append(viewKey, "enqueue=目标文件已存在(" + file.length() + "B) → 跳过");
                 throw new IllegalStateException("已经下载过了，请查看下载目录");

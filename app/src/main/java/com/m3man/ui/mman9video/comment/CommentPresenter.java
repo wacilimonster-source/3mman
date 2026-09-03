@@ -1,7 +1,7 @@
 package com.m3man.ui.mman9video.comment;
 
-import android.arch.lifecycle.Lifecycle;
-import android.support.annotation.NonNull;
+import androidx.lifecycle.Lifecycle;
+import androidx.annotation.NonNull;
 
 import com.hannesdorfmann.mosby3.mvp.MvpBasePresenter;
 import com.orhanobut.logger.Logger;

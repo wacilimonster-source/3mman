@@ -10,15 +10,13 @@ android {
         targetSdkVersion parent.ext.targetSdkVersion
         versionCode 144
         versionName "1.0.111"
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
         multiDexEnabled true
         ndk {
             // 设置支持的SO库架构：仅保留 64 位 arm64-v8a（R8 混淆 + 64 位，兼顾体积与新机型兼容）
             abiFilters 'arm64-v8a'
         }
-        // H-17: Bugly App ID 通过 gradle.properties 注入，不硬编码在源码中
-        buildConfigField "String", "BUGLY_APP_ID", project.hasProperty('bugly_app_id') ? "\"${bugly_app_id}\"" : "\"\""
     }
     // M101：JVM 单测中 android.util.Log 等桩返回默认值——Logger/Toast 类工具在纯 JVM 测试不崩
     testOptions {
@@ -90,23 +88,34 @@ greendao {
     //v10: AutoCompleteEntity 唯一索引从 name 单列改为 (name,type) 复合（M62）
     //v11: AuthorFavorite 新增作者摘要缓存字段（videoCount/topViewKey/lastRefreshTime/lastNewTime/hasNew/coverUrl）
     //v12: AuthorFavorite 新增 lastViewKey——关联任一作品，UID token 过期时供作者页自愈重取
+    //v13: V9MmanItem 新增 localFilePath——Scoped Storage 下载归档进 MediaStore 后的成品路径（Android 10+）
     //（v13 int→long 改造已回退：greenDAO 插件对实体 @Generated 同步存在兼容问题，见 M99 评审遗留）
-    schemaVersion 12
+    schemaVersion 13
 }
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation "com.android.support:appcompat-v7:$supportLibraryVersion"
-    implementation "com.android.support:support-v4:$supportLibraryVersion"
-    implementation "com.android.support:design:$supportLibraryVersion"
-    implementation "com.android.support:recyclerview-v7:$supportLibraryVersion"
-    implementation "com.android.support:cardview-v7:$supportLibraryVersion"
-    implementation "com.android.support:support-vector-drawable:$supportLibraryVersion"
-    implementation 'com.android.support:multidex:1.0.3'
-    implementation 'com.android.support.constraint:constraint-layout:1.1.3'
+    // AndroidX（迁移自 com.android.support:*）
+    implementation "androidx.appcompat:appcompat:$androidxAppcompatVersion"
+    implementation "androidx.core:core:$androidxCoreVersion"
+    implementation "androidx.fragment:fragment:$androidxFragmentVersion"
+    implementation "androidx.recyclerview:recyclerview:$androidxRecyclerviewVersion"
+    implementation "androidx.cardview:cardview:$androidxCardviewVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorlayoutVersion"
+    implementation "androidx.viewpager:viewpager:$androidxViewpagerVersion"
+    implementation "androidx.interpolator:interpolator:$androidxInterpolatorVersion"
+    implementation "androidx.swiperefreshlayout:swiperefreshlayout:$androidxSwiperefreshlayoutVersion"
+    implementation "androidx.localbroadcastmanager:localbroadcastmanager:$androidxLocalbroadcastmanagerVersion"
+    implementation "androidx.vectordrawable:vectordrawable:$androidxVectorDrawableVersion"
+    implementation "androidx.collection:collection:$androidxCollectionVersion"
+    implementation "androidx.lifecycle:lifecycle-runtime:$androidxLifecycleVersion"
+    implementation "androidx.multidex:multidex:$androidxMultidexVersion"
+    implementation "androidx.constraintlayout:constraintlayout:$androidxConstraintlayoutVersion"
+    implementation "com.google.android.material:material:$materialVersion"
     testImplementation 'junit:junit:4.12'
-    androidTestImplementation 'com.android.support.test:runner:1.0.2'
-    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
+    androidTestImplementation "androidx.test:runner:$androidxTestRunnerVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxTestJunitVersion"
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
     implementation "com.squareup.retrofit2:retrofit:$retrofitVersion"
     implementation "com.squareup.retrofit2:converter-scalars:$retrofitVersion"
     implementation "com.squareup.retrofit2:adapter-rxjava2:$retrofitVersion"
@@ -173,8 +182,6 @@ dependencies {
         exclude group: 'com.android.support'
     }
     implementation project(':exolibrary')
-    implementation 'com.tencent.bugly:crashreport:2.6.6.1'
-    implementation 'com.tencent.bugly:nativecrashreport:3.3.1'
     implementation "ru.noties:markwon:$rootProject.markwonVersion"
     // 离线 OCR，用于登录验证码自动识别（无需 GMS/ML Kit）
     implementation 'com.rmtheis:tess-two:9.1.0'

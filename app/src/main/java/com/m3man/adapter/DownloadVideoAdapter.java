@@ -1,7 +1,7 @@
 package com.m3man.adapter;
 
 import android.net.Uri;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.text.format.Formatter;
 import android.widget.ImageView;
 

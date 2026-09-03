@@ -1,13 +1,13 @@
 package com.m3man.ui.mman9video.search;
 
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.app.Fragment;
-import android.support.v7.app.AlertDialog;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
-import android.support.v7.widget.Toolbar;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.appcompat.app.AlertDialog;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.appcompat.widget.Toolbar;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -59,7 +59,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
     @BindView(R.id.toolbar)
     Toolbar toolbar;
     @BindView(R.id.search_view)
-    android.support.v7.widget.SearchView searchView;
+    androidx.appcompat.widget.SearchView searchView;
     @BindView(R.id.recyclerView)
     RecyclerView recyclerView;
     @BindView(R.id.layout_search_history)
@@ -390,7 +390,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
     }
 
     private void setListener() {
-        searchView.setOnQueryTextListener(new android.support.v7.widget.SearchView.OnQueryTextListener() {
+        searchView.setOnQueryTextListener(new androidx.appcompat.widget.SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
                 if (!TextUtils.isEmpty(query)) {
@@ -416,7 +416,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                 return false;
             }
         });
-        searchView.setOnCloseListener(new android.support.v7.widget.SearchView.OnCloseListener() {
+        searchView.setOnCloseListener(new androidx.appcompat.widget.SearchView.OnCloseListener() {
             @Override
             public boolean onClose() {
                 // M109-fix：此处绝不能调 searchHistoryPanel.show()——show() 内部曾收起搜索框，

@@ -203,4 +203,26 @@ public class SDCardUtils {
         }
         return len >= totalBytes || len >= totalBytes * 95 / 100;
     }
+
+    /**
+     * V13：解析「可播放/可删除」的成品真实路径，优先 MediaStore 归档路径，其次原路径/回退目录。
+     * <p>
+     * Scoped Storage 改造后，下载完成的文件在 Android 10+ 会归档进 MediaStore 公共 Movies/3mman，
+     * 路径存 V9MmanItem.localFilePath。这里统一解析，避开各调用点重复判空。
+     *
+     * @param context       上下文（可为 null）
+     * @param localFilePath MediaStore 归档路径（可为 null/空 = 未归档）
+     * @param preferredPath 计算出的下载路径（未归档时兜底解析）
+     * @return 真实存在的可播放文件路径；都不存在时返回 preferredPath（保持旧提示行为）
+     */
+    public static String resolvePlayablePath(Context context, String localFilePath, String preferredPath) {
+        if (!TextUtils.isEmpty(localFilePath)) {
+            File archived = new File(localFilePath);
+            if (archived.exists() && archived.length() > 0) {
+                return localFilePath;
+            }
+        }
+        File fallback = resolveExistingDownloadFile(context, preferredPath);
+        return fallback != null ? fallback.getAbsolutePath() : preferredPath;
+    }
 }

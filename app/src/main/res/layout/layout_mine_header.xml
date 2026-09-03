@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- M102：精简「我的」登录头——移除 级别/新消息/粉丝/关注/积分 统计行（代码中无绑定，纯占位），
      头部高度由 nav_header_height 统一控制（176dp -> 108dp） -->
-<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -72,4 +72,4 @@
         app:layout_constraintTop_toBottomOf="@+id/tv_nav_last_login_time"
         tools:ignore="HardcodedText" />
 
-</android.support.constraint.ConstraintLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

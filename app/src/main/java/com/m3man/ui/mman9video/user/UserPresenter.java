@@ -1,6 +1,6 @@
 package com.m3man.ui.mman9video.user;
 
-import android.arch.lifecycle.Lifecycle;
+import androidx.lifecycle.Lifecycle;
 import android.graphics.Bitmap;
 import android.text.TextUtils;
 

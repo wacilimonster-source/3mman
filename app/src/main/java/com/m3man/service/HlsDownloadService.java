@@ -11,9 +11,9 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.SystemClock;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.content.FileProvider;
-import android.support.v4.content.LocalBroadcastManager;
+import androidx.core.app.NotificationCompat;
+import androidx.core.content.FileProvider;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import android.text.TextUtils;
 
 import com.liulishuo.filedownloader.model.FileDownloadStatus;
@@ -25,6 +25,7 @@ import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.utils.AppCacheUtils;
 import com.m3man.utils.AppLog;
 import com.m3man.utils.HlsDownloader;
+import com.m3man.utils.MediaStoreArchiver;
 import com.m3man.utils.SDCardUtils;
 
 import java.io.File;
@@ -496,10 +497,24 @@ public class HlsDownloadService extends Service {
             item.setDownloadId(s.pseudoDownloadId);
             getDataManager().updateV9MmanItem(item);
         }
+        // V13：HLS 转码成品归档进 MediaStore 公共 Movies/3mman（best-effort，失败保留私有副本）。
+        // 需在 showCompletedNotification 之前执行——归档成功会删除私有 mp4File，通知要指向归档成品。
+        String archivedPath = null;
+        try {
+            String archived = MediaStoreArchiver.archiveVideo(this, mp4File, (item != null ? item.getTitle() : null), s.viewKey);
+            if (archived != null) {
+                archivedPath = archived;
+                if (item != null) {
+                    item.setLocalFilePath(archived);
+                    getDataManager().updateV9MmanItem(item);
+                }
+            }
+        } catch (Exception ignored) {
+        }
         Intent i = new Intent(ACTION_HLS_DONE);
         i.putExtra(EXTRA_VIEW_KEY, s.viewKey);
         LocalBroadcastManager.getInstance(this).sendBroadcast(i);
-        showCompletedNotification(mp4File);
+        showCompletedNotification(archivedPath != null ? new File(archivedPath) : mp4File);
         stopForeground(true);
         releaseDownloader();
         stopSelf();
