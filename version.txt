@@ -1,7 +1,7 @@
 {
-  "versionCode": 142,
-  "versionName": "1.0.109",
-  "updateMessage": "修复搜索历史递归闪退与点击历史不搜索（共 4 类触发链，模拟器均已复现）：1）不能清空搜索——点 X 清空触发 onClose→show()，v1.0.105 在 show() 内 setIconified(true) 收起搜索框，与 SearchView 关闭回调互相触发→无限递归 StackOverflowError 闪退。已删除 show() 中的 setIconified，并新增 showPanelOnly()（只加载并展示历史、绝不触碰 SearchView）；2）反复点删除键闪退——删光文字时 onQueryTextChange(\"\")→show()，同一递归；3）点预览后返回闪退——onResume→onActionViewCollapsed→onClose→show()，同一递归（均已随 show() 去收起动作消除）；4）点搜索历史不跳转——setQuery 回填关键词后 show() 的收起动作把刚回填的关键词清掉、面板又被重新弹出，搜索实际没发出去。修复后：清空/删除/返回页面→安全展示历史面板不再递归；点历史→关键词保留、面板收起、搜索真正发起。SearchHistoryPanel.show() 改为直接转调 showPanelOnly()，两个搜索宿主（SearchPornyFragment / SearchActivity）的 onClose 均改调 showPanelOnly()。Release 仍关闭 R8 提升稳定性（APK 体积偏大）。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.109.apk",
-  "sha256": "64152f809d82ccb9cc990ea3ff7a1ca4173b98278826a3af73c250e3e0778b31"
+  "versionCode": 143,
+  "versionName": "1.0.110",
+  "updateMessage": "1.0.110 更新内容：\n1）删除 9mman 站内搜索（仅保留主界面底部「搜索」Tab 的 91porny 搜索），清理对应 Activity / Dagger 注入 / 数据层接口；\n2）修复搜索历史「清空无效 + 点击历史不搜索」：根因是 LoadViewHelper 空状态容器 z 序盖住历史面板、吃掉整层触摸（无报错），已在历史面板展示时 bringToFront() 置顶；\n3）点击历史条目后搜索条件回填到输入框显示；\n4）新增搜索「重置」入口，可回到未搜索的初始状态（取消在途请求、重置分页、清空结果与关键词、恢复提示与历史）。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.110.apk",
+  "sha256": "6bf66ae7387cac42eb4d914fd7b2048ae9db5f71bbdc6fa5318c127a578d3653"
 }
