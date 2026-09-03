@@ -10,7 +10,7 @@
 generated-images/
 # APK 产物一律不入库：仅当前发布版本 3mman_v1.0.110.apk 例外（历史产物已归档到 apk-archive/）
 /*.apk
-!3mman_v1.0.111.apk
+!3mman_v1.0.114.apk
 apk-archive/
 3mman_v*_debug.apk
 
