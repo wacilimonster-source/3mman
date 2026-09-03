@@ -1,7 +1,7 @@
 {
   "versionCode": 144,
   "versionName": "1.0.111",
-  "updateMessage": "1.0.111 更新内容：\n1）Release 包开启 R8 代码混淆与资源裁剪，包体由 9.7MB 降至 7.8MB；\n2）ABI 切换为 64 位 arm64-v8a，新机型（Android 14+）兼容性更好、更省电；\n3）清理历史遗留的无用混淆配置；\n注意：仅支持 64 位 CPU 的设备（2018 年之后的机型均可）。",
+  "updateMessage": "1.0.111 更新内容：\n1）targetSdkVersion/compileSdkVersion 升级到 34，完成 AndroidX 迁移；\n2）适配 Scoped Storage，视频下载后归档到系统 Movies/3mman，支持 Android 10+；\n3）修复收藏导出，Android 10+ 导出到系统 Downloads/3mman；\n4）移除 Bugly 崩溃上报功能；\n5）Release 包开启 R8 代码混淆与资源裁剪；\n注意：仅支持 64 位 CPU 的设备。",
   "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.111.apk",
-  "sha256": "ed112fe72519c9e230510f3f0a0decd489525c08b1604cb2a904f470ab3e322c"
+  "sha256": "6854507f6187701384e551f100143b023855b5533581b7757f3383f4a56a47a1"
 }
