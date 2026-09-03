@@ -69,6 +69,16 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
 
     private final String TAG = BasePlayVideo.class.getSimpleName();
 
+    /**
+     * M112：播放页禁用左边缘滑动返回。
+     * 全屏播放时 jiaozivideoplayer 的左边缘手势是「亮度调节」，左滑返回与它争用：
+     * 用户想调亮度却触发了返回动画。播放页有明确的返回键路径，禁用边缘返回无损可达性。
+     */
+    @Override
+    public boolean isSupportSwipeBack() {
+        return false;
+    }
+
     /** R1：收藏相关裸订阅统一回收，避免销毁后回调操作已释放的UI */
     private final io.reactivex.disposables.CompositeDisposable mDisposables = new io.reactivex.disposables.CompositeDisposable();
 

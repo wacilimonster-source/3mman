@@ -292,7 +292,42 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
     }
 
     /** 双击快进：总时长的 1/8，贴尾钳制到 duration-1s，返回实际跳过毫秒数。 */
-    /** 设置当前 MediaPlayer 倍速；推荐流每次绑定新视频时由外部恢复为 1x。 */
+
+    /** 倍速不可用：系统版本过低（API < 23）。本项目 minSdk 28，理论上不会触发。 */
+    public static final int SPEED_UNSUPPORTED_OS = 1;
+    /** 倍速不可用：当前并非「正在播放」态。 */
+    public static final int SPEED_UNSUPPORTED_NOT_PLAYING = 2;
+    /** 倍速不可用：当前播放通道不是 JZMediaSystem，拿不到 MediaPlayer。 */
+    public static final int SPEED_UNSUPPORTED_ENGINE = 3;
+
+    /**
+     * 返回倍速不可用的原因码：0 = 可用。
+     * 让 UI 能给出一句明确原因，而不是笼统的「不支持」。
+     */
+    public int getSpeedUnsupportedReason() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return SPEED_UNSUPPORTED_OS;
+        }
+        if (!isCurrentPlayer()) {
+            return SPEED_UNSUPPORTED_NOT_PLAYING;
+        }
+        if (currentState != CURRENT_STATE_PLAYING) {
+            return SPEED_UNSUPPORTED_NOT_PLAYING;
+        }
+        JZMediaManager manager = JZMediaManager.instance();
+        if (manager == null || !(manager.jzMediaInterface instanceof cn.jzvd.JZMediaSystem)
+                || ((cn.jzvd.JZMediaSystem) manager.jzMediaInterface).mediaPlayer == null) {
+            return SPEED_UNSUPPORTED_ENGINE;
+        }
+        return 0;
+    }
+
+    /**
+     * 设置当前 MediaPlayer 倍速；推荐流每次绑定新视频时由外部恢复为 1x。
+     * <p>
+     * 注意：本方法在「暂停态 / 非 MediaPlayer 通道」下会返回 false，
+     * 调用方必须先判断返回值再改 UI 标签，否则会出现「显示 2x、实际 1x」的状态欺骗。
+     */
     public boolean setPlaybackSpeed(float speed) {
         if (!isCurrentPlayer() || Build.VERSION.SDK_INT < Build.VERSION_CODES.M
                 || speed <= 0f) {

@@ -23,20 +23,43 @@
         android:layout_height="42dp"
         android:layout_gravity="center" />
 
-    <TextView
-        android:id="@+id/tv_reco_error"
+    <!-- M112：错误态由「一行纯文字」升级为「文案 + 重试按钮」。
+         此前只能靠文案末尾的「，点击重试」提示用户去点整块文字，
+         没有任何按钮外观，用户根本不知道这里可点。 -->
+    <LinearLayout
+        android:id="@+id/ll_reco_error"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:background="#99000000"
-        android:paddingBottom="8dp"
-        android:paddingLeft="16dp"
-        android:paddingRight="16dp"
-        android:paddingTop="8dp"
-        android:text="@string/reco_parse_failed"
-        android:textColor="#FFFFFFFF"
-        android:textSize="14sp"
-        android:visibility="gone" />
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingBottom="@dimen/space_4"
+        android:paddingLeft="@dimen/space_4"
+        android:paddingRight="@dimen/space_4"
+        android:paddingTop="@dimen/space_4"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tv_reco_error"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="@string/reco_parse_failed"
+            android:textColor="#FFFFFFFF"
+            android:textSize="14sp" />
+
+        <Button
+            android:id="@+id/btn_reco_retry"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_3"
+            android:minHeight="@dimen/touch_min"
+            android:paddingLeft="@dimen/space_4"
+            android:paddingRight="@dimen/space_4"
+            android:text="@string/reco_retry"
+            android:textSize="14sp" />
+    </LinearLayout>
 
     <!-- M78：双击快进反馈，显示实际跳过秒数 -->
     <TextView
@@ -54,8 +77,35 @@
         android:textStyle="bold"
         android:visibility="gone" />
 
+    <!-- M112：拖动进度条时的时间气泡。原实现拖动时只有左侧 tv_reco_cur 的小字在变，
+         手指按住的位置没有任何反馈，很难对准目标时间点。 -->
+    <TextView
+        android:id="@+id/tv_reco_seek_bubble"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="96dp"
+        android:background="#CC000000"
+        android:gravity="center"
+        android:minWidth="72dp"
+        android:paddingBottom="@dimen/space_2"
+        android:paddingLeft="@dimen/space_3"
+        android:paddingRight="@dimen/space_3"
+        android:paddingTop="@dimen/space_2"
+        android:text="00:00"
+        android:textColor="#FFFFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
     <!-- 右侧操作栏（竖屏）：与横屏保持统一的「小图标+无文字」风格，
-         不再依赖 applyOrientationUi 动态改图标尺寸和文字显隐，杜绝翻页/回竖屏时的残留 bug。 -->
+         不再依赖 applyOrientationUi 动态改图标尺寸和文字显隐，杜绝翻页/回竖屏时的残留 bug。
+
+         M112 触控改造：图标从 36dp 改为 48dp 控件 + 6dp padding，
+         里面的图标资源仍被缩放绘制成 36dp —— 视觉与改造前完全一致，
+         但可点区域从 36dp 提到 48dp（达到触控下限）。
+         由于 padding 已占掉 6+6=12dp，图标间的 layout_marginTop 由 12dp 改为 0（去掉），
+         保证图标之间的视觉间距仍是 12dp、整列高度不变。 -->
     <LinearLayout
         android:id="@+id/ll_reco_actions"
         android:layout_width="wrap_content"
@@ -73,106 +123,52 @@
 
         <ImageView
             android:id="@+id/iv_reco_like"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
+            android:layout_width="@dimen/touch_min"
+            android:layout_height="@dimen/touch_min"
             android:contentDescription="@string/reco_like"
+            android:padding="@dimen/touch_padding_icon_36"
             android:src="@drawable/ic_thumb_up_white_24dp" />
-
-        <TextView
-            android:id="@+id/tv_reco_like"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:shadowColor="#FF000000"
-            android:shadowRadius="3"
-            android:text="@string/reco_like"
-            android:textColor="#FFFFFFFF"
-            android:textSize="11sp"
-            android:visibility="gone" />
 
         <ImageView
             android:id="@+id/iv_reco_favorite"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:layout_marginTop="12dp"
+            android:layout_width="@dimen/touch_min"
+            android:layout_height="@dimen/touch_min"
             android:contentDescription="@string/reco_favorite"
+            android:padding="@dimen/touch_padding_icon_36"
             android:src="@drawable/ic_favorite_white_32dp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:shadowColor="#FF000000"
-            android:shadowRadius="3"
-            android:text="@string/reco_favorite"
-            android:textColor="#FFFFFFFF"
-            android:textSize="11sp"
-            android:visibility="gone" />
 
         <ImageView
             android:id="@+id/iv_reco_dislike"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:layout_marginTop="12dp"
+            android:layout_width="@dimen/touch_min"
+            android:layout_height="@dimen/touch_min"
             android:contentDescription="@string/reco_dislike"
+            android:padding="@dimen/touch_padding_icon_36"
             android:src="@drawable/ic_thumb_down_white_24dp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:shadowColor="#FF000000"
-            android:shadowRadius="3"
-            android:text="@string/reco_dislike"
-            android:textColor="#FFFFFFFF"
-            android:textSize="11sp"
-            android:visibility="gone" />
 
         <ImageView
             android:id="@+id/iv_reco_detail"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:layout_marginTop="12dp"
+            android:layout_width="@dimen/touch_min"
+            android:layout_height="@dimen/touch_min"
             android:contentDescription="@string/reco_detail"
+            android:padding="@dimen/touch_padding_icon_36"
             android:src="@drawable/ic_slow_motion_video_black_24dp"
             android:tint="#FFFFFFFF" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:shadowColor="#FF000000"
-            android:shadowRadius="3"
-            android:text="@string/reco_detail"
-            android:textColor="#FFFFFFFF"
-            android:textSize="11sp"
-            android:visibility="gone" />
-
         <ImageView
             android:id="@+id/iv_reco_download"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:layout_marginTop="12dp"
+            android:layout_width="@dimen/touch_min"
+            android:layout_height="@dimen/touch_min"
             android:contentDescription="@string/reco_download"
+            android:padding="@dimen/touch_padding_icon_36"
             android:src="@drawable/ic_file_download_black_24dp"
             android:tint="#FFFFFFFF" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:shadowColor="#FF000000"
-            android:shadowRadius="3"
-            android:text="@string/reco_download"
-            android:textColor="#FFFFFFFF"
-            android:textSize="11sp"
-            android:visibility="gone" />
     </LinearLayout>
 
-    <!-- 右缘半透明把手：开启「隐藏播放页操作栏」后用于临时呼出操作栏 -->
+    <!-- 右缘半透明把手：开启「隐藏播放页操作栏」后用于临时呼出操作栏。
+         M112：12dp → 24dp（原宽度手指几乎点不中） -->
     <View
         android:id="@+id/v_reco_handle"
-        android:layout_width="12dp"
+        android:layout_width="@dimen/reco_handle_width"
         android:layout_height="72dp"
         android:layout_gravity="end|center_vertical"
         android:layout_marginEnd="4dp"
@@ -202,20 +198,20 @@
             android:layout_height="wrap_content"
             android:text="00:00"
             android:textColor="#FFFFFFFF"
-            android:textSize="11sp" />
+            android:textSize="12sp" />
 
         <SeekBar
             android:id="@+id/sb_reco_progress"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="8dp"
-            android:layout_marginRight="8dp"
+            android:layout_marginLeft="@dimen/space_2"
+            android:layout_marginRight="@dimen/space_2"
             android:layout_weight="1"
             android:max="1000"
-            android:maxHeight="3dp"
-            android:minHeight="3dp"
-            android:paddingBottom="10dp"
-            android:paddingTop="10dp"
+            android:maxHeight="@dimen/reco_seekbar_track"
+            android:minHeight="@dimen/reco_seekbar_track"
+            android:paddingBottom="12dp"
+            android:paddingTop="12dp"
             android:progress="0" />
 
         <TextView
@@ -224,34 +220,36 @@
             android:layout_height="wrap_content"
             android:text="00:00"
             android:textColor="#FFFFFFFF"
-            android:textSize="11sp" />
+            android:textSize="12sp" />
 
+        <!-- M112：36dp+7dp padding → 48dp+6dp padding（视觉仍 36dp），
+             与倍速按钮的间距由 4dp 提到 8dp，降低误触 -->
         <ImageView
             android:id="@+id/iv_reco_fullscreen"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:layout_marginLeft="4dp"
-            android:layout_marginStart="4dp"
+            android:layout_width="@dimen/touch_min"
+            android:layout_height="@dimen/touch_min"
+            android:layout_marginLeft="@dimen/space_2"
+            android:layout_marginStart="@dimen/space_2"
             android:contentDescription="@string/reco_fullscreen"
-            android:padding="7dp"
+            android:padding="@dimen/touch_padding_icon_36"
             android:src="@drawable/ic_reco_fullscreen_white" />
 
+        <!-- M112：宽度由 wrap_content（约 20dp）改为固定 48dp，达到触控下限；
+             高度同样提到 48dp（原 36dp），gravity=center 保证 "1x" 仍居中显示 -->
         <TextView
             android:id="@+id/tv_reco_speed"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
+            android:layout_width="@dimen/reco_speed_width"
+            android:layout_height="@dimen/touch_min"
+            android:layout_marginLeft="@dimen/space_2"
+            android:layout_marginStart="@dimen/space_2"
+            android:clickable="true"
+            android:contentDescription="@string/reco_speed"
+            android:focusable="true"
             android:gravity="center"
-            android:layout_marginLeft="2dp"
-            android:layout_marginStart="2dp"
-            android:paddingLeft="4dp"
-            android:paddingRight="4dp"
             android:text="1x"
             android:textColor="#FFFFFFFF"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:clickable="true"
-            android:focusable="true"
-            android:contentDescription="@string/reco_speed" />
+            android:textSize="13sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
     <!-- 底部信息 -->
@@ -276,7 +274,7 @@
             android:shadowColor="#FF000000"
             android:shadowRadius="4"
             android:textColor="#FFFFFFFF"
-            android:textSize="15sp" />
+            android:textSize="16sp" />
 
         <TextView
             android:id="@+id/tv_reco_meta"

@@ -13,5 +13,11 @@
     <!-- M108-fix：竖屏必须提供同名默认值。此前 reco_speed_width 只在 values-land 定义，
          竖屏点击「全屏」时 applyOrientationUi(true) 在资源配置还是竖屏的瞬间读取该资源，
          Resources$NotFoundException 直接闪退（自动旋转到横屏视频同路径） -->
-    <dimen name="reco_speed_width">40dp</dimen>
+    <!-- M112：40dp → 48dp。倍速是文字按钮（"1x"），wrap_content 时只有约 20dp 宽，
+         远低于 48dp 触控下限，且与全屏按钮仅隔 2dp 极易误触。统一到 touch_min。 -->
+    <dimen name="reco_speed_width">48dp</dimen>
+    <!-- M112：右缘把手原 12dp 宽，手指几乎点不中。加宽到 24dp。 -->
+    <dimen name="reco_handle_width">24dp</dimen>
+    <!-- M112：进度条轨道原 3dp，太细难以拖动。加粗到 5dp。 -->
+    <dimen name="reco_seekbar_track">5dp</dimen>
 </resources>

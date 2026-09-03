@@ -108,6 +108,7 @@ public class AuthorFavoriteActivity extends BaseAppCompatActivity {
         });
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setHasFixedSize(true);
         recyclerView.setAdapter(mAdapter);
 
         helper = new LoadViewHelper(recyclerView);

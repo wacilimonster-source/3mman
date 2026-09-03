@@ -1,7 +1,6 @@
 package com.m3man.ui.mman9video.play;
 
 import android.net.Uri;
-import android.os.Build;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -9,6 +8,7 @@ import android.widget.TextView;
 
 import com.m3man.R;
 import com.m3man.utils.GlideApp;
+import com.sdsmdg.tastytoast.TastyToast;
 
 import cn.jzvd.JZVideoPlayer;
 import cn.jzvd.JZVideoPlayerStandard;
@@ -37,11 +37,50 @@ public class JiaoZiVideoPlayerActivity extends BasePlayVideo {
                 playVideoPresenter.loadVideoUrl(v9MmanItem);
             }
         });
-        speedBtn.setOnClickListener(v -> {
-            speedIndex = (speedIndex + 1) % SPEED_OPTIONS.length;
-            speedBtn.setText(SPEED_LABELS[speedIndex]);
-            jzVideoPlayerStandard.setPlaybackSpeed(SPEED_OPTIONS[speedIndex]);
-        });
+        speedBtn.setOnClickListener(v -> cyclePlaybackSpeed());
+    }
+
+    /**
+     * 切到下一档倍速。
+     * <p>
+     * 修复「状态欺骗」：旧实现无条件改按钮标签再尝试设置，
+     * 而 {@link Mman9VideoPlayer#setPlaybackSpeed} 在「暂停态 / 非 MediaPlayer 通道」
+     * 下会静默返回 false，导致按钮显示 1.5x、实际仍是 1x。
+     * 现在先探测能力，失败则保持原标签并给出明确原因。
+     */
+    private void cyclePlaybackSpeed() {
+        if (jzVideoPlayerStandard == null || speedBtn == null) {
+            return;
+        }
+        int reason = jzVideoPlayerStandard.getSpeedUnsupportedReason();
+        if (reason != 0) {
+            showSpeedUnsupportedHint(reason);
+            return;
+        }
+        int next = (speedIndex + 1) % SPEED_OPTIONS.length;
+        if (!jzVideoPlayerStandard.setPlaybackSpeed(SPEED_OPTIONS[next])) {
+            // 极端情况：探测通过但实际设置失败，同样回滚，绝不让标签与实际速度脱节
+            showSpeedUnsupportedHint(jzVideoPlayerStandard.getSpeedUnsupportedReason());
+            return;
+        }
+        speedIndex = next;
+        speedBtn.setText(SPEED_LABELS[speedIndex]);
+    }
+
+    private void showSpeedUnsupportedHint(int reason) {
+        int resId;
+        switch (reason) {
+            case Mman9VideoPlayer.SPEED_UNSUPPORTED_NOT_PLAYING:
+                resId = R.string.speed_only_while_playing;
+                break;
+            case Mman9VideoPlayer.SPEED_UNSUPPORTED_ENGINE:
+                resId = R.string.speed_unsupported_engine;
+                break;
+            default:
+                resId = R.string.speed_unsupported;
+                break;
+        }
+        showMessage(getString(resId), TastyToast.INFO);
     }
 
     @Override
@@ -54,12 +93,13 @@ public class JiaoZiVideoPlayerActivity extends BasePlayVideo {
             // M27：thumbImageView.setImageURI 不支持网络图，改用 Glide 加载（与 ExoMediaPlayerActivity 一致）
             GlideApp.with(this).load(Uri.parse(thumImgUrl)).into(jzVideoPlayerStandard.thumbImageView);
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            speedBtn.setVisibility(View.VISIBLE);
-        }
+        // minSdk 28 > M，无需再判版本；倍速真正的可用性在点击时由
+        // Mman9VideoPlayer#getSpeedUnsupportedReason() 实时探测。
+        speedBtn.setVisibility(View.VISIBLE);
+        // 新视频起播时播放器本身就是 1x，这里只同步 UI 状态。
+        // 不要在此时调用 setPlaybackSpeed —— 此刻尚未进入播放态，调用必然失败。
         speedIndex = 0;
         speedBtn.setText(SPEED_LABELS[speedIndex]);
-        jzVideoPlayerStandard.setPlaybackSpeed(SPEED_OPTIONS[speedIndex]);
     }
 
     @Override

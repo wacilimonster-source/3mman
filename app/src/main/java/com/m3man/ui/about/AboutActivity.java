@@ -82,7 +82,7 @@ public class AboutActivity extends MvpActivity<AboutView, AboutPresenter> implem
         String currentYear = dateFormat.format(new java.util.Date());
         mCopyrightTextView.setText(String.format(getResources().getString(R.string.about_copyright), currentYear));
 
-        alertDialog = DialogUtils.initLoadingDialog(this, "正在检查更新，请稍后...");
+        alertDialog = DialogUtils.initLoadingDialog(this, getString(R.string.about_checking_update_loading));
         presenter.countCacheFileSize(getString(R.string.about_item_clean_cache));
     }
 
@@ -101,7 +101,7 @@ public class AboutActivity extends MvpActivity<AboutView, AboutPresenter> implem
                         showChoiceCacheCleanDialog();
                     }
                 })
-                .addItemView(mAboutGroupListView.createItemView("常见问题"), new View.OnClickListener() {
+                .addItemView(mAboutGroupListView.createItemView(getString(R.string.about_common_questions)), new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
                         showCommonQuestionsDialog();
@@ -112,7 +112,7 @@ public class AboutActivity extends MvpActivity<AboutView, AboutPresenter> implem
                     public void onClick(View v) {
                         int versionCode = ApkVersionUtils.getVersionCode(AboutActivity.this);
                         if (versionCode == 0) {
-                            showMessage("获取应用本版失败", TastyToast.ERROR);
+                            showMessage(getString(R.string.about_get_version_failed), TastyToast.ERROR);
                             return;
                         }
                         alertDialog.show();
@@ -125,13 +125,13 @@ public class AboutActivity extends MvpActivity<AboutView, AboutPresenter> implem
 
     private void showCommonQuestionsDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.MyDialogTheme);
-        builder.setTitle("常见问题");
+        builder.setTitle(getString(R.string.about_common_questions));
         View view = View.inflate(this, R.layout.layout_common_questions, null);
         commonQuestionTextView = view.findViewById(R.id.tv_common_question);
-        Markwon.setMarkdown(commonQuestionTextView, "**加载中...**");
+        Markwon.setMarkdown(commonQuestionTextView, getString(R.string.about_loading_md));
         builder.setView(view);
         builder.setCancelable(false);
-        builder.setPositiveButton("知道了", new DialogInterface.OnClickListener() {
+        builder.setPositiveButton(getString(R.string.about_got_it), new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 commonQuestionTextView=null;
@@ -144,9 +144,9 @@ public class AboutActivity extends MvpActivity<AboutView, AboutPresenter> implem
 
     private void showChoiceCacheCleanDialog() {
         final String[] items = new String[]{
-                "网页缓存(" + AppCacheUtils.getRxcacheFileSizeStr(this) + ")",
-                "视频缓存(" + AppCacheUtils.getVideoCacheFileSizeStr(this) + ")",
-                "图片缓存(" + AppCacheUtils.getGlidecacheFileSizeStr(this) + ")"
+                getString(R.string.about_cache_web, AppCacheUtils.getRxcacheFileSizeStr(this)),
+                getString(R.string.about_cache_video, AppCacheUtils.getVideoCacheFileSizeStr(this)),
+                getString(R.string.about_cache_image, AppCacheUtils.getGlidecacheFileSizeStr(this))
         };
         final QMUIDialog.MultiCheckableDialogBuilder builder = new QMUIDialog.MultiCheckableDialogBuilder(this)
                 .setCheckedItems(new int[]{1})
@@ -156,14 +156,14 @@ public class AboutActivity extends MvpActivity<AboutView, AboutPresenter> implem
 
                     }
                 });
-        builder.setTitle("请选择要清除的缓存");
-        builder.addAction("取消", new QMUIDialogAction.ActionListener() {
+        builder.setTitle(getString(R.string.about_choose_cache_title));
+        builder.addAction(getString(R.string.common_cancel), new QMUIDialogAction.ActionListener() {
             @Override
             public void onClick(QMUIDialog dialog, int index) {
                 dialog.dismiss();
             }
         });
-        builder.addAction("清除", new QMUIDialogAction.ActionListener() {
+        builder.addAction(getString(R.string.about_clear), new QMUIDialogAction.ActionListener() {
             @Override
             public void onClick(QMUIDialog dialog, int index) {
                 actionCleanFile(builder);
@@ -191,7 +191,7 @@ public class AboutActivity extends MvpActivity<AboutView, AboutPresenter> implem
             }
         }
         if (fileDirList.size() == 0) {
-            showMessage("未选择任何条目，无法清除缓存", TastyToast.INFO);
+            showMessage(getString(R.string.about_no_cache_selected), TastyToast.INFO);
             return;
         }
         presenter.cleanCacheFile(fileDirList);
@@ -214,9 +214,9 @@ public class AboutActivity extends MvpActivity<AboutView, AboutPresenter> implem
 
     private void showUpdateDialog(final UpdateVersion updateVersion) {
         new QMUIDialog.MessageDialogBuilder(this)
-                .setTitle("发现新版本--v" + updateVersion.getVersionName())
+                .setTitle(getString(R.string.about_found_new_version, updateVersion.getVersionName()))
                 .setMessage(updateVersion.getUpdateMessage())
-                .addAction("立即更新", new QMUIDialogAction.ActionListener() {
+                .addAction(getString(R.string.about_update_now), new QMUIDialogAction.ActionListener() {
                     @Override
                     public void onClick(QMUIDialog dialog, int index) {
                         dialog.dismiss();
@@ -225,7 +225,7 @@ public class AboutActivity extends MvpActivity<AboutView, AboutPresenter> implem
                         startActivityWithAnimation(intent);
                     }
                 })
-                .addAction("稍后更新", new QMUIDialogAction.ActionListener() {
+                .addAction(getString(R.string.about_update_later), new QMUIDialogAction.ActionListener() {
                     @Override
                     public void onClick(QMUIDialog dialog, int index) {
                         dialog.dismiss();
@@ -244,7 +244,7 @@ public class AboutActivity extends MvpActivity<AboutView, AboutPresenter> implem
     @Override
     public void noNeedUpdate() {
         AppLog.i("UpdateCheck", "[关于页]当前已是最新版本");
-        showMessage("当前已是最新版本", TastyToast.SUCCESS);
+        showMessage(getString(R.string.about_already_latest), TastyToast.SUCCESS);
     }
 
     @Override

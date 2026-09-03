@@ -29,6 +29,7 @@ import com.m3man.service.DownloadVideoService;
 import com.m3man.ui.MvpFragment;
 import com.m3man.utils.DownloadManager;
 import com.m3man.utils.SDCardUtils;
+import com.m3man.utils.UndoSnackbar;
 import com.m3man.service.HlsDownloadService;
 import com.m3man.ui.mman9video.play.PlayVideoPresenter;
 
@@ -167,6 +168,7 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
         mDownloadAdapter = new DownloadVideoAdapter(R.layout.item_right_menu_delete_download, mV9MmanItemList);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        recyclerView.setHasFixedSize(true);
         // L-fix（M108 修正位置）：关闭默认 item 动画，避免高频进度刷新时整行淡出淡入、
         // 缩略图反复缩放。必须在 ButterKnife.bind 之后设置；设为 null 后 getItemAnimator()
         // 返回 null，原先的 getItemAnimator().setChangeDuration(0) 会 NPE，故直接移除。
@@ -183,7 +185,7 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
                 }
                 // 下载未完成时点击整行不再进入播放，避免播放半成品文件或重新解析远程地址。
                 if (item.getStatus() != FileDownloadStatus.completed) {
-                    showMessage("视频尚未下载完成，请使用右侧控制按钮暂停、继续或重试", TastyToast.INFO);
+                    showMessage(getString(R.string.downloading_not_complete), TastyToast.INFO);
                 }
             }
         });
@@ -201,25 +203,41 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
                     SwipeItemLayout swipeItemLayout = (SwipeItemLayout) view.getParent();
                     swipeItemLayout.close();
                     if (view.getId() == R.id.right_menu_delete) {
-                    cancelHlsDownload(v9MmanItem);
-                } else if (view.getId() == R.id.iv_download_control) {
-                    if (v9MmanItem.getStatus() == FileDownloadStatus.error
-                            || v9MmanItem.getStatus() == FileDownloadStatus.paused) {
-                        // 失败/暂停记录点控制按钮 → 重新下载
-                        startHlsReDownload(v9MmanItem);
-                    } else {
-                        // HLS 下载中点控制按钮 → 暂停并保留记录
-                        pauseHlsDownload(v9MmanItem);
+                        // M112：取消/删除 HLS 下载同样给撤销窗口
+                        UndoSnackbar.confirmWithUndo(recyclerView, getString(R.string.downloading_canceled_task), getString(R.string.common_undo),
+                                new UndoSnackbar.Action() {
+                                    @Override
+                                    public void run() {
+                                        cancelHlsDownload(v9MmanItem);
+                                        presenter.loadDownloadingData();
+                                    }
+                                });
+                    } else if (view.getId() == R.id.iv_download_control) {
+                        if (v9MmanItem.getStatus() == FileDownloadStatus.error
+                                || v9MmanItem.getStatus() == FileDownloadStatus.paused) {
+                            // 失败/暂停记录点控制按钮 → 重新下载
+                            startHlsReDownload(v9MmanItem);
+                        } else {
+                            // HLS 下载中点控制按钮 → 暂停并保留记录
+                            pauseHlsDownload(v9MmanItem);
+                        }
+                        presenter.loadDownloadingData();
                     }
-                }
-                    presenter.loadDownloadingData();
                     return;
                 }
                 if (view.getId() == R.id.right_menu_delete) {
                     SwipeItemLayout swipeItemLayout = (SwipeItemLayout) view.getParent();
                     swipeItemLayout.close();
-                    presenter.deleteDownloadingTask(v9MmanItem);
-                    presenter.loadDownloadingData();
+                    // M112：删除下载任务不可逆（文件+记录一起没），给一次撤销机会；
+                    // 真正的删除延迟到 Snackbar 超时且用户未撤销时才执行
+                    UndoSnackbar.confirmWithUndo(recyclerView, getString(R.string.downloading_deleted_task), getString(R.string.common_undo),
+                            new UndoSnackbar.Action() {
+                                @Override
+                                public void run() {
+                                    presenter.deleteDownloadingTask(v9MmanItem);
+                                    presenter.loadDownloadingData();
+                                }
+                            });
                 } else if (view.getId() == R.id.iv_download_control) {
                     if (FileDownloader.getImpl().isServiceConnected()) {
                         if (v9MmanItem.getStatus() == FileDownloadStatus.progress
@@ -247,7 +265,7 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
      * @param view       需要更新的view
      */
     private void showDownloadCheck(final V9MmanItem v9MmanItem, final View view) {
-        showDialog("请选择下载方式", new String[]{"继续下载", "重新下载"}, new DialogCheck() {
+        showDialog(getString(R.string.downloading_choose_download_method), new String[]{getString(R.string.downloading_continue_download), getString(R.string.downloading_redownload)}, new DialogCheck() {
             @Override
             public void onCheck(int index) {
                 startDownload(v9MmanItem, view, index != 0);
@@ -325,7 +343,7 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
 
     @Override
     public String getTitle() {
-        return "正在下载";
+        return getString(R.string.downloading_title);
     }
 
     @Override
@@ -350,7 +368,7 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
             item.setStatus(FileDownloadStatus.paused);
             presenter.updateV9MmanItem(item);
         }
-        showMessage("已暂停下载", TastyToast.INFO);
+        showMessage(getString(R.string.downloading_paused), TastyToast.INFO);
     }
 
     private void cancelHlsDownload(V9MmanItem item) {
@@ -369,7 +387,7 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
     /** M41：失败的分分钟(HLS)记录重新下载（与「下载完成」页重新下载走同一通道） */
     private void startHlsReDownload(V9MmanItem item) {
         if (item == null || item.getVideoResult() == null || TextUtils.isEmpty(item.getVideoResult().getVideoUrl())) {
-            showMessage("未解析到视频地址，无法重新下载", TastyToast.INFO);
+            showMessage(getString(R.string.downloading_no_video_url), TastyToast.INFO);
             return;
         }
         String savePath = item.getDownLoadPath(presenter.getCustomDownloadVideoDirPath());
@@ -381,7 +399,7 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
         serviceIntent.putExtra(HlsDownloadService.EXTRA_VIEW_KEY, item.getViewKey());
         serviceIntent.putExtra(HlsDownloadService.EXTRA_SAVE_PATH, savePath);
         getContext().startService(serviceIntent);
-        showMessage("已加入后台下载", TastyToast.SUCCESS);
+        showMessage(getString(R.string.downloading_added_to_background), TastyToast.SUCCESS);
     }
 
     private void updateHlsItemProgress(String viewKey, int progress) {

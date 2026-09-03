@@ -113,6 +113,7 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
         mDownloadAdapter = new DownloadVideoAdapter(R.layout.item_right_menu_delete_download, mV9MmanItemList);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        recyclerView.setHasFixedSize(true);
         recyclerView.setAdapter(mDownloadAdapter);
         mDownloadAdapter.setEmptyView(R.layout.empty_view, recyclerView);
         mDownloadAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
@@ -152,16 +153,16 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
 
     private void showDeleteFileDialog(final V9MmanItem v9MmanItem) {
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle("提示");
-        builder.setMessage("是否连同删除本地文件？");
-        builder.setNegativeButton("否", new DialogInterface.OnClickListener() {
+        builder.setTitle(getString(R.string.finished_tip_title));
+        builder.setMessage(getString(R.string.finished_delete_local_file_msg));
+        builder.setNegativeButton(getString(R.string.finished_no), new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 presenter.deleteDownloadedTask(v9MmanItem, false);
                 presenter.loadFinishedData();
             }
         });
-        builder.setPositiveButton("是", new DialogInterface.OnClickListener() {
+        builder.setPositiveButton(getString(R.string.finished_yes), new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 presenter.deleteDownloadedTask(v9MmanItem, true);
@@ -195,10 +196,10 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
 
     private void showReDownloadFileDialog(final V9MmanItem v9MmanItem) {
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle("提示");
-        builder.setMessage("文件不存在，可能已经被删除，要重新下载？");
-        builder.setNegativeButton("取消", null);
-        builder.setPositiveButton("确定", new DialogInterface.OnClickListener() {
+        builder.setTitle(getString(R.string.finished_tip_title));
+        builder.setMessage(getString(R.string.finished_file_missing_redownload_msg));
+        builder.setNegativeButton(getString(R.string.common_cancel), null);
+        builder.setPositiveButton(getString(R.string.sure), new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 if (PlayVideoPresenter.isPornySource(v9MmanItem)) {
@@ -226,7 +227,7 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
 
     private void startHlsReDownload(V9MmanItem item) {
         if (item.getVideoResult() == null || TextUtils.isEmpty(item.getVideoResult().getVideoUrl())) {
-            showMessage("未解析到视频地址，无法重新下载", TastyToast.INFO);
+            showMessage(getString(R.string.finished_no_video_url), TastyToast.INFO);
             return;
         }
         String customDir = presenter.getCustomDownloadVideoDirPath();
@@ -239,7 +240,7 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
         serviceIntent.putExtra(HlsDownloadService.EXTRA_VIEW_KEY, item.getViewKey());
         serviceIntent.putExtra(HlsDownloadService.EXTRA_SAVE_PATH, savePath);
         getContext().startService(serviceIntent);
-        showMessage("已加入后台下载", TastyToast.SUCCESS);
+        showMessage(getString(R.string.finished_added_to_background), TastyToast.SUCCESS);
     }
 
     @Override
@@ -253,7 +254,7 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
 
     @Override
     public String getTitle() {
-        return "下载完成";
+        return getString(R.string.finished_title);
     }
 
     @Override

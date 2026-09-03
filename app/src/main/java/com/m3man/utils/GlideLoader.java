@@ -6,6 +6,7 @@ import androidx.annotation.NonNull;
 import android.widget.ImageView;
 
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions;
+import com.bumptech.glide.request.RequestOptions;
 import com.m3man.R;
 
 /**
@@ -26,7 +27,7 @@ public final class GlideLoader {
     }
 
     /**
-     * 加载封面图（带 tag 防抖、占位图、crossFade、SmartCoverTransformation）
+     * 加载封面图（带 tag 防抖、占位图、错误图、crossFade、SmartCoverTransformation）
      *
      * @param imageView 目标 ImageView
      * @param coverUrl  封面 URL
@@ -43,11 +44,24 @@ public final class GlideLoader {
 
         Uri uri = Uri.parse(coverUrl);
         // M77：智能封面变换——近似 16:9 直接填满；竖版/异形封面画模糊底+原图居中，杜绝细条留白与拉伸
+        // M112：补 error 占位 + 按目标 View 尺寸 override——
+        //   1) 此前无 error 图，封面 404/超时后 ImageView 会一直停留在复用残留的旧图上，
+        //      造成「张冠李戴」的封面错位；
+        //   2) 此前无 override，Glide 按原图尺寸解码（部分封面原图远大于屏幕），
+        //      大图造成单 item 解码卡顿与内存峰值。
+        RequestOptions options = new RequestOptions()
+                .placeholder(placeholderRes)
+                .error(placeholderRes)
+                .transform(new SmartCoverTransformation());
+        int w = imageView.getWidth();
+        int h = imageView.getHeight();
+        if (w > 0 && h > 0) {
+            options = options.override(w, h);
+        }
         GlideApp.with(imageView)
                 .load(uri)
-                .placeholder(placeholderRes)
+                .apply(options)
                 .transition(new DrawableTransitionOptions().crossFade(CROSS_FADE_DURATION))
-                .transform(new SmartCoverTransformation())
                 .into(imageView);
     }
 

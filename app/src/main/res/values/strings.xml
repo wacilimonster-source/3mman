@@ -183,4 +183,253 @@
     <string name="reco_records_tab_action">行为</string>
     <string name="reco_records_empty">暂无记录</string>
     <string name="reco_records_close">关闭</string>
+
+    <!-- 倍速：不可用时要给用户明确原因，不能静默失败（否则按钮标签与实际速度脱节） -->
+    <string name="speed_unsupported">当前设备不支持倍速播放</string>
+    <string name="speed_only_while_playing">请先开始播放，再调整倍速</string>
+    <string name="speed_unsupported_engine">当前播放通道不支持倍速</string>
+
+    <!-- M112：文案入库 -->
+    <!-- 设置页 -->
+    <string name="setting_testing_loading">测试中，请稍后...</string>
+    <string name="setting_moving_file_loading">移动文件中，请稍后...</string>
+    <string name="setting_reco_engine_loading">推荐引擎加载中…</string>
+    <string name="setting_reco_params_saved">推荐参数已保存</string>
+    <string name="setting_reco_memory_cleared">推荐记忆已清除</string>
+    <string name="setting_not_set">未设置</string>
+    <string name="setting_long_press_set">长按设置</string>
+    <string name="setting_custom_download_dir">自定义视频下载文件夹</string>
+    <string name="setting_clear_unfinished_hint">需先清空所有未完成下载，建议使用默认</string>
+    <string name="setting_download_save_location">下载保存位置</string>
+    <string name="setting_scoped_storage_hint">Android 10+ 由系统管辖公共存储：视频下载后存入「相册 / Movies」并可在文件管理器查看，无需手动选目录</string>
+    <string name="setting_reco_prefetch">推荐页预加载</string>
+    <string name="setting_disable_auto_release_memory">禁用自动释放内存功能</string>
+    <string name="setting_download_without_wifi">非Wi-Fi环境下下载视频</string>
+    <string name="setting_local_favorite">本地收藏（无需登录）</string>
+    <string name="setting_switched_local_favorite">已切换为本地收藏</string>
+    <string name="setting_switched_server_favorite">已切换为服务器收藏</string>
+    <string name="setting_unfinished_download_block">当前有未下载完成视频，无法更改</string>
+    <string name="setting_pick_folder">选择文件夹</string>
+    <string name="setting_cannot_pick_same_dir">不能选择原目录哦</string>
+    <string name="setting_save_success">设置成功</string>
+    <string name="setting_move_files_title">移动文件</string>
+    <string name="setting_move_files_message">当前已选择新文件夹路径：%s\n发现原下载文件夹有已下载完成视频，是否移动到新文件夹？\nPS:不移动则无法在下载完成界面打开文件</string>
+    <string name="setting_move">移动</string>
+    <string name="setting_dont_move">不移动</string>
+    <string name="setting_addr_title_mman">9*mman视频地址设置</string>
+    <string name="setting_addr_title_porny">91porny地址设置</string>
+    <string name="setting_addr_title_default">地址设置</string>
+    <string name="setting_address_empty_error">地址不能为空哟！</string>
+    <string name="setting_tip_title">温馨提示</string>
+    <string name="setting_test_not_success_confirm">地址还未测试成功，确认设置吗？</string>
+    <string name="setting_set_button">设置</string>
+    <string name="setting_address_format_error">设置失败，输入地址格式不正确，(不要忘了最后面的“/”)</string>
+    <string name="setting_forbidden_release_memory_tip">为了获得较好的体验，新版本程序占用内存较高，这可能导致后台运行而系统内存不足时成为系统回收内存的优先对象（尤其在低内存手机上），因此我做了自动释放内存功能，但这同时也会使体验有所下降，你可以强制关闭次功能，建议开启</string>
+    <string name="setting_got_it">知道了</string>
+    <string name="setting_night_follow">跟随系统</string>
+    <string name="setting_night_on">始终夜间</string>
+    <string name="setting_night_off">始终日间</string>
+    <string name="setting_playback_engine_title">播放引擎选择</string>
+    <string name="setting_exit_account_confirm_msg">退出当前帐号？</string>
+    <string name="setting_exit">退出</string>
+
+    <!-- 我的页 -->
+    <string name="mine_view_log">查看日志</string>
+    <string name="mine_play_ui_section">播放界面</string>
+    <string name="mine_status_normal">正常</string>
+    <string name="mine_status_abnormal">异常</string>
+    <string name="mine_logout_confirm_msg">退出当前帐号？</string>
+    <string name="mine_exit">退出</string>
+    <string name="mine_run_log_title">运行日志</string>
+    <string name="mine_no_log">暂无日志</string>
+    <string name="mine_copy_all">复制全部</string>
+    <string name="mine_log_copied">日志已复制（共 %d 行），反馈问题时请粘贴给我</string>
+
+    <!-- 更新页 -->
+    <string name="update_invalid_info">更新信息无效</string>
+    <string name="update_updating_to">正在更新到 v%s</string>
+    <string name="update_downloading_package">正在为你下载最新安装包…</string>
+    <string name="update_clean_old_apk_failed">无法清理旧安装包，请重试</string>
+    <string name="update_status_ready_download">准备下载…</string>
+    <string name="update_status_paused">已暂停</string>
+    <string name="update_download_failed">下载失败：%s</string>
+    <string name="update_status_downloading">下载中</string>
+    <string name="update_verifying">校验安装包…</string>
+    <string name="update_missing_sha256">更新信息缺少有效 SHA-256，已阻止安装</string>
+    <string name="update_verify_failed">安装包校验失败，可能已被篡改，请重试</string>
+    <string name="update_status_failed">失败</string>
+    <string name="update_apk_not_exist">安装包不存在，请重试</string>
+    <string name="update_starting_install">正在启动安装…</string>
+    <string name="update_install_started">已启动安装，请按系统提示完成</string>
+    <string name="update_cannot_start_install">无法启动安装程序：%s</string>
+    <string name="update_enable_unknown_install_manual">请手动在系统设置中开启「安装未知应用」</string>
+    <string name="update_need_permission_status">需要开启「安装未知应用」权限后才能安装</string>
+
+    <!-- 下载完成 / 正在下载 -->
+    <string name="finished_tip_title">提示</string>
+    <string name="finished_delete_local_file_msg">是否连同删除本地文件？</string>
+    <string name="finished_no">否</string>
+    <string name="finished_yes">是</string>
+    <string name="finished_file_missing_redownload_msg">文件不存在，可能已经被删除，要重新下载？</string>
+    <string name="finished_no_video_url">未解析到视频地址，无法重新下载</string>
+    <string name="finished_added_to_background">已加入后台下载</string>
+    <string name="finished_title">下载完成</string>
+    <string name="downloading_not_complete">视频尚未下载完成，请使用右侧控制按钮暂停、继续或重试</string>
+    <string name="downloading_canceled_task">已取消该下载任务</string>
+    <string name="downloading_deleted_task">已删除下载任务</string>
+    <string name="downloading_choose_download_method">请选择下载方式</string>
+    <string name="downloading_continue_download">继续下载</string>
+    <string name="downloading_redownload">重新下载</string>
+    <string name="downloading_title">正在下载</string>
+    <string name="downloading_paused">已暂停下载</string>
+    <string name="downloading_no_video_url">未解析到视频地址，无法重新下载</string>
+    <string name="downloading_added_to_background">已加入后台下载</string>
+
+    <!-- 登录页 -->
+    <string name="login_loading">登录中，请稍后...</string>
+    <string name="login_enter_username">请填写用户名</string>
+    <string name="login_enter_password">请填写密码</string>
+    <string name="login_enter_captcha">请填写验证码</string>
+    <string name="login_tip_title">温馨提示</string>
+    <string name="login_need_address_msg">还未设置91mman视频地址,无法登录或注册，现在去设置？</string>
+    <string name="login_go_set">去设置</string>
+    <string name="login_exit">退出</string>
+    <string name="login_success">登录成功</string>
+    <string name="login_preparing_captcha">正在准备验证码识别组件…</string>
+    <string name="login_captcha_prepare_failed">验证码识别组件准备失败，请手动输入验证码</string>
+    <string name="login_captcha_recognize_failed">验证码识别失败，请手动输入</string>
+    <string name="login_captcha_load_failed">无法加载验证码,点击刷新重试</string>
+    <string name="login_register_stopped">注册功能已停止支持，请去9*mman官网注册，之后再来登录！</string>
+    <string name="login_got_it">知道了</string>
+
+    <!-- 关于页 -->
+    <string name="about_checking_update_loading">正在检查更新，请稍后...</string>
+    <string name="about_common_questions">常见问题</string>
+    <string name="about_get_version_failed">获取应用本版失败</string>
+    <string name="about_loading_md">**加载中...**</string>
+    <string name="about_got_it">知道了</string>
+    <string name="about_cache_web">网页缓存(%s)</string>
+    <string name="about_cache_video">视频缓存(%s)</string>
+    <string name="about_cache_image">图片缓存(%s)</string>
+    <string name="about_choose_cache_title">请选择要清除的缓存</string>
+    <string name="about_clear">清除</string>
+    <string name="about_no_cache_selected">未选择任何条目，无法清除缓存</string>
+    <string name="about_found_new_version">发现新版本--v%s</string>
+    <string name="about_update_now">立即更新</string>
+    <string name="about_update_later">稍后更新</string>
+    <string name="about_already_latest">当前已是最新版本</string>
+
+    <!-- 收藏页 -->
+    <string name="favorite_deleting_loading">删除中，请稍后...</string>
+    <string name="favorite_canceled">已取消收藏</string>
+    <string name="favorite_info_error">信息错误，无法删除</string>
+    <string name="favorite_load_more_failed">加载更多失败</string>
+    <string name="favorite_no_more">没有更多数据了</string>
+    <string name="favorite_loading_hard">拼命加载中...</string>
+    <string name="favorite_loading">加载中...</string>
+    <string name="favorite_empty_local">还没有本地收藏，去收藏喜欢的视频吧</string>
+    <string name="favorite_load_failed_retry">加载失败，点击重试</string>
+    <string name="favorite_cancel_failed">取消收藏失败</string>
+
+    <!-- 91porny 收藏页 -->
+    <string name="porny_fav_loading">加载中...</string>
+    <string name="porny_fav_empty">还没有本地收藏，去搜索页收藏吧</string>
+    <string name="porny_fav_load_failed_retry">加载失败，点击重试</string>
+    <string name="porny_fav_cancel_title">取消收藏</string>
+    <string name="porny_fav_cancel_msg">确定取消收藏该视频吗？</string>
+    <string name="porny_fav_canceled">已取消收藏</string>
+    <string name="porny_fav_cancel_failed">取消收藏失败</string>
+
+    <!-- 代理设置页 -->
+    <string name="proxy_testing_loading">测试中，请稍候...</string>
+    <string name="proxy_data_error">数据出错了</string>
+    <string name="proxy_no_socket">暂不支持socket代理</string>
+    <string name="proxy_port_error">无法设置，代理端口错误，请检查（有效范围 1-65535）</string>
+    <string name="proxy_save_success">设置成功</string>
+    <string name="proxy_address_invalid">端口号或IP地址不正确（端口有效范围 1-65535）</string>
+    <string name="proxy_tip_title">温馨提示</string>
+    <string name="proxy_need_address_msg">还未设置91mman视频地址,无法测试，现在去设置？</string>
+    <string name="proxy_go_set">去设置</string>
+
+    <!-- 主页 -->
+    <string name="main_enable_porny_source">请在设置中启用 91porny 源</string>
+    <string name="main_config_video_address">请先在设置中配置视频地址</string>
+    <string name="main_tip_title">温馨提示</string>
+    <string name="main_need_address_msg">还未设置对应地址，现在去设置？</string>
+    <string name="main_go_set">去设置</string>
+    <string name="main_create_dir_failed">创建下载目录失败了</string>
+    <string name="main_storage_perm_denied">你拒绝了读写存储卡权限，这将影响下载视频等功能！</string>
+    <string name="main_press_again_exit">再次点击退出程序</string>
+    <string name="main_found_new_version">发现新版本--v%s</string>
+    <string name="main_update_now">立即更新</string>
+    <string name="main_update_later">稍后更新</string>
+    <string name="main_ignore_version">该版本不再提示</string>
+    <string name="main_new_notice_title">新公告</string>
+    <string name="main_got_it">我知道了</string>
+
+    <!-- 通用按钮/动作 -->
+    <string name="common_cancel">取消</string>
+    <string name="common_undo">撤销</string>
+
+    <!-- 布局文案 -->
+    <string name="update_layout_title">正在更新</string>
+    <string name="update_layout_preparing">准备中…</string>
+    <string name="update_layout_permission_hint">去设置开启「安装未知应用」权限</string>
+    <string name="update_layout_retry">重试</string>
+    <string name="update_layout_later">稍后更新</string>
+    <string name="login_layout_account">帐号</string>
+    <string name="login_layout_password">密码</string>
+    <string name="login_layout_captcha">验证码</string>
+    <string name="login_layout_login">登     录</string>
+    <string name="login_layout_remember">记住密码</string>
+    <string name="login_layout_tips">Tips：验证码现已是必须的，请正确填写，同时已经不支持自动登录了（因为无法识别验证码）</string>
+    <string name="setting_addr_dialog_tip">提示：地址设置只需要主地址，不需要长长的一串，例如：你要设置百度为地址，现在你有地址https://www.baidu.com/s?wd=xxxxrsv_iqid=0xfea01101000018c1xxxxxxx,后面接着长长的一串东西，但是你不需要输入这么多，只需要输入第一个“/”之前的内容即可(包括“/”),所以我们最终设置的地址应该是：https://www.baidu.com/，以此类推。测试结果仅供参考</string>
+    <string name="setting_addr_dialog_hint">示例：https://www.baidu.com/</string>
+    <string name="register_layout_username">用户名</string>
+    <string name="register_layout_email">邮箱</string>
+    <string name="register_layout_password">密码</string>
+    <string name="register_layout_confirm_password">密码确认</string>
+    <string name="register_layout_captcha">验证码</string>
+    <string name="register_layout_register">注     册</string>
+    <string name="register_layout_tips">Tips:新帐号注册成功后，前几次登录或打开可能会导致程序异常退出（解析错误，新帐号数据结构不一样），这个不打算去做兼容了，请多登录打开程序几次后即可,验证码是非必须的,加载不出随便填</string>
+    <string name="register_layout_notice">注意：切勿频繁重复注册，否则可能所有帐号均被删除，且封禁IP</string>
+    <string name="error_view_message">请确认当前地址可访问，点击重试！</string>
+    <string name="proxy_layout_type">类型</string>
+    <string name="proxy_layout_delay">延迟</string>
+    <string name="proxy_layout_anonymous">匿名度</string>
+    <string name="comment_layout_sample">| 广州   级别:1  积分:0   注册:1小时前   视频:0   粉丝:0   关注:0</string>
+    <string name="comment_layout_sample2">在广州也能遇到这样的就好了</string>
+    <string name="comment_layout_time">(44分钟前)</string>
+    <string name="appreciate_layout_desc">如果你觉得项目还不错，请我喝杯咖啡，算是对我的认可和鼓励(保存图片打开扫一扫功能,从相册选择图片即可打赏或支付，请认准是GitHub上的apk安装包，否则可能被调包)。</string>
+    <string name="appreciate_layout_wechat">微信</string>
+    <string name="appreciate_layout_alipay">支付宝</string>
+    <string name="download_apk_pause">暂停</string>
+    <string name="download_apk_cancel">取消</string>
+    <string name="skip_layout_loading">加载中，请稍后...</string>
+    <string name="loading_layout_text">视频地址解析中...</string>
+
+    <!-- M112：下载状态文案 -->
+    <string name="download_status_completed">已完成</string>
+    <string name="download_status_converting">转换中</string>
+    <string name="download_status_paused">暂停中</string>
+    <string name="download_status_preparing">准备中</string>
+    <string name="download_status_started">开始下载</string>
+    <string name="download_status_connecting">连接中</string>
+    <string name="download_status_error">下载错误</string>
+    <string name="download_status_retry">重试中</string>
+    <string name="download_status_warn">警告</string>
+
+    <!-- M112：补充文案（首次扫描遗漏的用户可见串） -->
+    <string name="setting_addr_not_set">未设置</string>
+    <string name="login_register_stopped_msg">注册功能已停止支持，请去9*mman官网注册，之后再来登录！</string>
+    <string name="login_register_stopped_ok">知道了</string>
+
+    <!-- M112：无障碍 contentDescription（P2-7） -->
+    <string name="cd_captcha_image">验证码图片，点击可刷新</string>
+    <string name="cd_video_cover">视频封面</string>
+    <string name="cd_download_control">暂停或继续下载</string>
+    <string name="cd_qrcode_wechat">微信收款二维码</string>
+    <string name="cd_qrcode_alipay">支付宝收款二维码</string>
+    <string name="cd_apk_download_icon">应用下载</string>
+    <string name="cd_user_avatar">用户头像</string>
 </resources>

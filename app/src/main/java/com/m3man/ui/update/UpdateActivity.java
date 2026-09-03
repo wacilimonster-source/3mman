@@ -64,7 +64,7 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
 
         updateVersion = (UpdateVersion) getIntent().getSerializableExtra("updateVersion");
         if (updateVersion == null || TextUtils.isEmpty(updateVersion.getApkDownloadUrl())) {
-            showMessage("更新信息无效", TastyToast_ERROR());
+            showMessage(getString(R.string.update_invalid_info), TastyToast_ERROR());
             finish();
             return;
         }
@@ -78,9 +78,9 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
         btnRetry = findViewById(R.id.btn_update_retry);
         btnLater = findViewById(R.id.btn_update_later);
 
-        tvTitle.setText("正在更新到 v" + updateVersion.getVersionName());
+        tvTitle.setText(getString(R.string.update_updating_to, updateVersion.getVersionName()));
         tvMessage.setText(TextUtils.isEmpty(updateVersion.getUpdateMessage())
-                ? "正在为你下载最新安装包…" : updateVersion.getUpdateMessage());
+                ? getString(R.string.update_downloading_package) : updateVersion.getUpdateMessage());
 
         btnPermission.setOnClickListener(this);
         btnRetry.setOnClickListener(this);
@@ -150,13 +150,13 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
         // 更新包必须重新下载到干净文件，避免复用非空但已损坏的 APK。
         File f = new File(apkPath);
         if (f.exists() && !f.delete()) {
-            onDownloadError("无法清理旧安装包，请重试");
+            onDownloadError(getString(R.string.update_clean_old_apk_failed));
             return;
         }
         setState(State.DOWNLOADING);
         pb.setProgress(0);
         tvPercent.setText("0%");
-        tvStatus.setText("准备下载…");
+        tvStatus.setText(getString(R.string.update_status_ready_download));
         btnRetry.setVisibility(View.GONE);
         btnPermission.setVisibility(View.GONE);
 
@@ -188,7 +188,7 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
                             return;
                         }
                         runOnUiThread(() -> {
-                            tvStatus.setText("已暂停");
+                            tvStatus.setText(getString(R.string.update_status_paused));
                         });
                     }
 
@@ -201,7 +201,7 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
                         Logger.t(TAG).e("download error: " + msg);
                         AppLog.e(TAG, "更新包下载失败 url=" + updateVersion.getApkDownloadUrl()
                                 + " err=" + AppLog.cause(e));
-                        runOnUiThread(() -> onDownloadError("下载失败：" + msg));
+                        runOnUiThread(() -> onDownloadError(getString(R.string.update_download_failed, msg)));
                     }
 
                     @Override
@@ -223,13 +223,13 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
         runOnUiThread(() -> {
             pb.setProgress(percent);
             tvPercent.setText(percent + "%");
-            tvStatus.setText("下载中 " + speed + "  " + size);
+            tvStatus.setText(getString(R.string.update_status_downloading) + " " + speed + "  " + size);
         });
     }
 
     private void onDownloadCompleted() {
         setState(State.VERIFYING);
-        tvStatus.setText("校验安装包…");
+        tvStatus.setText(getString(R.string.update_verifying));
         pb.setProgress(100);
         tvPercent.setText("100%");
 
@@ -238,7 +238,7 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
         final File apkFile = new File(apkPath);
         if (TextUtils.isEmpty(expected)
                 || !expected.trim().matches("[0-9a-fA-F]{64}")) {
-            onDownloadError("更新信息缺少有效 SHA-256，已阻止安装");
+            onDownloadError(getString(R.string.update_missing_sha256));
             return;
         }
         new Thread(() -> {
@@ -248,7 +248,7 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
                     return;
                 }
                 if (!ok) {
-                    onDownloadError("安装包校验失败，可能已被篡改，请重试");
+                    onDownloadError(getString(R.string.update_verify_failed));
                     return;
                 }
                 proceedInstall(apkFile);
@@ -269,7 +269,7 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
         setState(State.ERROR);
         tvStatus.setText(msg);
         pb.setProgress(0);
-        tvPercent.setText("失败");
+        tvPercent.setText(getString(R.string.update_status_failed));
         btnRetry.setVisibility(View.VISIBLE);
         AppLog.e(TAG, "更新失败: " + msg);
         showMessage(msg, TastyToast_ERROR());
@@ -279,11 +279,11 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
 
     private void installApk(File file) {
         if (file == null || !file.exists()) {
-            onDownloadError("安装包不存在，请重试");
+            onDownloadError(getString(R.string.update_apk_not_exist));
             return;
         }
         setState(State.INSTALLING);
-        tvStatus.setText("正在启动安装…");
+        tvStatus.setText(getString(R.string.update_starting_install));
 
         Uri uri;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -300,7 +300,7 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
         intent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
         try {
             startActivity(intent);
-            showMessage("已启动安装，请按系统提示完成", TastyToast_SUCCESS());
+            showMessage(getString(R.string.update_install_started), TastyToast_SUCCESS());
             // 安装界面会接管前台，稍后关闭本页
             finish();
         } catch (Throwable e1) {
@@ -311,10 +311,10 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
                 v.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 v.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(v);
-                showMessage("已启动安装，请按系统提示完成", TastyToast_SUCCESS());
+                showMessage(getString(R.string.update_install_started), TastyToast_SUCCESS());
                 finish();
             } catch (Throwable e2) {
-                onDownloadError("无法启动安装程序：" + e2.getMessage());
+                onDownloadError(getString(R.string.update_cannot_start_install, e2.getMessage()));
             }
         }
     }
@@ -347,7 +347,7 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
                     intent.setData(Uri.parse("package:" + getPackageName()));
                     startActivityForResult(intent, REQ_INSTALL_PERMISSION);
                 } catch (Throwable e2) {
-                    showMessage("请手动在系统设置中开启「安装未知应用」", TastyToast_ERROR());
+                    showMessage(getString(R.string.update_enable_unknown_install_manual), TastyToast_ERROR());
                 }
             }
         }
@@ -360,7 +360,7 @@ public class UpdateActivity extends BaseAppCompatActivity implements View.OnClic
         runOnUiThread(() -> {
             switch (s) {
                 case NEED_PERMISSION:
-                    tvStatus.setText("需要开启「安装未知应用」权限后才能安装");
+                    tvStatus.setText(getString(R.string.update_need_permission_status));
                     btnPermission.setVisibility(View.VISIBLE);
                     btnRetry.setVisibility(View.GONE);
                     break;

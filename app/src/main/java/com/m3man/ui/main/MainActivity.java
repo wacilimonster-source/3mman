@@ -288,7 +288,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
             case 2:
                 // 分分钟固定嵌入主界面，不再启动新 Activity
                 if (!presenter.isPornyEnabled()) {
-                    showMessage("请在设置中启用 91porny 源", TastyToast.INFO);
+                    showMessage(getString(R.string.main_enable_porny_source), TastyToast.INFO);
                 }
                 if (mSearchPornyFragment == null) {
                     mSearchPornyFragment = SearchPornyFragment.getInstance();
@@ -335,7 +335,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                 firstTabShow = Tags.TAG_PRON_9_VIDEO;
                 presenter.setMainFirstTabShow(Tags.TAG_PRON_9_VIDEO);
                 if (presenter.haveNotSetV9pronAddress()) {
-                    showMessage("请先在设置中配置视频地址", TastyToast.INFO);
+                    showMessage(getString(R.string.main_config_video_address), TastyToast.INFO);
                 }
                 break;
             default:
@@ -349,14 +349,14 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
 
     private void showNeedSetAddressDialog() {
         QMUIDialog.MessageDialogBuilder builder = new QMUIDialog.MessageDialogBuilder(context);
-        builder.setTitle("温馨提示");
-        builder.setMessage("还未设置对应地址，现在去设置？");
-        builder.addAction("去设置", (dialog, index) -> {
+        builder.setTitle(getString(R.string.main_tip_title));
+        builder.setMessage(getString(R.string.main_need_address_msg));
+        builder.addAction(getString(R.string.main_go_set), (dialog, index) -> {
             dialog.dismiss();
             Intent intent = new Intent(context, SettingActivity.class);
             startActivityWithAnimation(intent);
         });
-        builder.addAction("返回", (dialog, index) -> dialog.dismiss());
+        builder.addAction(getString(R.string.back), (dialog, index) -> dialog.dismiss());
         builder.show();
     }
 
@@ -445,7 +445,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                 if (hasStorageAccess()) {
                     if (!file.exists()) {
                         if (!file.mkdirs()) {
-                            showMessage("创建下载目录失败了", TastyToast.ERROR);
+                            showMessage(getString(R.string.main_create_dir_failed), TastyToast.ERROR);
                         }
                     }
                 } else {
@@ -478,7 +478,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == permisionReqCode) {
             if (!hasStorageAccess()) {
-                showMessage("你拒绝了读写存储卡权限，这将影响下载视频等功能！", TastyToast.WARNING);
+                showMessage(getString(R.string.main_storage_perm_denied), TastyToast.WARNING);
             }
         }
         if (mCurrentFragment != null) {
@@ -494,7 +494,13 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         if (mCurrentFragment instanceof BaseMainFragment && ((BaseMainFragment) mCurrentFragment).onBackPressed()) {
             return;
         }
-        showMessage("再次点击退出程序", TastyToast.INFO);
+        // M112：非首页 Tab 时，返回键先回到「视频」首页，而不是直接进入「再按一次退出」流程——
+        // 推荐流/搜索这类沉浸式页面里双击退出极易误触，且用户预期的「返回」是回到主导航。
+        if (selectIndex > 0) {
+            doOnTabSelected(0);
+            return;
+        }
+        showMessage(getString(R.string.main_press_again_exit), TastyToast.INFO);
         long currentTime = Calendar.getInstance().getTimeInMillis();
         if (currentTime - lastClickTime > MIN_CLICK_DELAY_TIME) {
             lastClickTime = currentTime;
@@ -513,16 +519,16 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
 
     private void showUpdateDialog(final UpdateVersion updateVersion) {
         QMUIDialog.MessageDialogBuilder builder = new QMUIDialog.MessageDialogBuilder(this);
-        builder.setTitle("发现新版本--v" + updateVersion.getVersionName());
+        builder.setTitle(getString(R.string.main_found_new_version, updateVersion.getVersionName()));
         builder.setMessage(updateVersion.getUpdateMessage());
-        builder.addAction("立即更新", (dialog, index) -> {
+        builder.addAction(getString(R.string.main_update_now), (dialog, index) -> {
             dialog.dismiss();
             Intent intent = new Intent(MainActivity.this, UpdateActivity.class);
             intent.putExtra("updateVersion", updateVersion);
             startActivityWithAnimation(intent);
         });
-        builder.addAction("稍后更新", (dialog, index) -> dialog.dismiss());
-        builder.addAction("该版本不再提示", (dialog, index) -> {
+        builder.addAction(getString(R.string.main_update_later), (dialog, index) -> dialog.dismiss());
+        builder.addAction(getString(R.string.main_ignore_version), (dialog, index) -> {
             //保存版本号，用户对于此版本选择了不在提示
             presenter.setIgnoreUpdateVersionCode(updateVersion.getVersionCode());
             dialog.dismiss();
@@ -532,9 +538,9 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
 
     private void showNewNoticeDialog(final Notice notice) {
         QMUIDialog.MessageDialogBuilder builder = new QMUIDialog.MessageDialogBuilder(this);
-        builder.setTitle("新公告");
+        builder.setTitle(getString(R.string.main_new_notice_title));
         builder.setMessage(notice.getNoticeMessage());
-        builder.addAction("我知道了", (dialog, index) -> {
+        builder.addAction(getString(R.string.main_got_it), (dialog, index) -> {
             dialog.dismiss();
             presenter.saveNoticeVersionCode(notice.getVersionCode());
         });

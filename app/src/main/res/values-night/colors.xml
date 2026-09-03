@@ -47,4 +47,29 @@
     <color name="item_3mman_comment_info_text_color">@color/qmui_config_color_gray_6</color>
     <color name="sort_category_drag_color">@color/colorPrimary</color>
     <color name="author_favorite_item_text">@color/qmui_config_color_gray_7</color>
+
+    <!-- ==================== 语义色层（夜间对应值）====================
+         必须与 values/colors.xml 中的语义 token 一一对应、成对维护。 -->
+    <color name="bg_base">@color/common_background</color>
+    <color name="bg_surface">@color/item_background</color>
+    <color name="bg_elevated">@color/setting_list_bg_normal</color>
+    <color name="bg_scrim">#99000000</color>
+
+    <color name="text_primary">@color/common_black_white_text_color</color>
+    <color name="text_secondary">@color/item_v9pron_info_text_color</color>
+    <color name="text_tertiary">#8A8A8A</color>
+    <color name="text_disabled">#4A4A4A</color>
+    <color name="text_inverse">@color/common_always_white_text_color</color>
+
+    <color name="brand">@color/colorPrimary</color>
+    <color name="brand_dark">@color/colorPrimaryDark</color>
+    <color name="accent">@color/colorAccent</color>
+
+    <color name="state_success">@color/green</color>
+    <color name="state_warning">@color/yeloo</color>
+    <color name="state_error">@color/lightred</color>
+
+    <color name="divider">#1FFFFFFF</color>
+    <color name="divider_strong">#33FFFFFF</color>
+    <!-- ==================== 语义色层 end ==================== -->
 </resources>

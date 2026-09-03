@@ -1,7 +1,7 @@
 {
-  "versionCode": 144,
-  "versionName": "1.0.111",
-  "updateMessage": "1.0.111 更新内容：\n1）targetSdkVersion/compileSdkVersion 升级到 34，完成 AndroidX 迁移；\n2）适配 Scoped Storage，视频下载后归档到系统 Movies/3mman，支持 Android 10+；\n3）修复收藏导出，Android 10+ 导出到系统 Downloads/3mman；\n4）移除 Bugly 崩溃上报功能；\n5）Release 包开启 R8 代码混淆与资源裁剪；\n注意：仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.111.apk",
-  "sha256": "6854507f6187701384e551f100143b023855b5533581b7757f3383f4a56a47a1"
+  "versionCode": 145,
+  "versionName": "1.0.112",
+  "updateMessage": "1.0.112 更新内容：\n1）修复倍速按钮显示 1.5x 实际未生效的问题，不支持时明确提示原因；\n2）播放页交互优化：进度条加粗并新增拖动时间气泡，操作图标触控区域加大至 48dp；\n3）推荐流错误页新增“点击重试”按钮；\n4）下载删除、取消收藏新增撤销提示（Snackbar），误操作可挽回；\n5）新增本地崩溃日志记录（保留最近 10 份，我的-查看日志可反馈）；\n6）深色模式支持“跟随系统”；\n7）界面文案全面接入多语言资源，优化列表封面加载与回收。\n注意：仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.112.apk",
+  "sha256": "618d2e2049ebbb984f9009e823a83bb36b3c549131ce5ff4bce05a3a19fb6c01"
 }

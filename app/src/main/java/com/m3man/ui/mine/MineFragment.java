@@ -169,7 +169,7 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
         viewHistoryStr = getString(R.string.history_views);
         aboutMeStr = getString(R.string.about_me);
         moreSettingStr = getString(R.string.more_setting);
-        viewLogStr = "查看日志";
+        viewLogStr = getString(R.string.mine_view_log);
     }
 
     private void initMineSection() {
@@ -207,7 +207,7 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
                 .addTo(mineList);
 
         QMUIGroupListView.newSection(context)
-                .setTitle("播放界面")
+                .setTitle(getString(R.string.mine_play_ui_section))
                 .addItemView(createPlayUiSwitchItem(getString(R.string.reco_auto_rotate_landscape),
                         PlayUiPrefs.isAutoRotateLandscape(context), new CompoundButton.OnCheckedChangeListener() {
                             @Override
@@ -285,14 +285,14 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
     private void setUpUserInfo(User user) {
 
         if (!UserHelper.isUserInfoComplete(user)) {
-            tvNavUsername.setText("请登录");
+            tvNavUsername.setText(getString(R.string.pl_login));
             tvNavLastLoginTime.setText("---");
             tvNavLastLoginIp.setText("---");
             return;
         }
 
         if (!TextUtils.isEmpty(user.getStatus())) {
-            String status = user.getStatus().contains("正常") ? "正常" : "异常";
+            String status = user.getStatus().contains("正常") ? getString(R.string.mine_status_normal) : getString(R.string.mine_status_abnormal);
             tvNavUsername.setText(user.getUserName() + "(" + status + ")");
         }
         if (!TextUtils.isEmpty(user.getLastLoginTime())) {
@@ -304,15 +304,15 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
     private void logout() {
         AlertDialog.Builder builder = new AlertDialog.Builder(context, R.style.MyDialogTheme);
         builder.setTitle(getString(R.string.exit_login_account));
-        builder.setMessage("退出当前帐号？");
-        builder.setPositiveButton("退出", (dialog, which) -> {
+        builder.setMessage(getString(R.string.mine_logout_confirm_msg));
+        builder.setPositiveButton(getString(R.string.mine_exit), (dialog, which) -> {
             presenter.existLogin();
             setUpUserInfo(presenter.getLoginUser());
             if (logoutItemView != null) {
                 logoutItemView.setVisibility(View.GONE);
             }
         });
-        builder.setNegativeButton("取消", null);
+        builder.setNegativeButton(getString(R.string.common_cancel), null);
         builder.show();
     }
 
@@ -405,9 +405,9 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
         }
         String log = AppLog.dump(context);
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-        builder.setTitle("运行日志");
+        builder.setTitle(getString(R.string.mine_run_log_title));
         if (TextUtils.isEmpty(log.trim())) {
-            builder.setMessage("暂无日志");
+            builder.setMessage(getString(R.string.mine_no_log));
         } else {
             android.widget.ScrollView scrollView = new android.widget.ScrollView(getActivity());
             TextView textView = new TextView(getActivity());
@@ -419,8 +419,8 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
             scrollView.addView(textView);
             builder.setView(scrollView);
         }
-        builder.setPositiveButton("复制全部", (dialog, which) -> copyLogToClipboard());
-        builder.setNegativeButton("关闭", null);
+        builder.setPositiveButton(getString(R.string.mine_copy_all), (dialog, which) -> copyLogToClipboard());
+        builder.setNegativeButton(getString(R.string.close), null);
         builder.show();
     }
 
@@ -431,12 +431,12 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
         }
         String log = AppLog.dump(context);
         if (log == null || log.trim().isEmpty()) {
-            showMessage("暂无日志", TastyToast.INFO);
+            showMessage(getString(R.string.mine_no_log), TastyToast.INFO);
             return;
         }
         android.content.ClipboardManager cm =
                 (android.content.ClipboardManager) getActivity().getSystemService(android.content.Context.CLIPBOARD_SERVICE);
         cm.setPrimaryClip(android.content.ClipData.newPlainText("3mman_log", log));
-        showMessage("日志已复制（共 " + log.split("\n").length + " 行），反馈问题时请粘贴给我", TastyToast.SUCCESS);
+        showMessage(getString(R.string.mine_log_copied, log.split("\n").length), TastyToast.SUCCESS);
     }
 }

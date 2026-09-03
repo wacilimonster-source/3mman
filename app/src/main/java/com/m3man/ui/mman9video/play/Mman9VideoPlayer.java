@@ -14,6 +14,7 @@ import android.view.View;
 import android.widget.Toast;
 
 import cn.jzvd.JZMediaManager;
+import cn.jzvd.JZMediaSystem;
 import cn.jzvd.JZVideoPlayer;
 import cn.jzvd.JZVideoPlayerManager;
 import cn.jzvd.JZVideoPlayerStandard;
@@ -135,6 +136,57 @@ public class Mman9VideoPlayer extends JZVideoPlayerStandard {
             fullscreenButton.setVisibility(currentScreen == SCREEN_WINDOW_FULLSCREEN
                     ? View.GONE : View.VISIBLE);
         }
+    }
+
+    // ==================== 倍速能力探测 ====================
+
+    /** 倍速不可用：系统版本过低（API < 23）。本项目 minSdk 28，理论上不会触发。 */
+    public static final int SPEED_UNSUPPORTED_OS = 1;
+    /** 倍速不可用：当前不是「正在播放」态（暂停 / 缓冲 / 错误 / 未开始）。 */
+    public static final int SPEED_UNSUPPORTED_NOT_PLAYING = 2;
+    /** 倍速不可用：当前播放通道不是 JZMediaSystem（如 Exo 通道），拿不到 MediaPlayer。 */
+    public static final int SPEED_UNSUPPORTED_ENGINE = 3;
+
+    /**
+     * 当前这一刻能否调整倍速。
+     * <p>
+     * UI 层（倍速按钮）应在调用 {@link #setPlaybackSpeed(float)} 之前先问一次：
+     * 过去的实现是无条件改标签、再尝试设置，失败也不回滚，
+     * 结果是按钮显示 "1.5x" 而实际仍是 1x —— 用户会认为 App 坏了。
+     */
+    public boolean isSpeedSupportedNow() {
+        return getSpeedUnsupportedReason() == 0;
+    }
+
+    /**
+     * 返回倍速不可用的原因码：0 = 可用，其余见 {@link #SPEED_UNSUPPORTED_OS} 等常量。
+     * 让调用方能给用户一句明确的原因，而不是静默失败。
+     */
+    public int getSpeedUnsupportedReason() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return SPEED_UNSUPPORTED_OS;
+        }
+        if (!isCurrentPlayer()) {
+            return SPEED_UNSUPPORTED_NOT_PLAYING;
+        }
+        // M96：非播放态下 setPlaybackParams 会让 MediaPlayer 隐式恢复播放，因此视为不支持
+        if (currentState != CURRENT_STATE_PLAYING) {
+            return SPEED_UNSUPPORTED_NOT_PLAYING;
+        }
+        if (!isMediaSystemEngineReady()) {
+            return SPEED_UNSUPPORTED_ENGINE;
+        }
+        return 0;
+    }
+
+    /** 当前播放通道是否为可用的 JZMediaSystem（MediaPlayer）。 */
+    private boolean isMediaSystemEngineReady() {
+        JZMediaManager manager = JZMediaManager.instance();
+        if (manager == null) {
+            return false;
+        }
+        return manager.jzMediaInterface instanceof JZMediaSystem
+                && ((JZMediaSystem) manager.jzMediaInterface).mediaPlayer != null;
     }
 
     /** 设置当前 MediaPlayer 倍速。 */

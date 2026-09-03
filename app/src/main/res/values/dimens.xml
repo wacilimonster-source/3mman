@@ -7,4 +7,32 @@
     <dimen name="nav_header_height">108dp</dimen>
     <dimen name="fab_margin">16dp</dimen>
     <dimen name="item_skip_page_height">40dp</dimen>
+
+    <!-- ==================== 间距栅格（4dp 基准）====================
+         布局里不要再写裸 16dp / 12dp，改用 @dimen/space_N。 -->
+    <dimen name="space_1">4dp</dimen>
+    <dimen name="space_2">8dp</dimen>
+    <dimen name="space_3">12dp</dimen>
+    <dimen name="space_4">16dp</dimen>
+    <dimen name="space_5">20dp</dimen>
+    <dimen name="space_6">24dp</dimen>
+    <dimen name="space_8">32dp</dimen>
+
+    <!-- ==================== 圆角 ==================== -->
+    <dimen name="radius_sm">4dp</dimen>
+    <dimen name="radius_md">8dp</dimen>
+    <dimen name="radius_lg">12dp</dimen>
+    <dimen name="radius_full">999dp</dimen>
+
+    <!-- ==================== 触控尺寸 ====================
+         规则：所有可点击控件的触控区不得小于 48dp。
+         实现方式 —— 控件本身设 48dp，用 padding 把里面的图形缩到目标视觉大小：
+             图标视觉 24dp = 48dp 控件 + 12dp padding
+             图标视觉 36dp = 48dp 控件 + 6dp  padding
+         这样视觉密度不变，但手指能点中。 -->
+    <dimen name="touch_min">48dp</dimen>
+    <dimen name="icon_visual_24">24dp</dimen>
+    <dimen name="icon_visual_36">36dp</dimen>
+    <dimen name="touch_padding_icon_24">12dp</dimen>
+    <dimen name="touch_padding_icon_36">6dp</dimen>
 </resources>

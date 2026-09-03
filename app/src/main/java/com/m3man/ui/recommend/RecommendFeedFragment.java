@@ -306,6 +306,7 @@ public class RecommendFeedFragment extends BaseFragment
 
         layoutManager = new LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false);
         recyclerView.setLayoutManager(layoutManager);
+        recyclerView.setHasFixedSize(true);
         // 关掉默认动画，避免插入新页时当前页被重绘导致画面闪烁
         recyclerView.setItemAnimator(null);
 
@@ -636,7 +637,8 @@ public class RecommendFeedFragment extends BaseFragment
         stopCoverWatcher();
         stopProgressTicker();
         holder.loading.setVisibility(View.VISIBLE);
-        holder.error.setVisibility(View.GONE);
+        holder.errorContainer.setVisibility(View.GONE);
+        holder.seekBubble.setVisibility(View.GONE);
         holder.cover.setVisibility(View.VISIBLE);
         holder.player.setVisibility(View.INVISIBLE);
         holder.progressContainer.setVisibility(View.GONE);
@@ -772,7 +774,15 @@ public class RecommendFeedFragment extends BaseFragment
                 }
                 long duration = holder.player.safeDuration();
                 if (duration > 0) {
-                    holder.curTime.setText(formatTime(duration * progress / PROGRESS_MAX));
+                    long target = duration * progress / PROGRESS_MAX;
+                    String text = formatTime(target);
+                    holder.curTime.setText(text);
+                    // M112：拖动时在手指上方显示时间气泡，取代原来只有左侧小字变化、
+                    // 手指位置毫无反馈的做法
+                    if (holder.seekBubble != null) {
+                        holder.seekBubble.setText(text);
+                        holder.seekBubble.setVisibility(View.VISIBLE);
+                    }
                 }
             }
 
@@ -787,6 +797,9 @@ public class RecommendFeedFragment extends BaseFragment
             public void onStopTrackingTouch(SeekBar seekBar) {
                 userSeeking = false;
                 seekBar.getParent().requestDisallowInterceptTouchEvent(false);
+                if (holder.seekBubble != null) {
+                    holder.seekBubble.setVisibility(View.GONE);
+                }
                 if (position != currentPosition) {
                     return;
                 }
@@ -859,10 +872,13 @@ public class RecommendFeedFragment extends BaseFragment
         holder.player.setVisibility(View.INVISIBLE);
         holder.progressContainer.setVisibility(View.GONE);
         holder.cover.setVisibility(View.VISIBLE);
-        holder.error.setVisibility(View.VISIBLE);
+        // M112：显示「文案 + 重试按钮」容器。
+        // 以前是在文案末尾拼「，点击重试」让用户去点整块文字——没有按钮外观，
+        // 绝大多数用户不知道这里可以点，只能滑走。
+        holder.errorContainer.setVisibility(View.VISIBLE);
         holder.error.setText(TextUtils.isEmpty(message)
                 ? getString(R.string.reco_parse_failed)
-                : message + "，点击重试");
+                : message);
     }
 
     /**
@@ -939,9 +955,22 @@ public class RecommendFeedFragment extends BaseFragment
         final boolean toDouble = "1x".contentEquals(holder.speed.getText());
         if (holder.player.setPlaybackSpeed(toDouble ? 2.0f : 1.0f)) {
             holder.speed.setText(toDouble ? "2x" : "1x");
-        } else {
-            showMessage(getString(R.string.reco_speed_unsupported), TastyToast.INFO);
+            return;
         }
+        // 设置失败：按真实原因给提示，绝不改标签（改了就会出现「显示 2x、实际 1x」）
+        int resId;
+        switch (holder.player.getSpeedUnsupportedReason()) {
+            case RecoVideoPlayer.SPEED_UNSUPPORTED_NOT_PLAYING:
+                resId = R.string.speed_only_while_playing;
+                break;
+            case RecoVideoPlayer.SPEED_UNSUPPORTED_ENGINE:
+                resId = R.string.speed_unsupported_engine;
+                break;
+            default:
+                resId = R.string.speed_unsupported;
+                break;
+        }
+        showMessage(getString(resId), TastyToast.INFO);
     }
 
     @Override

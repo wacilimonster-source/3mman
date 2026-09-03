@@ -9,5 +9,8 @@
     <dimen name="reco_progress_margin_left">16dp</dimen>
     <dimen name="reco_progress_margin_right">16dp</dimen>
     <dimen name="reco_progress_margin_bottom">16dp</dimen>
-    <dimen name="reco_speed_width">40dp</dimen>
+    <!-- M112：与竖屏同值 48dp（触控下限），Java 侧 applyOrientationUi 读取本资源 -->
+    <dimen name="reco_speed_width">48dp</dimen>
+    <dimen name="reco_handle_width">24dp</dimen>
+    <dimen name="reco_seekbar_track">5dp</dimen>
 </resources>

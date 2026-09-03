@@ -9,7 +9,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_margin="5dp"
-        android:src="@mipmap/ic_launcher" />
+        android:src="@mipmap/ic_launcher"  android:contentDescription="@string/cd_apk_download_icon"/>
 
     <RelativeLayout
         android:layout_width="match_parent"
@@ -68,7 +68,7 @@
             android:layout_alignParentBottom="true"
             android:textColor="@color/colorPrimary"
             android:layout_toLeftOf="@+id/bt_download_apk_cancel"
-            android:text="暂停" />
+            android:text="@string/download_apk_pause" />
 
         <Button
             android:id="@+id/bt_download_apk_cancel"
@@ -78,7 +78,7 @@
             android:textColor="@color/colorPrimary"
             android:layout_alignParentBottom="true"
             android:layout_alignParentRight="true"
-            android:text="取消" />
+            android:text="@string/download_apk_cancel" />
     </RelativeLayout>
 
 </RelativeLayout>

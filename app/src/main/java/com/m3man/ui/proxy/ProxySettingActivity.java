@@ -82,7 +82,7 @@ public class ProxySettingActivity extends MvpActivity<ProxyView, ProxyPresenter>
     }
 
     private void init() {
-        testAlertDialog = DialogUtils.initLoadingDialog(this, "测试中，请稍候...");
+        testAlertDialog = DialogUtils.initLoadingDialog(this, getString(R.string.proxy_testing_loading));
         String proxyHost = presenter.getProxyIpAddress();
         int port = presenter.getProxyPort();
         etDialogProxySettingIpAddress.setIpAddressStr(proxyHost);
@@ -92,6 +92,7 @@ public class ProxySettingActivity extends MvpActivity<ProxyView, ProxyPresenter>
         proxyAdapter = new ProxyAdapter(R.layout.item_proxy, data);
 
         recyclerViewProxySetting.setLayoutManager(new LinearLayoutManager(this));
+        recyclerViewProxySetting.setHasFixedSize(true);
         recyclerViewProxySetting.addItemDecoration(new DividerItemDecoration(this, DividerItemDecoration.VERTICAL));
         View view = getLayoutInflater().inflate(R.layout.item_proxy, recyclerViewProxySetting, false);
         proxyAdapter.setHeaderView(view);
@@ -106,7 +107,7 @@ public class ProxySettingActivity extends MvpActivity<ProxyView, ProxyPresenter>
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
                 ProxyModel proxyModel = (ProxyModel) adapter.getItem(position);
                 if (proxyModel == null) {
-                    showMessage("数据出错了", TastyToast.INFO);
+                    showMessage(getString(R.string.proxy_data_error), TastyToast.INFO);
                     return;
                 }
                 proxyAdapter.setClickPosition(position);
@@ -114,7 +115,7 @@ public class ProxySettingActivity extends MvpActivity<ProxyView, ProxyPresenter>
                     etDialogProxySettingIpAddress.setIpAddressStr(proxyModel.getProxyIp());
                     etDialogProxySettingPort.setText(proxyModel.getProxyPort());
                 } else {
-                    showMessage("暂不支持socket代理", TastyToast.INFO);
+                    showMessage(getString(R.string.proxy_no_socket), TastyToast.INFO);
                 }
             }
         });
@@ -223,7 +224,7 @@ public class ProxySettingActivity extends MvpActivity<ProxyView, ProxyPresenter>
         String proxyPortStr = etDialogProxySettingPort.getText().toString().trim();
         int proxyPort = parsePort(proxyPortStr);
         if (TextUtils.isEmpty(proxyIpAddress) || proxyPort < 0) {
-            showMessage("无法设置，代理端口错误，请检查（有效范围 1-65535）", TastyToast.INFO);
+            showMessage(getString(R.string.proxy_port_error), TastyToast.INFO);
             return;
         }
         if (!isTestSuccess) {
@@ -239,7 +240,7 @@ public class ProxySettingActivity extends MvpActivity<ProxyView, ProxyPresenter>
         presenter.setOpenHttpProxy(true);
         presenter.setProxyIpAddress(proxyIpAddress);
         presenter.setProxyPort(proxyPort);
-        showMessage("设置成功", TastyToast.SUCCESS);
+        showMessage(getString(R.string.proxy_save_success), TastyToast.SUCCESS);
         onBackPressed();
     }
 
@@ -257,7 +258,7 @@ public class ProxySettingActivity extends MvpActivity<ProxyView, ProxyPresenter>
                 String portStr = etDialogProxySettingPort.getText().toString().trim();
                 int proxyPort = parsePort(portStr);
                 if (TextUtils.isEmpty(proxyIpAddress) || proxyPort < 0) {
-                    showMessage("端口号或IP地址不正确（端口有效范围 1-65535）", TastyToast.WARNING);
+                    showMessage(getString(R.string.proxy_address_invalid), TastyToast.WARNING);
                     return;
                 }
                 presenter.testProxy(proxyIpAddress, proxyPort);
@@ -277,9 +278,9 @@ public class ProxySettingActivity extends MvpActivity<ProxyView, ProxyPresenter>
 
     private void showNeedSetAddressFirstDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.MyDialogTheme);
-        builder.setTitle("温馨提示");
-        builder.setMessage("还未设置91mman视频地址,无法测试，现在去设置？");
-        builder.setPositiveButton("去设置", new DialogInterface.OnClickListener() {
+        builder.setTitle(getString(R.string.proxy_tip_title));
+        builder.setMessage(getString(R.string.proxy_need_address_msg));
+        builder.setPositiveButton(getString(R.string.proxy_go_set), new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 Intent intent = new Intent(context, SettingActivity.class);
@@ -287,7 +288,7 @@ public class ProxySettingActivity extends MvpActivity<ProxyView, ProxyPresenter>
                 finish();
             }
         });
-        builder.setNegativeButton("返回", new DialogInterface.OnClickListener() {
+        builder.setNegativeButton(getString(R.string.back), new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 dialog.dismiss();

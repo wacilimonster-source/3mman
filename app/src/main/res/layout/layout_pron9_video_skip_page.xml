@@ -30,7 +30,7 @@
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
             android:gravity="center"
-            android:text="加载中，请稍后..."
+            android:text="@string/skip_layout_loading"
             android:textColor="@color/common_black_white_text_color" />
     </LinearLayout>
 

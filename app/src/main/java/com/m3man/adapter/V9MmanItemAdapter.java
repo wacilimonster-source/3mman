@@ -8,6 +8,7 @@ import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.chad.library.adapter.base.BaseViewHolder;
 import com.m3man.R;
 import com.m3man.data.db.entity.V9MmanItem;
+import com.m3man.utils.GlideApp;
 import com.m3man.utils.GlideLoader;
 
 import java.util.List;
@@ -33,5 +34,15 @@ public class V9MmanItemAdapter extends BaseQuickAdapter<V9MmanItem, BaseViewHold
         GlideLoader.loadCover(simpleDraweeView, coverUrl);
 
         helper.addOnClickListener(R.id.right_menu_delete);
+    }
+
+    /** M112：回收时取消挂起的 Glide 请求（同 V91MmanAdapter） */
+    @Override
+    public void onViewRecycled(BaseViewHolder holder) {
+        super.onViewRecycled(holder);
+        ImageView cover = holder.getView(R.id.iv_91mman_item_img);
+        if (cover != null) {
+            GlideApp.with(cover).clear(cover);
+        }
     }
 }

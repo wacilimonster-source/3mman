@@ -12,7 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:text="正在更新"
+        android:text="@string/update_layout_title"
         android:textColor="#FFFFFF"
         android:textSize="20sp"
         android:textStyle="bold" />
@@ -57,7 +57,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="2"
             android:gravity="end"
-            android:text="准备中…"
+            android:text="@string/update_layout_preparing"
             android:textColor="#B3FFFFFF"
             android:textSize="13sp" />
     </LinearLayout>
@@ -68,7 +68,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
         android:backgroundTint="#FF5722"
-        android:text="去设置开启「安装未知应用」权限"
+        android:text="@string/update_layout_permission_hint"
         android:textColor="#FFFFFF"
         android:visibility="gone" />
 
@@ -78,7 +78,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:backgroundTint="#FF9800"
-        android:text="重试"
+        android:text="@string/update_layout_retry"
         android:textColor="#FFFFFF"
         android:visibility="gone" />
 
@@ -87,6 +87,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="稍后更新" />
+        android:text="@string/update_layout_later" />
 
 </LinearLayout>

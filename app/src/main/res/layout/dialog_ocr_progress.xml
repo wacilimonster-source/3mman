@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M112：替代已废弃的 android.app.ProgressDialog(STYLE_HORIZONTAL)。
+     OCR 训练数据下载进度需要「确定进度」（0-100%），不能用 DialogUtils 的转圈加载框。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingLeft="@dimen/space_6"
+    android:paddingTop="@dimen/space_5"
+    android:paddingRight="@dimen/space_6"
+    android:paddingBottom="@dimen/space_4">
+
+    <TextView
+        android:id="@+id/tv_progress_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="@style/TextAppearance.App.Body"
+        android:textColor="@color/text_primary" />
+
+    <ProgressBar
+        android:id="@+id/pb_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_4"
+        android:max="100" />
+
+    <TextView
+        android:id="@+id/tv_progress_percent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_1"
+        android:gravity="end"
+        android:textAppearance="@style/TextAppearance.App.Caption"
+        android:textColor="@color/text_tertiary" />
+</LinearLayout>

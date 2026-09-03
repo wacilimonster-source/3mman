@@ -1,61 +1,58 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- M112 重构（原结构 CardView > LinearLayout > ConstraintLayout > ImageView，4 层）：
+     1. 原 CardView 的 cardCornerRadius=0dp、无 margin、contentPadding 仅 1dp —— 它只当
+        「纯 padding 壳」用，却多出一层背景导致过度绘制，且 minSdk 28 下
+        cardUseCompatPadding 也不产生任何间距，故整个 CardView 层删除；
+     2. 原中间的 ConstraintLayout 只包了一个 ImageView，同样合并；
+     3. scaleType 由 fitCenter 改为 centerCrop：16:9 约束下非 16:9 封面原来会留黑边。
+     id 保持不变（iv_91mman_item_img / tv_91mman_item_title / tv_91mman_item_info），
+     V91MmanAdapter / V9MmanItemAdapter / DownloadVideoAdapter 及右滑菜单 include 均不受影响。 -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    app:cardBackgroundColor="@color/item_background"
-    app:cardCornerRadius="0dp"
-    app:cardPreventCornerOverlap="true"
-    app:cardUseCompatPadding="true"
-    app:contentPadding="1dp">
+    android:background="@drawable/recycler_item_selector">
 
-    <LinearLayout
-        android:layout_width="match_parent"
+    <ImageView
+        android:id="@+id/iv_91mman_item_img"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:scaleType="centerCrop"
+        app:layout_constraintDimensionRatio="H,16:9"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent"  android:contentDescription="@string/cd_video_cover"/>
+
+    <androidx.appcompat.widget.AppCompatTextView
+        android:id="@+id/tv_91mman_item_title"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@drawable/recycler_item_selector"
-        android:orientation="vertical">
+        android:ellipsize="end"
+        android:gravity="center_vertical"
+        android:maxLines="2"
+        android:minHeight="42dp"
+        android:paddingLeft="6dp"
+        android:paddingTop="4dp"
+        android:paddingRight="6dp"
+        android:textAppearance="@style/TextAppearance.App.Title"
+        android:textColor="@color/item_v9pron_title_text_color"
+        android:textStyle="bold"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/iv_91mman_item_img" />
 
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <ImageView
-                android:id="@+id/iv_91mman_item_img"
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:scaleType="fitCenter"
-                app:layout_constraintDimensionRatio="H,16:9"
-                app:layout_constraintLeft_toLeftOf="parent"
-                app:layout_constraintRight_toRightOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-        </androidx.constraintlayout.widget.ConstraintLayout>
-
-        <androidx.appcompat.widget.AppCompatTextView
-            android:id="@+id/tv_91mman_item_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:gravity="center_vertical"
-            android:maxLines="2"
-            android:minHeight="42dp"
-            android:paddingLeft="6dp"
-            android:paddingTop="4dp"
-            android:paddingRight="6dp"
-            android:textColor="@color/item_v9pron_title_text_color"
-            android:textSize="15sp"
-            android:textStyle="bold" />
-
-        <androidx.appcompat.widget.AppCompatTextView
-            android:id="@+id/tv_91mman_item_info"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:paddingLeft="6dp"
-            android:paddingRight="6dp"
-            android:paddingBottom="8dp"
-            android:textColor="@color/item_v9pron_info_text_color"
-            android:textSize="12sp" />
-    </LinearLayout>
-</androidx.cardview.widget.CardView>
+    <androidx.appcompat.widget.AppCompatTextView
+        android:id="@+id/tv_91mman_item_info"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingLeft="6dp"
+        android:paddingRight="6dp"
+        android:paddingBottom="8dp"
+        android:textAppearance="@style/TextAppearance.App.Caption"
+        android:textColor="@color/item_v9pron_info_text_color"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_91mman_item_title" />
+</androidx.constraintlayout.widget.ConstraintLayout>

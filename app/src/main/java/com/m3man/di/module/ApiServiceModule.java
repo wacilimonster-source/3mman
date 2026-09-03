@@ -91,7 +91,7 @@ public class ApiServiceModule {
 
     @Singleton
     @Provides
-    OkHttpClient providesOkHttpClient(CommonHeaderInterceptor commonHeaderInterceptor, HttpLoggingInterceptor httpLoggingInterceptor, RulerCookie rulerCookie, MyProxySelector myProxySelector, AddressHelper addressHelper) {
+    OkHttpClient providesOkHttpClient(@ApplicationContext Context context, CommonHeaderInterceptor commonHeaderInterceptor, HttpLoggingInterceptor httpLoggingInterceptor, RulerCookie rulerCookie, MyProxySelector myProxySelector, AddressHelper addressHelper) {
         OkHttpClient.Builder builder = new OkHttpClient.Builder();
         // M95：评审结论——超时必须显式声明，不能依赖 OkHttp 默认值（默认 connect/read/write 均为 10s，
         // 且散落在隐式行为里，弱网/慢站点场景下排障困难）。显式设置：
@@ -103,6 +103,10 @@ public class ApiServiceModule {
         builder.connectTimeout(10, TimeUnit.SECONDS);
         builder.readTimeout(30, TimeUnit.SECONDS);
         builder.writeTimeout(15, TimeUnit.SECONDS);
+        // M112：启用 HTTP 磁盘缓存（20MB）。注意只缓存响应本身声明了可缓存的请求
+        // （Cache-Control/Expires），不强制改写缓存头——视频直链的时效性极强
+        // （M96 自愈机制就是为「链接过期」而生），强制缓存列表/详情页会放大取到过期链接的概率。
+        builder.cache(new okhttp3.Cache(new java.io.File(context.getCacheDir(), "http_cache"), 20L * 1024 * 1024));
         builder.addInterceptor(commonHeaderInterceptor);
         builder.addInterceptor(httpLoggingInterceptor);
         builder.cookieJar(rulerCookie);

@@ -32,6 +32,11 @@ public interface ISetting {
 
     void setOpenNightMode(boolean openNightMode);
 
+    /** M112：夜间模式三档（0=跟随系统 / 1=始终夜间 / 2=始终日间），存储层已支持 */
+    int getNightMode();
+
+    void setNightMode(int nightMode);
+
     boolean isOpenHttpProxy();
 
     void setOpenHttpProxy(boolean openHttpProxy);

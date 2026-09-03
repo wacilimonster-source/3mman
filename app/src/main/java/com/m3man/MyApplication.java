@@ -16,6 +16,7 @@ import com.m3man.di.component.DaggerAppComponent;
 import com.m3man.eventbus.LowMemoryEvent;
 import com.m3man.utils.AppLog;
 import com.m3man.utils.AppLogger;
+import com.m3man.utils.CrashHandler;
 import com.m3man.utils.NetworkClientHolder;
 import com.m3man.utils.NotificationChannelHelper;
 
@@ -57,6 +58,8 @@ public class MyApplication extends DaggerApplication {
 
     @Override
     public void onCreate() {
+        // M112：启动耗时埋点起点（进程创建 → onCreate 结束），结束时刻见 onCreate 末尾 logStartupCost
+        final long startUptime = android.os.SystemClock.uptimeMillis();
         // M99：DaggerApplication 的 super.onCreate() 内部会完成整张 DI 图的构建与注入
         // （applicationInjector→DataManager/AppDbHelper 等单例），框架约束下无法把注入
         // 挪到进程判断之后——该构造成本为已知限制。
@@ -79,6 +82,8 @@ public class MyApplication extends DaggerApplication {
         myProxySelector.setSystemDefaultSelector(systemDefaultSelector);
         // M95：为静态解析器（ParseV9MmanVideo 分享链接兜底）注入统一网络客户端
         initNetworkClientHolder();
+        // M112：崩溃兜底——崩溃堆栈落本地文件（供排查/统计），随后交回系统默认处理器
+        CrashHandler.install(this);
         initNightMode();
         AppLogger.initLogger();
         logStartupEnvironment();
@@ -89,6 +94,10 @@ public class MyApplication extends DaggerApplication {
         NotificationChannelHelper.initChannel(this);
         // H-17/M153：Bugly 崩溃上报已整体移除（含依赖、proguard 规则与 App ID 配置）
         BGASwipeBackHelper.init(this, null);
+        // M112：启动耗时埋点（Application.onCreate 段）。当前无上报通道，先落 logcat + AppLog
+        // 建立基线；后续接上报时把这两行换成结构化事件即可。基线数值可用
+        // `adb shell am start -W` 交叉验证。
+        AppLog.i(TAG, "[STARTUP] app onCreate cost=" + (android.os.SystemClock.uptimeMillis() - startUptime) + "ms");
     }
 
     /** M73：当前进程是否为主进程（无冒号后缀） */
@@ -185,8 +194,21 @@ public class MyApplication extends DaggerApplication {
     }
 
     private void initNightMode() {
-        boolean isNightMode = dataManager.isOpenNightMode();
-        AppCompatDelegate.setDefaultNightMode(isNightMode ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
+        // M112：由「硬开关 YES/NO」升级为三档（0=跟随系统 / 1=始终夜间 / 2=始终日间），
+        // 存储层 getNightMode() 内部会把旧布尔值迁移成 int，老用户升级无缝。
+        int nightMode = dataManager.getNightMode();
+        AppCompatDelegate.setDefaultNightMode(toAppCompatNightMode(nightMode));
+    }
+
+    private static int toAppCompatNightMode(int nightMode) {
+        switch (nightMode) {
+            case 1:
+                return AppCompatDelegate.MODE_NIGHT_YES;
+            case 2:
+                return AppCompatDelegate.MODE_NIGHT_NO;
+            default:
+                return AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM;
+        }
     }
 
     private void initFileDownload() {

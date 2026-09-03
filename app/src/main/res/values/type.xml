@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ==================== 字号体系（TextAppearance）====================
+         布局里不要再写裸 android:textSize，改用
+             android:textAppearance="@style/TextAppearance.App.Xxx"
+         这样字号与颜色集中在一处，改一次全 App 生效。
+
+         档位只有 5 级：22 / 16 / 14 / 12 / 11 sp
+           - 11sp 仅用于角标、徽章等极短文本；
+           - 正文与辅助信息不得低于 12sp（历史遗留的 11sp 正文已全部升到 12sp）。
+         另提供 3 档 Inverse（深色背景 / 视频画面上的文字）。 -->
+
+    <style name="TextAppearance.App" parent="TextAppearance.AppCompat" />
+
+    <style name="TextAppearance.App.Display" parent="TextAppearance.App">
+        <item name="android:textSize">22sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="TextAppearance.App.Title" parent="TextAppearance.App">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <style name="TextAppearance.App.Body" parent="TextAppearance.App">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/text_secondary</item>
+    </style>
+
+    <style name="TextAppearance.App.Caption" parent="TextAppearance.App">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/text_tertiary</item>
+    </style>
+
+    <style name="TextAppearance.App.Overline" parent="TextAppearance.App">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textColor">@color/text_tertiary</item>
+    </style>
+
+    <!-- 反色档位：视频画面、深色浮层、彩色头图上的文字 -->
+    <style name="TextAppearance.App.Inverse.Title" parent="TextAppearance.App.Title">
+        <item name="android:textColor">@color/text_inverse</item>
+    </style>
+
+    <style name="TextAppearance.App.Inverse.Body" parent="TextAppearance.App.Body">
+        <item name="android:textColor">@color/text_inverse</item>
+    </style>
+
+    <style name="TextAppearance.App.Inverse.Caption" parent="TextAppearance.App.Caption">
+        <item name="android:textColor">@color/text_inverse</item>
+    </style>
+
+</resources>

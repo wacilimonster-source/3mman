@@ -24,7 +24,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:srcCompat="@drawable/user" />
+        app:srcCompat="@drawable/user"  android:contentDescription="@string/cd_user_avatar"/>
 
     <TextView
         android:id="@+id/tv_nav_username"

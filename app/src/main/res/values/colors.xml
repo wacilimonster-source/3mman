@@ -53,4 +53,32 @@
     <color name="sort_category_drag_color">@color/green</color>
     <!-- 作者收藏列表条目文字：日间深色 / 夜间浅色 -->
     <color name="author_favorite_item_text">@color/qmui_config_color_gray_1</color>
+
+    <!-- ==================== 语义色层（Semantic tokens）====================
+         新增 / 改造 UI 一律使用下面的 token，不要再直接引用
+         black / white / LightGray 这类「物理色命名」——它们在 values-night
+         下会被重定义成相反的颜色（如 white → 深灰），是长期维护陷阱。
+         values-night/colors.xml 中有同名对应定义，成对维护。 -->
+    <color name="bg_base">@color/common_background</color>
+    <color name="bg_surface">@color/item_background</color>
+    <color name="bg_elevated">@color/setting_list_bg_normal</color>
+    <color name="bg_scrim">#99000000</color>
+
+    <color name="text_primary">@color/common_black_white_text_color</color>
+    <color name="text_secondary">@color/item_v9pron_info_text_color</color>
+    <color name="text_tertiary">#8A8A8A</color>
+    <color name="text_disabled">#BDBDBD</color>
+    <color name="text_inverse">@color/common_always_white_text_color</color>
+
+    <color name="brand">@color/colorPrimary</color>
+    <color name="brand_dark">@color/colorPrimaryDark</color>
+    <color name="accent">@color/colorAccent</color>
+
+    <color name="state_success">@color/green</color>
+    <color name="state_warning">@color/yeloo</color>
+    <color name="state_error">@color/lightred</color>
+
+    <color name="divider">#1F000000</color>
+    <color name="divider_strong">#33000000</color>
+    <!-- ==================== 语义色层 end ==================== -->
 </resources>

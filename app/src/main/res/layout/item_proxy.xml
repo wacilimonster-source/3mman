@@ -31,7 +31,7 @@
         android:layout_height="match_parent"
         android:layout_weight="2"
         android:gravity="center_vertical"
-        android:text="类型"
+        android:text="@string/proxy_layout_type"
         android:textColor="@color/common_black_white_text_color" />
 
     <TextView
@@ -40,7 +40,7 @@
         android:layout_height="match_parent"
         android:layout_weight="2"
         android:gravity="center_vertical"
-        android:text="延迟"
+        android:text="@string/proxy_layout_delay"
         android:textColor="@color/common_black_white_text_color" />
 
     <TextView
@@ -49,6 +49,6 @@
         android:layout_height="match_parent"
         android:layout_weight="2"
         android:gravity="center_vertical"
-        android:text="匿名度"
+        android:text="@string/proxy_layout_anonymous"
         android:textColor="@color/common_black_white_text_color" />
 </LinearLayout>

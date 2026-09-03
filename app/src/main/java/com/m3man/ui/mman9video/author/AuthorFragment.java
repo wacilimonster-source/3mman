@@ -133,6 +133,7 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
         });
 
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        recyclerView.setHasFixedSize(true);
         recyclerView.setAdapter(mV91MmanAdapter);
     }
 

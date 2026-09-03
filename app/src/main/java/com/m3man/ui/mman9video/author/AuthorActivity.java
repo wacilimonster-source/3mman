@@ -188,6 +188,7 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
         swipeLayout.setEnabled(false);
         mV91MmanAdapter = new V91MmanAdapter(R.layout.item_v_9mman);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setHasFixedSize(true);
         recyclerView.setAdapter(mV91MmanAdapter);
 
         mV91MmanAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {

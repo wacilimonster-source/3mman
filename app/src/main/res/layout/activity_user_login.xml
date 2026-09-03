@@ -21,7 +21,7 @@
             android:id="@+id/et_account"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="帐号"
+            android:hint="@string/login_layout_account"
             android:inputType="textEmailAddress"
             android:singleLine="true"
             android:theme="@style/MyEditText" />
@@ -30,7 +30,7 @@
             android:id="@+id/et_password"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="密码"
+            android:hint="@string/login_layout_password"
             android:inputType="textPassword"
             android:singleLine="true"
             android:theme="@style/MyEditText" />
@@ -46,7 +46,7 @@
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1000"
-                android:hint="验证码"
+                android:hint="@string/login_layout_captcha"
                 android:inputType="number"
                 android:maxLength="4"
                 android:singleLine="true"
@@ -56,7 +56,7 @@
                 android:id="@+id/wb_captcha"
                 android:layout_width="110dp"
                 app:srcCompat="@drawable/ic_loading"
-                android:layout_height="match_parent" />
+                android:layout_height="match_parent"  android:contentDescription="@string/cd_captcha_image"/>
         </LinearLayout>
 
 
@@ -67,7 +67,7 @@
             android:layout_marginTop="10dp"
             android:layout_marginBottom="10dp"
             android:background="@drawable/button_selector"
-            android:text="登     录"
+            android:text="@string/login_layout_login"
             android:textColor="@color/common_always_white_text_color"
             android:textSize="20sp" />
 
@@ -75,7 +75,7 @@
             android:id="@+id/cb_remember_password"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="记住密码"
+            android:text="@string/login_layout_remember"
             android:textColor="@color/common_black_white_text_color"
             android:theme="@style/MyCheckBox" />
 
@@ -84,7 +84,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="5dp"
-            android:text="Tips：验证码现已是必须的，请正确填写，同时已经不支持自动登录了（因为无法识别验证码）"
+            android:text="@string/login_layout_tips"
             android:textColor="@color/common_black_white_text_color" />
     </LinearLayout>
 

@@ -18,7 +18,7 @@ import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.reco.RecoCandidate;
 import com.m3man.data.reco.RecoEngine;
 import com.m3man.data.reco.RecoStore;
-import com.m3man.utils.GlideApp;
+import com.m3man.utils.GlideLoader;
 import com.m3man.utils.PlayUiPrefs;
 
 import java.util.ArrayList;
@@ -230,11 +230,12 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
 
         // 封面：起播前顶在最上层，起播后由 Activity 隐藏
         holder.cover.setVisibility(View.VISIBLE);
-        holder.error.setVisibility(View.GONE);
+        holder.errorContainer.setVisibility(View.GONE);
         holder.loading.setVisibility(View.VISIBLE);
         holder.player.setVisibility(View.INVISIBLE);
         holder.progressContainer.setVisibility(View.GONE);
         holder.seekFeedback.setVisibility(View.GONE);
+        holder.seekBubble.setVisibility(View.GONE);
         holder.progress.setOnSeekBarChangeListener(null);
         holder.progress.setProgress(0);
         holder.curTime.setText("00:00");
@@ -246,9 +247,8 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         if (TextUtils.isEmpty(imgUrl)) {
             holder.cover.setImageDrawable(null);
         } else {
-            GlideApp.with(holder.cover.getContext())
-                    .load(imgUrl)
-                    .into(holder.cover);
+            // M112：统一走 GlideLoader（error 占位 + 按 View 尺寸 override 解码）
+            GlideLoader.loadCover(holder.cover, imgUrl);
         }
 
         bindActionState(holder, candidate);
@@ -280,12 +280,16 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
                 dispatch(holder, 3);
             }
         });
-        holder.error.setOnClickListener(new View.OnClickListener() {
+        // M112：错误文案与重试按钮都触发重试。
+        // 此前只有一整块 TextView 可点、且没有任何按钮外观，用户根本发现不了能重试。
+        View.OnClickListener retryClick = new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 dispatch(holder, 4);
             }
-        });
+        };
+        holder.error.setOnClickListener(retryClick);
+        holder.retryButton.setOnClickListener(retryClick);
         holder.download.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -395,7 +399,8 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         holder.dislike.setAlpha(disliked ? 1.0f : 0.9f);
         holder.favorite.setColorFilter(favorited ? COLOR_FAVORITE : COLOR_NORMAL);
         holder.favorite.setAlpha(favorited ? 1.0f : 0.9f);
-        holder.likeText.setText(liked ? R.string.reco_liked : R.string.reco_like);
+        // M112：下方的文字标签（tv_reco_like 等）已随「小图标 + 无文字」改版变成恒定 gone 的死视图，
+        // 本次直接从两份 XML 中删除，这里不再更新文案。选中态完全由图标着色表达。
     }
 
     private boolean isFavorited(RecoCandidate candidate, int action) {
@@ -532,6 +537,9 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         holder.progress.setOnSeekBarChangeListener(null);
         holder.progressContainer.setVisibility(View.GONE);
         holder.seekFeedback.setVisibility(View.GONE);
+        // M112：错误态容器与拖动气泡一并收回，防止复用到新页时残留
+        holder.errorContainer.setVisibility(View.GONE);
+        holder.seekBubble.setVisibility(View.GONE);
         holder.boundKey = null;
         // M78：清掉可能存在的自动收起计时，避免回收后误触发到别的视频
         holder.hideHandler.removeCallbacks(holder.hideRunnable);
@@ -548,10 +556,14 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         final RecoVideoPlayer player;
         final ImageView cover;
         final ProgressBar loading;
+        /** 错误态容器（文案 + 重试按钮），M112 起替代原先孤零零的一行文字 */
+        final View errorContainer;
         final TextView error;
+        final View retryButton;
         final TextView seekFeedback;
+        /** M112：拖动进度条时的时间气泡 */
+        final TextView seekBubble;
         final ImageView like;
-        final TextView likeText;
         final ImageView favorite;
         final ImageView dislike;
         final ImageView detail;
@@ -577,10 +589,12 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
             player = itemView.findViewById(R.id.reco_player);
             cover = itemView.findViewById(R.id.iv_reco_cover);
             loading = itemView.findViewById(R.id.pb_reco_loading);
+            errorContainer = itemView.findViewById(R.id.ll_reco_error);
             error = itemView.findViewById(R.id.tv_reco_error);
+            retryButton = itemView.findViewById(R.id.btn_reco_retry);
             seekFeedback = itemView.findViewById(R.id.tv_reco_seek_feedback);
+            seekBubble = itemView.findViewById(R.id.tv_reco_seek_bubble);
             like = itemView.findViewById(R.id.iv_reco_like);
-            likeText = itemView.findViewById(R.id.tv_reco_like);
             favorite = itemView.findViewById(R.id.iv_reco_favorite);
             dislike = itemView.findViewById(R.id.iv_reco_dislike);
             detail = itemView.findViewById(R.id.iv_reco_detail);
@@ -624,7 +638,7 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
          *   <li>横屏 actionsContainer: rightMargin=112dp, bottomMargin=0,   padding(4,4,4,4)</li>
          *   <li>竖屏 progressContainer: rightMargin=12dp, bottomMargin=12dp</li>
          *   <li>横屏 progressContainer: rightMargin=96dp, bottomMargin=16dp</li>
-         *   <li>横屏 speed: width=40dp；竖屏 speed: WRAP_CONTENT</li>
+         *   <li>speed: 横竖屏统一 width=@dimen/reco_speed_width（48dp，触控下限）</li>
          * </ul>
          */
         void applyOrientationUi(boolean landscape) {
@@ -687,9 +701,10 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
             if (speed != null) {
                 ViewGroup.LayoutParams speedParams = speed.getLayoutParams();
                 if (speedParams != null) {
-                    speedParams.width = landscape
-                            ? dims.get(R.dimen.reco_speed_width)
-                            : ViewGroup.LayoutParams.WRAP_CONTENT;
+                    // M112：竖屏不再退化成 WRAP_CONTENT —— 那样 "1x" 只有约 20dp 宽，
+                    // 远低于 48dp 触控下限。横竖屏统一取 reco_speed_width（两份 XML 同值 48dp）。
+                    int w = dims.get(R.dimen.reco_speed_width);
+                    speedParams.width = w > 0 ? w : ViewGroup.LayoutParams.WRAP_CONTENT;
                     speed.setLayoutParams(speedParams);
                 }
             }

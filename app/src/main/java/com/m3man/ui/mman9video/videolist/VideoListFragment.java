@@ -143,6 +143,7 @@ public class VideoListFragment extends MvpFragment<VideoListView, VideoListPrese
         // Setup contentView == SwipeRefreshView
         contentView.setOnRefreshListener(this);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        recyclerView.setHasFixedSize(true);
         recyclerView.setAdapter(mV91MmanAdapter);
 
         helper = new LoadViewHelper(recyclerView);
@@ -162,6 +163,7 @@ public class VideoListFragment extends MvpFragment<VideoListView, VideoListPrese
         // 视频地址跳页功能固定展示，不再受设置项控制。
         skipPageLayout.setVisibility(View.VISIBLE);
         skipPageRecyclerView.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false));
+        skipPageRecyclerView.setHasFixedSize(true);
         skipPageRecyclerView.setAdapter(skipPageAdapter);
     }
 

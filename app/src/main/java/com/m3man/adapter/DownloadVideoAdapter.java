@@ -13,6 +13,7 @@ import com.liulishuo.filedownloader.model.FileDownloadStatus;
 import com.m3man.R;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.ui.mman9video.play.PlayVideoPresenter;
+import com.m3man.utils.GlideApp;
 import com.m3man.utils.GlideLoader;
 import com.m3man.utils.SDCardUtils;
 
@@ -50,7 +51,7 @@ public class DownloadVideoAdapter extends BaseQuickAdapter<V9MmanItem, BaseViewH
         }
         helper.setText(R.id.tv_download_filesize, sizeText);
         if (item.getStatus() == FileDownloadStatus.completed) {
-            helper.setText(R.id.tv_download_speed, "已完成");
+            helper.setText(R.id.tv_download_speed, helper.itemView.getContext().getString(R.string.download_status_completed));
             helper.setVisible(R.id.iv_download_control, false);
         } else {
             //未下载完成，显示控制
@@ -60,35 +61,45 @@ public class DownloadVideoAdapter extends BaseQuickAdapter<V9MmanItem, BaseViewH
                 if (item.getStatus() == FileDownloadStatus.progress) {
                     // M43：分分钟(HLS)分片下载到 100% 后进入合并/转码阶段，明确提示“转换中”
                     if (PlayVideoPresenter.isPornySource(item) && item.getProgress() >= 100) {
-                        helper.setText(R.id.tv_download_speed, "转换中");
+                        helper.setText(R.id.tv_download_speed, helper.itemView.getContext().getString(R.string.download_status_converting));
                     } else {
                         helper.setText(R.id.tv_download_speed, item.getSpeed() + " KB/s");
                     }
                 } else if (item.getStatus() == FileDownloadStatus.paused) {
-                    helper.setText(R.id.tv_download_speed, "暂停中");
+                    helper.setText(R.id.tv_download_speed, helper.itemView.getContext().getString(R.string.download_status_paused));
                     helper.setImageResource(R.id.iv_download_control, R.drawable.start_download);
                 } else if (item.getStatus() == FileDownloadStatus.pending) {
-                    helper.setText(R.id.tv_download_speed, "准备中");
+                    helper.setText(R.id.tv_download_speed, helper.itemView.getContext().getString(R.string.download_status_preparing));
                 } else if (item.getStatus() == FileDownloadStatus.started) {
-                    helper.setText(R.id.tv_download_speed, "开始下载");
+                    helper.setText(R.id.tv_download_speed, helper.itemView.getContext().getString(R.string.download_status_started));
                 } else if (item.getStatus() == FileDownloadStatus.connected) {
-                    helper.setText(R.id.tv_download_speed, "连接中");
+                    helper.setText(R.id.tv_download_speed, helper.itemView.getContext().getString(R.string.download_status_connecting));
                 } else if (item.getStatus() == FileDownloadStatus.error) {
-                    helper.setText(R.id.tv_download_speed, "下载错误");
+                    helper.setText(R.id.tv_download_speed, helper.itemView.getContext().getString(R.string.download_status_error));
                     helper.setImageResource(R.id.iv_download_control, R.drawable.start_download);
                 } else if (item.getStatus() == FileDownloadStatus.retry) {
-                    helper.setText(R.id.tv_download_speed, "重试中");
+                    helper.setText(R.id.tv_download_speed, helper.itemView.getContext().getString(R.string.download_status_retry));
                 } else if (item.getStatus() == FileDownloadStatus.warn) {
-                    helper.setText(R.id.tv_download_speed, "警告");
+                    helper.setText(R.id.tv_download_speed, helper.itemView.getContext().getString(R.string.download_status_warn));
                     helper.setImageResource(R.id.iv_download_control, R.drawable.start_download);
                 }
 
             } else {
-                helper.setText(R.id.tv_download_speed, "暂停中");
+                helper.setText(R.id.tv_download_speed, helper.itemView.getContext().getString(R.string.download_status_paused));
                 helper.setImageResource(R.id.iv_download_control, R.drawable.start_download);
             }
         }
         helper.addOnClickListener(R.id.iv_download_control);
         helper.addOnClickListener(R.id.right_menu_delete);
+    }
+
+    /** M112：回收时取消挂起的 Glide 请求（同 V91MmanAdapter） */
+    @Override
+    public void onViewRecycled(BaseViewHolder holder) {
+        super.onViewRecycled(holder);
+        ImageView cover = holder.getView(R.id.iv_91mman_item_img);
+        if (cover != null) {
+            GlideApp.with(cover).clear(cover);
+        }
     }
 }

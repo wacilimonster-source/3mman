@@ -20,6 +20,7 @@ import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.ui.MvpActivity;
 import com.m3man.utils.DialogUtils;
 import com.m3man.utils.LoadHelperUtils;
+import com.m3man.utils.UndoSnackbar;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -63,7 +64,7 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_favorite);
         ButterKnife.bind(this);
-        deleteAlertDialog = DialogUtils.initLoadingDialog(this, "删除中，请稍后...");
+        deleteAlertDialog = DialogUtils.initLoadingDialog(this, getString(R.string.favorite_deleting_loading));
         localMode = presenter.isLocalFavoriteMode();
         initToolBar(toolbar);
         toolbar.setContentInsetStartWithNavigation(0);
@@ -75,6 +76,7 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
         mUnLimit91Adapter = new V9MmanItemAdapter(R.layout.item_right_menu_delete, mV9MmanItemList);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setHasFixedSize(true);
 
         recyclerView.setAdapter(mUnLimit91Adapter);
         mUnLimit91Adapter.setEmptyView(R.layout.empty_view, recyclerView);
@@ -96,16 +98,21 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
                     if (v9MmanItem == null) {
                         return;
                     }
-                    if (localMode) {
-                        // M42：本地收藏模式直接删除本地标记
-                        deleteLocalFavorite(v9MmanItem);
-                        return;
-                    }
-                    if (v9MmanItem.getVideoResult() == null) {
-                        showMessage("信息错误，无法删除", TastyToast.WARNING);
-                        return;
-                    }
-                    presenter.deleteFavorite(v9MmanItem.getVideoResult().getVideoId());
+                    // M112：取消收藏给一次撤销窗口，确认条超时未撤销才真正落库
+                    final boolean isLocal = localMode;
+                    UndoSnackbar.confirmWithUndo(recyclerView, getString(R.string.favorite_canceled), getString(R.string.common_undo),
+                            new UndoSnackbar.Action() {
+                                @Override
+                                public void run() {
+                                    if (isLocal) {
+                                        deleteLocalFavorite(v9MmanItem);
+                                    } else if (v9MmanItem.getVideoResult() != null) {
+                                        presenter.deleteFavorite(v9MmanItem.getVideoResult().getVideoId());
+                                    } else {
+                                        showMessage(getString(R.string.favorite_info_error), TastyToast.WARNING);
+                                    }
+                                }
+                            });
                 }
             }
         });
@@ -159,14 +166,14 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
 
     @Override
     public void loadMoreFailed() {
-        showMessage("加载更多失败", TastyToast.ERROR);
+        showMessage(getString(R.string.favorite_load_more_failed), TastyToast.ERROR);
         mUnLimit91Adapter.loadMoreFail();
     }
 
     @Override
     public void noMoreData() {
         mUnLimit91Adapter.loadMoreEnd(true);
-        showMessage("没有更多数据了", TastyToast.INFO);
+        showMessage(getString(R.string.favorite_no_more), TastyToast.INFO);
     }
 
     @Override
@@ -211,7 +218,7 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
     @Override
     public void showLoading(boolean pullToRefresh) {
         helper.showLoading();
-        LoadHelperUtils.setLoadingText(helper.getLoadIng(), R.id.tv_loading_text, "拼命加载中...");
+        LoadHelperUtils.setLoadingText(helper.getLoadIng(), R.id.tv_loading_text, getString(R.string.favorite_loading_hard));
         contentView.setEnabled(false);
     }
 
@@ -239,7 +246,7 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
     /** M42：本地收藏模式加载（全部来源本地收藏，含分分钟，合并展示） */
     private void loadLocalFavoriteData() {
         helper.showLoading();
-        LoadHelperUtils.setLoadingText(helper.getLoadIng(), R.id.tv_loading_text, "加载中...");
+        LoadHelperUtils.setLoadingText(helper.getLoadIng(), R.id.tv_loading_text, getString(R.string.favorite_loading));
         mDisposables.add(Observable.just(1)
                 .map(integer -> presenter.loadLocalFavoriteItems())
                 .subscribeOn(Schedulers.io())
@@ -247,7 +254,7 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
                 .subscribe(items -> {
                     if (items == null || items.isEmpty()) {
                         helper.showEmpty();
-                        LoadHelperUtils.setEmptyText(helper.getLoadEmpty(), R.id.tv_empty_info, "还没有本地收藏，去收藏喜欢的视频吧");
+                        LoadHelperUtils.setEmptyText(helper.getLoadEmpty(), R.id.tv_empty_info, getString(R.string.favorite_empty_local));
                         mUnLimit91Adapter.setNewData(new ArrayList<>());
                     } else {
                         helper.showContent();
@@ -255,7 +262,7 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
                     }
                 }, throwable -> {
                     helper.showError();
-                    LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, "加载失败，点击重试");
+                    LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, getString(R.string.favorite_load_failed_retry));
                 }));
     }
 
@@ -267,12 +274,12 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(aBoolean -> {
                     if (aBoolean) {
-                        showMessage("已取消收藏", TastyToast.SUCCESS);
+                        showMessage(getString(R.string.favorite_canceled), TastyToast.SUCCESS);
                         loadLocalFavoriteData();
                     } else {
-                        showMessage("取消收藏失败", TastyToast.ERROR);
+                        showMessage(getString(R.string.favorite_cancel_failed), TastyToast.ERROR);
                     }
-                }, throwable -> showMessage("取消收藏失败", TastyToast.ERROR)));
+                }, throwable -> showMessage(getString(R.string.favorite_cancel_failed), TastyToast.ERROR)));
     }
 
     @Override

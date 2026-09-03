@@ -8,6 +8,8 @@ import android.view.View;
 
 import com.aitsuki.swipe.SwipeMenuRecyclerView;
 import com.chad.library.adapter.base.BaseQuickAdapter;
+import com.helper.loadviewhelper.help.OnLoadViewListener;
+import com.helper.loadviewhelper.load.LoadViewHelper;
 import com.m3man.R;
 import com.m3man.adapter.V9MmanItemAdapter;
 import com.m3man.data.db.entity.V9MmanItem;
@@ -33,6 +35,8 @@ public class HistoryActivity extends MvpActivity<HistoryView, HistoryPresenter> 
 
     private V9MmanItemAdapter mUnLimit91Adapter;
     private List<V9MmanItem> mV9MmanItemList;
+    /** M112：统一加载/错误/空三态 */
+    private LoadViewHelper helper;
 
     @Inject
     protected HistoryPresenter historyPresenter;
@@ -47,9 +51,20 @@ public class HistoryActivity extends MvpActivity<HistoryView, HistoryPresenter> 
         mUnLimit91Adapter = new V9MmanItemAdapter(R.layout.item_v_9mman, mV9MmanItemList);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setHasFixedSize(true);
 
         recyclerView.setAdapter(mUnLimit91Adapter);
         mUnLimit91Adapter.setEmptyView(R.layout.empty_view, recyclerView);
+
+        // M112：接入统一三态（加载中/错误/重试），此前 showError/showLoading 均为空实现，
+        // 加载失败时用户只看到白屏
+        helper = new LoadViewHelper(recyclerView);
+        helper.setListener(new OnLoadViewListener() {
+            @Override
+            public void onRetryClick() {
+                presenter.loadHistoryData(false);
+            }
+        });
 
         mUnLimit91Adapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
@@ -74,17 +89,17 @@ public class HistoryActivity extends MvpActivity<HistoryView, HistoryPresenter> 
 
     @Override
     public void showError(String message) {
-
+        helper.showError();
     }
 
     @Override
     public void showLoading(boolean pullToRefresh) {
-
+        helper.showLoading();
     }
 
     @Override
     public void showContent() {
-
+        helper.showContent();
     }
 
     @Override

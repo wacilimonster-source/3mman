@@ -57,6 +57,7 @@ public class SearchHistoryPanel {
 
         this.adapter = new SearchHistoryAdapter();
         this.rv.setLayoutManager(new LinearLayoutManager(container.getContext()));
+        rv.setHasFixedSize(true);
         this.rv.setNestedScrollingEnabled(false);
         this.rv.setAdapter(adapter);
 

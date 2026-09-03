@@ -92,6 +92,7 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
         });
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setHasFixedSize(true);
         recyclerView.setAdapter(mAdapter);
 
         helper = new LoadViewHelper(recyclerView);
@@ -111,7 +112,7 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
 
     private void loadData() {
         helper.showLoading();
-        LoadHelperUtils.setLoadingText(helper.getLoadIng(), R.id.tv_loading_text, "加载中...");
+        LoadHelperUtils.setLoadingText(helper.getLoadIng(), R.id.tv_loading_text, getString(R.string.porny_fav_loading));
         mDisposables.add(Observable.just(1)
                 .map(integer -> presenter.loadLocalFavoriteItems())
                 .subscribeOn(Schedulers.io())
@@ -119,7 +120,7 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
                 .subscribe(items -> {
                     if (items == null || items.isEmpty()) {
                         helper.showEmpty();
-                        LoadHelperUtils.setEmptyText(helper.getLoadEmpty(), R.id.tv_empty_info, "还没有本地收藏，去搜索页收藏吧");
+                        LoadHelperUtils.setEmptyText(helper.getLoadEmpty(), R.id.tv_empty_info, getString(R.string.porny_fav_empty));
                         mAdapter.setNewData(new ArrayList<>());
                     } else {
                         helper.showContent();
@@ -127,7 +128,7 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
                     }
                 }, throwable -> {
                     helper.showError();
-                    LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, "加载失败，点击重试");
+                    LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, getString(R.string.porny_fav_load_failed_retry));
                 }));
     }
 
@@ -136,10 +137,10 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
             return;
         }
         new AlertDialog.Builder(this)
-                .setTitle("取消收藏")
-                .setMessage("确定取消收藏该视频吗？")
-                .setPositiveButton("确定", (dialog, which) -> doDelete(item))
-                .setNegativeButton("取消", null)
+                .setTitle(getString(R.string.porny_fav_cancel_title))
+                .setMessage(getString(R.string.porny_fav_cancel_msg))
+                .setPositiveButton(getString(R.string.sure), (dialog, which) -> doDelete(item))
+                .setNegativeButton(getString(R.string.common_cancel), null)
                 .show();
     }
 
@@ -150,12 +151,12 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(aBoolean -> {
                     if (aBoolean) {
-                        showMessage("已取消收藏", com.sdsmdg.tastytoast.TastyToast.SUCCESS);
+                        showMessage(getString(R.string.porny_fav_canceled), com.sdsmdg.tastytoast.TastyToast.SUCCESS);
                         loadData();
                     } else {
-                        showMessage("取消收藏失败", com.sdsmdg.tastytoast.TastyToast.ERROR);
+                        showMessage(getString(R.string.porny_fav_cancel_failed), com.sdsmdg.tastytoast.TastyToast.ERROR);
                     }
-                }, throwable -> showMessage("取消收藏失败", com.sdsmdg.tastytoast.TastyToast.ERROR)));
+                }, throwable -> showMessage(getString(R.string.porny_fav_cancel_failed), com.sdsmdg.tastytoast.TastyToast.ERROR)));
     }
 
     @NonNull
@@ -216,7 +217,7 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
     @Override
     public void showLoading(boolean pullToRefresh) {
         helper.showLoading();
-        LoadHelperUtils.setLoadingText(helper.getLoadIng(), R.id.tv_loading_text, "加载中...");
+        LoadHelperUtils.setLoadingText(helper.getLoadIng(), R.id.tv_loading_text, getString(R.string.porny_fav_loading));
     }
 
     @Override

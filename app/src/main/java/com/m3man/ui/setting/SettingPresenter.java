@@ -176,6 +176,16 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
     }
 
     @Override
+    public int getNightMode() {
+        return dataManager.getNightMode();
+    }
+
+    @Override
+    public void setNightMode(int nightMode) {
+        dataManager.setNightMode(nightMode);
+    }
+
+    @Override
     public boolean isOpenHttpProxy() {
         return dataManager.isOpenHttpProxy();
     }

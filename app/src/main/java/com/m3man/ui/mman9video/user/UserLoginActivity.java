@@ -1,6 +1,5 @@
 package com.m3man.ui.mman9video.user;
 
-import android.app.ProgressDialog;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.os.Bundle;
@@ -80,8 +79,10 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
     /** M94：在途 OCR 识别任务数（仅在主线程增减），归零后才允许回收位图 */
     private final AtomicInteger mOcrInFlight = new AtomicInteger(0);
     private volatile boolean ocrInitializing = false;
-    /** OCR 训练数据按需下载进度弹窗 */
-    private ProgressDialog ocrProgressDialog;
+    /** OCR 训练数据按需下载进度弹窗（M112：android.app.ProgressDialog 已废弃，换自绘横向进度框） */
+    private androidx.appcompat.app.AlertDialog ocrProgressDialog;
+    private android.widget.ProgressBar ocrProgressBar;
+    private android.widget.TextView ocrPercentText;
     /** C13：OCR 相关订阅必须在 onDestroy 释放 native 资源之前取消 */
     private final io.reactivex.disposables.CompositeDisposable mOcrDisposables = new io.reactivex.disposables.CompositeDisposable();
 
@@ -143,7 +144,7 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
             }
         });
 
-        alertDialog = DialogUtils.initLoadingDialog(this, "登录中，请稍后...");
+        alertDialog = DialogUtils.initLoadingDialog(this, getString(R.string.login_loading));
         setUpUserInfo();
 
         // 启动验证码 OCR 引擎初始化（子线程），加载成功后自动识别填入
@@ -172,15 +173,15 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
     private void login(String username, String password, String captcha) {
 
         if (TextUtils.isEmpty(username)) {
-            showMessage("请填写用户名", TastyToast.INFO);
+            showMessage(getString(R.string.login_enter_username), TastyToast.INFO);
             return;
         }
         if (TextUtils.isEmpty(password)) {
-            showMessage("请填写密码", TastyToast.INFO);
+            showMessage(getString(R.string.login_enter_password), TastyToast.INFO);
             return;
         }
         if (TextUtils.isEmpty(captcha)) {
-            showMessage("请填写验证码", TastyToast.INFO);
+            showMessage(getString(R.string.login_enter_captcha), TastyToast.INFO);
             return;
         }
         QMUIKeyboardHelper.hideKeyboard(getCurrentFocus());
@@ -202,14 +203,14 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
 
     private void showNeedSetAddressFirstDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.MyDialogTheme);
-        builder.setTitle("温馨提示");
-        builder.setMessage("还未设置91mman视频地址,无法登录或注册，现在去设置？");
-        builder.setPositiveButton("去设置", (dialog, which) -> {
+        builder.setTitle(getString(R.string.login_tip_title));
+        builder.setMessage(getString(R.string.login_need_address_msg));
+        builder.setPositiveButton(getString(R.string.login_go_set), (dialog, which) -> {
             Intent intent = new Intent(context, SettingActivity.class);
             startActivityWithAnimation(intent);
             finish();
         });
-        builder.setNegativeButton("退出", (dialog, which) -> {
+        builder.setNegativeButton(getString(R.string.login_exit), (dialog, which) -> {
             dialog.dismiss();
             onBackPressed();
         });
@@ -262,7 +263,7 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
     public void loginSuccess(User user) {
 
         presenter.saveUserInfoPrf(username, password, cbRememberPassword.isChecked(), false);
-        showMessage("登录成功", TastyToast.SUCCESS);
+        showMessage(getString(R.string.login_success), TastyToast.SUCCESS);
         switchWhereToGo();
     }
 
@@ -322,14 +323,25 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
         }
         ocrInitializing = true;
         // 进度弹窗（首次会下载训练数据，后续直接使用缓存）
+        // M112：android.app.ProgressDialog 已废弃，改用自绘横向进度对话框（保留确定进度展示）
         if (ocrProgressDialog == null) {
-            ocrProgressDialog = new ProgressDialog(this);
-            ocrProgressDialog.setCancelable(false);
-            ocrProgressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-            ocrProgressDialog.setMax(100);
+            android.view.View content = android.view.LayoutInflater.from(this)
+                    .inflate(R.layout.dialog_ocr_progress, null);
+            ocrProgressBar = content.findViewById(R.id.pb_progress);
+            ocrPercentText = content.findViewById(R.id.tv_progress_percent);
+            ocrProgressDialog = new androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setView(content)
+                    .setCancelable(false)
+                    .create();
         }
-        ocrProgressDialog.setMessage("正在准备验证码识别组件…");
-        ocrProgressDialog.setProgress(0);
+        ((android.widget.TextView) ocrProgressDialog.findViewById(R.id.tv_progress_message))
+                .setText(getString(R.string.login_preparing_captcha));
+        if (ocrProgressBar != null) {
+            ocrProgressBar.setProgress(0);
+        }
+        if (ocrPercentText != null) {
+            ocrPercentText.setText("0%");
+        }
         ocrProgressDialog.show();
 
         mOcrDisposables.add(Observable.fromCallable(() -> {
@@ -340,8 +352,11 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
                 @Override
                 public void onProgress(int percent) {
                     // CaptchaOcr 已切回主线程回调，这里直接更新弹窗
-                    if (ocrProgressDialog != null && ocrProgressDialog.isShowing()) {
-                        ocrProgressDialog.setProgress(percent);
+                    if (ocrProgressDialog != null && ocrProgressDialog.isShowing() && ocrProgressBar != null) {
+                        ocrProgressBar.setProgress(percent);
+                        if (ocrPercentText != null) {
+                            ocrPercentText.setText(percent + "%");
+                        }
                     }
                 }
 
@@ -372,7 +387,7 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
                     if (ready && bmp != null && !bmp.isRecycled()) {
                         recognizeCaptcha(bmp);
                     } else if (!ready) {
-                        showMessage("验证码识别组件准备失败，请手动输入验证码", TastyToast.INFO);
+                        showMessage(getString(R.string.login_captcha_prepare_failed), TastyToast.INFO);
                     }
                 }, e -> {
                     ocrInitializing = false;
@@ -380,7 +395,7 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
                     if (isFinishing() || isDestroyed()) {
                         return;
                     }
-                    showMessage("验证码识别组件准备失败，请手动输入验证码", TastyToast.INFO);
+                    showMessage(getString(R.string.login_captcha_prepare_failed), TastyToast.INFO);
                 }));
     }
 
@@ -388,9 +403,7 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
         if (ocrProgressDialog != null && ocrProgressDialog.isShowing()) {
             ocrProgressDialog.dismiss();
         }
-    }
-
-    /**
+    }    /**
      * 对已加载的验证码图片进行 OCR 识别并回填到输入框。
      */
     private void recognizeCaptcha(final Bitmap bitmap) {
@@ -444,20 +457,20 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
                         etCaptcha.setText(result);
                         etCaptcha.setSelection(result.length());
                     } else {
-                        showMessage("验证码识别失败，请手动输入", TastyToast.INFO);
+                        showMessage(getString(R.string.login_captcha_recognize_failed), TastyToast.INFO);
                     }
                 }, e -> {
                     if (isFinishing() || isDestroyed()) {
                         return;
                     }
-                    showMessage("验证码识别失败，请手动输入", TastyToast.ERROR);
+                    showMessage(getString(R.string.login_captcha_recognize_failed), TastyToast.ERROR);
                 }));
     }
 
     @Override
     public void loadCaptchaFailure(String errorMessage, int code) {
         captchaImageView.setImageDrawable(ResourceUtil.getDrawable(this, R.drawable.ic_refresh));
-        showError("无法加载验证码,点击刷新重试");
+        showError(getString(R.string.login_captcha_load_failed));
     }
 
     @Override
@@ -503,8 +516,8 @@ public class UserLoginActivity extends MvpActivity<UserView, UserPresenter> impl
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_user_register) {
             new QMUIDialog.MessageDialogBuilder(this)
-                    .setMessage("注册功能已停止支持，请去9*mman官网注册，之后再来登录！")
-                    .addAction("知道了", new QMUIDialogAction.ActionListener() {
+                    .setMessage(getString(R.string.login_register_stopped_msg))
+                    .addAction(getString(R.string.login_register_stopped_ok), new QMUIDialogAction.ActionListener() {
                         @Override
                         public void onClick(QMUIDialog dialog, int index) {
                             dialog.dismiss();

@@ -205,6 +205,7 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
             sortCategoryAdapter = new SortCategoryAdapter(R.layout.item_sort_category, sortCategoryList);
             sortCategoryAdapter.setOnStartDragListener(this);
             sortCategoryRecyclerView.setLayoutManager(new LinearLayoutManager(context));
+            sortCategoryRecyclerView.setHasFixedSize(true);
             sortCategoryRecyclerView.addItemDecoration(new DividerItemDecoration(context, DividerItemDecoration.VERTICAL));
             sortCategoryRecyclerView.setAdapter(sortCategoryAdapter);
             initItemTouchHelper(sortCategoryAdapter, sortCategoryRecyclerView, sortCategoryList);

@@ -113,8 +113,8 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         if (presenter.isUserLogin()) {
             btSettingExitAccount.setVisibility(View.VISIBLE);
         }
-        testAlertDialog = DialogUtils.initLoadingDialog(context, "测试中，请稍后...");
-        moveOldDirDownloadVideoToNewDirDiaog = DialogUtils.initLoadingDialog(context, "移动文件中，请稍后...");
+        testAlertDialog = DialogUtils.initLoadingDialog(context, getString(R.string.setting_testing_loading));
+        moveOldDirDownloadVideoToNewDirDiaog = DialogUtils.initLoadingDialog(context, getString(R.string.setting_moving_file_loading));
     }
 
     private void initListener() {
@@ -147,7 +147,7 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
      * 捕获初始化完成后的引擎引用。
      */
     private void showRecoTuneDialog() {
-        showMessage("推荐引擎加载中…", TastyToast.INFO);
+        showMessage(getString(R.string.setting_reco_engine_loading), TastyToast.INFO);
         final android.content.Context appContext = getApplicationContext();
         new Thread(new Runnable() {
             @Override
@@ -176,13 +176,13 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         new RecoSettingsDialog(this, engine, presenter.getDataManager(), new RecoSettingsDialog.OnParamsChangedListener() {
             @Override
             public void onParamsChanged(RecoParams params) {
-                showMessage("推荐参数已保存", TastyToast.SUCCESS);
+                showMessage(getString(R.string.setting_reco_params_saved), TastyToast.SUCCESS);
             }
 
             @Override
             public void onMemoryCleared() {
                 engine.resetMemory();
-                showMessage("推荐记忆已清除", TastyToast.SUCCESS);
+                showMessage(getString(R.string.setting_reco_memory_cleared), TastyToast.SUCCESS);
             }
         }).show();
     }
@@ -196,7 +196,7 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         addressItemWithChevron.setId(R.id.setting_item_9_mman_address);
         addressItemWithChevron.setOrientation(QMUICommonListItemView.VERTICAL);
         String video91Address = presenter.getVideo9MmanAddress();
-        addressItemWithChevron.setDetailText(TextUtils.isEmpty(video91Address) ? "未设置" : video91Address);
+        addressItemWithChevron.setDetailText(TextUtils.isEmpty(video91Address) ? getString(R.string.setting_not_set) : video91Address);
         addressItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
 
 
@@ -212,7 +212,7 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         pornyAddressItemWithChevron.setOrientation(QMUICommonListItemView.VERTICAL);
         pornyAddressItemWithChevron.setId(R.id.setting_item_porny_address);
         String pornyAddress = presenter.getPornyAddress();
-        pornyAddressItemWithChevron.setDetailText(TextUtils.isEmpty(pornyAddress) ? "未设置" : pornyAddress);
+        pornyAddressItemWithChevron.setDetailText(TextUtils.isEmpty(pornyAddress) ? getString(R.string.setting_addr_not_set) : pornyAddress);
         pornyAddressItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
 
         tsec.addItemView(pornyAddressItemWithChevron, new View.OnClickListener() {
@@ -229,7 +229,7 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         String proxyHost = presenter.getProxyIpAddress();
         int proxyPort = presenter.getProxyPort();
         if (TextUtils.isEmpty(proxyHost) || proxyPort == 0) {
-            openProxyItemWithSwitch.setDetailText("长按设置");
+            openProxyItemWithSwitch.setDetailText(getString(R.string.setting_long_press_set));
         } else {
             openProxyItemWithSwitch.setDetailText(proxyHost + " : " + proxyPort);
         }
@@ -281,11 +281,11 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         playEngineItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
 
         //自定义下载路径
-        final QMUICommonListItemView customDownloadPathItemWithChevron = qmuiGroupListView.createItemView("自定义视频下载文件夹");
+        final QMUICommonListItemView customDownloadPathItemWithChevron = qmuiGroupListView.createItemView(getString(R.string.setting_custom_download_dir));
         customDownloadPathItemWithChevron.setOrientation(QMUICommonListItemView.VERTICAL);
         String customDirPath = presenter.getCustomDownloadVideoDirPath();
         if (SDCardUtils.DOWNLOAD_VIDEO_PATH.equalsIgnoreCase(customDirPath)) {
-            customDownloadPathItemWithChevron.setDetailText("需先清空所有未完成下载，建议使用默认");
+            customDownloadPathItemWithChevron.setDetailText(getString(R.string.setting_clear_unfinished_hint));
         } else {
             customDownloadPathItemWithChevron.setDetailText(customDirPath);
         }
@@ -298,9 +298,9 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             // V13：Scoped Storage 强制，公共目录不能作为自定义下载目录（fileDownloader 只能写真实路径），
             // 隐藏虚假选目录入口，改为展示固定说明，避免 Android 10+ 上选目录失效/被忽略。
-            QMUICommonListItemView scopedNoteItem = qmuiGroupListView.createItemView("下载保存位置");
+            QMUICommonListItemView scopedNoteItem = qmuiGroupListView.createItemView(getString(R.string.setting_download_save_location));
             scopedNoteItem.setOrientation(QMUICommonListItemView.VERTICAL);
-            scopedNoteItem.setDetailText("Android 10+ 由系统管辖公共存储：视频下载后存入「相册 / Movies」并可在文件管理器查看，无需手动选目录");
+            scopedNoteItem.setDetailText(getString(R.string.setting_scoped_storage_hint));
             downloadDirSection.addItemView(scopedNoteItem, this);
         } else {
             // Android 9 及以下仍可写公共目录，保留自定义目录选择
@@ -313,21 +313,15 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         QMUIGroupListView.Section sec = QMUIGroupListView.newSection(this);
 
         // 夜间模式归入“更多设置”，避免在“我的”页面占用独立入口。
+        // M112：由「硬开关」升级为三档选择（跟随系统 / 始终夜间 / 始终日间）——
+        // minSdk 28，全量用户都在 Android 9+，系统深色模式不跟随是明显的体验缺口。
         QMUICommonListItemView nightModeItemWithSwitch = qmuiGroupListView.createItemView(getString(R.string.night_mode));
-        nightModeItemWithSwitch.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_SWITCH);
-        nightModeItemWithSwitch.getSwitch().setChecked(presenter.isOpenNightMode());
-        nightModeItemWithSwitch.getSwitch().setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                presenter.setOpenNightMode(isChecked);
-                AppCompatDelegate.setDefaultNightMode(isChecked
-                        ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
-                recreate();
-            }
-        });
+        nightModeItemWithSwitch.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
+        nightModeItemWithSwitch.setDetailText(nightModeLabel(presenter.getNightMode()));
+        nightModeItemWithSwitch.setOnClickListener(v -> showNightModePicker(nightModeItemWithSwitch));
         sec.addItemView(nightModeItemWithSwitch, null);
         // L-fix：「推荐页预加载」——控制推荐流本地缓存秒显 + 预取下一视频（元数据/封面/首包）
-        QMUICommonListItemView recoPrefetchItemWithSwitch = qmuiGroupListView.createItemView("推荐页预加载");
+        QMUICommonListItemView recoPrefetchItemWithSwitch = qmuiGroupListView.createItemView(getString(R.string.setting_reco_prefetch));
         recoPrefetchItemWithSwitch.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_SWITCH);
         recoPrefetchItemWithSwitch.getSwitch().setChecked(PlayUiPrefs.isRecoPrefetchEnabled(this));
         recoPrefetchItemWithSwitch.getSwitch().setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -340,7 +334,7 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
 
         //禁用自动释放内存功能
         boolean isForbidden = presenter.isForbiddenAutoReleaseMemory();
-        QMUICommonListItemView itemWithSwitchForbidden = qmuiGroupListView.createItemView("禁用自动释放内存功能");
+        QMUICommonListItemView itemWithSwitchForbidden = qmuiGroupListView.createItemView(getString(R.string.setting_disable_auto_release_memory));
         itemWithSwitchForbidden.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_SWITCH);
         itemWithSwitchForbidden.getSwitch().setChecked(isForbidden);
         itemWithSwitchForbidden.getSwitch().setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -355,7 +349,7 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
 
         //非Wi-Fi环境下下载视频
         boolean isDownloadNeedWifi = presenter.isDownloadVideoNeedWifi();
-        QMUICommonListItemView itemWithSwitch = qmuiGroupListView.createItemView("非Wi-Fi环境下下载视频");
+        QMUICommonListItemView itemWithSwitch = qmuiGroupListView.createItemView(getString(R.string.setting_download_without_wifi));
         itemWithSwitch.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_SWITCH);
         itemWithSwitch.getSwitch().setChecked(!isDownloadNeedWifi);
         itemWithSwitch.getSwitch().setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -379,14 +373,14 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
 
         // M42：收藏方式——本地收藏（无需登录，与分分钟一致） / 服务器收藏
         boolean isLocalFavoriteMode = presenter.isLocalFavoriteMode();
-        QMUICommonListItemView localFavoriteItemWithSwitch = qmuiGroupListView.createItemView("本地收藏（无需登录）");
+        QMUICommonListItemView localFavoriteItemWithSwitch = qmuiGroupListView.createItemView(getString(R.string.setting_local_favorite));
         localFavoriteItemWithSwitch.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_SWITCH);
         localFavoriteItemWithSwitch.getSwitch().setChecked(isLocalFavoriteMode);
         localFavoriteItemWithSwitch.getSwitch().setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 presenter.setLocalFavoriteMode(isChecked);
-                showMessage(isChecked ? "已切换为本地收藏" : "已切换为服务器收藏", TastyToast.INFO);
+                showMessage(isChecked ? getString(R.string.setting_switched_local_favorite) : getString(R.string.setting_switched_server_favorite), TastyToast.INFO);
             }
         });
 
@@ -409,7 +403,7 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
             @Override
             public void onResult(boolean hasUnfinished) {
                 if (hasUnfinished) {
-                    showMessage("当前有未下载完成视频，无法更改", TastyToast.INFO);
+                    showMessage(getString(R.string.setting_unfinished_download_block), TastyToast.INFO);
                     return;
                 }
                 openDownloadDirPicker(qmuiCommonListItemView);
@@ -421,13 +415,13 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
     private void openDownloadDirPicker(final QMUICommonListItemView qmuiCommonListItemView) {
         FilePicker picker = new FilePicker(this, FilePicker.DIRECTORY);
         picker.setRootPath(StorageUtils.getExternalRootPath());
-        picker.setTitleText("选择文件夹");
+        picker.setTitleText(getString(R.string.setting_pick_folder));
         picker.setItemHeight(40);
         picker.setOnFilePickListener(new FilePicker.OnFilePickListener() {
             @Override
             public void onFilePicked(String currentPath) {
                 if (presenter.getCustomDownloadVideoDirPath().equalsIgnoreCase(currentPath + "/")) {
-                    showMessage("不能选择原目录哦", TastyToast.WARNING);
+                    showMessage(getString(R.string.setting_cannot_pick_same_dir), TastyToast.WARNING);
                     return;
                 }
                 // M100：已完成文件扫描同样移到 IO 线程，回调中决定是否弹「移动文件」确认框
@@ -437,7 +431,7 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
                         if (hasFinishedFiles) {
                             showIsMoveOldDirVideoFileToNewDirDialog(currentPath, qmuiCommonListItemView);
                         } else {
-                            showMessage("设置成功", TastyToast.SUCCESS);
+                            showMessage(getString(R.string.setting_save_success), TastyToast.SUCCESS);
                             qmuiCommonListItemView.setDetailText(currentPath);
                             presenter.setCustomDownloadVideoDirPath(currentPath);
                         }
@@ -450,16 +444,16 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
 
     private void showIsMoveOldDirVideoFileToNewDirDialog(final String newDirPath, final QMUICommonListItemView qmuiCommonListItemView) {
         QMUIDialog.MessageDialogBuilder builder = new QMUIDialog.MessageDialogBuilder(context);
-        builder.setTitle("移动文件");
-        builder.setMessage("当前已选择新文件夹路径：" + newDirPath + "\n发现原下载文件夹有已下载完成视频，是否移动到新文件夹？\n PS:不移动则无法在下载完成界面打开文件");
-        builder.addAction("移动", new QMUIDialogAction.ActionListener() {
+        builder.setTitle(getString(R.string.setting_move_files_title));
+        builder.setMessage(getString(R.string.setting_move_files_message, newDirPath));
+        builder.addAction(getString(R.string.setting_move), new QMUIDialogAction.ActionListener() {
             @Override
             public void onClick(QMUIDialog dialog, int index) {
                 dialog.dismiss();
                 presenter.moveOldDownloadVideoToNewDir(newDirPath, qmuiCommonListItemView);
             }
         });
-        builder.addAction("不移动", new QMUIDialogAction.ActionListener() {
+        builder.addAction(getString(R.string.setting_dont_move), new QMUIDialogAction.ActionListener() {
             @Override
             public void onClick(QMUIDialog dialog, int index) {
                 dialog.dismiss();
@@ -467,7 +461,7 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
                 presenter.setCustomDownloadVideoDirPath(newDirPath);
             }
         });
-        builder.addAction("返回", new QMUIDialogAction.ActionListener() {
+        builder.addAction(getString(R.string.back), new QMUIDialogAction.ActionListener() {
             @Override
             public void onClick(QMUIDialog dialog, int index) {
                 dialog.dismiss();
@@ -479,11 +473,11 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
     private String getAddressSettingTitle(String key) {
         switch (key) {
             case AppPreferencesHelper.KEY_SP_PORN_91_VIDEO_ADDRESS:
-                return "9*mman视频地址设置";
+                return getString(R.string.setting_addr_title_mman);
             case AppPreferencesHelper.KEY_SP_PORNY_ADDRESS:
-                return "91porny地址设置";
+                return getString(R.string.setting_addr_title_porny);
             default:
-                return "地址设置";
+                return getString(R.string.setting_addr_title_default);
         }
     }
 
@@ -536,7 +530,7 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
             public void onClick(View v) {
                 String address = autoCompleteTextView.getText().toString().trim();
                 if (TextUtils.isEmpty(address)) {
-                    showMessage("地址不能为空哟！", TastyToast.ERROR);
+                    showMessage(getString(R.string.setting_address_empty_error), TastyToast.ERROR);
                     return;
                 }
                 //因为我们很多地方链接地址是拼接的，所以如果缺少了后面的“/”，就会拼接处错误的链接
@@ -632,16 +626,16 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         // M3：保存地址的同时持久化到自动补全表，供下次输入建议
         presenter.saveAutoComplete(address, AutoCompleteEntity.TYPE_ADDRESS);
         qmuiCommonListItemView.setDetailText(address);
-        showMessage("设置成功", TastyToast.INFO);
+        showMessage(getString(R.string.setting_save_success), TastyToast.INFO);
         // M100：仅清空当前类型的草稿，不影响另一类地址
         setTestBaseUrlDraft(key, "");
     }
 
     private void showConfirmDialog(final QMUICommonListItemView qmuiCommonListItemView, final String address, final String key) {
         new AlertDialog.Builder(this, R.style.MyDialogTheme)
-                .setTitle("温馨提示")
-                .setMessage("地址还未测试成功，确认设置吗？")
-                .setPositiveButton("设置", new DialogInterface.OnClickListener() {
+                .setTitle(getString(R.string.setting_tip_title))
+                .setMessage(getString(R.string.setting_test_not_success_confirm))
+                .setPositiveButton(getString(R.string.setting_set_button), new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         dialog.dismiss();
@@ -650,7 +644,7 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
                         resetOrUpdateAddress(key);
                     }
                 })
-                .setNegativeButton("返回", new DialogInterface.OnClickListener() {
+                .setNegativeButton(getString(R.string.back), new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         showAddressSettingDialog(qmuiCommonListItemView, key);
@@ -662,13 +656,13 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
     private boolean checkAddress(String address) {
         HttpUrl httpUrl = HttpUrl.parse(address);
         if (httpUrl == null) {
-            showMessage("设置失败，输入地址格式不正确，(不要忘了最后面的“/”)", TastyToast.ERROR);
+            showMessage(getString(R.string.setting_address_format_error), TastyToast.ERROR);
             return false;
         }
         List<String> pathSegments = httpUrl.pathSegments();
         // 修复 AIOOBE：pathSegments 可能为空（如 http://example.com 无路径时）
         if (pathSegments.isEmpty() || !"".equals(pathSegments.get(pathSegments.size() - 1))) {
-            showMessage("设置失败，输入地址格式不正确，(不要忘了最后面的“/”)", TastyToast.ERROR);
+            showMessage(getString(R.string.setting_address_format_error), TastyToast.ERROR);
             return false;
         }
         return true;
@@ -676,9 +670,9 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
 
     private void showForbiddenReleaseMemoryTipInfoDialog() {
         QMUIDialog.MessageDialogBuilder builder = new QMUIDialog.MessageDialogBuilder(this);
-        builder.setTitle("温馨提示");
-        builder.setMessage("为了获得较好的体验，新版本程序占用内存较高，这可能导致后台运行而系统内存不足时成为系统回收内存的优先对象（尤其在低内存手机上），因此我做了自动释放内存功能，但这同时也会使体验有所下降，你可以强制关闭次功能，建议开启");
-        builder.addAction("知道了", new QMUIDialogAction.ActionListener() {
+        builder.setTitle(getString(R.string.setting_tip_title));
+        builder.setMessage(getString(R.string.setting_forbidden_release_memory_tip));
+        builder.addAction(getString(R.string.setting_got_it), new QMUIDialogAction.ActionListener() {
             @Override
             public void onClick(QMUIDialog dialog, int index) {
                 dialog.dismiss();
@@ -687,17 +681,82 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         builder.show();
     }
 
+    // ==================== M112：夜间模式三档（跟随系统 / 始终夜间 / 始终日间）====================
+
+    /** 夜间模式存储码：与 AppPreferencesHelper#getNightMode 的迁移逻辑一致 */
+    private static final int NIGHT_MODE_FOLLOW_SYSTEM = 0;
+    private static final int NIGHT_MODE_ON = 1;
+    private static final int NIGHT_MODE_OFF = 2;
+
+    private String nightModeLabel(int nightMode) {
+        switch (nightMode) {
+            case NIGHT_MODE_ON:
+                return getString(R.string.setting_night_on);
+            case NIGHT_MODE_OFF:
+                return getString(R.string.setting_night_off);
+            default:
+                return getString(R.string.setting_night_follow);
+        }
+    }
+
+    private void showNightModePicker(final QMUICommonListItemView item) {
+        final int current = presenter.getNightMode();
+        final CharSequence[] labels = new CharSequence[]{getString(R.string.setting_night_follow), getString(R.string.setting_night_on), getString(R.string.setting_night_off)};
+        final int[] codes = new int[]{NIGHT_MODE_FOLLOW_SYSTEM, NIGHT_MODE_ON, NIGHT_MODE_OFF};
+        int checkedIndex = 0;
+        for (int i = 0; i < codes.length; i++) {
+            if (codes[i] == current) {
+                checkedIndex = i;
+                break;
+            }
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(getString(R.string.night_mode))
+                .setSingleChoiceItems(labels, checkedIndex, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                        int code = codes[which];
+                        if (code != current) {
+                            applyNightMode(code, item);
+                        }
+                    }
+                })
+                .show();
+    }
+
+    private void applyNightMode(int nightMode, QMUICommonListItemView item) {
+        presenter.setNightMode(nightMode);
+        if (item != null) {
+            item.setDetailText(nightModeLabel(nightMode));
+        }
+        int mode;
+        switch (nightMode) {
+            case NIGHT_MODE_ON:
+                mode = AppCompatDelegate.MODE_NIGHT_YES;
+                break;
+            case NIGHT_MODE_OFF:
+                mode = AppCompatDelegate.MODE_NIGHT_NO;
+                break;
+            default:
+                mode = AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM;
+                break;
+        }
+        AppCompatDelegate.setDefaultNightMode(mode);
+        recreate();
+    }
+
     private void showPlaybackEngineChoiceDialog(final QMUICommonListItemView qmuiCommonListItemView) {
         final int checkedIndex = presenter.getPlaybackEngine();
         new QMUIDialog.CheckableDialogBuilder(this)
-                .setTitle("播放引擎选择")
+                .setTitle(getString(R.string.setting_playback_engine_title))
                 .setCheckedIndex(checkedIndex)
                 .addItems(PlaybackEngine.PLAY_ENGINE_ITEMS, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         presenter.setPlaybackEngine(which);
                         qmuiCommonListItemView.setDetailText(PlaybackEngine.PLAY_ENGINE_ITEMS[which]);
-                        showMessage("设置成功", TastyToast.SUCCESS);
+                        showMessage(getString(R.string.setting_save_success), TastyToast.SUCCESS);
                         dialog.dismiss();
                     }
                 })
@@ -706,9 +765,9 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
 
     private void showExitDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.MyDialogTheme);
-        builder.setTitle("退出登录");
-        builder.setMessage("退出当前帐号？");
-        builder.setPositiveButton("退出", new DialogInterface.OnClickListener() {
+        builder.setTitle(getString(R.string.exit_login_account));
+        builder.setMessage(getString(R.string.setting_exit_account_confirm_msg));
+        builder.setPositiveButton(getString(R.string.setting_exit), new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 presenter.existLogin();
@@ -717,7 +776,7 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
                 finish();
             }
         });
-        builder.setNegativeButton("取消", null);
+        builder.setNegativeButton(getString(R.string.common_cancel), null);
         builder.show();
     }
 

@@ -9,7 +9,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:src="@drawable/mm_reward_qrcode_1567130480000" />
+        android:src="@drawable/mm_reward_qrcode_1567130480000"  android:contentDescription="@string/cd_qrcode_wechat"/>
 
     <ImageView
         android:id="@+id/iv_appreciate_qr_code_ali_pay"
@@ -17,13 +17,13 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:visibility="gone"
-        android:src="@drawable/alipay1567130480000" />
+        android:src="@drawable/alipay1567130480000"  android:contentDescription="@string/cd_qrcode_alipay"/>
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="@dimen/dp_10"
-        android:text="如果你觉得项目还不错，请我喝杯咖啡，算是对我的认可和鼓励(保存图片打开扫一扫功能,从相册选择图片即可打赏或支付，请认准是GitHub上的apk安装包，否则可能被调包)。"
+        android:text="@string/appreciate_layout_desc"
         android:textSize="@dimen/sp_14" />
 
     <RadioGroup
@@ -40,12 +40,12 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:checked="true"
-            android:text="微信" />
+            android:text="@string/appreciate_layout_wechat" />
 
         <RadioButton
             android:id="@+id/rb_ali_pay"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="支付宝" />
+            android:text="@string/appreciate_layout_alipay" />
     </RadioGroup>
 </LinearLayout>

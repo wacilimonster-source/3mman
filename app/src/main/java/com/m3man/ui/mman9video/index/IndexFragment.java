@@ -96,6 +96,7 @@ public class IndexFragment extends MvpFragment<IndexView, IndexPresenter> implem
 
         contentView.setOnRefreshListener(this);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        recyclerView.setHasFixedSize(true);
         recyclerView.setAdapter(mV91MmanAdapter);
 
         mV91MmanAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {

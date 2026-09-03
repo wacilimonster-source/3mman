@@ -143,6 +143,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         mV91MmanAdapter = new V91MmanAdapter(R.layout.item_v_9mman);
         mV91MmanAdapter.openLoadAnimation();
         recyclerView.setLayoutManager(new LinearLayoutManager(context));
+        recyclerView.setHasFixedSize(true);
         // RV 自身尺寸由父布局固定（match_parent），子项增删不会改其大小，
         // 标记为 fixed 可跳过无谓的整体布局请求，滚动更顺滑
         recyclerView.setAdapter(mV91MmanAdapter);
@@ -281,6 +282,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         // 默认隐藏，等有搜索结果（updateSkipBar 拿到总页数）再显示，避免一进来底部空一条
         skipPageLayout.setVisibility(View.GONE);
         skipPageRecyclerView.setLayoutManager(new LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false));
+        skipPageRecyclerView.setHasFixedSize(true);
         skipPageAdapter = new SkipPageAdapter(R.layout.item_skip_page);
         skipPageRecyclerView.setAdapter(skipPageAdapter);
         skipPageAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {

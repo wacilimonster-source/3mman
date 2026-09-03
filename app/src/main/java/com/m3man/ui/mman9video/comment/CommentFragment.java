@@ -159,6 +159,7 @@ public class CommentFragment extends MvpFragment<CommentView, CommentPresenter> 
 
     private void initVideoComments() {
         recyclerViewVideoComment.setLayoutManager(new LinearLayoutManager(getContext()));
+        recyclerViewVideoComment.setHasFixedSize(true);
         recyclerViewVideoComment.addItemDecoration(dividerItemDecoration);
         recyclerViewVideoComment.setAdapter(videoCommentAdapter);
     }
