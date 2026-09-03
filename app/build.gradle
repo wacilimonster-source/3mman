@@ -8,15 +8,14 @@ android {
         applicationId "com.m3man"
         minSdkVersion parent.ext.minSdkVersion
         targetSdkVersion parent.ext.targetSdkVersion
-        versionCode 143
-        versionName "1.0.110"
+        versionCode 144
+        versionName "1.0.111"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
         multiDexEnabled true
         ndk {
-            // 设置支持的SO库架构：真机 32 位 armeabi-v7a + 64 位 arm64-v8a
-            // （64 位在新机型更省电、Android 14 起 32 位兼容性趋差；tess-two/Bugly 均带 arm64 so）
-            abiFilters 'armeabi-v7a', 'arm64-v8a'
+            // 设置支持的SO库架构：仅保留 64 位 arm64-v8a（R8 混淆 + 64 位，兼顾体积与新机型兼容）
+            abiFilters 'arm64-v8a'
         }
         // H-17: Bugly App ID 通过 gradle.properties 注入，不硬编码在源码中
         buildConfigField "String", "BUGLY_APP_ID", project.hasProperty('bugly_app_id') ? "\"${bugly_app_id}\"" : "\"\""

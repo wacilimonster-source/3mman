@@ -1,7 +1,7 @@
 {
-  "versionCode": 143,
-  "versionName": "1.0.110",
-  "updateMessage": "1.0.110 更新内容：\n1）删除 9mman 站内搜索（仅保留主界面底部「搜索」Tab 的 91porny 搜索），清理对应 Activity / Dagger 注入 / 数据层接口；\n2）修复搜索历史「清空无效 + 点击历史不搜索」：根因是 LoadViewHelper 空状态容器 z 序盖住历史面板、吃掉整层触摸（无报错），已在历史面板展示时 bringToFront() 置顶；\n3）点击历史条目后搜索条件回填到输入框显示；\n4）新增搜索「重置」入口，可回到未搜索的初始状态（取消在途请求、重置分页、清空结果与关键词、恢复提示与历史）。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.110.apk",
-  "sha256": "6bf66ae7387cac42eb4d914fd7b2048ae9db5f71bbdc6fa5318c127a578d3653"
+  "versionCode": 144,
+  "versionName": "1.0.111",
+  "updateMessage": "1.0.111 更新内容：\n1）Release 包开启 R8 代码混淆与资源裁剪，包体由 9.7MB 降至 7.8MB；\n2）ABI 切换为 64 位 arm64-v8a，新机型（Android 14+）兼容性更好、更省电；\n3）清理历史遗留的无用混淆配置；\n注意：仅支持 64 位 CPU 的设备（2018 年之后的机型均可）。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.111.apk",
+  "sha256": "ed112fe72519c9e230510f3f0a0decd489525c08b1604cb2a904f470ab3e322c"
 }
