@@ -1,7 +1,7 @@
 {
-  "versionCode": 146,
-  "versionName": "1.0.113",
-  "updateMessage": "1.0.113 更新内容：\n1）修复「我的下载」页打开即闪退的问题；\n2）其他稳定性改进。\n注意：仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.113.apk",
-  "sha256": "2b68ea2d61bde16cbdfe5c3a9df540e2d72ab0db642c518f90b78afab299e95a"
+  "versionCode": 147,
+  "versionName": "1.0.114",
+  "updateMessage": "1.0.114 更新内容：\n1）修复「我的下载」页有下载记录时打开闪退的问题（AndroidX 迁移后 Space 类失效）；\n2）同步修复代理设置页/服务器地址弹窗中同类隐患。\n注意：仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.114.apk",
+  "sha256": "25f972c06b123d75e244dd19b0e29cfd4f4de3a5ac135cee5f3f0256b020a911"
 }

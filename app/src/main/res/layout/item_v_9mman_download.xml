@@ -46,7 +46,7 @@
             app:autoSizeStepGranularity="1sp"
             app:autoSizeTextType="uniform"
             />
-        <androidx.core.widget.Space
+        <android.widget.Space
             android:layout_width="match_parent"
             android:layout_height="2dp"
             android:layout_toRightOf="@+id/fl_img"
