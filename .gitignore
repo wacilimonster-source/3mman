@@ -49,3 +49,9 @@ probe_new.tmp
 
 # 第三方工具配置目录
 .openclaw/
+
+# R8/ProGuard 输出到源码目录的历史产物（正版的 mapping 在 app/build/outputs/mapping/，发布时归档）
+app/mapping.txt
+app/seeds.txt
+app/unused.txt
+app/class_files.txt
