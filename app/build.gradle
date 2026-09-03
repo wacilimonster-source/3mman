@@ -14,9 +14,9 @@ android {
         vectorDrawables.useSupportLibrary = true
         multiDexEnabled true
         ndk {
-            // 设置支持的SO库架构：仅保留真机 32 位 armeabi-v7a，
-            // 砍掉模拟器 x86 与古董 armeabi，显著缩减安装包体积
-            abiFilters 'armeabi-v7a'//, 'x86', 'armeabi'//, 'x86_64', 'arm64-v8a'
+            // 设置支持的SO库架构：真机 32 位 armeabi-v7a + 64 位 arm64-v8a
+            // （64 位在新机型更省电、Android 14 起 32 位兼容性趋差；tess-two/Bugly 均带 arm64 so）
+            abiFilters 'armeabi-v7a', 'arm64-v8a'
         }
         // H-17: Bugly App ID 通过 gradle.properties 注入，不硬编码在源码中
         buildConfigField "String", "BUGLY_APP_ID", project.hasProperty('bugly_app_id') ? "\"${bugly_app_id}\"" : "\"\""
@@ -40,17 +40,18 @@ android {
             // zipalign优化
             zipAlignEnabled true
             // 移除无用的资源文件
-            shrinkResources false
-            // 混淆
-            minifyEnabled false
+            shrinkResources true
+            // 混淆（AGP 7.4 下即 R8）
+            minifyEnabled true
             // 加载默认混淆配置文件 progudard-android.txt在sdk目录里面，不用管，proguard-rules.pro是我们自己配的混淆文件
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro', 'proguard-fresco.pro'
+            // proguard-fresco.pro 为 Fresco 时代遗留（项目从未引入 Fresco，现用 Glide），已删除引用
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
         debug {
             ext.enableBugsnag = false
             signingConfig signingConfigs.debug
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro', 'proguard-fresco.pro'
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
     lintOptions {
