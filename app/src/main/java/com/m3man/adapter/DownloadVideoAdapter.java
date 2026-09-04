@@ -26,8 +26,39 @@ import java.util.List;
 
 public class DownloadVideoAdapter extends BaseQuickAdapter<V9MmanItem, BaseViewHolder> {
 
+    /** payload 局部刷新标记：只更新进度条/百分比/大小/速率，不重绑封面与标题 */
+    public static final Object PAYLOAD_PROGRESS = new Object();
+
     public DownloadVideoAdapter(int layoutResId, @Nullable List<V9MmanItem> data) {
         super(layoutResId, data);
+    }
+
+    @Override
+    public void onBindViewHolder(BaseViewHolder holder, int position, List<Object> payloads) {
+        if (payloads.isEmpty()) {
+            super.onBindViewHolder(holder, position, payloads);
+            return;
+        }
+        V9MmanItem item = getItem(position);
+        if (item == null) {
+            return;
+        }
+        // 进度类字段高频变化，局部刷新可避免封面 Glide 请求与标题重排
+        holder.setProgress(R.id.progressBar_download, item.getProgress());
+        holder.setText(R.id.tv_download_progress, String.valueOf(item.getProgress()) + "%");
+        String sizeText;
+        if (item.getTotalFarBytes() > 0) {
+            sizeText = Formatter.formatFileSize(holder.itemView.getContext(), item.getSoFarBytes()).replace("MB", "") + "/ "
+                    + Formatter.formatFileSize(holder.itemView.getContext(), item.getTotalFarBytes());
+        } else if (item.getSoFarBytes() > 0) {
+            sizeText = Formatter.formatFileSize(holder.itemView.getContext(), item.getSoFarBytes()).replace("MB", "") + "/ --";
+        } else {
+            sizeText = "--/--";
+        }
+        holder.setText(R.id.tv_download_filesize, sizeText);
+        if (item.getStatus() == FileDownloadStatus.progress) {
+            holder.setText(R.id.tv_download_speed, item.getSpeed() + " KB/s");
+        }
     }
 
     @Override

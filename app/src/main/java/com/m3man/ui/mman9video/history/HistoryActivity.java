@@ -10,6 +10,7 @@ import com.aitsuki.swipe.SwipeMenuRecyclerView;
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.helper.loadviewhelper.help.OnLoadViewListener;
 import com.helper.loadviewhelper.load.LoadViewHelper;
+import com.m3man.utils.AdapterDiffUtil;
 import com.m3man.R;
 import com.m3man.adapter.V9MmanItemAdapter;
 import com.m3man.data.db.entity.V9MmanItem;
@@ -69,7 +70,8 @@ public class HistoryActivity extends MvpActivity<HistoryView, HistoryPresenter> 
         mUnLimit91Adapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
-                goToPlayVideo((V9MmanItem) adapter.getItem(position), presenter.getPlayBackEngine());
+                View coverView = view.findViewById(R.id.iv_91mman_item_img);
+                goToPlayVideo((V9MmanItem) adapter.getItem(position), presenter.getPlayBackEngine(), coverView);
             }
         });
         mUnLimit91Adapter.setOnLoadMoreListener(new BaseQuickAdapter.RequestLoadMoreListener() {
@@ -125,7 +127,7 @@ public class HistoryActivity extends MvpActivity<HistoryView, HistoryPresenter> 
 
     @Override
     public void setData(List<V9MmanItem> v9MmanItemList) {
-        mUnLimit91Adapter.setNewData(v9MmanItemList);
+        AdapterDiffUtil.apply(mUnLimit91Adapter, v9MmanItemList, AdapterDiffUtil.v9MmanItem());
     }
 
     @Override

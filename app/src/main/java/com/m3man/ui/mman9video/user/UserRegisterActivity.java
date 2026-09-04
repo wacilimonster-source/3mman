@@ -103,28 +103,28 @@ public class UserRegisterActivity extends MvpActivity<UserView, UserPresenter> i
 
     private void register(String username, String email, String passwordOne, String passwordTwo, String captcha) {
         if (TextUtils.isEmpty(username)) {
-            showMessage("用户名不能为空", TastyToast.INFO);
+            showMessage(getString(R.string.register_username_empty), TastyToast.INFO);
             return;
         }
         //服务器根本不会验证邮箱格式，貌似只要有@符号和.就可以通过注册了,不过如果后期验证邮箱....
         if (TextUtils.isEmpty(email)) {
-            showMessage("邮箱不能为空", TastyToast.INFO);
+            showMessage(getString(R.string.register_email_empty), TastyToast.INFO);
             return;
         }
         if (TextUtils.isEmpty(passwordOne)) {
-            showMessage("密码不能为空", TastyToast.INFO);
+            showMessage(getString(R.string.register_password_empty), TastyToast.INFO);
             return;
         }
         if (TextUtils.isEmpty(passwordTwo)) {
-            showMessage("确认密码不能为空", TastyToast.INFO);
+            showMessage(getString(R.string.register_confirm_password_empty), TastyToast.INFO);
             return;
         }
         if (TextUtils.isEmpty(captcha)) {
-            showMessage("验证码不能为空", TastyToast.INFO);
+            showMessage(getString(R.string.register_captcha_empty), TastyToast.INFO);
             return;
         }
         if (!passwordOne.equals(passwordTwo)) {
-            showMessage("密码不一致，请检查", TastyToast.INFO);
+            showMessage(getString(R.string.register_password_mismatch), TastyToast.INFO);
             return;
         }
         QMUIKeyboardHelper.hideKeyboard(getCurrentFocus());
@@ -161,7 +161,7 @@ public class UserRegisterActivity extends MvpActivity<UserView, UserPresenter> i
     public void registerSuccess(User user) {
         presenter.saveUserInfoPrf(username, password);
         startMain();
-        showMessage("注册成功", TastyToast.SUCCESS);
+        showMessage(getString(R.string.register_success), TastyToast.SUCCESS);
     }
 
     @Override

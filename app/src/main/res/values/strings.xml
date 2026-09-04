@@ -432,4 +432,60 @@
     <string name="cd_qrcode_alipay">支付宝收款二维码</string>
     <string name="cd_apk_download_icon">应用下载</string>
     <string name="cd_user_avatar">用户头像</string>
+
+    <!-- M115：补充用户可见文案 -->
+    <string name="common_cannot_get_activity">无法获取宿主Activity</string>
+    <string name="common_drag_slider_tip">拖动左边滑块可以排序哟</string>
+    <string name="common_operation_failed">操作失败，请重试</string>
+    <string name="common_user_info_error">用户信息错误，无法获取数据</string>
+    <string name="common_cancel_favorite">已取消收藏</string>
+    <string name="common_cancel_favorite_failed">取消收藏失败</string>
+    <string name="common_load_more_failed">加载更多失败</string>
+
+    <!-- 下载相关 -->
+    <string name="download_not_parsed_url">还未解析成功视频地址</string>
+    <string name="download_already_downloaded">已经下载过了，请查看下载目录</string>
+    <string name="download_no_available_url">没有可用的视频地址，请稍后重试</string>
+    <string name="download_dir_not_writable">下载目录不可写，请检查存储权限或更换下载目录</string>
+    <string name="download_auto_switch_backup">原站视频地址不可访问，已自动改用备用源继续下载</string>
+    <string name="download_parse_failed">解析视频地址失败，请稍后重试</string>
+    <string name="download_added_to_background">已加入后台下载</string>
+    <string name="download_started">开始下载</string>
+    <string name="download_delete_failed">删除文件失败</string>
+
+    <!-- 评论相关 -->
+    <string name="comment_please_fill">请填写评论</string>
+    <string name="comment_please_login">请先登录帐号</string>
+    <string name="comment_video_not_parsed">视频地址还未解析成功，无法评论</string>
+    <string name="comment_select_reply_first">请先选择需要回复的评论！</string>
+    <string name="comment_load_failed_retry">加载评论失败了，点击重试</string>
+
+    <!-- 播放页相关 -->
+    <string name="play_video_info_incomplete">视频信息不完整，无法播放，请返回重试</string>
+    <string name="play_author_not_ready">作者信息未就绪，无法收藏</string>
+    <string name="play_favorite_success">收藏成功</string>
+    <string name="play_not_parsed_cannot_download">还未成功解析视频链接，不能下载！</string>
+    <string name="play_added_to_background_with_notification">已加入后台下载，进度请看通知栏</string>
+    <string name="play_not_parsed_cannot_favorite">还未成功解析视频链接，不能收藏！</string>
+    <string name="play_favorite_saved_local">收藏成功（已保存到本地）</string>
+    <string name="play_favorite_failed">收藏失败</string>
+    <string name="play_please_login_first">请先登录</string>
+
+    <!-- 注册相关 -->
+    <string name="register_username_empty">用户名不能为空</string>
+    <string name="register_email_empty">邮箱不能为空</string>
+    <string name="register_password_empty">密码不能为空</string>
+    <string name="register_confirm_password_empty">确认密码不能为空</string>
+    <string name="register_captcha_empty">验证码不能为空</string>
+    <string name="register_password_mismatch">密码不一致，请检查</string>
+    <string name="register_success">注册成功</string>
+
+    <!-- 推荐流相关 -->
+    <string name="reco_load_failed_swipe_retry">加载失败，下滑重试</string>
+    <string name="reco_download_duplicate">下载任务正在启动，请勿重复点击</string>
+    <string name="reco_download_failed_with_reason">下载失败: %s</string>
+
+    <!-- 作者相关 -->
+    <string name="author_favorite_added">已收藏作者</string>
+    <string name="author_favorite_removed">已取消收藏作者</string>
 </resources>

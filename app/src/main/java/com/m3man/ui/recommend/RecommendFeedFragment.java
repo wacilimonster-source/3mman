@@ -560,7 +560,7 @@ public class RecommendFeedFragment extends BaseFragment
         } else {
             // M100：已有内容时不再弹出全屏重试遮罩——视频正在播放，遮罩会挡住画面，
             // 改用 Toast 提示用户，下次滑动会自动重试加载更多
-            showMessage("加载失败，下滑重试", TastyToast.WARNING);
+            showMessage(getString(R.string.reco_load_failed_swipe_retry), TastyToast.WARNING);
         }
     }
 
@@ -1060,7 +1060,7 @@ public class RecommendFeedFragment extends BaseFragment
                     showMessage(getString(wasFavorited
                             ? R.string.reco_unfavorited : R.string.reco_favorited),
                             TastyToast.SUCCESS);
-                }, throwable -> showMessage("收藏失败", TastyToast.ERROR)));
+                }, throwable -> showMessage(getString(R.string.play_favorite_failed), TastyToast.ERROR)));
         persistAsync(true);
     }
 

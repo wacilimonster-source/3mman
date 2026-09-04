@@ -100,7 +100,7 @@
             android:layout_marginTop="5dp"
             android:textStyle="bold"
             android:textColor="@color/colorPrimary"
-            android:text="注意：切勿频繁重复注册，否则可能所有帐号均被删除，且封禁IP" />
+            android:text="@string/register_layout_notice" />
     </LinearLayout>
 
 </LinearLayout>

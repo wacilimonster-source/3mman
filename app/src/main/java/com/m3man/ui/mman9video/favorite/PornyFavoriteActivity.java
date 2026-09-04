@@ -16,6 +16,7 @@ import com.m3man.R;
 import com.m3man.adapter.V91MmanAdapter;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.ui.MvpActivity;
+import com.m3man.utils.AdapterDiffUtil;
 import com.m3man.utils.LoadHelperUtils;
 import com.m3man.utils.PlaybackEngine;
 
@@ -65,8 +66,9 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
                 V9MmanItem item = (V9MmanItem) adapter.getData().get(position);
+                View coverView = view.findViewById(R.id.iv_91mman_item_img);
                 // 91porny 为 m3u8 HLS，强制 ExoPlayer
-                goToPlayVideo(item, PlaybackEngine.DEFAULT_PLAYER_ENGINE);
+                goToPlayVideo(item, PlaybackEngine.DEFAULT_PLAYER_ENGINE, coverView);
             }
         });
         // 左滑菜单中的删除
@@ -124,7 +126,7 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
                         mAdapter.setNewData(new ArrayList<>());
                     } else {
                         helper.showContent();
-                        mAdapter.setNewData(items);
+                        AdapterDiffUtil.apply(mAdapter, items, AdapterDiffUtil.v9MmanItem());
                     }
                 }, throwable -> {
                     helper.showError();
@@ -169,7 +171,7 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
 
     @Override
     public void setFavoriteData(List<V9MmanItem> v9MmanItemList) {
-        mAdapter.setNewData(v9MmanItemList);
+        AdapterDiffUtil.apply(mAdapter, v9MmanItemList, AdapterDiffUtil.v9MmanItem());
         helper.showContent();
     }
 

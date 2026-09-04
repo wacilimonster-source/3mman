@@ -46,8 +46,7 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:text="@string/reco_parse_failed"
-            android:textColor="#FFFFFFFF"
-            android:textSize="14sp" />
+            android:textAppearance="@style/TextAppearance.App.Inverse.Body" />
 
         <Button
             android:id="@+id/btn_reco_retry"
@@ -197,8 +196,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="00:00"
-            android:textColor="#FFFFFFFF"
-            android:textSize="12sp" />
+            android:textAppearance="@style/TextAppearance.App.Inverse.Caption" />
 
         <SeekBar
             android:id="@+id/sb_reco_progress"
@@ -219,8 +217,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="00:00"
-            android:textColor="#FFFFFFFF"
-            android:textSize="12sp" />
+            android:textAppearance="@style/TextAppearance.App.Inverse.Caption" />
 
         <!-- M112：36dp+7dp padding → 48dp+6dp padding（视觉仍 36dp），
              与倍速按钮的间距由 4dp 提到 8dp，降低误触 -->
@@ -273,8 +270,7 @@
             android:maxLines="2"
             android:shadowColor="#FF000000"
             android:shadowRadius="4"
-            android:textColor="#FFFFFFFF"
-            android:textSize="16sp" />
+            android:textAppearance="@style/TextAppearance.App.Inverse.Title" />
 
         <TextView
             android:id="@+id/tv_reco_meta"
@@ -285,7 +281,7 @@
             android:maxLines="1"
             android:shadowColor="#FF000000"
             android:shadowRadius="4"
-            android:textColor="#CCFFFFFF"
-            android:textSize="12sp" />
+            android:textAppearance="@style/TextAppearance.App.Inverse.Caption"
+            android:textColor="#CCFFFFFF" />
     </LinearLayout>
 </FrameLayout>

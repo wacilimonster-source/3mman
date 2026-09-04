@@ -20,6 +20,7 @@ import com.m3man.R;
 import com.m3man.adapter.V91MmanAdapter;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.ui.MvpFragment;
+import com.m3man.utils.AdapterDiffUtil;
 import com.m3man.utils.AppUtils;
 import com.m3man.utils.LoadHelperUtils;
 
@@ -103,7 +104,8 @@ public class IndexFragment extends MvpFragment<IndexView, IndexPresenter> implem
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
                 V9MmanItem v9MmanItems = (V9MmanItem) adapter.getData().get(position);
-                goToPlayVideo(v9MmanItems, presenter.getPlayBackEngine(), 0, position);
+                View coverView = view.findViewById(R.id.iv_91mman_item_img);
+                goToPlayVideo(v9MmanItems, presenter.getPlayBackEngine(), 0, position, coverView);
             }
         });
 
@@ -129,8 +131,7 @@ public class IndexFragment extends MvpFragment<IndexView, IndexPresenter> implem
 
     @Override
     public void setData(List<V9MmanItem> data) {
-        mV91MmanAdapter.setNewData(data);
-        mV91MmanAdapter.notifyDataSetChanged();
+        AdapterDiffUtil.apply(mV91MmanAdapter, data, AdapterDiffUtil.v9MmanItem());
         ((LinearLayoutManager)recyclerView.getLayoutManager()).scrollToPositionWithOffset(position,0);
     }
 

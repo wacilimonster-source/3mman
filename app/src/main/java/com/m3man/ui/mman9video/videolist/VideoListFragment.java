@@ -25,6 +25,7 @@ import com.m3man.adapter.SkipPageAdapter;
 import com.m3man.adapter.V91MmanAdapter;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.ui.MvpFragment;
+import com.m3man.utils.AdapterDiffUtil;
 import com.m3man.utils.AppUtils;
 import com.m3man.utils.LoadHelperUtils;
 
@@ -123,8 +124,9 @@ public class VideoListFragment extends MvpFragment<VideoListView, VideoListPrese
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
                 V9MmanItem v9MmanItems = (V9MmanItem) adapter.getItem(position);
+                View coverView = view.findViewById(R.id.iv_91mman_item_img);
                 // 传入真实点击位置用于详情页内关联列表的滚动定位（之前用 position%20 会导致定位到错误位置）
-                goToPlayVideo(v9MmanItems, presenter.getPlayBackEngine(), presenter.getPage(), position);
+                goToPlayVideo(v9MmanItems, presenter.getPlayBackEngine(), presenter.getPage(), position, coverView);
             }
         });
         mV91MmanAdapter.setOnLoadMoreListener(new BaseQuickAdapter.RequestLoadMoreListener() {
@@ -182,7 +184,7 @@ public class VideoListFragment extends MvpFragment<VideoListView, VideoListPrese
     @Override
     public void setData(List<V9MmanItem> data) {
         Logger.t(TAG).d(category.getCategoryName()+"  加载数据成功......");
-        mV91MmanAdapter.setNewData(data);
+        AdapterDiffUtil.apply(mV91MmanAdapter, data, AdapterDiffUtil.v9MmanItem());
         mV91MmanAdapter.disableLoadMoreIfNotFullPage(recyclerView);
         ((LinearLayoutManager) recyclerView.getLayoutManager()).scrollToPositionWithOffset(position, 0);
     }
@@ -265,7 +267,7 @@ public class VideoListFragment extends MvpFragment<VideoListView, VideoListPrese
 
     @Override
     public void loadMoreFailed() {
-        showMessage("加载更多失败", TastyToast.ERROR);
+        showMessage(getString(R.string.common_load_more_failed), TastyToast.ERROR);
         mV91MmanAdapter.loadMoreFail();
     }
 

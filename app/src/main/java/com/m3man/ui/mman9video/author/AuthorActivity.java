@@ -23,6 +23,7 @@ import com.m3man.data.db.entity.AuthorFavorite;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.parser.Parse91PornyVideo;
 import com.m3man.ui.MvpActivity;
+import com.m3man.utils.AdapterDiffUtil;
 import com.m3man.utils.LoadHelperUtils;
 import com.m3man.utils.PlaybackEngine;
 
@@ -85,7 +86,7 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
             source = AuthorFavorite.SOURCE_MMAN9;
         }
         if (TextUtils.isEmpty(uid)) {
-            showMessage("用户信息错误，无法获取数据", TastyToast.ERROR);
+            showMessage(getString(R.string.common_user_info_error), TastyToast.ERROR);
             //C12：参数缺失时必须结束页面，否则界面处于未初始化状态，后续回调会空指针崩溃
             finish();
             return;
@@ -147,9 +148,9 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
                 .subscribe(newState -> {
                     isFavorited = newState;
                     updateFavoriteMenu();
-                    showMessage(isFavorited ? "已收藏作者" : "已取消收藏作者",
+                    showMessage(isFavorited ? getString(R.string.author_favorite_added) : getString(R.string.author_favorite_removed),
                             isFavorited ? TastyToast.SUCCESS : TastyToast.DEFAULT);
-                }, throwable -> showMessage("操作失败，请重试", TastyToast.ERROR)));
+                }, throwable -> showMessage(getString(R.string.common_operation_failed), TastyToast.ERROR)));
     }
 
     /**
@@ -258,7 +259,7 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
 
     @Override
     public void setData(List<V9MmanItem> data) {
-        mV91MmanAdapter.setNewData(data);
+        AdapterDiffUtil.apply(mV91MmanAdapter, data, AdapterDiffUtil.v9MmanItem());
         recyclerView.smoothScrollToPosition(0);
         swipeLayout.setEnabled(true);
         swipeLayout.setRefreshing(false);

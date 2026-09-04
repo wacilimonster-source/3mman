@@ -24,6 +24,9 @@ import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.parser.Parse91PornyVideo;
 import com.m3man.ui.MvpFragment;
 import com.m3man.ui.mman9video.play.PlayVideoPresenter;
+import com.helper.loadviewhelper.load.LoadViewHelper;
+import com.helper.loadviewhelper.help.OnLoadViewListener;
+import com.m3man.utils.AdapterDiffUtil;
 import com.m3man.utils.AppUtils;
 import com.m3man.utils.PlaybackEngine;
 
@@ -55,6 +58,7 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
     private V9MmanItem v9MmanItem;
 
     private V91MmanAdapter mV91MmanAdapter;
+    private LoadViewHelper helper;
 
     /** M92：UID 过期自愈状态——首页失败后重拉详情页换新 ownerId，成功前只自愈一次 */
     private boolean healingUid;
@@ -135,6 +139,16 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         recyclerView.setHasFixedSize(true);
         recyclerView.setAdapter(mV91MmanAdapter);
+
+        helper = new LoadViewHelper(recyclerView);
+        helper.setListener(new OnLoadViewListener() {
+            @Override
+            public void onRetryClick() {
+                if (canLoadAuthorVideos()) {
+                    loadAuthorVideos(true);
+                }
+            }
+        });
     }
 
     @Override
@@ -217,7 +231,7 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
 
     @Override
     public void setData(List<V9MmanItem> data) {
-        mV91MmanAdapter.setNewData(data);
+        AdapterDiffUtil.apply(mV91MmanAdapter, data, AdapterDiffUtil.v9MmanItem());
         recyclerView.smoothScrollToPosition(0);
         swipeLayout.setRefreshing(false);
         healingUid = false;
@@ -236,11 +250,18 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
     @Override
     public void showLoading(boolean pullToRefresh) {
         swipeLayout.setRefreshing(true);
+        if (mV91MmanAdapter.getItemCount() == 0) {
+            helper.showLoading();
+        }
     }
 
     @Override
     public void showContent() {
         swipeLayout.setRefreshing(false);
+        helper.showContent();
+        if (mV91MmanAdapter.getItemCount() == 0) {
+            mV91MmanAdapter.setEmptyView(R.layout.empty_view, recyclerView);
+        }
     }
 
     @Override
@@ -251,6 +272,9 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
     @Override
     public void showError(String message) {
         showMessage(message, TastyToast.ERROR);
+        if (mV91MmanAdapter.getItemCount() == 0) {
+            helper.showError();
+        }
         tryHealStaleOwner();
     }
 

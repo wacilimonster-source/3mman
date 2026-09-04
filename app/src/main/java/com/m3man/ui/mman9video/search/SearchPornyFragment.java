@@ -152,8 +152,9 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
                 V9MmanItem v9MmanItem = (V9MmanItem) adapter.getData().get(position);
+                View coverView = view.findViewById(R.id.iv_91mman_item_img);
                 // 91porny 视频为 m3u8 HLS 流，只有 ExoPlayer 支持；JiaoZi/MediaPlayer 无法播放，强制使用 ExoPlayer
-                goToPlayVideo(v9MmanItem, PlaybackEngine.DEFAULT_PLAYER_ENGINE, 0, position);
+                goToPlayVideo(v9MmanItem, PlaybackEngine.DEFAULT_PLAYER_ENGINE, 0, position, coverView);
             }
         });
         mV91MmanAdapter.setOnLoadMoreListener(new BaseQuickAdapter.RequestLoadMoreListener() {

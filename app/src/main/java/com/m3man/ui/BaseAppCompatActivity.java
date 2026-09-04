@@ -1,5 +1,6 @@
 package com.m3man.ui;
 
+import android.app.ActivityOptions;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
@@ -159,9 +160,22 @@ public abstract class BaseAppCompatActivity extends DaggerAppCompatActivity impl
     }
 
     protected void goToPlayVideo(V9MmanItem v9MmanItem, int playBackEngine) {
+        goToPlayVideo(v9MmanItem, playBackEngine, null);
+    }
+
+    /**
+     * 启动播放页，支持共享元素转场（封面 → 播放器容器）。
+     * @param sharedCover 列表项封面 View（transitionName="video_cover"），传 null 则走普通滑入动画。
+     */
+    protected void goToPlayVideo(V9MmanItem v9MmanItem, int playBackEngine, View sharedCover) {
         Intent intent = PlaybackEngine.getPlaybackEngineIntent(this, playBackEngine);
         intent.putExtra(Keys.KEY_INTENT_V9MMAN_ITEM, v9MmanItem);
-        startActivityWithAnimation(intent);
+        if (sharedCover != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            ActivityOptions options = ActivityOptions.makeSceneTransitionAnimation(this, sharedCover, "video_cover");
+            startActivity(intent, options.toBundle());
+        } else {
+            startActivityWithAnimation(intent);
+        }
     }
 
     @Override

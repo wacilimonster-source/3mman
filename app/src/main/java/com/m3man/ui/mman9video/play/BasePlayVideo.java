@@ -280,7 +280,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         if (v9MmanItem == null || TextUtils.isEmpty(v9MmanItem.getViewKey())) {
             Logger.t(TAG).e("initData: v9MmanItem 为空或 viewKey 缺失，无法初始化播放页");
             // M44：作者视频等场景 viewKey 可能缺失，给出明确提示而非静默无反应
-            showMessage("视频信息不完整，无法播放，请返回重试", TastyToast.ERROR);
+            showMessage(getString(R.string.play_video_info_incomplete), TastyToast.ERROR);
             helper.showError();
             return;
         }
@@ -314,12 +314,18 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
             }
         } else {
             v9MmanItem = tmp;
+            VideoResult videoResult = v9MmanItem.getVideoResult();
+            if (videoResult == null) {
+                // VIDEO_RESULT_ID 悬空（历史/收藏记录存在但解析结果已丢失），直接取 getVideoUrl 会 NPE，走重新解析兜底
+                AppLog.w(TAG, "initData: videoResult 丢失（VIDEO_RESULT_ID 悬空），重新解析 viewKey=" + v9MmanItem.getViewKey());
+                presenter.loadVideoUrl(tmp);
+                return;
+            }
             videoPlayerContainer.setVisibility(View.VISIBLE);
             Logger.t(TAG).d("使用已有播放地址");
             //浏览历史
             v9MmanItem.setViewHistoryDate(new Date());
             presenter.updateV9MmanItemForHistory(v9MmanItem);
-            VideoResult videoResult = v9MmanItem.getVideoResult();
             setToolBarLayoutInfo(v9MmanItem);
             playVideo(v9MmanItem.getTitle(), resolvePlayUrl(videoResult.getVideoUrl(), isPornySource), videoResult.getVideoName(), videoResult.getThumbImgUrl());
             if (isPornySource) {
@@ -443,7 +449,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     public void onFavoriteAuthorClick() {
         if (v9MmanItem == null || v9MmanItem.getVideoResult() == null
                 || TextUtils.isEmpty(v9MmanItem.getVideoResult().getOwnerId())) {
-            showMessage("作者信息未就绪，无法收藏", TastyToast.DEFAULT);
+            showMessage(getString(R.string.play_author_not_ready), TastyToast.DEFAULT);
             return;
         }
         final String authorKey = v9MmanItem.getVideoResult().getOwnerId();
@@ -470,9 +476,9 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
                 .subscribe(newState -> {
                     isAuthorFavorited = newState;
                     updateFavoriteIcon();
-                    showMessage(isAuthorFavorited ? "已收藏作者" : "已取消收藏作者",
+                    showMessage(isAuthorFavorited ? getString(R.string.author_favorite_added) : getString(R.string.author_favorite_removed),
                             isAuthorFavorited ? TastyToast.SUCCESS : TastyToast.DEFAULT);
-                }, throwable -> showMessage("操作失败，请重试", TastyToast.ERROR)));
+                }, throwable -> showMessage(getString(R.string.common_operation_failed), TastyToast.ERROR)));
     }
 
     private void refreshAuthorFavoriteState() {
@@ -596,7 +602,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     @Override
     public void favoriteSuccess() {
         presenter.setFavoriteNeedRefresh(true);
-        showMessage("收藏成功", TastyToast.SUCCESS);
+        showMessage(getString(R.string.play_favorite_success), TastyToast.SUCCESS);
     }
 
     @Override
@@ -672,12 +678,12 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
      */
     private void downloadPornyVideo() {
         if (v9MmanItem == null || v9MmanItem.getVideoResult() == null) {
-            showMessage("还未成功解析视频链接，不能下载！", TastyToast.INFO);
+            showMessage(getString(R.string.play_not_parsed_cannot_download), TastyToast.INFO);
             return;
         }
         final String videoUrl = v9MmanItem.getVideoResult().getVideoUrl();
         if (TextUtils.isEmpty(videoUrl)) {
-            showMessage("还未成功解析视频链接，不能下载！", TastyToast.INFO);
+            showMessage(getString(R.string.play_not_parsed_cannot_download), TastyToast.INFO);
             return;
         }
         // 路径必须与「我的下载」播放路径严格一致：统一用 getDownLoadPath(customDir)
@@ -707,7 +713,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         serviceIntent.putExtra(HlsDownloadService.EXTRA_VIEW_KEY, v9MmanItem.getViewKey());
         serviceIntent.putExtra(HlsDownloadService.EXTRA_SAVE_PATH, savePath);
         startService(serviceIntent);
-        showMessage("已加入后台下载，进度请看通知栏", TastyToast.SUCCESS);
+        showMessage(getString(R.string.play_added_to_background_with_notification), TastyToast.SUCCESS);
     }
 
     private static String sanitizeFileName(String title) {
@@ -719,7 +725,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
 
     private void favoriteVideo() {
         if (v9MmanItem == null || v9MmanItem.getVideoResultId() == 0) {
-            showMessage("还未成功解析视频链接，不能收藏！", TastyToast.INFO);
+            showMessage(getString(R.string.play_not_parsed_cannot_favorite), TastyToast.INFO);
             return;
         }
         // 91porny 无账号体系，走本地收藏；M42：本地收藏模式下所有源都走本地收藏（无需登录）
@@ -731,10 +737,10 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
                     .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
                     .subscribe(aBoolean -> {
                         dismissDialog();
-                        showMessage("收藏成功（已保存到本地）", TastyToast.SUCCESS);
+                        showMessage(getString(R.string.play_favorite_saved_local), TastyToast.SUCCESS);
                     }, throwable -> {
                         dismissDialog();
-                        showMessage("收藏失败", TastyToast.ERROR);
+                        showMessage(getString(R.string.play_favorite_failed), TastyToast.ERROR);
                     }));
             return;
         }
@@ -742,7 +748,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         if (!presenter.isUserLogin()) {
             goToLogin(KeysActivityRequestResultCode.LOGIN_ACTION_FOR_GET_UID);
             // M62：提示语义修正——"请先登录"不该用成功样式
-            showMessage("请先登录", TastyToast.WARNING);
+            showMessage(getString(R.string.play_please_login_first), TastyToast.WARNING);
             return;
         }
         favoriteDialog.show();

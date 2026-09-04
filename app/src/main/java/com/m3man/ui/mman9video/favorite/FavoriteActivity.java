@@ -18,6 +18,7 @@ import com.m3man.R;
 import com.m3man.adapter.V9MmanItemAdapter;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.ui.MvpActivity;
+import com.m3man.utils.AdapterDiffUtil;
 import com.m3man.utils.DialogUtils;
 import com.m3man.utils.LoadHelperUtils;
 import com.m3man.utils.UndoSnackbar;
@@ -84,7 +85,8 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
         mUnLimit91Adapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
-                goToPlayVideo((V9MmanItem) adapter.getItem(position),presenter.getPlayBackEngine());
+                View coverView = view.findViewById(R.id.iv_91mman_item_img);
+                goToPlayVideo((V9MmanItem) adapter.getItem(position), presenter.getPlayBackEngine(), coverView);
             }
         });
 
@@ -156,7 +158,7 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
     @Override
     public void setFavoriteData(List<V9MmanItem> v9MmanItemList) {
         presenter.setFavoriteNeedRefresh(false);
-        mUnLimit91Adapter.setNewData(v9MmanItemList);
+        AdapterDiffUtil.apply(mUnLimit91Adapter, v9MmanItemList, AdapterDiffUtil.v9MmanItem());
     }
 
     @Override
@@ -258,7 +260,7 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
                         mUnLimit91Adapter.setNewData(new ArrayList<>());
                     } else {
                         helper.showContent();
-                        mUnLimit91Adapter.setNewData(items);
+                        AdapterDiffUtil.apply(mUnLimit91Adapter, items, AdapterDiffUtil.v9MmanItem());
                     }
                 }, throwable -> {
                     helper.showError();

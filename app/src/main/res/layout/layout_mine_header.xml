@@ -34,7 +34,7 @@
         android:layout_marginStart="12dp"
         android:text="@string/pl_login"
         android:textColor="@color/mine_header_text_color"
-        android:textSize="16sp"
+        android:textAppearance="@style/TextAppearance.App.Inverse.Title"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"

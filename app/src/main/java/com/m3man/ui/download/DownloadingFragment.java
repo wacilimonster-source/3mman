@@ -55,6 +55,18 @@ import butterknife.Unbinder;
 public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPresenter> implements DownloadManager.DownloadStatusUpdater, DownloadView {
 
     private static final String TAG = DownloadingFragment.class.getSimpleName();
+    // 进度刷新节流：FileDownloader 高频回调合并到 500ms 一批，payload 局部刷新，
+    // 避免多任务并行时 notifyItemChanged 风暴（M115）
+    private static final long PROGRESS_FLUSH_INTERVAL_MS = 500L;
+    private final android.os.Handler progressHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final java.util.Set<Integer> pendingProgressPositions = new java.util.HashSet<>();
+    private final Runnable progressFlushRunnable = new Runnable() {
+        @Override
+        public void run() {
+            flushPendingProgress();
+        }
+    };
+
     // M97：缓存应用级 Context，onDestroy 反注销 LocalBroadcastManager 时 getContext() 可能为 null
     private Context appContext;
     @BindView(R.id.recyclerView_download)
@@ -331,7 +343,7 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
             Logger.t(TAG).d("position" + position);
             if (position >= 0 && position < mV9MmanItemList.size()) {
                 mV9MmanItemList.set(position, v9MmanItem);
-                mDownloadAdapter.notifyItemChanged(position);
+                scheduleProgressRefresh(position);
             } else {
                 mV9MmanItemList.add(v9MmanItem);
                 mDownloadAdapter.notifyItemInserted(mV9MmanItemList.size());
@@ -339,6 +351,28 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
         } else {
             presenter.loadDownloadingData();
         }
+    }
+
+    /** M115：把 position 挂进待刷集合，500ms 内合并成一次 payload 局部刷新 */
+    private void scheduleProgressRefresh(int position) {
+        pendingProgressPositions.add(position);
+        if (progressHandler.hasCallbacks(progressFlushRunnable)) {
+            return;
+        }
+        progressHandler.postDelayed(progressFlushRunnable, PROGRESS_FLUSH_INTERVAL_MS);
+    }
+
+    private void flushPendingProgress() {
+        if (mDownloadAdapter == null || mV9MmanItemList == null) {
+            pendingProgressPositions.clear();
+            return;
+        }
+        for (Integer pos : pendingProgressPositions) {
+            if (pos != null && pos >= 0 && pos < mV9MmanItemList.size()) {
+                mDownloadAdapter.notifyItemChanged(pos, DownloadVideoAdapter.PAYLOAD_PROGRESS);
+            }
+        }
+        pendingProgressPositions.clear();
     }
 
     @Override
@@ -351,6 +385,8 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
     @Override
     public void onDestroy() {
         super.onDestroy();
+        progressHandler.removeCallbacks(progressFlushRunnable);
+        pendingProgressPositions.clear();
         FileDownloader.getImpl().removeServiceConnectListener(fileDownloadConnectListener);
         DownloadManager.getImpl().removeUpdater(this);
         // M97：用缓存的 appContext 判空反注销，修复 onDestroy 时 getContext()==null 的 NPE
@@ -431,7 +467,7 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
                 if (speedBps >= 0) {
                     it.setSpeed(speedBps / 1024L); // 列表按 KB/s 展示
                 }
-                mDownloadAdapter.notifyItemChanged(i);
+                mDownloadAdapter.notifyItemChanged(i, DownloadVideoAdapter.PAYLOAD_PROGRESS);
                 break;
             }
         }

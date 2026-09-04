@@ -23,6 +23,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@color/black"
+                android:transitionName="video_cover"
                 android:visibility="invisible" />
 
             <androidx.constraintlayout.widget.ConstraintLayout

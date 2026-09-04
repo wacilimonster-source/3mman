@@ -22,6 +22,8 @@ import android.widget.ImageView;
 import com.chad.library.adapter.base.BaseQuickAdapter;
 import com.orhanobut.logger.Logger;
 import com.sdsmdg.tastytoast.TastyToast;
+import com.helper.loadviewhelper.load.LoadViewHelper;
+import com.helper.loadviewhelper.help.OnLoadViewListener;
 import com.m3man.R;
 import com.m3man.adapter.VideoCommentAdapter;
 import com.m3man.constants.Keys;
@@ -31,6 +33,7 @@ import com.m3man.data.db.entity.VideoResult;
 import com.m3man.data.model.VideoComment;
 import com.m3man.ui.MvpFragment;
 import com.m3man.ui.mman9video.user.UserLoginActivity;
+import com.m3man.utils.AdapterDiffUtil;
 import com.m3man.utils.AppUtils;
 import com.m3man.utils.DialogUtils;
 
@@ -63,6 +66,7 @@ public class CommentFragment extends MvpFragment<CommentView, CommentPresenter> 
     Unbinder unbinder;
 
     private VideoCommentAdapter videoCommentAdapter;
+    private LoadViewHelper commentHelper;
 
     private boolean isComment = true;
     private VideoComment videoComment;
@@ -162,6 +166,17 @@ public class CommentFragment extends MvpFragment<CommentView, CommentPresenter> 
         recyclerViewVideoComment.setHasFixedSize(true);
         recyclerViewVideoComment.addItemDecoration(dividerItemDecoration);
         recyclerViewVideoComment.setAdapter(videoCommentAdapter);
+        // M115：接入统一三态（加载中/错误/重试），此前加载失败只有 Toast，列表区域无任何反馈
+        commentHelper = new LoadViewHelper(recyclerViewVideoComment);
+        commentHelper.setListener(new OnLoadViewListener() {
+            @Override
+            public void onRetryClick() {
+                String videoId = getSafeVideoId();
+                if (videoId != null && v9MmanItem != null) {
+                    presenter.loadVideoComment(videoId, v9MmanItem.getViewKey(), true);
+                }
+            }
+        });
     }
 
     private void initListener() {
@@ -221,18 +236,18 @@ public class CommentFragment extends MvpFragment<CommentView, CommentPresenter> 
     private synchronized void commentOrReplyVideo(String comment) {
         Logger.t(TAG).d("评论视频或者回复评论....");
         if (TextUtils.isEmpty(comment)) {
-            showMessage("请填写评论", TastyToast.INFO);
+            showMessage(getString(R.string.comment_please_fill), TastyToast.INFO);
             return;
         }
 
         if (!presenter.isUserLogin()) {
-            showMessage("请先登录帐号", TastyToast.INFO);
+            showMessage(getString(R.string.comment_please_login), TastyToast.INFO);
             goToLogin(KeysActivityRequestResultCode.LOGIN_ACTION_FOR_GET_UID);
             return;
         }
         String vid = getSafeVideoId();
         if (vid == null) {
-            showMessage("视频地址还未解析成功，无法评论", TastyToast.INFO);
+            showMessage(getString(R.string.comment_video_not_parsed), TastyToast.INFO);
             return;
         }
         String uid = String.valueOf(presenter.getLoginUserId());
@@ -241,7 +256,7 @@ public class CommentFragment extends MvpFragment<CommentView, CommentPresenter> 
             presenter.commentVideo(comment, uid, vid, v9MmanItem.getViewKey());
         } else {
             if (videoComment == null) {
-                showMessage("请先选择需要回复的评论！", TastyToast.INFO);
+                showMessage(getString(R.string.comment_select_reply_first), TastyToast.INFO);
                 return;
             }
             commentVideoDialog.show();
@@ -267,7 +282,7 @@ public class CommentFragment extends MvpFragment<CommentView, CommentPresenter> 
         if (pullToRefresh) {
             recyclerViewVideoComment.smoothScrollToPosition(0);
         }
-        videoCommentAdapter.setNewData(videoCommentList);
+        AdapterDiffUtil.apply(videoCommentAdapter, videoCommentList, AdapterDiffUtil.videoComment());
         commentSwipeRefreshLayout.setEnabled(true);
     }
 
@@ -290,7 +305,7 @@ public class CommentFragment extends MvpFragment<CommentView, CommentPresenter> 
 
     @Override
     public void loadVideoCommentError(String message) {
-        showMessage("加载评论失败了，点击重试", TastyToast.ERROR);
+        showMessage(getString(R.string.comment_load_failed_retry), TastyToast.ERROR);
     }
 
     @Override
@@ -341,12 +356,19 @@ public class CommentFragment extends MvpFragment<CommentView, CommentPresenter> 
     @Override
     public void showLoading(boolean pullToRefresh) {
         commentSwipeRefreshLayout.setRefreshing(true);
+        if (videoCommentAdapter.getItemCount() == 0) {
+            commentHelper.showLoading();
+        }
     }
 
     @Override
     public void showContent() {
         commentSwipeRefreshLayout.setRefreshing(false);
         dismissDialog();
+        commentHelper.showContent();
+        if (videoCommentAdapter.getItemCount() == 0) {
+            videoCommentAdapter.setEmptyView(R.layout.empty_view, recyclerViewVideoComment);
+        }
     }
 
     @Override
@@ -358,6 +380,10 @@ public class CommentFragment extends MvpFragment<CommentView, CommentPresenter> 
     public void showError(String message) {
         commentSwipeRefreshLayout.setRefreshing(false);
         dismissDialog();
+        // 已有内容时不弹错误遮罩（z 序会盖住列表），无内容才显示可重试的错误态
+        if (videoCommentAdapter.getItemCount() == 0) {
+            commentHelper.showError();
+        }
     }
 
     private void dismissDialog() {

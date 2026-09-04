@@ -214,7 +214,7 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
             PopupWindowCompat.showAsDropDown(popupWindow, tabLayout, 0, 0, Gravity.NO_GRAVITY);
             AnimationUtils.rotateUp(ivSortCategory);
             isNeedInterruptOnBackPressed = true;
-            showMessage("拖动左边滑块可以排序哟", TastyToast.INFO);
+            showMessage(getString(R.string.common_drag_slider_tip), TastyToast.INFO);
         } else {
             if (popupWindow.isShowing()) {
                 dismissPopupWindow();

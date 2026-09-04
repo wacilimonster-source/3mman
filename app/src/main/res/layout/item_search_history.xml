@@ -17,6 +17,6 @@
         android:id="@+id/tv_search_history_keyword"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="14sp"
+        android:textAppearance="@style/TextAppearance.App.Body"
         android:textColor="@color/common_black_white_text_color" />
 </LinearLayout>

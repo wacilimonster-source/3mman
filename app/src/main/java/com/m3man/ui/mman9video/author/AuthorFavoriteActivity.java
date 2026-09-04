@@ -20,6 +20,7 @@ import com.m3man.data.db.entity.AuthorFavorite;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.model.BaseResult;
 import com.m3man.ui.BaseAppCompatActivity;
+import com.m3man.utils.AdapterDiffUtil;
 import com.m3man.utils.LoadHelperUtils;
 
 import java.util.ArrayList;
@@ -143,7 +144,7 @@ public class AuthorFavoriteActivity extends BaseAppCompatActivity {
                             mAdapter.setNewData(new ArrayList<>());
                         } else {
                             helper.showContent();
-                            mAdapter.setNewData(items);
+                            AdapterDiffUtil.apply(mAdapter, items, AdapterDiffUtil.authorFavorite());
                             refreshAuthorSummaries(items);
                         }
                     }, throwable -> { /* 静默失败：保留旧列表 */ }));
@@ -163,7 +164,7 @@ public class AuthorFavoriteActivity extends BaseAppCompatActivity {
                         mAdapter.setNewData(new ArrayList<>());
                     } else {
                         helper.showContent();
-                        mAdapter.setNewData(items);
+                        AdapterDiffUtil.apply(mAdapter, items, AdapterDiffUtil.authorFavorite());
                         // 列表展示后静默刷新摘要（节流 + 限并发，不阻塞 UI）
                         refreshAuthorSummaries(items);
                     }
@@ -319,9 +320,9 @@ public class AuthorFavoriteActivity extends BaseAppCompatActivity {
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(aBoolean -> {
-                    showMessage("已取消收藏", com.sdsmdg.tastytoast.TastyToast.SUCCESS);
+                    showMessage(getString(R.string.common_cancel_favorite), com.sdsmdg.tastytoast.TastyToast.SUCCESS);
                     loadData();
-                }, throwable -> showMessage("取消收藏失败", com.sdsmdg.tastytoast.TastyToast.ERROR)));
+                }, throwable -> showMessage(getString(R.string.common_cancel_favorite_failed), com.sdsmdg.tastytoast.TastyToast.ERROR)));
     }
 
     @Override

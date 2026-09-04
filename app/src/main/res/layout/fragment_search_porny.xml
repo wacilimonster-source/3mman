@@ -43,8 +43,7 @@
             android:clickable="true"
             android:focusable="true"
             android:text="@string/search_hint_default"
-            android:textColor="@color/common_black_white_text_color"
-            android:textSize="14sp" />
+            android:textAppearance="@style/TextAppearance.App.Body" />
 
         <!-- M44 搜索历史面板：未搜索时叠加在列表上 -->
         <include

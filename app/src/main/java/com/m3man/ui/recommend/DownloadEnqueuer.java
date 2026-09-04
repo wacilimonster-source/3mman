@@ -280,7 +280,7 @@ class DownloadEnqueuer {
     void enqueueDownload(String viewKey, V9MmanItem fallback, Callback callback) {
         synchronized (downloadInFlight) {
             if (!downloadInFlight.add(viewKey)) {
-                callback.showMessage("下载任务正在启动，请勿重复点击", TastyToast.INFO);
+                callback.showMessage(context.getString(R.string.reco_download_duplicate), TastyToast.INFO);
                 return;
             }
         }
@@ -295,7 +295,7 @@ class DownloadEnqueuer {
                     }
                 }, throwable -> {
                     downloadInFlight.remove(viewKey);
-                    callback.showMessage("下载失败: " + throwable.getMessage(), TastyToast.ERROR);
+                    callback.showMessage(context.getString(R.string.reco_download_failed_with_reason, throwable.getMessage()), TastyToast.ERROR);
                 }));
     }
 }

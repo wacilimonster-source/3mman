@@ -12,6 +12,7 @@ import com.liulishuo.filedownloader.util.FileDownloadUtils;
 import com.orhanobut.logger.Logger;
 import com.sdsmdg.tastytoast.TastyToast;
 import com.trello.rxlifecycle2.LifecycleProvider;
+import com.m3man.R;
 import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.db.entity.VideoResult;
@@ -116,7 +117,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                 ifViewAttached(new ViewAction<DownloadView>() {
                     @Override
                     public void run(@NonNull DownloadView view) {
-                        view.showMessage("还未解析成功视频地址", TastyToast.WARNING);
+                        view.showMessage(context.getString(R.string.download_not_parsed_url), TastyToast.WARNING);
                     }
                 });
             }
@@ -139,7 +140,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                 ifViewAttached(new ViewAction<DownloadView>() {
                     @Override
                     public void run(@NonNull DownloadView view) {
-                        view.showMessage("已经下载过了，请查看下载目录", TastyToast.INFO);
+                        view.showMessage(context.getString(R.string.download_already_downloaded), TastyToast.INFO);
                     }
                 });
             }
@@ -167,7 +168,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
             ifViewAttached(new ViewAction<DownloadView>() {
                 @Override
                 public void run(@NonNull DownloadView view) {
-                    view.showMessage("没有可用的视频地址，请稍后重试", TastyToast.WARNING);
+                    view.showMessage(context.getString(R.string.download_no_available_url), TastyToast.WARNING);
                 }
             });
             return;
@@ -178,7 +179,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
             ifViewAttached(new ViewAction<DownloadView>() {
                 @Override
                 public void run(@NonNull DownloadView view) {
-                    view.showMessage("下载目录不可写，请检查存储权限或更换下载目录", TastyToast.ERROR);
+                    view.showMessage(context.getString(R.string.download_dir_not_writable), TastyToast.ERROR);
                 }
             });
             return;
@@ -439,7 +440,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                                 ifViewAttached(new ViewAction<DownloadView>() {
                                     @Override
                                     public void run(@NonNull DownloadView view) {
-                                        view.showMessage("原站视频地址不可访问，已自动改用备用源继续下载", TastyToast.SUCCESS);
+                                        view.showMessage(context.getString(R.string.download_auto_switch_backup), TastyToast.SUCCESS);
                                     }
                                 });
                             }
@@ -469,7 +470,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                 ifViewAttached(new ViewAction<DownloadView>() {
                     @Override
                     public void run(@NonNull DownloadView view) {
-                        view.showMessage("解析视频地址失败，请稍后重试", TastyToast.ERROR);
+                        view.showMessage(context.getString(R.string.download_parse_failed), TastyToast.ERROR);
                     }
                 });
             }
@@ -491,7 +492,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                 ifViewAttached(new ViewAction<DownloadView>() {
                     @Override
                     public void run(@NonNull DownloadView view) {
-                        view.showMessage("已加入后台下载", TastyToast.SUCCESS);
+                        view.showMessage(context.getString(R.string.download_added_to_background), TastyToast.SUCCESS);
                     }
                 });
             }
@@ -509,7 +510,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
             ifViewAttached(new ViewAction<DownloadView>() {
                 @Override
                 public void run(@NonNull DownloadView view) {
-                    view.showMessage("开始下载", TastyToast.SUCCESS);
+                    view.showMessage(context.getString(R.string.download_started), TastyToast.SUCCESS);
                 }
             });
         }
@@ -807,7 +808,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
             ifViewAttached(new ViewAction<DownloadView>() {
                 @Override
                 public void run(@NonNull DownloadView view) {
-                    view.showMessage("删除文件失败", TastyToast.ERROR);
+                    view.showMessage(context.getString(R.string.download_delete_failed), TastyToast.ERROR);
                 }
             });
         }

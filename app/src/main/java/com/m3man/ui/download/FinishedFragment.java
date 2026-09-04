@@ -31,6 +31,7 @@ import com.m3man.adapter.DownloadVideoAdapter;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.service.DownloadVideoService;
 import com.m3man.ui.MvpFragment;
+import com.m3man.utils.AdapterDiffUtil;
 import com.m3man.utils.DownloadManager;
 import com.m3man.utils.SDCardUtils;
 import com.m3man.service.HlsDownloadService;
@@ -296,7 +297,7 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
 
     @Override
     public void setFinishedData(List<V9MmanItem> v9MmanItems) {
-        mDownloadAdapter.setNewData(v9MmanItems);
+        AdapterDiffUtil.apply(mDownloadAdapter, v9MmanItems, AdapterDiffUtil.v9MmanItem());
     }
 
 

@@ -58,7 +58,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:textColor="@color/author_favorite_item_text"
-                    android:textSize="16sp" />
+                    android:textAppearance="@style/TextAppearance.App.Title" />
 
                 <TextView
                     android:id="@+id/tv_author_new_badge"
@@ -86,7 +86,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/author_favorite_item_text"
-                android:textSize="12sp"
+                android:textAppearance="@style/TextAppearance.App.Caption"
                 android:alpha="0.85"
                 android:visibility="gone" />
 
@@ -98,7 +98,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/author_favorite_item_text"
-                android:textSize="11sp"
+                android:textAppearance="@style/TextAppearance.App.Overline"
                 android:alpha="0.6" />
         </LinearLayout>
     </LinearLayout>

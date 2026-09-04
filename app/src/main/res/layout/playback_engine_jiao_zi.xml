@@ -20,8 +20,7 @@
         android:paddingStart="10dp"
         android:paddingEnd="10dp"
         android:text="1x"
-        android:textColor="#ffffff"
-        android:textSize="12sp"
+        android:textAppearance="@style/TextAppearance.App.Inverse.Caption"
         android:contentDescription="@string/reco_speed"
         android:visibility="gone" />
 </FrameLayout>

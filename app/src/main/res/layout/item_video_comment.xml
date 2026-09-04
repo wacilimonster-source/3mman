@@ -23,7 +23,7 @@
         android:layout_marginTop="5dp"
         android:paddingLeft="3dp"
         android:textStyle="bold"
-        android:textSize="16sp"
+        android:textAppearance="@style/TextAppearance.App.Title"
         android:textColor="@color/item_3mman_comment_message_text_color"
         android:text="@string/comment_layout_sample2"
         />
@@ -32,9 +32,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:lines="1"
-        android:textColor="@color/item_3mman_comment_info_text_color"
         android:gravity="right"
-        android:textSize="12sp"
+        android:textAppearance="@style/TextAppearance.App.Caption"
+        android:textColor="@color/item_3mman_comment_info_text_color"
         android:text="@string/comment_layout_time"
         />
 </LinearLayout>
