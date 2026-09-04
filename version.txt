@@ -1,7 +1,7 @@
 {
-  "versionCode": 148,
-  "versionName": "1.0.115",
-  "updateMessage": "1.0.115 更新内容：\n1）UI 优化：下载列表进度局部刷新（不再整项重绑，多任务下载更流畅）；\n2）列表封面 → 播放页共享元素转场动画；\n3）历史/收藏记录的解析结果丢失时不再闪退，自动重新解析；\n4）评论/作者页加载态统一，多处界面文字与样式规范化。\n注意：仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.115.apk",
-  "sha256": "4665ef59a0c5283b4dbc7e254d2cc7e9bc51c4aebd62ee8ac265cc12efded601"
+  "versionCode": 149,
+  "versionName": "1.0.116",
+  "updateMessage": "1.0.116 更新内容：\n1）修复播放页「作者」Tab 不显示内容的问题（ViewPager 生命周期竞态导致加载遗漏）；\n2）增加诊断日志，方便后续排查作者作品加载问题。\n注意：仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.116.apk",
+  "sha256": "a13f971e49185797fbbf7135711fcb5f938110f07e7f17e0e2f304bce870ddd0"
 }

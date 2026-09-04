@@ -104,11 +104,29 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
 
     public void setV9MmanItem(V9MmanItem v9MmanItem) {
         this.v9MmanItem = v9MmanItem;
+        Logger.t(TAG).d("setV9MmanItem: item=" + (v9MmanItem != null)
+                + " mIsLoaded=" + mIsLoadedData
+                + " view=" + (getView() != null)
+                + " canLoad=" + canLoadAuthorVideos());
         // 解析完成后 setV9MmanItem 再次被调用，若 view 已创建且数据已就绪，则补一次加载。
         if (v9MmanItem != null && mIsLoadedData && getView() != null) {
             if (canLoadAuthorVideos()) {
                 loadAuthorVideos(false);
             }
+        }
+        // M-fix：兜底——无论 mIsLoadedData 状态如何，只要 view 已创建，post 一次检查。
+        // 修复推荐流/视频播放页进入后作者 Tab 滑到底部仍空白的问题：
+        // ViewPager 的 setUserVisibleHint 与 parseVideoUrlSuccess 回调存在竞态，
+        // 极端情况下 mIsLoadedData 在 setV9MmanItem 调用时仍为 false，
+        // 而 onLazyLoadOnce 也因 v9MmanItem 未设置而跳过，之后两者不再重试。
+        // post 到下一帧确保在主线程消息队列的最后一个检查点。
+        if (v9MmanItem != null && getView() != null) {
+            getView().post(() -> {
+                if (isAdded() && canLoadAuthorVideos()
+                        && mV91MmanAdapter.getItemCount() == 0) {
+                    loadAuthorVideos(false);
+                }
+            });
         }
     }
 
@@ -158,6 +176,17 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
         if (canLoadAuthorVideos()) {
             loadAuthorVideos(false);
         }
+        // M-fix：兜底——用户首次滑到作者 Tab 时，若数据尚未就绪（视频仍在解析中），
+        // 延迟 300ms 再检查一次。setV9MmanItem 的 post 兜底也会覆盖此场景，
+        // 但双重保险确保极端时序下不遗漏。
+        if (getView() != null) {
+            getView().postDelayed(() -> {
+                if (isAdded() && canLoadAuthorVideos()
+                        && mV91MmanAdapter.getItemCount() == 0) {
+                    loadAuthorVideos(false);
+                }
+            }, 300);
+        }
     }
 
     public void loadAuthorVideos() {
@@ -193,9 +222,18 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
     }
 
     private boolean canLoadAuthorVideos() {
-        return v9MmanItem != null && v9MmanItem.getVideoResult() != null
+        boolean ok = v9MmanItem != null && v9MmanItem.getVideoResult() != null
                 && v9MmanItem.getVideoResultId() != 0
                 && !TextUtils.isEmpty(v9MmanItem.getVideoResult().getOwnerId());
+        if (!ok) {
+            Logger.t(TAG).w("canLoadAuthorVideos=false"
+                    + " item=" + (v9MmanItem != null)
+                    + " vr=" + (v9MmanItem != null && v9MmanItem.getVideoResult() != null)
+                    + " vrId=" + (v9MmanItem != null ? v9MmanItem.getVideoResultId() : "N/A")
+                    + " owner=" + (v9MmanItem != null && v9MmanItem.getVideoResult() != null
+                        ? v9MmanItem.getVideoResult().getOwnerId() : "N/A"));
+        }
+        return ok;
     }
 
     @Override
