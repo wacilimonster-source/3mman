@@ -776,12 +776,11 @@ public class ParseV9MmanVideo {
             return emptyResult;
         }
 
+        // M-fix：与 parseAuthorVideos 同理——模板改版后 #wrapper 自身可能携带 container class，
+        // 子孙无 div.container 时回退用 wrapper 本身解析，避免列表恒空。
         Element container = body.selectFirst("div.container");
         if (container == null) {
-            BaseResult<List<V9MmanItem>> emptyResult = new BaseResult<>();
-            emptyResult.setTotalPage(1);
-            emptyResult.setData(new ArrayList<>());
-            return emptyResult;
+            container = body;
         }
 
         List<V9MmanItem> v9MmanItemList = new ArrayList<>();
@@ -937,12 +936,13 @@ public class ParseV9MmanVideo {
             return emptyResult;
         }
 
+        // M-fix：站点模板改版后 #wrapper 自身携带 container class（<div id="wrapper"
+        // class="container container-minheight">），子孙节点中不再存在 div.container，
+        // selectFirst 只匹配子孙 → 恒返回 null → 作者视频列表永远为空。
+        // 兜底：子孙无 container 时直接用 wrapper 本身作为解析容器。
         Element container = body.selectFirst("div.container");
         if (container == null) {
-            BaseResult<List<V9MmanItem>> emptyResult = new BaseResult<>();
-            emptyResult.setTotalPage(1);
-            emptyResult.setData(new ArrayList<>());
-            return emptyResult;
+            container = body;
         }
         List<V9MmanItem> v9MmanItemList = parserByDivContainer(container);
 
