@@ -24,8 +24,6 @@ import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.parser.Parse91PornyVideo;
 import com.m3man.ui.MvpFragment;
 import com.m3man.ui.mman9video.play.PlayVideoPresenter;
-import com.helper.loadviewhelper.load.LoadViewHelper;
-import com.helper.loadviewhelper.help.OnLoadViewListener;
 import com.m3man.utils.AdapterDiffUtil;
 import com.m3man.utils.AppUtils;
 import com.m3man.utils.PlaybackEngine;
@@ -58,7 +56,6 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
     private V9MmanItem v9MmanItem;
 
     private V91MmanAdapter mV91MmanAdapter;
-    private LoadViewHelper helper;
 
     /** M92：UID 过期自愈状态——首页失败后重拉详情页换新 ownerId，成功前只自愈一次 */
     private boolean healingUid;
@@ -187,15 +184,11 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
         recyclerView.setHasFixedSize(true);
         recyclerView.setAdapter(mV91MmanAdapter);
 
-        helper = new LoadViewHelper(recyclerView);
-        helper.setListener(new OnLoadViewListener() {
-            @Override
-            public void onRetryClick() {
-                if (canLoadAuthorVideos()) {
-                    loadAuthorVideos(true);
-                }
-            }
-        });
+        // L-fix：移除 LoadViewHelper（v1.0.115 引入）。该库用 350ms alpha 动画监听器做内容/加载态
+        // 视图交换，作者 Tab 的多重并发加载（setV9MmanItem/onLazyLoadOnce/post 兜底）+ 页面离屏
+        // 时序下会把运行时插入的内容包装 FrameLayout 坍缩成 0x0——数据已就位（adapter 有条目）
+        // 但整页被裁剪成白屏。加载态用下拉刷新转圈、空态用 adapter emptyView、错误用 toast，
+        // 均为库外既有机制，重试走下拉刷新。
     }
 
     @Override
@@ -342,15 +335,11 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
     @Override
     public void showLoading(boolean pullToRefresh) {
         swipeLayout.setRefreshing(true);
-        if (mV91MmanAdapter.getItemCount() == 0) {
-            helper.showLoading();
-        }
     }
 
     @Override
     public void showContent() {
         swipeLayout.setRefreshing(false);
-        helper.showContent();
         if (mV91MmanAdapter.getItemCount() == 0) {
             mV91MmanAdapter.setEmptyView(R.layout.empty_view, recyclerView);
         }
@@ -364,9 +353,7 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
     @Override
     public void showError(String message) {
         showMessage(message, TastyToast.ERROR);
-        if (mV91MmanAdapter.getItemCount() == 0) {
-            helper.showError();
-        }
+        swipeLayout.setRefreshing(false);
         tryHealStaleOwner();
     }
 

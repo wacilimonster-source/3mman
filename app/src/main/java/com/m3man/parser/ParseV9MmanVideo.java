@@ -125,6 +125,44 @@ public class ParseV9MmanVideo {
     }
 
 
+    /**
+     * M117b：在 root 内选出真正包含视频列表的解析容器。
+     * 实测线上模板同一页面存在多个 div.container（导航/横幅/页脚等），视频列表位于其中某一个
+     * （如 container-minheight）里；selectFirst 按文档顺序取到的第一个 container 往往不含列表，
+     * 造成作者视频/我的收藏恒为空。逐个候选（全部 div.container）找首个确有可解析条目的容器；
+     * 全部为空时回退 root 本身，兼容 #wrapper 自身携带 container class 的改版。
+     */
+    private static Element findBestListContainer(Element root) {
+        if (root == null) {
+            return null;
+        }
+        Elements candidates = root.select("div.container");
+        for (Element candidate : candidates) {
+            if (hasParseableListItems(candidate)) {
+                return candidate;
+            }
+        }
+        return root;
+    }
+
+    /**
+     * M117b：容器是否含有至少一条可解析条目（anchor + video-title），与两个解析循环的
+     * 跳过条件保持一致，避免把「有条目但全被跳过」的容器误判为有效。
+     */
+    private static boolean hasParseableListItems(Element container) {
+        if (container == null) {
+            return false;
+        }
+        Elements select = container.select("div.row>div.col-sm-12>div.row>div");
+        for (Element item : select) {
+            Element anchor = item.selectFirst("a");
+            if (anchor != null && anchor.getElementsByClass("video-title").first() != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static List<V9MmanItem> parserByDivContainer(Element container) {
         if (container == null) {
             return new ArrayList<>();
@@ -522,7 +560,13 @@ public class ParseV9MmanVideo {
                 videoResult.setOwnerId(ownerId);
                 Logger.t(TAG).d("作者Id：" + ownerId);
             }
-            String ownerName = extractOwnerName(ownerLink);
+            // M117c：新版播放页模板里 uvideos.php 锚点的文本是作品数（纯数字，如 "2"），
+            // extractOwnerName 按纯数字丢弃 → 详情页"作者："恒空。作者名实际在
+            // <a href="uprofile.php?UID=同token">LovELolita</a> 里，优先按 ownerId 匹配取名。
+            String ownerName = extractOwnerNameFromPlayPage(doc, ownerId);
+            if (TextUtils.isEmpty(ownerName)) {
+                ownerName = extractOwnerName(ownerLink);
+            }
             if (!TextUtils.isEmpty(ownerName)) {
                 videoResult.setOwnerName(ownerName);
                 Logger.t(TAG).d("作者：" + ownerName);
@@ -776,12 +820,9 @@ public class ParseV9MmanVideo {
             return emptyResult;
         }
 
-        // M-fix：与 parseAuthorVideos 同理——模板改版后 #wrapper 自身可能携带 container class，
-        // 子孙无 div.container 时回退用 wrapper 本身解析，避免列表恒空。
-        Element container = body.selectFirst("div.container");
-        if (container == null) {
-            container = body;
-        }
+        // M117b：与 parseAuthorVideos 同理——同页多个 div.container 时 selectFirst 会取到
+        // 不含列表的那个（导航/页脚），列表恒空；改为候选容器遍历取首个非空。
+        Element container = findBestListContainer(body);
 
         List<V9MmanItem> v9MmanItemList = new ArrayList<>();
         java.util.Set<String> seenViewKeys = new java.util.HashSet<>();
@@ -936,14 +977,9 @@ public class ParseV9MmanVideo {
             return emptyResult;
         }
 
-        // M-fix：站点模板改版后 #wrapper 自身携带 container class（<div id="wrapper"
-        // class="container container-minheight">），子孙节点中不再存在 div.container，
-        // selectFirst 只匹配子孙 → 恒返回 null → 作者视频列表永远为空。
-        // 兜底：子孙无 container 时直接用 wrapper 本身作为解析容器。
-        Element container = body.selectFirst("div.container");
-        if (container == null) {
-            container = body;
-        }
+        // M117b：模板同页有多个 div.container（导航/页脚等），首个往往不含视频列表；
+        // 用候选容器遍历替换原 selectFirst（含 a37f47a 的 null 回退——container 恒非 null，回退从未生效）。
+        Element container = findBestListContainer(body);
         List<V9MmanItem> v9MmanItemList = parserByDivContainer(container);
 
 
@@ -986,10 +1022,42 @@ public class ParseV9MmanVideo {
     static String extractOwnerNameForDisplay(String html) {
         Document doc = Jsoup.parse(html);
         Element ownerLink = doc.select("a[href*=uvideos.php]").first();
+        String ownerId = ownerLink != null ? extractQueryParam(ownerLink.attr("href"), "UID") : "";
+        String name = extractOwnerNameFromPlayPage(doc, ownerId);
+        if (!TextUtils.isEmpty(name)) {
+            return name;
+        }
         if (ownerLink == null) {
             ownerLink = doc.select("a[href*=UID]").first();
         }
         return ownerLink == null ? "" : extractOwnerName(ownerLink);
+    }
+
+    /**
+     * M117c：从播放页文档提取作者名。新版模板作者名在 uprofile.php 锚点文本里
+     * （如 <a href="uprofile.php?UID=xxx">LovELolita</a>），与 ownerId 同一加密 token；
+     * uvideos.php 锚点文本则是作品数（纯数字）。优先按 ownerId 精确匹配 uprofile 锚点，
+     * 匹配不到时回退首个非空文本的 uprofile 锚点（作者信息块位于评论区之前）。
+     */
+    private static String extractOwnerNameFromPlayPage(Document doc, String ownerId) {
+        Elements uprofileLinks = doc.select("a[href*=uprofile.php]");
+        if (!TextUtils.isEmpty(ownerId)) {
+            for (Element link : uprofileLinks) {
+                if (link.attr("href").contains(ownerId)) {
+                    String name = link.text().trim();
+                    if (!TextUtils.isEmpty(name)) {
+                        return name;
+                    }
+                }
+            }
+        }
+        for (Element link : uprofileLinks) {
+            String name = link.text().trim();
+            if (!TextUtils.isEmpty(name)) {
+                return name;
+            }
+        }
+        return "";
     }
 
     private static String extractOwnerName(Element ownerLink) {

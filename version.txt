@@ -1,7 +1,7 @@
 {
-  "versionCode": 149,
-  "versionName": "1.0.116",
-  "updateMessage": "1.0.116 更新内容：\n1）修复播放页「作者」Tab 不显示内容的问题（ViewPager 生命周期竞态导致加载遗漏）；\n2）增加诊断日志，方便后续排查作者作品加载问题。\n注意：仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.116.apk",
-  "sha256": "a13f971e49185797fbbf7135711fcb5f938110f07e7f17e0e2f304bce870ddd0"
+  "versionCode": 150,
+  "versionName": "1.0.117",
+  "updateMessage": "1.0.117 更新内容：\n1）修复「视频/推荐」详情页作者 Tab 空白：站点模板改版后同页存在多个 container 导致解析取错容器，作者视频数据恒为空；同时修复列表视图层级缺陷（数据已加载但被 0 尺寸容器裁剪成白屏）；\n2）详情页重新显示作者名（新版模板作者名移至作者主页链接）；\n3）搜索结果与作者页作品列表重新显示更新时间（新版模板日期行位于独立的 text-muted 块）。\n注意：仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.117.apk",
+  "sha256": "bb66293d0e004a5821f1554bf480259c4ea468c899f0b91238d3130e2d02ea95"
 }

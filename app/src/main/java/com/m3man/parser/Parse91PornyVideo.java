@@ -105,7 +105,26 @@ public class Parse91PornyVideo {
                 }
             } catch (Exception ignored) {
             }
-            v.setInfo(authorInfo);
+
+            // M117c：更新时间/播放量行——<div class="text-muted">2020-06-01 | 1.8万次播放</div>。
+            // 旧解析只保留作者名，搜索结果与作者页（复用本方法）列表的更新时间一直不显示。
+            String dateLine = "";
+            try {
+                for (Element muted : item.select("div.text-muted")) {
+                    String t = muted.text().trim();
+                    if (TextUtils.isEmpty(t) || t.startsWith("作者")) {
+                        continue;
+                    }
+                    if (t.contains("|") || t.contains("次播放") || t.matches(".*\\d{4}-\\d{2}-\\d{2}.*")) {
+                        dateLine = t;
+                        break;
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+            String info = TextUtils.isEmpty(dateLine) ? authorInfo
+                    : (TextUtils.isEmpty(authorInfo) ? dateLine : authorInfo + " " + dateLine);
+            v.setInfo(info);
             v.setSource(SOURCE);
             // M66b：解析时打持久化来源标记，供路由权威判定（source 是 transient 不落库）
             v.setSourceName(SOURCE);
