@@ -118,4 +118,9 @@ public interface PreferencesHelper {
     void setPornySearchViews(String views);
 
     String getPornySearchViews();
+
+    /** 推荐流时长上限（分钟）。0 = 不限；1/2/3/5/10 分别对应 ≤ 1/2/3/5/10 分钟的视频。 */
+    void setRecoMaxDurationMinutes(int minutes);
+
+    int getRecoMaxDurationMinutes();
 }

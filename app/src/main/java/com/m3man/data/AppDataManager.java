@@ -642,4 +642,14 @@ public class AppDataManager implements DataManager {
     public String getPornySearchViews() {
         return mPreferencesHelper.getPornySearchViews();
     }
+
+    @Override
+    public void setRecoMaxDurationMinutes(int minutes) {
+        mPreferencesHelper.setRecoMaxDurationMinutes(minutes);
+    }
+
+    @Override
+    public int getRecoMaxDurationMinutes() {
+        return mPreferencesHelper.getRecoMaxDurationMinutes();
+    }
 }

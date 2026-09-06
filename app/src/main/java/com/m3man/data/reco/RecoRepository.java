@@ -112,6 +112,8 @@ public class RecoRepository {
     private volatile int orientationFilter = PlayUiPrefs.FILTER_ALL;
     /** M78：开启自动横屏时，即使筛选为「全部」也需要探测封面方向。 */
     private volatile boolean autoRotateLandscape;
+    /** L-fix：时长上限（分钟）。0=不限；1/2/3/5/10 卡上界；未知时长放行避免空池 */
+    private volatile int maxDurationMinutes = 0;
 
     /** 用于在 resetSession() 时取消正在进行的 nextBatch IO 操作，防止并发修改 pool */
     private final CompositeDisposable batchDisposables = new CompositeDisposable();
@@ -127,6 +129,67 @@ public class RecoRepository {
 
     public void setAutoRotateLandscape(boolean enabled) {
         this.autoRotateLandscape = enabled;
+    }
+
+    /** 设置推荐流时长上限（分钟）。0=不限；1/2/3/5/10 卡上界。 */
+    public void setMaxDurationMinutes(int minutes) {
+        if (minutes != 1 && minutes != 2 && minutes != 3 && minutes != 5 && minutes != 10) {
+            this.maxDurationMinutes = 0;
+        } else {
+            this.maxDurationMinutes = minutes;
+        }
+    }
+
+    public int getMaxDurationMinutes() {
+        return maxDurationMinutes;
+    }
+
+    /** 该候选是否通过当前时长筛选。0=不限直接通过；未知时长放行，避免空池。 */
+    private boolean passesDuration(RecoCandidate c) {
+        if (maxDurationMinutes <= 0 || c == null || c.item == null) {
+            return true;
+        }
+        Integer seconds = parseDurationSeconds(c.item.getDuration());
+        if (seconds == null) {
+            // 未知时长（解析失败 / 字段为空 / 格式非预期）一律放行
+            return true;
+        }
+        return seconds <= maxDurationMinutes * 60;
+    }
+
+    /**
+     * 解析 V9MmanItem.duration 字段为总秒数。无法解析返回 null（按「未知」处理）。
+     * 支持：HH:MM:SS / MM:SS；其余视为无法解析。
+     */
+    static Integer parseDurationSeconds(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String s = raw.trim();
+        if (s.isEmpty() || "00:00".equals(s)) {
+            return null;
+        }
+        String[] parts = s.split(":");
+        if (parts.length < 2 || parts.length > 3) {
+            return null;
+        }
+        int h = 0, m = 0, sec = 0;
+        try {
+            if (parts.length == 3) {
+                h = Integer.parseInt(parts[0]);
+                m = Integer.parseInt(parts[1]);
+                sec = Integer.parseInt(parts[2]);
+            } else {
+                m = Integer.parseInt(parts[0]);
+                sec = Integer.parseInt(parts[1]);
+            }
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        if (m < 0 || m >= 60 || sec < 0 || sec >= 60 || h < 0) {
+            return null;
+        }
+        return h * 3600 + m * 60 + sec;
     }
 
     /** 该候选是否通过当前方向筛选；筛选开启时未知方向严格不放行。 */
@@ -494,6 +557,10 @@ public class RecoRepository {
         for (RecoCandidate c : fetched) {
             String key = c.viewKey();
             if (TextUtils.isEmpty(key) || inPool.contains(key) || servedKeys.containsKey(key)) {
+                continue;
+            }
+            // 时长筛选（在 addToPool 阶段过滤，避免池里塞一堆最终被 take 跳过的候选）
+            if (!passesDuration(c)) {
                 continue;
             }
             inPool.add(key);

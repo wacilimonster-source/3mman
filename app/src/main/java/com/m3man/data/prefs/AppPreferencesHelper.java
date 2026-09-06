@@ -59,6 +59,9 @@ public class AppPreferencesHelper implements PreferencesHelper {
     private final static String KEY_SP_SETTING_SCROLLVIEW_SCROLL_POSITION = "key_sp_setting_scrollview_scroll_position";
     private final static String KEY_SP_CUSTOM_DOWNLOAD_VIDEO_DIR_PATH = "key_sp_custom_download_video_dir_path";
     private final static String KEY_SP_LOCAL_FAVORITE_MODE = "key_sp_local_favorite_mode";
+    /** 推荐流时长上限（分钟）。0 = 不限；1/2/3/5/10 分别对应 ≤ 1/2/3/5/10 分钟的视频。 */
+    public final static String KEY_SP_RECO_MAX_DURATION_MINUTES = "key_sp_reco_max_duration_minutes";
+    private final static int DEFAULT_RECO_MAX_DURATION_MINUTES = 0;
 
     private final SharedPreferences mPrefs;
 
@@ -412,5 +415,26 @@ public class AppPreferencesHelper implements PreferencesHelper {
     @Override
     public String getPornySearchViews() {
         return mPrefs.getString(KEY_SP_PORNY_SEARCH_VIEWS, "");
+    }
+
+    @Override
+    public void setRecoMaxDurationMinutes(int minutes) {
+        // 合法值：0（不限）/ 1/2/3/5/10；其余写入时归零，避免脏值
+        int safe;
+        if (minutes == 1 || minutes == 2 || minutes == 3 || minutes == 5 || minutes == 10) {
+            safe = minutes;
+        } else {
+            safe = 0;
+        }
+        mPrefs.edit().putInt(KEY_SP_RECO_MAX_DURATION_MINUTES, safe).apply();
+    }
+
+    @Override
+    public int getRecoMaxDurationMinutes() {
+        int v = mPrefs.getInt(KEY_SP_RECO_MAX_DURATION_MINUTES, DEFAULT_RECO_MAX_DURATION_MINUTES);
+        if (v != 1 && v != 2 && v != 3 && v != 5 && v != 10) {
+            return 0;
+        }
+        return v;
     }
 }

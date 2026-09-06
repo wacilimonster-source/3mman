@@ -588,6 +588,9 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
             authorFragment.setV9MmanItem(v9MmanItem);
         }
         dismissDialog();
+        // L-fix：解析成功但作者 UID 为空（HTML 抓不到 uvideos.php 链接 / 作者链接结构变更 / 老 token 失效
+        // 都可能造成），等作者 Tab 滑出来再让 fragment 内部自愈。本类不直接调自愈，避免在视图未就绪时
+        // 触碰 swipeLayout/recyclerView；AuthorFragment 收到空 ownerId 会主动触发 M92 自愈兜底。
     }
 
     @Override

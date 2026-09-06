@@ -389,6 +389,19 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         sec.addItemView(itemWithSwitchForbidden, this);
         sec.addItemView(pornyEnabledItemWithSwitch, null);
         sec.addItemView(localFavoriteItemWithSwitch, null);
+
+        // 推荐时长筛选：设置页里控制推荐流只保留 ≤ N 分钟的视频（0=不限）
+        QMUICommonListItemView recoDurationItemWithChevron = qmuiGroupListView.createItemView(getString(R.string.setting_reco_max_duration));
+        recoDurationItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
+        recoDurationItemWithChevron.setDetailText(recoDurationLabel(presenter.getRecoMaxDurationMinutes()));
+        recoDurationItemWithChevron.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showRecoDurationPicker(recoDurationItemWithChevron);
+            }
+        });
+        sec.addItemView(recoDurationItemWithChevron, null);
+
         sec.addTo(qmuiGroupListView);
 
     }
@@ -719,6 +732,49 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
                         int code = codes[which];
                         if (code != current) {
                             applyNightMode(code, item);
+                        }
+                    }
+                })
+                .show();
+    }
+
+    // ==================== 推荐时长筛选（设置项）：不限 / 1 / 2 / 3 / 5 / 10 分钟 ====================
+
+    private static final int[] RECO_DURATION_VALUES = {0, 1, 2, 3, 5, 10};
+
+    /** 把持久化的「分钟数」渲染成列表右侧的明细文案。0 显示「不限」。 */
+    private String recoDurationLabel(int minutes) {
+        if (minutes <= 0) {
+            return getString(R.string.setting_reco_duration_unlimited);
+        }
+        return getString(R.string.setting_reco_duration_minutes, minutes);
+    }
+
+    /** 弹出单选对话框让用户挑时长上限，保存后更新右侧明细。 */
+    private void showRecoDurationPicker(final QMUICommonListItemView item) {
+        final int current = presenter.getRecoMaxDurationMinutes();
+        final CharSequence[] labels = new CharSequence[RECO_DURATION_VALUES.length];
+        for (int i = 0; i < RECO_DURATION_VALUES.length; i++) {
+            labels[i] = recoDurationLabel(RECO_DURATION_VALUES[i]);
+        }
+        int checkedIndex = 0;
+        for (int i = 0; i < RECO_DURATION_VALUES.length; i++) {
+            if (RECO_DURATION_VALUES[i] == current) {
+                checkedIndex = i;
+                break;
+            }
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(getString(R.string.setting_reco_max_duration))
+                .setSingleChoiceItems(labels, checkedIndex, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                        int picked = RECO_DURATION_VALUES[which];
+                        if (picked != current) {
+                            presenter.setRecoMaxDurationMinutes(picked);
+                            item.setDetailText(recoDurationLabel(picked));
+                            showMessage(getString(R.string.setting_save_success), TastyToast.SUCCESS);
                         }
                     }
                 })

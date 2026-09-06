@@ -112,6 +112,10 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
         if (v9MmanItem != null && mIsLoadedData && getView() != null) {
             if (canLoadAuthorVideos()) {
                 loadAuthorVideos(false);
+            } else {
+                // L-fix：ownerId 解析失败/HTML 抓不到作者链接时主动触发自愈，避免滑到作者 Tab 永远空白。
+                // 仅 9mman 源走 reloadOwnerThenAuthorVideos；porny 源不重试（自愈实现 return）。
+                maybeSelfHealOwner();
             }
         }
         // M-fix：兜底——无论 mIsLoadedData 状态如何，只要 view 已创建，post 一次检查。
@@ -122,11 +126,36 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
         // post 到下一帧确保在主线程消息队列的最后一个检查点。
         if (v9MmanItem != null && getView() != null) {
             getView().post(() -> {
-                if (isAdded() && canLoadAuthorVideos()
-                        && mV91MmanAdapter.getItemCount() == 0) {
+                if (!isAdded()) {
+                    return;
+                }
+                if (canLoadAuthorVideos() && mV91MmanAdapter.getItemCount() == 0) {
                     loadAuthorVideos(false);
+                    return;
+                }
+                // 仍然拿不到 ownerId：先尝试一次自愈（不算下拉刷新，不清 healingUid 状态）
+                if (mV91MmanAdapter.getItemCount() == 0) {
+                    maybeSelfHealOwner();
                 }
             });
+        }
+    }
+
+    /**
+     * L-fix：仅在 ownerId 缺失时主动触发 M92 自愈一次——比等用户在作者 Tab 上看到错误再自愈
+     * 更早；同一个数据会话内通过 healingUid 标记只走一次，避免反复拉详情。
+     */
+    private void maybeSelfHealOwner() {
+        if (healingUid || v9MmanItem == null || isPornySource()) {
+            return;
+        }
+        // 非 9mman 源 / ownerId 解析失败时，VideoResult.ownerId 空或 ownerId 形如加密 token 过期态，
+        // 重拉一次详情页换新 ownerId 然后重试作者列表。
+        if (v9MmanItem.getVideoResult() == null
+                || TextUtils.isEmpty(v9MmanItem.getVideoResult().getOwnerId())) {
+            healingUid = true;
+            swipeLayout.setRefreshing(true);
+            presenter.reloadOwnerThenAuthorVideos(v9MmanItem, lastPullToRefresh);
         }
     }
 
@@ -175,15 +204,40 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
         // 数据未就绪时不报错，等待 setV9MmanItem 补加载（视频解析完成后再触发）
         if (canLoadAuthorVideos()) {
             loadAuthorVideos(false);
+            return;
         }
         // M-fix：兜底——用户首次滑到作者 Tab 时，若数据尚未就绪（视频仍在解析中），
         // 延迟 300ms 再检查一次。setV9MmanItem 的 post 兜底也会覆盖此场景，
         // 但双重保险确保极端时序下不遗漏。
-        if (getView() != null) {
-            getView().postDelayed(() -> {
-                if (isAdded() && canLoadAuthorVideos()
-                        && mV91MmanAdapter.getItemCount() == 0) {
+        final View root = getView();
+        if (root != null) {
+            root.postDelayed(() -> {
+                if (!isAdded()) {
+                    return;
+                }
+                if (canLoadAuthorVideos() && mV91MmanAdapter.getItemCount() == 0) {
                     loadAuthorVideos(false);
+                    return;
+                }
+                // 仍未就绪：再延 1.2s 给 parseVideoUrlSuccess / DB 命中时间
+                if (mV91MmanAdapter.getItemCount() == 0) {
+                    final View root2 = getView();
+                    if (root2 == null) {
+                        // 视图已销毁，直接走自愈（不依赖 view）
+                        maybeSelfHealOwner();
+                        return;
+                    }
+                    root2.postDelayed(() -> {
+                        if (!isAdded()) {
+                            return;
+                        }
+                        if (canLoadAuthorVideos() && mV91MmanAdapter.getItemCount() == 0) {
+                            loadAuthorVideos(false);
+                            return;
+                        }
+                        // 仍然拿不到：主动自愈一次
+                        maybeSelfHealOwner();
+                    }, 1200);
                 }
             }, 300);
         }

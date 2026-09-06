@@ -135,6 +135,11 @@ public class RecommendFeedFragment extends BaseFragment
     /** M98：最近一次加载是否发生过错误（error 不计入空批计数，也不置 noMore，但保留重试入口） */
     private boolean lastLoadHadError = false;
     private long lastPersistTime = 0L;
+    /**
+     * L-fix：跟踪上一次推到 RecoRepository 的「时长上限（分钟）」，
+     * onResume 时与持久化值对比，变化则重置会话重拉（已出队不可逆）。
+     */
+    private int lastAppliedRecoDurationMinutes = 0;
     private Runnable coverWatcher;
     private Runnable progressTicker;
     /** 用户正在拖动进度条时暂停自动刷新，避免手指被「拽回去」 */
@@ -219,6 +224,9 @@ public class RecommendFeedFragment extends BaseFragment
                         prefetcher = new RecommendPrefetcher(appContext, dataManager);
                         repository.setOrientationFilter(PlayUiPrefs.getOrientationFilter(appContext));
                         repository.setAutoRotateLandscape(PlayUiPrefs.isAutoRotateLandscape(appContext));
+                        // 推荐流时长上限：仅在数据源就绪后才能安全地 push 给 repository
+                        repository.setMaxDurationMinutes(dataManager.getRecoMaxDurationMinutes());
+                        lastAppliedRecoDurationMinutes = repository.getMaxDurationMinutes();
                         // M92c：Adapter 构造时 engine 还是 null（后台初始化），
                         // 必须回填并刷新已挂载页，否则点赞/踩/收藏选中态永远不显示
                         if (adapter != null) {
@@ -1236,6 +1244,26 @@ public class RecommendFeedFragment extends BaseFragment
             repository.setAutoRotateLandscape(PlayUiPrefs.isAutoRotateLandscape(context));
             repository.setOrientationFilter(PlayUiPrefs.getOrientationFilter(context));
             updateOrientationPill(PlayUiPrefs.getOrientationFilter(context));
+            // 推荐时长筛选变化检测：用户在设置页改完，回到这里若发现值不同则重置会话重拉，
+            // 否则出队过的候选会保留，UI 与新阈值不一致。
+            int persistedMax = dataManager.getRecoMaxDurationMinutes();
+            if (persistedMax != lastAppliedRecoDurationMinutes) {
+                repository.setMaxDurationMinutes(persistedMax);
+                lastAppliedRecoDurationMinutes = persistedMax;
+                if (engineInitFailed) {
+                    // 引擎初始化失败导致 repository 没建出来——忽略，下一次 resume 再补偿
+                } else if (repository != null && adapter != null) {
+                    repository.resetSession();
+                    // 避免重置把正在播放的 page 状态搞乱，先彻底清空再重新拉首批
+                    adapter.setData(new java.util.ArrayList<RecoCandidate>());
+                    noMore = false;
+                    emptyRetryCount = 0;
+                    lastLoadHadError = false;
+                    emptyLayout.setVisibility(View.GONE);
+                    globalLoading.setVisibility(View.VISIBLE);
+                    loadMore(true);
+                }
+            }
         }
         if (currentPosition >= 0 && adapter != null) {
             orientationHelper.applyAutoRotation(adapter.getItem(currentPosition));

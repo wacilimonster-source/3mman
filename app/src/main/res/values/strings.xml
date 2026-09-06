@@ -232,6 +232,10 @@
     <string name="setting_playback_engine_title">播放引擎选择</string>
     <string name="setting_exit_account_confirm_msg">退出当前帐号？</string>
     <string name="setting_exit">退出</string>
+    <!-- 推荐流时长筛选：0=不限；其余按分钟数卡上界。未知时长视为放行，避免空池。 -->
+    <string name="setting_reco_max_duration">推荐只显示 N 分钟以内的视频</string>
+    <string name="setting_reco_duration_unlimited">不限</string>
+    <string name="setting_reco_duration_minutes">%1$d 分钟</string>
 
     <!-- 我的页 -->
     <string name="mine_view_log">查看日志</string>

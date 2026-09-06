@@ -509,4 +509,12 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
         dataManager.setPornyAddress(address);
     }
 
+    public int getRecoMaxDurationMinutes() {
+        return dataManager.getRecoMaxDurationMinutes();
+    }
+
+    public void setRecoMaxDurationMinutes(int minutes) {
+        dataManager.setRecoMaxDurationMinutes(minutes);
+    }
+
 }
