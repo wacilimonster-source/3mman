@@ -1,6 +1,8 @@
 package com.m3man.ui.recommend;
 
 import android.content.Context;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.graphics.Color;
@@ -31,8 +33,11 @@ import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
+import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.liulishuo.filedownloader.BaseDownloadTask;
 import com.liulishuo.filedownloader.model.FileDownloadStatus;
 import com.m3man.R;
+import com.m3man.constants.Keys;
 import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.db.entity.VideoResult;
@@ -43,6 +48,8 @@ import com.m3man.data.reco.RecoRepository;
 import com.m3man.data.reco.RecoStore;
 import com.m3man.parser.Parse91PornyVideo;
 import com.m3man.service.DownloadVideoService;
+import com.m3man.ui.download.DownloadActivity;
+import com.m3man.ui.mman9video.author.AuthorActivity;
 import com.m3man.utils.PornyFallbackResolver;
 import com.m3man.ui.BaseFragment;
 import com.m3man.ui.BaseAppCompatActivity;
@@ -57,8 +64,11 @@ import com.sdsmdg.tastytoast.TastyToast;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 // RxJava2 的 fromCallable 收 java.util.concurrent.Callable，io.reactivex.functions 包下无此类型
 import java.util.concurrent.Callable;
 
@@ -154,6 +164,27 @@ public class RecommendFeedFragment extends BaseFragment
     /** M118：右上角时长筛选胶囊（≤N分钟，0=不限）与自动连播开关胶囊 */
     private TextView durationFilterView;
     private TextView autoNextView;
+
+    /** M119：倍速可选项（与右栏长按 2x 手势共存，菜单选择会持久化） */
+    private static final float[] RECO_SPEED_VALUES = {0.75f, 1.0f, 1.25f, 1.5f, 2.0f};
+    /** M119：断点续播仅对超过 3 分钟的视频生效 */
+    private static final long RESUME_MIN_DURATION_MS = 180_000L;
+    /** M119：viewKey → 离开时的播放位置（ms），会话内有效 */
+    private final HashMap<String, Long> resumePositions = new HashMap<>();
+    private String pendingResumeKey;
+    private long pendingResumeMillis = -1L;
+
+    /** M119：下载角标状态（viewKey → 标签文案）与 downloadId 反查表 */
+    private final HashMap<String, String> downloadLabelStates = new HashMap<>();
+    private final HashMap<Integer, String> downloadIdToViewKey = new HashMap<>();
+    private final Set<String> hydratedDownloadKeys = new HashSet<>();
+    private final Set<Integer> downloadIdLookupInFlight = new HashSet<>();
+
+    /** M119：新手引导浮层与筛选空池恢复按钮 */
+    private View guideView;
+    private Button resetFilterButton;
+    /** M119：第一页下拉换一批 */
+    private androidx.swiperefreshlayout.widget.SwipeRefreshLayout swipeRefresh;
 
     /** 横屏/沉浸模式 Helper（从 Fragment 提取，降低 God Class 复杂度） */
     private LandscapeOrientationHelper orientationHelper;
@@ -365,6 +396,36 @@ public class RecommendFeedFragment extends BaseFragment
                 loadMore(true);
             }
         });
+
+        // M119：新手引导浮层（首次显示，点击任意处关闭）
+        guideView = getView().findViewById(R.id.ll_reco_guide);
+        guideView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                hideGuide();
+            }
+        });
+        // M119：筛选空池的一键恢复入口
+        resetFilterButton = getView().findViewById(R.id.btn_recommend_reset_filter);
+        resetFilterButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                resetAllFilters();
+            }
+        });
+        // M119：第一页下拉换一批（SwipeRefreshLayout 只在列表到顶时拦截下拉）
+        swipeRefresh = getView().findViewById(R.id.swipe_refresh_recommend);
+        if (swipeRefresh != null) {
+            swipeRefresh.setColorSchemeResources(R.color.colorPrimary);
+            swipeRefresh.setOnRefreshListener(new androidx.swiperefreshlayout.widget.SwipeRefreshLayout.OnRefreshListener() {
+                @Override
+                public void onRefresh() {
+                    swapBatch();
+                }
+            });
+        }
+        // M119：注册下载状态回调（右栏"下载"标签实时显示进度/完成）
+        DownloadManager.getImpl().addUpdater(downloadUpdater);
 
         initOrientationFilterPill();
         initDurationFilterPill();
@@ -617,6 +678,16 @@ public class RecommendFeedFragment extends BaseFragment
             if (!cached.isEmpty() && adapter.getItemCount() == 0) {
                 adapter.appendData(cached);
                 globalLoading.setVisibility(View.GONE);
+                // M119：缓存秒显后同样自动起播首页（此前只有网络首批才触发 onPageSelected(0)，
+                // 有缓存时首条视频永远不自动播，新手引导也不会出现）
+                recyclerView.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (currentPosition == -1) {
+                            onPageSelected(0);
+                        }
+                    }
+                });
             }
         } catch (Exception e) {
             Logger.t(TAG).d("展示推荐本地缓存被跳过: %s", e.getMessage());
@@ -672,6 +743,9 @@ public class RecommendFeedFragment extends BaseFragment
     private void onBatchLoaded(List<RecoCandidate> list, boolean first) {
         loading = false;
         globalLoading.setVisibility(View.GONE);
+        if (swipeRefresh != null) {
+            swipeRefresh.setRefreshing(false);
+        }
 
         if (list == null || list.isEmpty()) {
             // 某个召回源恰好没数据是常态，换一个源再试几次。
@@ -682,7 +756,13 @@ public class RecommendFeedFragment extends BaseFragment
             }
             emptyRetryCount = 0;
             if (adapter.getItemCount() == 0) {
-                showEmpty(getString(R.string.reco_empty));
+                // M119：方向/时长严格筛选可能把池子筛空，此时给出一键恢复入口
+                if (isFilterActive()) {
+                    showEmpty(getString(R.string.reco_empty_filtered));
+                    resetFilterButton.setVisibility(View.VISIBLE);
+                } else {
+                    showEmpty(getString(R.string.reco_empty));
+                }
             } else {
                 noMore = true;
                 showMessage(getString(R.string.reco_no_more), TastyToast.INFO);
@@ -717,6 +797,9 @@ public class RecommendFeedFragment extends BaseFragment
     private void onBatchFailed(boolean first, Throwable throwable) {
         loading = false;
         globalLoading.setVisibility(View.GONE);
+        if (swipeRefresh != null) {
+            swipeRefresh.setRefreshing(false);
+        }
         // M98：召回 error 走这里——不计入连续空批计数、不置 noMore（避免瞬时失败被永久限流），
         // 只记录错误标记供「noMore + 出错」时放宽重试按钮显示。
         lastLoadHadError = true;
@@ -735,6 +818,41 @@ public class RecommendFeedFragment extends BaseFragment
     private void showEmpty(String message) {
         emptyText.setText(message);
         emptyLayout.setVisibility(View.VISIBLE);
+        if (resetFilterButton != null) {
+            resetFilterButton.setVisibility(View.GONE);
+        }
+    }
+
+    /** M119：方向/时长筛选是否处于非默认状态 */
+    private boolean isFilterActive() {
+        return (context != null && PlayUiPrefs.getOrientationFilter(context) != PlayUiPrefs.FILTER_ALL)
+                || dataManager.getRecoMaxDurationMinutes() > 0;
+    }
+
+    /** M119：一键恢复全部筛选（方向=全部、时长=不限），单次重置重拉 */
+    private void resetAllFilters() {
+        if (context != null) {
+            PlayUiPrefs.setOrientationFilter(context, PlayUiPrefs.FILTER_ALL);
+        }
+        dataManager.setRecoMaxDurationMinutes(0);
+        lastAppliedRecoDurationMinutes = 0;
+        updateOrientationPill(PlayUiPrefs.FILTER_ALL);
+        updateDurationPill(0);
+        if (repository == null) {
+            return;
+        }
+        repository.setOrientationFilter(PlayUiPrefs.FILTER_ALL);
+        repository.setMaxDurationMinutes(0);
+        repository.resetSession();
+        adapter.setData(new ArrayList<RecoCandidate>());
+        currentPosition = -1;
+        noMore = false;
+        emptyRetryCount = 0;
+        lastLoadHadError = false;
+        emptyLayout.setVisibility(View.GONE);
+        globalLoading.setVisibility(View.VISIBLE);
+        loadMore(true);
+        showMessage("已恢复全部筛选", TastyToast.INFO);
     }
 
     // ==================== 翻页 / 播放 ====================
@@ -745,6 +863,8 @@ public class RecommendFeedFragment extends BaseFragment
         }
         // 离开上一页时结算观看比例（隐式反馈）
         recordWatchRatio(currentPosition);
+        // M119：离开上一页时记录断点续播位置（仅 >3 分钟视频）
+        captureResumePosition(currentPosition);
         currentPosition = position;
         // 横屏锁只在手动退出时解除；翻到新视频不自动回竖屏。
         RecoCandidate candidate = adapter.getItem(position);
@@ -763,6 +883,10 @@ public class RecommendFeedFragment extends BaseFragment
             loadMore(false);
         }
         persistAsync(false);
+        // M119：首次进入（第一页）弹一次新手操作引导
+        if (position == 0) {
+            showGuideIfNeeded();
+        }
     }
 
     private void recordWatchRatio(int position) {
@@ -929,8 +1053,15 @@ public class RecommendFeedFragment extends BaseFragment
         // 标题以「真正被起播的这条」为准，杜绝画面与文案对不上
         holder.title.setText(title);
         holder.progressContainer.setVisibility(View.VISIBLE);
-        holder.speed.setText("1x");
+        // M119：显示记忆倍速（真正应用在起播成功后的 applyPlaybackPrefs 里做）
+        holder.speed.setText(speedLabel(PlayUiPrefs.getRecoPlaybackSpeed(context)));
         holder.player.setPlaybackSpeed(1.0f);
+        // M119：断点续播挂起——起播成功（cover watcher）后 seek 到离开位置
+        pendingResumeKey = candidateKey;
+        Long savedResume = resumePositions.get(pendingResumeKey);
+        pendingResumeMillis = savedResume == null ? -1L : savedResume;
+        // M119：右栏"下载"标签按 DB 状态注水（已完成/下载中/百分比）
+        hydrateDownloadState(candidate);
         bindSeekBar(position, holder);
         startProgressTicker(position);
         prefetcher.markWatched(candidate.item);
@@ -1077,6 +1208,8 @@ public class RecommendFeedFragment extends BaseFragment
                 if (holder.player.isPlaying()) {
                     holder.cover.setVisibility(View.GONE);
                     holder.loading.setVisibility(View.GONE);
+                    // M119：起播成功——应用记忆倍速/静音与断点续播位置
+                    applyPlaybackPrefs(holder);
                     coverWatcher = null;
                     return;
                 }
@@ -1123,29 +1256,47 @@ public class RecommendFeedFragment extends BaseFragment
         if (position != currentPosition) {
             return;
         }
-        RecommendFeedAdapter.PageHolder holder = findHolder(position);
-        if (holder == null) {
-            return;
-        }
-        final boolean toDouble = "1x".contentEquals(holder.speed.getText());
-        if (holder.player.setPlaybackSpeed(toDouble ? 2.0f : 1.0f)) {
-            holder.speed.setText(toDouble ? "2x" : "1x");
-            return;
-        }
-        // 设置失败：按真实原因给提示，绝不改标签（改了就会出现「显示 2x、实际 1x」）
-        int resId;
-        switch (holder.player.getSpeedUnsupportedReason()) {
-            case RecoVideoPlayer.SPEED_UNSUPPORTED_NOT_PLAYING:
-                resId = R.string.speed_only_while_playing;
+        showSpeedMenu(position);
+    }
+
+    /** M119：倍速单选菜单（0.75~2x），选择持久化，后续视频沿用 */
+    private void showSpeedMenu(final int position) {
+        final float current = PlayUiPrefs.getRecoPlaybackSpeed(context);
+        final String[] items = {"0.75x", "1x", "1.25x", "1.5x", "2x"};
+        int checkedIndex = 1;
+        for (int i = 0; i < RECO_SPEED_VALUES.length; i++) {
+            if (RECO_SPEED_VALUES[i] == current) {
+                checkedIndex = i;
                 break;
-            case RecoVideoPlayer.SPEED_UNSUPPORTED_ENGINE:
-                resId = R.string.speed_unsupported_engine;
-                break;
-            default:
-                resId = R.string.speed_unsupported;
-                break;
+            }
         }
-        showMessage(getString(resId), TastyToast.INFO);
+        new androidx.appcompat.app.AlertDialog.Builder(getActivity(), R.style.RecoOrientationDialogTheme)
+                .setTitle("播放倍速")
+                .setSingleChoiceItems(items, checkedIndex, new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                        float picked = RECO_SPEED_VALUES[which];
+                        if (picked == current) {
+                            return;
+                        }
+                        PlayUiPrefs.setRecoPlaybackSpeed(context, picked);
+                        RecommendFeedAdapter.PageHolder holder = findHolder(currentPosition);
+                        if (holder != null && holder.player.setPlaybackSpeed(picked)) {
+                            holder.speed.setText(speedLabel(picked));
+                            showMessage("已切换 " + speedLabel(picked) + "，将记住选择", TastyToast.INFO);
+                        } else {
+                            // 暂停态/引擎不支持时改不了当前通道，但记忆已保存，起播时生效
+                            showMessage("已记住 " + speedLabel(picked) + "，下次起播生效", TastyToast.INFO);
+                        }
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private static String speedLabel(float value) {
+        return value == (int) value ? (int) value + "x" : value + "x";
     }
 
     @Override
@@ -1158,6 +1309,10 @@ public class RecommendFeedFragment extends BaseFragment
         adapter.refreshActionState(recyclerView, position);
         showMessage(getString(liked ? R.string.reco_liked : R.string.reco_unliked),
                 TastyToast.SUCCESS);
+        // M119：点赞时心形爆流动效
+        if (liked) {
+            playLikeBurst(position);
+        }
         persistAsync(true);
     }
 
@@ -1182,6 +1337,8 @@ public class RecommendFeedFragment extends BaseFragment
             engine.toggleLike(candidate);
             adapter.refreshActionState(recyclerView, position);
             showMessage(getString(R.string.reco_liked), TastyToast.SUCCESS);
+            // M119：双击点赞同款心形爆流动效
+            playLikeBurst(position);
             persistAsync(true);
             return;
         }
@@ -1258,17 +1415,400 @@ public class RecommendFeedFragment extends BaseFragment
 
     @Override
     public void onDetailClick(int position) {
-        RecoCandidate candidate = adapter.getItem(position);
-        if (candidate == null || candidate.item == null) {
-            return;
-        }
-        goToPlayVideo(candidate.item, dataManager.getPlaybackEngine(), 0, position);
+        // M119：详情改为半屏面板（复制链接/进播放页），不离开滑动上下文
+        showDetailSheet(position);
     }
 
     @Override
     public void onRetryClick(int position) {
         if (position == currentPosition) {
             startPlay(position);
+        }
+    }
+
+    // ==================== M119：操作增强（动效/作者/静音/换一批/引导） ====================
+
+    /** 点赞心形爆流动效 + 图标弹跳（右栏点赞与双击点赞共用） */
+    private void playLikeBurst(final int position) {
+        final RecommendFeedAdapter.PageHolder holder = findHolder(position);
+        if (holder == null || holder.burstHeart == null) {
+            return;
+        }
+        // 图标弹跳
+        holder.like.animate().cancel();
+        holder.like.setScaleX(1f);
+        holder.like.setScaleY(1f);
+        holder.like.animate().scaleX(1.3f).scaleY(1.3f).setDuration(120)
+                .withEndAction(new Runnable() {
+                    @Override
+                    public void run() {
+                        holder.like.animate().scaleX(1f).scaleY(1f).setDuration(150).start();
+                    }
+                }).start();
+        // 心形爆流：小→大→放大消散
+        holder.burstHeart.animate().cancel();
+        holder.burstHeart.setVisibility(View.VISIBLE);
+        holder.burstHeart.setAlpha(1f);
+        holder.burstHeart.setScaleX(0.3f);
+        holder.burstHeart.setScaleY(0.3f);
+        holder.burstHeart.setRotation(-12f);
+        holder.burstHeart.animate().scaleX(1.15f).scaleY(1.15f).setDuration(180)
+                .withEndAction(new Runnable() {
+                    @Override
+                    public void run() {
+                        holder.burstHeart.animate().alpha(0f).scaleX(1.4f).scaleY(1.4f)
+                                .setDuration(340)
+                                .withEndAction(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        holder.burstHeart.setVisibility(View.GONE);
+                                        holder.burstHeart.setAlpha(1f);
+                                        holder.burstHeart.setScaleX(0.3f);
+                                        holder.burstHeart.setScaleY(0.3f);
+                                    }
+                                }).start();
+                    }
+                }).start();
+    }
+
+    @Override
+    public void onAuthorClick(int position) {
+        RecoCandidate candidate = adapter.getItem(position);
+        if (candidate == null || candidate.item == null || getActivity() == null) {
+            return;
+        }
+        // authorKey 由解析回填（attachAuthor），当前播放页一定已解析
+        if (TextUtils.isEmpty(candidate.authorKey)) {
+            showMessage("作者信息解析中，请稍后再试", TastyToast.INFO);
+            return;
+        }
+        Intent intent = new Intent(getActivity(), AuthorActivity.class);
+        intent.putExtra(Keys.KEY_INTENT_UID, candidate.authorKey);
+        intent.putExtra(Keys.KEY_INTENT_SOURCE, candidate.item.getSource());
+        String name = candidate.item.getAuthorText();
+        if (TextUtils.isEmpty(name)) {
+            name = candidate.authorName;
+        }
+        intent.putExtra(Keys.KEY_INTENT_AUTHOR_NAME, name);
+        // 作者页 UID 过期 404 时可用本条作品自愈
+        intent.putExtra(Keys.KEY_INTENT_AUTHOR_LAST_VIEW_KEY, candidate.viewKey());
+        startActivity(intent);
+    }
+
+    @Override
+    public void onMuteClick(int position) {
+        boolean muted = !PlayUiPrefs.isRecoMuted(context);
+        PlayUiPrefs.setRecoMuted(context, muted);
+        adapter.refreshMuteIcons(recyclerView);
+        RecommendFeedAdapter.PageHolder holder = findHolder(currentPosition);
+        if (holder != null) {
+            holder.player.setMuted(muted);
+        }
+        showMessage(muted ? "已静音" : "已取消静音", TastyToast.INFO);
+    }
+
+    @Override
+    public void onPullToRefresh() {
+        // M119：player 内累计位移方案已废弃（RecyclerView 会拦截 MOVE），
+        // 换一批由 SwipeRefreshLayout.onRefresh → swapBatch() 驱动；此回调保留空实现以兼容接口。
+    }
+
+    /** M119：换一批——清空当前流、重置会话重新召回（第一页下拉触发）。
+     * 用 loadMore(false) 避免全屏 loading 遮罩（SwipeRefreshLayout 自带转圈）。 */
+    private void swapBatch() {
+        if (loading || repository == null) {
+            if (swipeRefresh != null) {
+                swipeRefresh.setRefreshing(false);
+            }
+            return;
+        }
+        JZVideoPlayer.releaseAllVideos();
+        stopCoverWatcher();
+        stopProgressTicker();
+        adapter.setData(new ArrayList<RecoCandidate>());
+        currentPosition = -1;
+        noMore = false;
+        emptyRetryCount = 0;
+        lastLoadHadError = false;
+        emptyLayout.setVisibility(View.GONE);
+        repository.resetSession();
+        loadMore(false);
+        showMessage("换一批", TastyToast.INFO);
+    }
+
+    private void showGuideIfNeeded() {
+        if (guideView == null || context == null || getView() == null) {
+            return;
+        }
+        if (PlayUiPrefs.isRecoGuideShown(context)) {
+            return;
+        }
+        guideView.setVisibility(View.VISIBLE);
+    }
+
+    private void hideGuide() {
+        if (guideView != null) {
+            guideView.setVisibility(View.GONE);
+        }
+        if (context != null) {
+            PlayUiPrefs.setRecoGuideShown(context, true);
+        }
+    }
+
+    // ==================== M119：断点续播 / 倍速静音应用 ====================
+
+    /** 离开页面/翻页时记录断点（仅 >3 分钟且看了一部分、未近尾声的视频） */
+    private void captureResumePosition(int position) {
+        if (position < 0 || adapter == null) {
+            return;
+        }
+        RecoCandidate candidate = adapter.getItem(position);
+        RecommendFeedAdapter.PageHolder holder = findHolder(position);
+        if (candidate == null || TextUtils.isEmpty(candidate.viewKey()) || holder == null) {
+            return;
+        }
+        long duration = holder.player.safeDuration();
+        if (duration <= RESUME_MIN_DURATION_MS) {
+            return;
+        }
+        long pos = holder.player.safePosition();
+        if (pos > 30_000L && pos < duration - 5_000L) {
+            resumePositions.put(candidate.viewKey(), pos);
+        } else {
+            resumePositions.remove(candidate.viewKey());
+        }
+    }
+
+    /** 起播成功后应用记忆倍速/静音与断点续播位置（cover watcher 确认 PLAYING 后调用） */
+    private void applyPlaybackPrefs(final RecommendFeedAdapter.PageHolder holder) {
+        // 断点续播：从离开处继续（>30s 才值得续）
+        if (pendingResumeKey != null && pendingResumeMillis > 30_000L
+                && holder.player.seekToMillis(pendingResumeMillis)) {
+            showMessage("已从 " + formatTime(pendingResumeMillis) + " 继续播放", TastyToast.INFO);
+        }
+        pendingResumeKey = null;
+        pendingResumeMillis = -1L;
+        // 倍速记忆
+        float speed = PlayUiPrefs.getRecoPlaybackSpeed(context);
+        if (speed != 1.0f) {
+            if (holder.player.setPlaybackSpeed(speed)) {
+                holder.speed.setText(speedLabel(speed));
+            }
+        } else {
+            holder.speed.setText("1x");
+        }
+        // 静音记忆
+        if (PlayUiPrefs.isRecoMuted(context)) {
+            holder.player.setMuted(true);
+        }
+    }
+
+    // ==================== M119：下载状态角标 ====================
+
+    private final DownloadManager.DownloadStatusUpdater downloadUpdater =
+            new DownloadManager.DownloadStatusUpdater() {
+                @Override
+                public void complete(BaseDownloadTask task) {
+                    handleDownloadEvent(task, FileDownloadStatus.completed);
+                }
+
+                @Override
+                public void update(BaseDownloadTask task) {
+                    handleDownloadEvent(task, task == null ? FileDownloadStatus.progress
+                            : task.getStatus());
+                }
+            };
+
+    /** FileDownloader 回调线程不确定，统一抛回主线程处理 */
+    private void handleDownloadEvent(final BaseDownloadTask task, final int status) {
+        if (task == null || viewDestroyed) {
+            return;
+        }
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (!isUsable() || viewDestroyed) {
+                    return;
+                }
+                String viewKey = downloadIdToViewKey.get(task.getId());
+                if (viewKey == null) {
+                    lookupDownloadIdAsync(task.getId());
+                    return;
+                }
+                // 该版本 BaseDownloadTask 无 getProgress()，按字节换算百分比
+                long soFar = task.getSmallFileSoFarBytes();
+                long total = task.getSmallFileTotalBytes();
+                int percent = total > 0 ? (int) (soFar * 100 / total) : 0;
+                String label = resolveDownloadLabel(status, percent);
+                downloadLabelStates.put(viewKey, label);
+                applyDownloadLabel(viewKey, label);
+            }
+        });
+    }
+
+    /** 未知 downloadId → 异步查 DB 反查 viewKey（IO 线程） */
+    private void lookupDownloadIdAsync(final int downloadId) {
+        if (downloadId <= 0 || !downloadIdLookupInFlight.add(downloadId)) {
+            return;
+        }
+        disposables.add(Observable.just(downloadId)
+                .map(i -> dataManager.findV9MmanItemByDownloadId(i))
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(item -> {
+                    downloadIdLookupInFlight.remove(downloadId);
+                    if (item != null && !TextUtils.isEmpty(item.getViewKey())) {
+                        downloadIdToViewKey.put(downloadId, item.getViewKey());
+                        applyDownloadState(item);
+                    }
+                }, throwable -> downloadIdLookupInFlight.remove(downloadId)));
+    }
+
+    /** 按 viewKey 注水下载状态（doStart 绑定当前页时调用；每 key 只查一次 DB） */
+    private void hydrateDownloadState(final RecoCandidate candidate) {
+        if (candidate == null || TextUtils.isEmpty(candidate.viewKey())) {
+            return;
+        }
+        final String key = candidate.viewKey();
+        String cached = downloadLabelStates.get(key);
+        if (cached != null) {
+            applyDownloadLabel(key, cached);
+            return;
+        }
+        if (!hydratedDownloadKeys.add(key)) {
+            return;
+        }
+        disposables.add(Observable.just(key)
+                .map(k -> dataManager.findV9MmanItemByViewKey(k))
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(item -> {
+                    if (item != null && item.getDownloadId() > 0) {
+                        downloadIdToViewKey.put(item.getDownloadId(), key);
+                        applyDownloadState(item);
+                    }
+                }, throwable -> {
+                }));
+    }
+
+    private void applyDownloadState(V9MmanItem item) {
+        if (item == null || TextUtils.isEmpty(item.getViewKey())) {
+            return;
+        }
+        String key = item.getViewKey();
+        int status = item.getStatus();
+        if (status == FileDownloadStatus.error) {
+            downloadLabelStates.remove(key);
+            applyDownloadLabel(key, "下载");
+            return;
+        }
+        String label = resolveDownloadLabel(status, item.getProgress());
+        downloadLabelStates.put(key, label);
+        applyDownloadLabel(key, label);
+    }
+
+    private void applyDownloadLabel(String viewKey, String label) {
+        if (adapter != null) {
+            adapter.updateDownloadLabel(recyclerView, viewKey, label);
+        }
+    }
+
+    private static String resolveDownloadLabel(int status, int progress) {
+        if (status == FileDownloadStatus.completed) {
+            return "已完成";
+        }
+        if (status == FileDownloadStatus.error) {
+            return "失败";
+        }
+        if (progress > 0 && progress < 100) {
+            return progress + "%";
+        }
+        if (status == FileDownloadStatus.started || status == FileDownloadStatus.connected
+                || status == FileDownloadStatus.progress) {
+            return "下载中";
+        }
+        return "排队中";
+    }
+
+    // ==================== M119：详情半屏面板 ====================
+
+    private void showDetailSheet(final int position) {
+        final RecoCandidate candidate = adapter.getItem(position);
+        if (candidate == null || candidate.item == null || getActivity() == null) {
+            return;
+        }
+        final V9MmanItem item = candidate.item;
+        View view = LayoutInflater.from(getActivity())
+                .inflate(R.layout.dialog_reco_detail_bottom, null);
+        TextView titleView = view.findViewById(R.id.tv_detail_sheet_title);
+        TextView metaView = view.findViewById(R.id.tv_detail_sheet_meta);
+        TextView linkView = view.findViewById(R.id.tv_detail_sheet_link);
+        View copyLink = view.findViewById(R.id.bt_detail_copy_link);
+        View openPlay = view.findViewById(R.id.bt_detail_open_play);
+
+        titleView.setText(item.getTitle() == null ? "" : item.getTitle());
+        metaView.setText(adapter.metaText(position));
+        final String url = buildVideoPageUrl(item);
+        if (TextUtils.isEmpty(url)) {
+            copyLink.setVisibility(View.GONE);
+            linkView.setVisibility(View.GONE);
+        } else {
+            linkView.setText(url);
+        }
+        final BottomSheetDialog dialog = new BottomSheetDialog(getActivity());
+        dialog.setContentView(view);
+        copyLink.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                copyToClipboard(url);
+                showMessage("链接已复制", TastyToast.SUCCESS);
+                dialog.dismiss();
+            }
+        });
+        openPlay.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dialog.dismiss();
+                goToPlayVideo(item, dataManager.getPlaybackEngine(), 0, position);
+            }
+        });
+        dialog.show();
+    }
+
+    /** 由 viewKey + 用户配置的站点地址还原视频页链接（复制分享用）。
+     * 91porn 的 viewKey 存储形如 "viewkey=xxx"（参数片段），勿重复加前缀。 */
+    private String buildVideoPageUrl(V9MmanItem item) {
+        String key = item.getViewKey();
+        if (TextUtils.isEmpty(key)) {
+            return null;
+        }
+        String source = item.getSource();
+        if ("91porny".equals(source)) {
+            String base = dataManager.getPornyAddress();
+            if (TextUtils.isEmpty(base)) {
+                base = "https://91porny.com/";
+            }
+            String id = key.startsWith("/video/view/") ? key.substring("/video/view/".length()) : key;
+            return base.endsWith("/") ? base + "video/view/" + id
+                    : base + "/video/view/" + id;
+        }
+        String base = dataManager.getMman9VideoAddress();
+        if (TextUtils.isEmpty(base)) {
+            base = "https://www.91porn.com/";
+        }
+        String param = key.startsWith("viewkey=") ? key : "viewkey=" + key;
+        return base.endsWith("/") ? base + "view_video.php?" + param
+                : base + "/view_video.php?" + param;
+    }
+
+    private void copyToClipboard(String text) {
+        if (getActivity() == null || TextUtils.isEmpty(text)) {
+            return;
+        }
+        ClipboardManager cm = (ClipboardManager) getActivity()
+                .getSystemService(Context.CLIPBOARD_SERVICE);
+        if (cm != null) {
+            cm.setPrimaryClip(ClipData.newPlainText("video", text));
         }
     }
 
@@ -1279,6 +1819,12 @@ public class RecommendFeedFragment extends BaseFragment
         final RecoCandidate candidate = adapter.getItem(position);
         if (candidate == null || candidate.item == null
                 || TextUtils.isEmpty(candidate.viewKey())) {
+            return;
+        }
+        // M119：已下载完成的视频，点下载图标直接跳「我的下载」
+        if ("已完成".equals(downloadLabelStates.get(candidate.viewKey()))
+                && getActivity() != null) {
+            startActivity(new Intent(getActivity(), DownloadActivity.class));
             return;
         }
         // 已经解析过（正在播的这条一定已解析）就直接入队
@@ -1451,6 +1997,8 @@ public class RecommendFeedFragment extends BaseFragment
         // 不使用 goOnPlayOnPause：它只暂停并保留 MediaPlayer，切换页面后仍可能有音频输出。
         // M98：先结算观看比例再释放播放器——release 后 watchedRatio 恒为 0，隐式反馈会丢失。
         recordWatchRatio(currentPosition);
+        // M119：切走前记录断点续播位置（>3 分钟视频）
+        captureResumePosition(currentPosition);
         stopPlaybackForLeavingPage();
         persistAsync(true);
         super.onPause();
@@ -1463,6 +2011,8 @@ public class RecommendFeedFragment extends BaseFragment
         if (hidden) {
             // M98：先结算观看比例再释放播放器（同 onPause，release 后比例读不到）
             recordWatchRatio(currentPosition);
+            // M119：切走前记录断点续播位置（>3 分钟视频）
+            captureResumePosition(currentPosition);
             stopPlaybackForLeavingPage();
             persistAsync(true);
             // 切到其它 Tab：恢复 App 默认紫色状态栏（推荐流内才透明）
@@ -1508,6 +2058,8 @@ public class RecommendFeedFragment extends BaseFragment
         if (prefetcher != null) {
             prefetcher.release();
         }
+        // M119：注销下载状态回调
+        DownloadManager.getImpl().removeUpdater(downloadUpdater);
         JZVideoPlayer.releaseAllVideos();
         // Fragment 销毁（离开推荐流）：恢复 App 默认紫色状态栏
         orientationHelper.restoreAppStatusBar();

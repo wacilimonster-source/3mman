@@ -4,11 +4,18 @@
     android:layout_height="match_parent"
     android:background="@android:color/black">
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerView_recommend"
+    <!-- M119：第一页下拉换一批（SwipeRefreshLayout 仅在顶部时拦截下拉，与翻页/播放手势无冲突） -->
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipe_refresh_recommend"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:overScrollMode="never" />
+        android:layout_height="match_parent">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerView_recommend"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:overScrollMode="never" />
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <!-- M78：右上角方向筛选胶囊 -->
     <ImageView
@@ -109,5 +116,52 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:text="@string/reco_retry" />
+
+        <!-- M119：方向/时长筛选把池子筛空时的一键恢复入口 -->
+        <Button
+            android:id="@+id/btn_recommend_reset_filter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/reco_reset_filters"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <!-- M119：新手手势/操作引导浮层（仅首次进入推荐页显示，点击任意处关闭） -->
+    <LinearLayout
+        android:id="@+id/ll_reco_guide"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#CC000000"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/reco_guide_title"
+            android:textColor="#FFFFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:lineSpacingExtra="8dp"
+            android:text="@string/reco_guide_lines"
+            android:textColor="#E6FFFFFF"
+            android:textSize="15sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:text="@string/reco_guide_dismiss"
+            android:textColor="#99FFFFFF"
+            android:textSize="12sp" />
     </LinearLayout>
 </FrameLayout>

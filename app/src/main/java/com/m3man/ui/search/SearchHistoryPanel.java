@@ -133,6 +133,43 @@ public class SearchHistoryPanel {
         container.setVisibility(View.GONE);
     }
 
+    /**
+     * M119：输入联想——按关键词对本地搜索历史做包含匹配，命中即以面板形式展示；
+     * 空输入回退到完整历史，无命中自动隐藏。无网络请求，纯本地。
+     */
+    public void showSuggestions(String query) {
+        if (TextUtils.isEmpty(query) || query.trim().isEmpty()) {
+            showPanelOnly();
+            return;
+        }
+        final String q = query.trim().toLowerCase(java.util.Locale.getDefault());
+        io.reactivex.Observable.just(1)
+                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
+                .subscribe(o -> {
+                    List<String> list = dm.getSearchHistory(TYPE, LIMIT);
+                    List<String> matched = new ArrayList<>();
+                    if (list != null) {
+                        for (String item : list) {
+                            if (!TextUtils.isEmpty(item)
+                                    && item.toLowerCase(java.util.Locale.getDefault()).contains(q)) {
+                                matched.add(item);
+                            }
+                        }
+                    }
+                    if (container == null) {
+                        return;
+                    }
+                    if (matched.isEmpty()) {
+                        container.setVisibility(View.GONE);
+                        return;
+                    }
+                    container.bringToFront();
+                    adapter.setNewData(matched);
+                    container.setVisibility(View.VISIBLE);
+                });
+    }
+
     /** 搜索提交后调用：记录该关键词（自动去重 + 更新最近使用时间）。M73：写库切 IO 线程 */
     public void onKeywordSubmitted(String keyword) {
         if (TextUtils.isEmpty(keyword)) {

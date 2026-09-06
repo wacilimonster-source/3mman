@@ -320,6 +320,11 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         }
     }
 
+    /** M119：供内嵌 Fragment（如搜索空结果引导）切换底部 Tab。0=视频 1=推荐 2=搜索 3=我的 */
+    public void switchToTab(@androidx.annotation.IntRange(from = 0, to = 3) int position) {
+        doOnTabSelected(position);
+    }
+
     private void handlerFirstTabClickToShow(String tag, int itemId, boolean isInnerReplace) {
         switch (tag) {
             case Tags.TAG_PRON_9_VIDEO:

@@ -64,6 +64,15 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         void onFullscreenClick(int position);
 
         void onSpeedClick(int position);
+
+        /** M119：点击 meta 行的 @作者 → 跳作者主页 */
+        void onAuthorClick(int position);
+
+        /** M119：点击右栏静音图标 */
+        void onMuteClick(int position);
+
+        /** M119：第一页视频区域继续下拉 → 换一批（是否第一页由 Fragment 判断） */
+        void onPullToRefresh();
     }
 
     private final List<RecoCandidate> data = new ArrayList<>();
@@ -120,6 +129,27 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         return data;
     }
 
+    /** M119：详情半屏面板复用 meta 纯文本 */
+    public CharSequence metaText(int position) {
+        RecoCandidate c = getItem(position);
+        if (c == null) {
+            return "";
+        }
+        String author = authorDisplay(c);
+        String time = addedTimeText(c);
+        StringBuilder sb = new StringBuilder();
+        if (!TextUtils.isEmpty(author)) {
+            sb.append('@').append(author);
+        }
+        if (!TextUtils.isEmpty(time)) {
+            if (sb.length() > 0) {
+                sb.append("  ·  ");
+            }
+            sb.append(time);
+        }
+        return sb.toString();
+    }
+
     public RecoCandidate getItem(int position) {
         if (position < 0 || position >= data.size()) {
             return null;
@@ -142,7 +172,7 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
             // 一致性校验：复用错位时不刷新
             if (candidate != null && candidate.viewKey() != null
                     && candidate.viewKey().equals(holder.boundKey)) {
-                holder.meta.setText(buildMeta(candidate));
+                applyMeta(holder, candidate);
             }
         }
     }
@@ -226,7 +256,8 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         // 避免 ViewHolder 复用时出现「画面 / 标题」错位
         holder.boundKey = candidate.viewKey();
         holder.title.setText(item == null ? "" : item.getTitle());
-        holder.meta.setText(buildMeta(candidate));
+        // M119：meta 拆成「@作者（可点→作者主页）+ 添加时间」两个 TextView
+        applyMeta(holder, candidate);
 
         // 封面：起播前顶在最上层，起播后由 Activity 隐藏
         holder.cover.setVisibility(View.VISIBLE);
@@ -241,6 +272,10 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         holder.curTime.setText("00:00");
         holder.durTime.setText("00:00");
         holder.speed.setText("1x");
+        holder.downloadLabel.setText("下载");
+        holder.burstHeart.setVisibility(View.GONE);
+        // M119：静音图标按持久化状态渲染
+        applyMuteIcon(holder);
         // 未成为当前页之前不允许循环续播，防止旧页抢解码器
         holder.player.setLoopEnabled(false);
         String imgUrl = item == null ? null : item.getImgUrl();
@@ -262,7 +297,19 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
                 dispatch(holder, 0);
             }
         });
+        holder.likeLabel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dispatch(holder, 0);
+            }
+        });
         holder.favorite.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dispatch(holder, 1);
+            }
+        });
+        holder.favoriteLabel.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 dispatch(holder, 1);
@@ -274,7 +321,19 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
                 dispatch(holder, 2);
             }
         });
+        holder.dislikeLabel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dispatch(holder, 2);
+            }
+        });
         holder.detail.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dispatch(holder, 3);
+            }
+        });
+        holder.detailLabel.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 dispatch(holder, 3);
@@ -294,6 +353,35 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
             @Override
             public void onClick(View v) {
                 dispatch(holder, 7);
+            }
+        });
+        holder.downloadLabel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dispatch(holder, 7);
+            }
+        });
+        // M119：静音开关
+        holder.mute.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dispatch(holder, 10);
+            }
+        });
+        // M119：作者名 → 作者主页
+        holder.author.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dispatch(holder, 11);
+            }
+        });
+        // M119：第一页继续下拉 → 换一批
+        holder.player.setOnPullDownListener(new RecoVideoPlayer.OnPullDownListener() {
+            @Override
+            public void onPullDown() {
+                if (callback != null) {
+                    callback.onPullToRefresh();
+                }
             }
         });
         holder.fullscreen.setOnClickListener(new View.OnClickListener() {
@@ -369,6 +457,12 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
             case 6:
                 callback.onSingleTap(pos);
                 break;
+            case 10:
+                callback.onMuteClick(pos);
+                break;
+            case 11:
+                callback.onAuthorClick(pos);
+                break;
             default:
         }
     }
@@ -411,34 +505,78 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         return item != null && Boolean.TRUE.equals(item.getIsLocalFavorite());
     }
 
-    private String buildMeta(RecoCandidate candidate) {
-        V9MmanItem item = candidate.item;
+    /** M119：作者显示名（列表解析优先，详情回填兜底）；空表示不可点 */
+    private String authorDisplay(RecoCandidate candidate) {
+        V9MmanItem item = candidate == null ? null : candidate.item;
         if (item == null) {
             return "";
         }
-        StringBuilder sb = new StringBuilder();
-        // M76：展示以列表页解析的 authorText（info 原文提取）为准——首屏即显，不等详情回填，
-        // 消除"滑回来才出现 @作者"的跳变；authorText 提取失败时仍用详情页权威 ownerName 兜底。
-        // 注意 candidate.authorName/authorKey 仍是作者召回与作者收藏的数据来源，此处只调整展示优先级。
         String author = item.getAuthorText();
         if (TextUtils.isEmpty(author)) {
             author = candidate.authorName;
         }
-        if (!TextUtils.isEmpty(author)) {
-            sb.append('@').append(author.trim());
+        return author == null ? "" : author.trim();
+    }
+
+    /** M119：添加时间段文本（原样截取「添加时间: …」） */
+    private String addedTimeText(RecoCandidate candidate) {
+        V9MmanItem item = candidate == null ? null : candidate.item;
+        return item == null ? "" : extractAddedTime(item.getInfo());
+    }
+
+    /** M119：meta 渲染——作者名独立 TextView（可点→作者主页），时间跟在其后 */
+    private void applyMeta(PageHolder holder, RecoCandidate candidate) {
+        String author = authorDisplay(candidate);
+        if (TextUtils.isEmpty(author)) {
+            holder.author.setVisibility(View.GONE);
+        } else {
+            holder.author.setVisibility(View.VISIBLE);
+            holder.author.setText("@" + author);
         }
-        // M75：meta 行只保留「添加时间」。时长由播放器底部进度条呈现，热度/收藏在详情页查看，
-        // 不再塞进推荐流信息栏（此前第二行展示不完整）。
-        // M76：截断表补入 作者/From/时长/Duration——否则字段顺序为「添加时间…From:xx」时，
-        // added 段会把作者一并吞进来，与前缀 @作者 重复显示两次。
-        String added = extractAddedTime(item.getInfo());
-        if (!TextUtils.isEmpty(added)) {
-            if (sb.length() > 0) {
-                sb.append("  ·  ");
+        String time = addedTimeText(candidate);
+        holder.meta.setText(time);
+        holder.meta.setVisibility(TextUtils.isEmpty(time) ? View.GONE : View.VISIBLE);
+    }
+
+    /** M119：按持久化状态渲染静音图标 */
+    private void applyMuteIcon(PageHolder holder) {
+        boolean muted = PlayUiPrefs.isRecoMuted(holder.itemView.getContext());
+        holder.mute.setImageResource(muted ? R.drawable.ic_reco_mute_white
+                : R.drawable.ic_reco_volume_white);
+        holder.mute.setColorFilter(muted ? COLOR_LIKE : COLOR_NORMAL);
+        holder.mute.setAlpha(muted ? 1.0f : 0.9f);
+    }
+
+    /** M119：静音状态切换后刷新所有已挂载页的图标（Fragment 在 toggle 后调用） */
+    public void refreshMuteIcons(RecyclerView recyclerView) {
+        if (recyclerView == null) {
+            return;
+        }
+        for (int i = 0; i < recyclerView.getChildCount(); i++) {
+            RecyclerView.ViewHolder vh = recyclerView.getChildViewHolder(recyclerView.getChildAt(i));
+            if (vh instanceof PageHolder) {
+                applyMuteIcon((PageHolder) vh);
             }
-            sb.append(added);
         }
-        return sb.toString();
+    }
+
+    /**
+     * M119：下载状态落到右栏"下载"标签上（下载/排队/百分比/已完成）。
+     * 按 viewKey 匹配已挂载 Holder，复用错位时不动。
+     */
+    public void updateDownloadLabel(RecyclerView recyclerView, String viewKey, CharSequence label) {
+        if (recyclerView == null || TextUtils.isEmpty(viewKey) || label == null) {
+            return;
+        }
+        for (int i = 0; i < recyclerView.getChildCount(); i++) {
+            RecyclerView.ViewHolder vh = recyclerView.getChildViewHolder(recyclerView.getChildAt(i));
+            if (vh instanceof PageHolder) {
+                PageHolder h = (PageHolder) vh;
+                if (viewKey.equals(h.boundKey)) {
+                    h.downloadLabel.setText(label);
+                }
+            }
+        }
     }
 
     /** M75：从 info 文本里只截取「添加时间」段；时长/热度/收藏/留言等不再展示 */
@@ -531,6 +669,7 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         // 不 release 播放器——防止非当前页的 Holder 在回收后延迟手势到期误触发到复用的新视频上
         holder.player.cancelPendingGestures();
         holder.player.setOnTapListener(null);
+        holder.player.setOnPullDownListener(null);
         // 回收前彻底停掉这一页：关循环 + 摘监听 + 收进度条，
         // 否则复用到新页时残留的状态会造成画面/标题错位
         holder.player.setLoopEnabled(false);
@@ -568,6 +707,18 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         final ImageView dislike;
         final ImageView detail;
         final ImageView download;
+        /** M119：右栏图标下方文字标签（竖屏显示 / 横屏隐藏） */
+        final TextView likeLabel;
+        final TextView favoriteLabel;
+        final TextView dislikeLabel;
+        final TextView detailLabel;
+        final TextView downloadLabel;
+        /** M119：作者名（独立可点 → 作者主页） */
+        final TextView author;
+        /** M119：静音开关 */
+        final ImageView mute;
+        /** M119：点赞心形爆流动效视图 */
+        final ImageView burstHeart;
         final TextView title;
         final TextView meta;
         final SeekBar progress;
@@ -599,8 +750,16 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
             dislike = itemView.findViewById(R.id.iv_reco_dislike);
             detail = itemView.findViewById(R.id.iv_reco_detail);
             download = itemView.findViewById(R.id.iv_reco_download);
+            likeLabel = itemView.findViewById(R.id.tv_reco_like_label);
+            favoriteLabel = itemView.findViewById(R.id.tv_reco_favorite_label);
+            dislikeLabel = itemView.findViewById(R.id.tv_reco_dislike_label);
+            detailLabel = itemView.findViewById(R.id.tv_reco_detail_label);
+            downloadLabel = itemView.findViewById(R.id.tv_reco_download_label);
+            mute = itemView.findViewById(R.id.iv_reco_mute);
+            burstHeart = itemView.findViewById(R.id.iv_reco_burst_heart);
             title = itemView.findViewById(R.id.tv_reco_title);
             meta = itemView.findViewById(R.id.tv_reco_meta);
+            author = itemView.findViewById(R.id.tv_reco_author);
             progress = itemView.findViewById(R.id.sb_reco_progress);
             curTime = itemView.findViewById(R.id.tv_reco_cur);
             durTime = itemView.findViewById(R.id.tv_reco_dur);
@@ -711,6 +870,13 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
             if (fullscreen != null) {
                 fullscreen.setVisibility(landscape ? View.GONE : View.VISIBLE);
             }
+            // M119：标签仅竖屏显示（横屏高度有限，整列过高会被裁切）
+            int labelVisibility = landscape ? View.GONE : View.VISIBLE;
+            likeLabel.setVisibility(labelVisibility);
+            favoriteLabel.setVisibility(labelVisibility);
+            dislikeLabel.setVisibility(labelVisibility);
+            detailLabel.setVisibility(labelVisibility);
+            downloadLabel.setVisibility(labelVisibility);
             itemView.requestLayout();
         }
 

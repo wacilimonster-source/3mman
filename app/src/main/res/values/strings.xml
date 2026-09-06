@@ -63,6 +63,15 @@
     <string name="reco_duration_all">不限 ▾</string>
     <string name="reco_auto_next_on">连播 开</string>
     <string name="reco_auto_next_off">连播 关</string>
+    <string name="reco_mute">静音</string>
+    <string name="reco_reset_filters">恢复全部筛选</string>
+    <string name="reco_guide_title">操作指南</string>
+    <string name="reco_guide_lines">上下滑动 · 切换视频\n单击 · 暂停 / 播放\n双击左侧点赞 · 双击其他区域快进 1/8\n长按左侧 · 2 倍速\n右上角 · 方向 / 时长 / 连播\n第一页继续下拉 · 换一批</string>
+    <string name="reco_guide_dismiss">点击任意位置关闭</string>
+    <string name="reco_empty_filtered">当前筛选条件下没有更多内容</string>
+    <string name="reco_copy_link">复制链接</string>
+    <string name="reco_open_play_page">进入播放页</string>
+    <string name="search_go_recommend">换个关键词，或去推荐页逛逛 ↓</string>
     <string name="night_mode">夜间模式</string>
     <string name="point">.</string>
 

@@ -30,8 +30,21 @@ public class V9MmanItemAdapter extends BaseQuickAdapter<V9MmanItem, BaseViewHold
         helper.setText(R.id.tv_91mman_item_info, item.getInfo());
         ImageView simpleDraweeView = helper.getView(R.id.iv_91mman_item_img);
         String coverUrl = item.getImgUrl();
+        // M119：先清掉复用残留的方向角标，再按源图宽高比重设
+        android.widget.TextView badge = helper.getView(R.id.tv_orientation_badge);
+        badge.setVisibility(android.view.View.GONE);
         // H-11: 使用共享工具类加载封面
-        GlideLoader.loadCover(simpleDraweeView, coverUrl);
+        GlideLoader.loadCover(simpleDraweeView, coverUrl, orientation -> {
+            if (orientation > 0) {
+                badge.setText("竖屏");
+                badge.setVisibility(android.view.View.VISIBLE);
+            } else if (orientation < 0) {
+                badge.setText("横屏");
+                badge.setVisibility(android.view.View.VISIBLE);
+            } else {
+                badge.setVisibility(android.view.View.GONE);
+            }
+        });
 
         helper.addOnClickListener(R.id.right_menu_delete);
     }

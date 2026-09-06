@@ -42,12 +42,21 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
         void onSingleTap(RecoVideoPlayer player);
     }
 
+    /** M119：第一页继续下拉触发「换一批」（是否处于第一页由 Fragment 判断） */
+    public interface OnPullDownListener {
+        void onPullDown();
+    }
+
     private final Handler tapHandler = new Handler(Looper.getMainLooper());
     private OnTapListener tapListener;
+    private OnPullDownListener pullDownListener;
     private long lastTapTime;
     private float pendingTapX;
     /** 是否循环播放 */
     private boolean loopEnabled = true;
+    /** M119：下拉手势跟踪（起点 y / 本次手势是否已触发） */
+    private float pullDownStartY = -1f;
+    private boolean pullDownTriggered;
     /**
      * M98：单击延迟 Runnable 是否已投递。
      * 原 longPressRunnable 用 tapHandler.hasMessages(0) 做守卫，但 Handler 消息队列里
@@ -80,8 +89,63 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
         this.tapListener = listener;
     }
 
+    public void setOnPullDownListener(OnPullDownListener listener) {
+        this.pullDownListener = listener;
+    }
+
     public void setLoopEnabled(boolean loopEnabled) {
         this.loopEnabled = loopEnabled;
+    }
+
+    /**
+     * M119：静音/取消静音当前播放通道（推荐流固定走 JZMediaSystem/MediaPlayer，
+     * MediaPlayer 无 setMute API，用 setVolume(0,0) 等价实现）。
+     *
+     * @return 是否真正生效（非当前播放通道 / 引擎不符 / 异常时 false，调用方不应据此改 UI）
+     */
+    public boolean setMuted(boolean mute) {
+        if (!isCurrentPlayer()
+                || !(JZMediaManager.instance().jzMediaInterface instanceof cn.jzvd.JZMediaSystem)) {
+            return false;
+        }
+        try {
+            MediaPlayer mediaPlayer = ((cn.jzvd.JZMediaSystem)
+                    JZMediaManager.instance().jzMediaInterface).mediaPlayer;
+            if (mediaPlayer == null) {
+                return false;
+            }
+            float v = mute ? 0f : 1f;
+            mediaPlayer.setVolume(v, v);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * M119：断点续播——跳到指定毫秒处（贴尾钳制到 duration-1s）。
+     * 需已起播（与 seekToProgress 同约束）。
+     */
+    public boolean seekToMillis(long ms) {
+        if (!isSeekable() || ms < 0) {
+            return false;
+        }
+        long duration = safeDuration();
+        if (duration <= 0) {
+            return false;
+        }
+        long target = Math.min(ms, Math.max(0, duration - 1000));
+        try {
+            boolean wasPlaying = currentState == CURRENT_STATE_PLAYING;
+            JZMediaManager.seekTo(target);
+            if (wasPlaying && isCurrentPlayer()) {
+                JZMediaManager.start();
+            }
+            startProgressTimer();
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /** 播放 / 暂停切换 */
@@ -280,8 +344,19 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
         if (action == MotionEvent.ACTION_DOWN) {
             lastTouchX = event.getX();
             longPressTriggered = false;
+            pullDownStartY = event.getY();
+            pullDownTriggered = false;
             tapHandler.postDelayed(longPressRunnable, LONG_PRESS_TIMEOUT);
+        } else if (action == MotionEvent.ACTION_MOVE) {
+            // M119：下拉换一批——只累计位移，是否处于第一页由 Fragment 侧判断。
+            // 第一页向下拖时 RecyclerView 本就不可滚（无越界滚动），位移能稳定累积。
+            if (pullDownStartY >= 0 && !pullDownTriggered && pullDownListener != null
+                    && event.getY() - pullDownStartY > Math.max(100, getHeight() / 4f)) {
+                pullDownTriggered = true;
+                pullDownListener.onPullDown();
+            }
         } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            pullDownStartY = -1f;
             tapHandler.removeCallbacks(longPressRunnable);
             if (longPressTriggered) {
                 longPressTriggered = false;

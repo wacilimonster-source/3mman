@@ -67,6 +67,9 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
     // 默认搜索提示（未搜索 / 无结果时居中展示）
     @BindView(R.id.tv_search_hint)
     TextView tvSearchHint;
+    // M119：搜索无结果时「去推荐页逛逛」引导按钮
+    @BindView(R.id.btn_search_go_recommend)
+    android.widget.Button btnSearchGoRecommend;
     // M43：底部页码跳转栏（参考视频分类交互）
     @BindView(R.id.fl_skip_page)
     FrameLayout skipPageLayout;
@@ -182,6 +185,17 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                 searchView.requestFocus();
             }
         });
+        // M119：空结果时「去推荐页逛逛」→ 切到推荐 Tab
+        if (btnSearchGoRecommend != null) {
+            btnSearchGoRecommend.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (getActivity() instanceof com.m3man.ui.main.MainActivity) {
+                        ((com.m3man.ui.main.MainActivity) getActivity()).switchToTab(1);
+                    }
+                }
+            });
+        }
         // 放大搜索按钮（放大镜 / 提交箭头）的触发区域
         enlargeSearchTrigger();
 
@@ -259,6 +273,9 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         helper.showContent();
         // 5. 回到初始提示 + 搜索历史
         showSearchHint(R.string.search_hint_default);
+        if (btnSearchGoRecommend != null) {
+            btnSearchGoRecommend.setVisibility(View.GONE);
+        }
         searchHistoryPanel.show();
     }
 
@@ -414,7 +431,8 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                 if (TextUtils.isEmpty(newText)) {
                     searchHistoryPanel.show();
                 } else {
-                    searchHistoryPanel.hide();
+                    // M119：输入时用本地历史做关键词联想
+                    searchHistoryPanel.showSuggestions(newText);
                 }
                 return false;
             }
@@ -586,8 +604,15 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
             // 无结果：用居中提示代替空列表，避免一进来/换词后页面太空
             showSearchHint(R.string.search_empty_result);
             skipPageLayout.setVisibility(View.GONE);
+            // M119：空结果给出「去推荐页逛逛」引导
+            if (btnSearchGoRecommend != null) {
+                btnSearchGoRecommend.setVisibility(View.VISIBLE);
+            }
         } else {
             hideSearchHint();
+            if (btnSearchGoRecommend != null) {
+                btnSearchGoRecommend.setVisibility(View.GONE);
+            }
         }
     }
 

@@ -95,11 +95,19 @@
         android:textStyle="bold"
         android:visibility="gone" />
 
-    <!-- 右侧操作栏（横屏专用）：为系统横屏安全区域预留右侧空间，避免按钮被裁切；间距收窄以适配宽屏。
-         图标尺寸、文字显隐与竖屏完全统一，全部由静态 XML 决定，applyOrientationUi 只调整位置参数。
+    <!-- M119：点赞心形爆流动效（横屏与竖屏一致） -->
+    <ImageView
+        android:id="@+id/iv_reco_burst_heart"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:layout_gravity="center"
+        android:contentDescription="@string/reco_like"
+        android:src="@drawable/ic_favorite_white_32dp"
+        android:tint="#FFFF4D67"
+        android:visibility="gone" />
 
-         M112：与竖屏同步改为 48dp 控件 + 6dp padding（视觉图形仍是 36dp），
-         图标间 layout_marginTop 去掉，保证视觉间距与整列高度和竖屏一致。 -->
+    <!-- 右侧操作栏（横屏专用）：结构含标签视图但由 applyOrientationUi 在横屏隐藏，
+         避免整列超高被裁切；仅保留图标语义。 -->
     <LinearLayout
         android:id="@+id/ll_reco_actions"
         android:layout_width="wrap_content"
@@ -115,46 +123,135 @@
         android:orientation="vertical">
 
         <ImageView
-            android:id="@+id/iv_reco_like"
+            android:id="@+id/iv_reco_mute"
             android:layout_width="@dimen/touch_min"
             android:layout_height="@dimen/touch_min"
-            android:contentDescription="@string/reco_like"
+            android:layout_marginBottom="4dp"
+            android:contentDescription="@string/reco_mute"
             android:padding="@dimen/touch_padding_icon_36"
-            android:src="@drawable/ic_thumb_up_white_24dp" />
+            android:src="@drawable/ic_reco_volume_white" />
 
-        <ImageView
-            android:id="@+id/iv_reco_favorite"
-            android:layout_width="@dimen/touch_min"
-            android:layout_height="@dimen/touch_min"
-            android:contentDescription="@string/reco_favorite"
-            android:padding="@dimen/touch_padding_icon_36"
-            android:src="@drawable/ic_favorite_white_32dp" />
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
 
-        <ImageView
-            android:id="@+id/iv_reco_dislike"
-            android:layout_width="@dimen/touch_min"
-            android:layout_height="@dimen/touch_min"
-            android:contentDescription="@string/reco_dislike"
-            android:padding="@dimen/touch_padding_icon_36"
-            android:src="@drawable/ic_thumb_down_white_24dp" />
+            <ImageView
+                android:id="@+id/iv_reco_like"
+                android:layout_width="@dimen/touch_min"
+                android:layout_height="@dimen/touch_min"
+                android:contentDescription="@string/reco_like"
+                android:padding="@dimen/touch_padding_icon_36"
+                android:src="@drawable/ic_thumb_up_white_24dp" />
 
-        <ImageView
-            android:id="@+id/iv_reco_detail"
-            android:layout_width="@dimen/touch_min"
-            android:layout_height="@dimen/touch_min"
-            android:contentDescription="@string/reco_detail"
-            android:padding="@dimen/touch_padding_icon_36"
-            android:src="@drawable/ic_slow_motion_video_black_24dp"
-            android:tint="#FFFFFFFF" />
+            <TextView
+                android:id="@+id/tv_reco_like_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="赞"
+                android:textColor="#B3FFFFFF"
+                android:textSize="11sp"
+                android:visibility="gone" />
+        </LinearLayout>
 
-        <ImageView
-            android:id="@+id/iv_reco_download"
-            android:layout_width="@dimen/touch_min"
-            android:layout_height="@dimen/touch_min"
-            android:contentDescription="@string/reco_download"
-            android:padding="@dimen/touch_padding_icon_36"
-            android:src="@drawable/ic_file_download_black_24dp"
-            android:tint="#FFFFFFFF" />
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/iv_reco_favorite"
+                android:layout_width="@dimen/touch_min"
+                android:layout_height="@dimen/touch_min"
+                android:contentDescription="@string/reco_favorite"
+                android:padding="@dimen/touch_padding_icon_36"
+                android:src="@drawable/ic_favorite_white_32dp" />
+
+            <TextView
+                android:id="@+id/tv_reco_favorite_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="收藏"
+                android:textColor="#B3FFFFFF"
+                android:textSize="11sp"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/iv_reco_dislike"
+                android:layout_width="@dimen/touch_min"
+                android:layout_height="@dimen/touch_min"
+                android:contentDescription="@string/reco_dislike"
+                android:padding="@dimen/touch_padding_icon_36"
+                android:src="@drawable/ic_thumb_down_white_24dp" />
+
+            <TextView
+                android:id="@+id/tv_reco_dislike_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="不喜欢"
+                android:textColor="#B3FFFFFF"
+                android:textSize="11sp"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/iv_reco_detail"
+                android:layout_width="@dimen/touch_min"
+                android:layout_height="@dimen/touch_min"
+                android:contentDescription="@string/reco_detail"
+                android:padding="@dimen/touch_padding_icon_36"
+                android:src="@drawable/ic_slow_motion_video_black_24dp"
+                android:tint="#FFFFFFFF" />
+
+            <TextView
+                android:id="@+id/tv_reco_detail_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="详情"
+                android:textColor="#B3FFFFFF"
+                android:textSize="11sp"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/iv_reco_download"
+                android:layout_width="@dimen/touch_min"
+                android:layout_height="@dimen/touch_min"
+                android:contentDescription="@string/reco_download"
+                android:padding="@dimen/touch_padding_icon_36"
+                android:src="@drawable/ic_file_download_black_24dp"
+                android:tint="#FFFFFFFF" />
+
+            <TextView
+                android:id="@+id/tv_reco_download_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="下载"
+                android:textColor="#B3FFFFFF"
+                android:textSize="11sp"
+                android:visibility="gone" />
+        </LinearLayout>
     </LinearLayout>
 
     <!-- 右缘半透明把手：开启「隐藏播放页操作栏」后用于临时呼出操作栏。
@@ -265,16 +362,36 @@
             android:textColor="#FFFFFFFF"
             android:textSize="16sp" />
 
-        <TextView
-            android:id="@+id/tv_reco_meta"
+        <!-- M119：作者名独立可点（跳作者主页），时间信息跟在后面 -->
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:shadowColor="#FF000000"
-            android:shadowRadius="4"
-            android:textColor="#CCFFFFFF"
-            android:textSize="12sp" />
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tv_reco_author"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:clickable="true"
+                android:focusable="true"
+                android:shadowColor="#FF000000"
+                android:shadowRadius="4"
+                android:textColor="#FFFF7A93"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/tv_reco_meta"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="6dp"
+                android:layout_marginStart="6dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:shadowColor="#FF000000"
+                android:shadowRadius="4"
+                android:textColor="#CCFFFFFF"
+                android:textSize="12sp" />
+        </LinearLayout>
     </LinearLayout>
 </FrameLayout>

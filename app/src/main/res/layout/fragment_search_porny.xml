@@ -45,6 +45,16 @@
             android:text="@string/search_hint_default"
             android:textAppearance="@style/TextAppearance.App.Body" />
 
+        <!-- M119：搜索无结果时的引导按钮（配合 tv_search_hint 的空结果文案出现） -->
+        <Button
+            android:id="@+id/btn_search_go_recommend"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal|bottom"
+            android:layout_marginBottom="72dp"
+            android:text="@string/search_go_recommend"
+            android:visibility="gone" />
+
         <!-- M44 搜索历史面板：未搜索时叠加在列表上 -->
         <include
             android:id="@+id/layout_search_history"

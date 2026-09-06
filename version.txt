@@ -1,7 +1,7 @@
 {
-  "versionCode": 151,
-  "versionName": "1.0.118",
-  "updateMessage": "1.0.118 更新内容：\n1）推荐页右上角新增「时长筛选」：推荐只显示 N 分钟以内的视频（不限/1/2/3/5/10 分钟），与「更多设置」里的同名设置实时同步；未标注时长的视频不受限；\n2）推荐页右上角新增「自动连播」开关：播完自动播放下一条，默认开启，点击可关闭（关闭后播完循环当前视频）；\n3）移除「更多设置」中无法操作的「下载保存位置」提示条目。\n注意：仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.118.apk",
-  "sha256": "2d8180c505ae485428dd914ba08f1c42ddfbe3ac03c9f7babf4f89e143963ea4"
+  "versionCode": 152,
+  "versionName": "1.0.119",
+  "updateMessage": "1.0.119 更新内容：\n1）推荐页信息栏改版：@作者名可点击跳转作者主页，并显示添加时间；新增静音开关（状态记忆）；\n2）推荐页新增详情半屏面板与操作指南：支持复制链接、进入播放页；第一页继续下拉可「换一批」；筛选无结果时给出提示并可一键恢复全部筛选；\n3）搜索：输入时按历史记录联想关键词，无结果时提供「去推荐页逛逛」引导；\n4）列表封面按源图比例显示「横屏/竖屏」角标。\n注意：仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.119.apk",
+  "sha256": "6e67965e5f643e7cd66c384371d03a0aa95608417a1e20e90eb9fddf3171d2b0"
 }

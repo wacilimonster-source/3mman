@@ -23,6 +23,12 @@ public final class PlayUiPrefs {
     private static final String KEY_RECO_CACHE_BATCH = "reco_cache_batch";
     /** M118：推荐流自动连播（播完自动播放下一条），默认开；关则保持本条循环 */
     private static final String KEY_RECO_AUTO_NEXT = "reco_auto_next";
+    /** M119：推荐流倍速记忆，默认 1.0f；取值 0.75/1.0/1.25/1.5/2.0 */
+    private static final String KEY_RECO_PLAYBACK_SPEED = "reco_playback_speed";
+    /** M119：推荐流静音，默认不静音 */
+    private static final String KEY_RECO_MUTED = "reco_muted";
+    /** M119：新手手势引导是否已展示过 */
+    private static final String KEY_RECO_GUIDE_SHOWN = "reco_guide_shown";
 
     /** 方向筛选取值 */
     public static final int FILTER_ALL = 0;
@@ -82,5 +88,29 @@ public final class PlayUiPrefs {
 
     public static void setRecoAutoNextEnabled(Context context, boolean value) {
         prefs(context).edit().putBoolean(KEY_RECO_AUTO_NEXT, value).apply();
+    }
+
+    public static float getRecoPlaybackSpeed(Context context) {
+        return prefs(context).getFloat(KEY_RECO_PLAYBACK_SPEED, 1.0f);
+    }
+
+    public static void setRecoPlaybackSpeed(Context context, float speed) {
+        prefs(context).edit().putFloat(KEY_RECO_PLAYBACK_SPEED, speed).apply();
+    }
+
+    public static boolean isRecoMuted(Context context) {
+        return prefs(context).getBoolean(KEY_RECO_MUTED, false);
+    }
+
+    public static void setRecoMuted(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_RECO_MUTED, value).apply();
+    }
+
+    public static boolean isRecoGuideShown(Context context) {
+        return prefs(context).getBoolean(KEY_RECO_GUIDE_SHOWN, false);
+    }
+
+    public static void setRecoGuideShown(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_RECO_GUIDE_SHOWN, value).apply();
     }
 }

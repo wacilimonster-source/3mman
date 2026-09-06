@@ -42,6 +42,25 @@ public class SmartCoverTransformation extends BitmapTransformation {
     /** 白色雾化遮罩透明度（0~1）：盖在模糊底上进一步融化细节，与列表浅色底融合 */
     private static final float SCRIM_ALPHA = 0.25f;
 
+    /**
+     * M119：源图方向登记表（orientationKey → 1=竖屏 / -1=横屏）。
+     * transform 在解码线程运行，能拿到真实的源图宽高（输出被统一成 16:9，外层读不到），
+     * 列表方向角标从这张表取值。键为封面 URL，超量直接清空（可再学习数据）。
+     */
+    public static final java.util.concurrent.ConcurrentHashMap<String, Integer> ORIENTATION_MAP =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    private final String orientationKey;
+
+    /** 不登记方向（兼容既有调用方） */
+    public SmartCoverTransformation() {
+        this(null);
+    }
+
+    public SmartCoverTransformation(String orientationKey) {
+        this.orientationKey = orientationKey;
+    }
+
     @Override
     protected Bitmap transform(@NonNull BitmapPool pool,
                                @NonNull Bitmap source, int outWidth, int outHeight) {
@@ -53,6 +72,15 @@ public class SmartCoverTransformation extends BitmapTransformation {
         float dstRatio = outWidth / (float) outHeight;
         boolean similar =
                 Math.abs(srcRatio - dstRatio) / dstRatio <= SIMILAR_RATIO_TOLERANCE;
+
+        // M119：登记源图方向（角标用），输出图是统一 16:9 读不出方向
+        if (orientationKey != null) {
+            if (ORIENTATION_MAP.size() > 800) {
+                ORIENTATION_MAP.clear();
+            }
+            ORIENTATION_MAP.put(orientationKey,
+                    source.getHeight() > source.getWidth() ? 1 : -1);
+        }
 
         Bitmap out = pool.get(outWidth, outHeight, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(out);
