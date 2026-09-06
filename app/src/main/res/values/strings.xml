@@ -56,9 +56,13 @@
     <string name="reco_hide_action_bar">隐藏播放页操作栏</string>
     <string name="reco_show_actions">呼出操作栏</string>
     <string name="reco_orientation_filter">方向筛选</string>
+    <string name="reco_duration_filter">时长筛选</string>
     <string name="reco_filter_all">全部 ▾</string>
     <string name="reco_filter_portrait">竖屏 ▾</string>
     <string name="reco_filter_landscape">横屏 ▾</string>
+    <string name="reco_duration_all">不限 ▾</string>
+    <string name="reco_auto_next_on">连播 开</string>
+    <string name="reco_auto_next_off">连播 关</string>
     <string name="night_mode">夜间模式</string>
     <string name="point">.</string>
 
@@ -200,8 +204,6 @@
     <string name="setting_long_press_set">长按设置</string>
     <string name="setting_custom_download_dir">自定义视频下载文件夹</string>
     <string name="setting_clear_unfinished_hint">需先清空所有未完成下载，建议使用默认</string>
-    <string name="setting_download_save_location">下载保存位置</string>
-    <string name="setting_scoped_storage_hint">Android 10+ 由系统管辖公共存储：视频下载后存入「相册 / Movies」并可在文件管理器查看，无需手动选目录</string>
     <string name="setting_reco_prefetch">推荐页预加载</string>
     <string name="setting_disable_auto_release_memory">禁用自动释放内存功能</string>
     <string name="setting_download_without_wifi">非Wi-Fi环境下下载视频</string>

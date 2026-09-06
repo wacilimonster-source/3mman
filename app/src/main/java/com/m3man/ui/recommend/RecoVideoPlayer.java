@@ -383,9 +383,28 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
     }
 
     // ==================== 循环播放 ====================
+
+    /**
+     * M118：自然播完回调。设置后由外部（推荐流 Fragment）全权决定续播方式
+     * （自动连播翻下一条 / 原地重播），内部 loopEnabled 循环不再生效。
+     */
+    public interface OnAutoCompletionListener {
+        void onAutoCompletion(RecoVideoPlayer player);
+    }
+
+    private OnAutoCompletionListener autoCompletionListener;
+
+    public void setOnAutoCompletionListener(OnAutoCompletionListener listener) {
+        this.autoCompletionListener = listener;
+    }
+
     @Override
     public void onAutoCompletion() {
         super.onAutoCompletion();
+        if (autoCompletionListener != null) {
+            autoCompletionListener.onAutoCompletion(this);
+            return;
+        }
         if (!loopEnabled) {
             return;
         }

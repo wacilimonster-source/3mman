@@ -295,15 +295,9 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
 
         QMUIGroupListView.Section downloadDirSection = QMUIGroupListView.newSection(this)
                 .addItemView(playEngineItemWithChevron, this);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // V13：Scoped Storage 强制，公共目录不能作为自定义下载目录（fileDownloader 只能写真实路径），
-            // 隐藏虚假选目录入口，改为展示固定说明，避免 Android 10+ 上选目录失效/被忽略。
-            QMUICommonListItemView scopedNoteItem = qmuiGroupListView.createItemView(getString(R.string.setting_download_save_location));
-            scopedNoteItem.setOrientation(QMUICommonListItemView.VERTICAL);
-            scopedNoteItem.setDetailText(getString(R.string.setting_scoped_storage_hint));
-            downloadDirSection.addItemView(scopedNoteItem, this);
-        } else {
-            // Android 9 及以下仍可写公共目录，保留自定义目录选择
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            // Android 9 及以下仍可写公共目录，保留自定义目录选择。
+            // Android 10+ 不再加任何「下载保存位置」说明条目：入口本来就不可切换，提示没有意义。
             downloadDirSection.addItemView(customDownloadPathItemWithChevron, v ->
                     selectDownloadVideoDir(customDownloadPathItemWithChevron));
         }

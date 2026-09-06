@@ -1,7 +1,7 @@
 {
-  "versionCode": 150,
-  "versionName": "1.0.117",
-  "updateMessage": "1.0.117 更新内容：\n1）修复「视频/推荐」详情页作者 Tab 空白：站点模板改版后同页存在多个 container 导致解析取错容器，作者视频数据恒为空；同时修复列表视图层级缺陷（数据已加载但被 0 尺寸容器裁剪成白屏）；\n2）详情页重新显示作者名（新版模板作者名移至作者主页链接）；\n3）搜索结果与作者页作品列表重新显示更新时间（新版模板日期行位于独立的 text-muted 块）。\n注意：仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.117.apk",
-  "sha256": "bb66293d0e004a5821f1554bf480259c4ea468c899f0b91238d3130e2d02ea95"
+  "versionCode": 151,
+  "versionName": "1.0.118",
+  "updateMessage": "1.0.118 更新内容：\n1）推荐页右上角新增「时长筛选」：推荐只显示 N 分钟以内的视频（不限/1/2/3/5/10 分钟），与「更多设置」里的同名设置实时同步；未标注时长的视频不受限；\n2）推荐页右上角新增「自动连播」开关：播完自动播放下一条，默认开启，点击可关闭（关闭后播完循环当前视频）；\n3）移除「更多设置」中无法操作的「下载保存位置」提示条目。\n注意：仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.118.apk",
+  "sha256": "2d8180c505ae485428dd914ba08f1c42ddfbe3ac03c9f7babf4f89e143963ea4"
 }

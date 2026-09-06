@@ -151,6 +151,10 @@ public class RecommendFeedFragment extends BaseFragment
     private TextView orientationFilterView;
     private ImageView landscapeBackView;
 
+    /** M118：右上角时长筛选胶囊（≤N分钟，0=不限）与自动连播开关胶囊 */
+    private TextView durationFilterView;
+    private TextView autoNextView;
+
     /** 横屏/沉浸模式 Helper（从 Fragment 提取，降低 God Class 复杂度） */
     private LandscapeOrientationHelper orientationHelper;
     /** 下载入队 Helper（从 Fragment 提取，降低 God Class 复杂度） */
@@ -279,13 +283,15 @@ public class RecommendFeedFragment extends BaseFragment
             }
         } catch (Exception ignored) {
         }
-        if (orientationFilterView != null) {
-            ViewGroup.LayoutParams raw = orientationFilterView.getLayoutParams();
+        // M118：右上角整体容器（方向 / 时长 / 连播三枚胶囊）统一做状态栏避让
+        View topFilters = getView() == null ? null : getView().findViewById(R.id.ll_reco_top_filters);
+        if (topFilters != null) {
+            ViewGroup.LayoutParams raw = topFilters.getLayoutParams();
             if (raw instanceof ViewGroup.MarginLayoutParams) {
                 ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) raw;
                 lp.topMargin = statusBarHeight + dp(14);
                 lp.topMargin = Math.max(lp.topMargin, dp(14));
-                orientationFilterView.setLayoutParams(lp);
+                topFilters.setLayoutParams(lp);
             }
         }
         // landscapeBackView 仅在横屏才 VISIBLE，留原始 6dp topMargin 即可，不强制改
@@ -361,6 +367,8 @@ public class RecommendFeedFragment extends BaseFragment
         });
 
         initOrientationFilterPill();
+        initDurationFilterPill();
+        initAutoNextPill();
     }
 
     // ==================== 方向筛选（M78） ====================
@@ -431,6 +439,158 @@ public class RecommendFeedFragment extends BaseFragment
                         : filter == PlayUiPrefs.FILTER_LANDSCAPE ? "已切换：仅横屏"
                         : "已切换：全部",
                 TastyToast.INFO);
+    }
+
+    // ==================== 时长筛选（M118） ====================
+
+    /** 与设置页 SettingActivity 的选项保持一致：0=不限，其余为分钟上限 */
+    private static final int[] RECO_DURATION_VALUES = {0, 1, 2, 3, 5, 10};
+
+    private void initDurationFilterPill() {
+        durationFilterView = getView().findViewById(R.id.tv_reco_duration_filter);
+        updateDurationPill(dataManager.getRecoMaxDurationMinutes());
+        durationFilterView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showDurationFilterMenu();
+            }
+        });
+    }
+
+    private void updateDurationPill(int minutes) {
+        if (durationFilterView == null) {
+            return;
+        }
+        durationFilterView.setText(minutes <= 0
+                ? getString(R.string.reco_duration_all)
+                : "≤" + minutes + "分 ▾");
+    }
+
+    /** 右上角胶囊单选菜单：不限 / 1 / 2 / 3 / 5 / 10 分钟（与设置页选项一致） */
+    private void showDurationFilterMenu() {
+        final int current = dataManager.getRecoMaxDurationMinutes();
+        final String[] items = {"不限", "1 分钟", "2 分钟", "3 分钟", "5 分钟", "10 分钟"};
+        int checkedIndex = 0;
+        for (int i = 0; i < RECO_DURATION_VALUES.length; i++) {
+            if (RECO_DURATION_VALUES[i] == current) {
+                checkedIndex = i;
+                break;
+            }
+        }
+        new androidx.appcompat.app.AlertDialog.Builder(getActivity(), R.style.RecoOrientationDialogTheme)
+                .setTitle(getString(R.string.reco_duration_filter))
+                .setSingleChoiceItems(items, checkedIndex, new android.content.DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(android.content.DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                        int picked = RECO_DURATION_VALUES[which];
+                        if (picked != current) {
+                            applyDurationFilter(picked);
+                        }
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    /**
+     * 切换时长上限：写与设置页同一个持久化值（两处入口永远一致），严格过滤——
+     * 清空当前流重拉，已出队的超时长候选不可逆丢弃。
+     * lastApplied 同步更新，避免 onResume 把本页刚改的值误判成设置页改动造成二次重置。
+     */
+    private void applyDurationFilter(int minutes) {
+        dataManager.setRecoMaxDurationMinutes(minutes);
+        lastAppliedRecoDurationMinutes = minutes;
+        updateDurationPill(minutes);
+        if (repository == null) {
+            return;
+        }
+        repository.setMaxDurationMinutes(minutes);
+        // 严格过滤：清空当前流与已服务标记，从头按新时长上限拉取
+        adapter.setData(new ArrayList<RecoCandidate>());
+        currentPosition = -1;
+        noMore = false;
+        emptyRetryCount = 0;
+        JZVideoPlayer.releaseAllVideos();
+        stopCoverWatcher();
+        stopProgressTicker();
+        repository.resetSession();
+        loadMore(true);
+        showMessage(minutes <= 0 ? "已切换：不限" : "已切换：≤" + minutes + " 分钟以内",
+                TastyToast.INFO);
+    }
+
+    // ==================== 自动连播（M118） ====================
+
+    private void initAutoNextPill() {
+        autoNextView = getView().findViewById(R.id.tv_reco_auto_next);
+        updateAutoNextPill(PlayUiPrefs.isRecoAutoNextEnabled(context));
+        autoNextView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                boolean enabled = !PlayUiPrefs.isRecoAutoNextEnabled(context);
+                PlayUiPrefs.setRecoAutoNextEnabled(context, enabled);
+                updateAutoNextPill(enabled);
+                showMessage(enabled ? "已开启自动连播，播完自动播放下一条"
+                                : "已关闭自动连播，播完循环当前视频",
+                        TastyToast.INFO);
+            }
+        });
+    }
+
+    private void updateAutoNextPill(boolean enabled) {
+        if (autoNextView == null) {
+            return;
+        }
+        autoNextView.setText(enabled ? R.string.reco_auto_next_on : R.string.reco_auto_next_off);
+    }
+
+    /**
+     * 当前视频自然播完（RecoVideoPlayer.OnAutoCompletionListener）：
+     * 连播开且下一条存在 → 平滑翻页，完全复用既有 onPageSelected → startPlay 起播链路；
+     * 连播开但已是最后一条 → 触发补批，本条原地循环兜底，新批次到后下次播完接上；
+     * 连播关 → 原地循环（原行为）。只处理「该 player 就是当前页 holder」的回调。
+     */
+    private void onFeedVideoCompleted(RecoVideoPlayer player) {
+        if (!isUsable() || viewDestroyed) {
+            return;
+        }
+        RecommendFeedAdapter.PageHolder holder = findHolder(currentPosition);
+        boolean isCurrentPage = holder != null && holder.player == player;
+        if (isCurrentPage && PlayUiPrefs.isRecoAutoNextEnabled(context)) {
+            if (currentPosition + 1 < adapter.getItemCount()) {
+                // 完播是最强正反馈：AUTO_COMPLETE 态 watchedRatio() 恒 0，翻页前显式补记
+                RecoCandidate finished = adapter.getItem(currentPosition);
+                if (finished != null && engine != null) {
+                    engine.onWatchRatio(finished, 1f);
+                }
+                recyclerView.smoothScrollToPosition(currentPosition + 1);
+                return;
+            }
+            if (!noMore && !loading && repository != null) {
+                loadMore(false);
+            }
+        }
+        if (!isCurrentPage) {
+            return;
+        }
+        // 原地循环兜底（=原 loopEnabled 行为）：下一帧再起播，避免和 release 流程抢资源
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (!isUsable() || viewDestroyed) {
+                    return;
+                }
+                RecommendFeedAdapter.PageHolder h = findHolder(currentPosition);
+                if (h != null && h.player == player) {
+                    try {
+                        h.player.startVideo();
+                    } catch (Exception ignored) {
+                        // 页面已回收
+                    }
+                }
+            }
+        });
     }
 
     // ==================== 数据 ====================
@@ -751,6 +911,13 @@ public class RecommendFeedFragment extends BaseFragment
         try {
             holder.player.setVisibility(View.VISIBLE);
             holder.player.setLoopEnabled(true);
+            // M118：播完续播交给 Fragment 决定（自动连播开 → 翻下一条；否则原地循环）
+            holder.player.setOnAutoCompletionListener(new RecoVideoPlayer.OnAutoCompletionListener() {
+                @Override
+                public void onAutoCompletion(RecoVideoPlayer player) {
+                    onFeedVideoCompleted(player);
+                }
+            });
             holder.player.setUp(playUrl, JZVideoPlayerStandard.SCREEN_WINDOW_LIST, title);
             holder.player.startVideo();
         } catch (Exception e) {
@@ -1250,6 +1417,8 @@ public class RecommendFeedFragment extends BaseFragment
             if (persistedMax != lastAppliedRecoDurationMinutes) {
                 repository.setMaxDurationMinutes(persistedMax);
                 lastAppliedRecoDurationMinutes = persistedMax;
+                // M118：设置页改的值，右上角时长胶囊文案同步刷新
+                updateDurationPill(persistedMax);
                 if (engineInitFailed) {
                     // 引擎初始化失败导致 repository 没建出来——忽略，下一次 resume 再补偿
                 } else if (repository != null && adapter != null) {

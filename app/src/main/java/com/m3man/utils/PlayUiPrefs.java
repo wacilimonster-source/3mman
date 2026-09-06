@@ -21,6 +21,8 @@ public final class PlayUiPrefs {
     private static final String KEY_RECO_PREFETCH = "reco_prefetch_enabled";
     /** L-fix：最近一次成功推荐的候选批次快照（JSON），供冷启动秒显 */
     private static final String KEY_RECO_CACHE_BATCH = "reco_cache_batch";
+    /** M118：推荐流自动连播（播完自动播放下一条），默认开；关则保持本条循环 */
+    private static final String KEY_RECO_AUTO_NEXT = "reco_auto_next";
 
     /** 方向筛选取值 */
     public static final int FILTER_ALL = 0;
@@ -72,5 +74,13 @@ public final class PlayUiPrefs {
 
     public static void setRecoCacheBatch(Context context, String json) {
         prefs(context).edit().putString(KEY_RECO_CACHE_BATCH, json).apply();
+    }
+
+    public static boolean isRecoAutoNextEnabled(Context context) {
+        return prefs(context).getBoolean(KEY_RECO_AUTO_NEXT, true);
+    }
+
+    public static void setRecoAutoNextEnabled(Context context, boolean value) {
+        prefs(context).edit().putBoolean(KEY_RECO_AUTO_NEXT, value).apply();
     }
 }
