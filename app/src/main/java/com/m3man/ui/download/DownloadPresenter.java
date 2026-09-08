@@ -17,6 +17,7 @@ import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.db.entity.VideoResult;
 import com.m3man.di.ApplicationContext;
+import com.m3man.exception.MessageException;
 import com.m3man.parser.Parse91PornyVideo;
 import com.m3man.ui.mman9video.play.PlayVideoPresenter;
 import com.m3man.rxjava.CallBackWrapper;
@@ -30,6 +31,7 @@ import com.m3man.utils.MediaStoreArchiver;
 import com.m3man.utils.VideoCacheFileNameGenerator;
 
 import java.io.File;
+import java.io.IOException;
 
 import java.util.Date;
 import java.util.Iterator;
@@ -837,6 +839,10 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
      */
     private void copyCacheFile(final V9MmanItem v9MmanItem, final File fromFile,
                                final DownloadListener downloadListener) {
+        // M153：拷贝全程埋诊断日志——此前「命中播放缓存」之后成功/失败均无 AppLog，
+        // 用户反馈下载报错时诊断日志里是一片空白，无法定位
+        AppLog.i("Download", "缓存拷贝开始 viewKey=" + v9MmanItem.getViewKey()
+                + " 源=" + fromFile.getAbsolutePath() + " 大小=" + fromFile.length() + "B");
         Observable.create(new ObservableOnSubscribe<File>() {
             @Override
             public void subscribe(ObservableEmitter<File> e) throws Exception {
@@ -846,10 +852,9 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         }).map(new Function<File, V9MmanItem>() {
             @Override
             public V9MmanItem apply(File fromFile) throws Exception {
-                // M74：修复缓存拷贝分支漏掉 ensureDownloadDir 的缺陷——
-                // 常规下载路径(246-248)会先确保父目录，但本分支此前直接 createNewFile，
-                // 当自定义下载目录未物化、或首次即走缓存拷贝分支时，父目录不存在导致
-                // IOException: No such file or directory。此处补齐目录创建（与常规路径一致）。
+                // M74：缓存文件在 isVideoCacheByProxy 判定后可能被 LRU 淘汰（TOCTOU），
+                // 不再用递归 + bypassCacheCopy hack，改为调用方先同步检查缓存文件是否存在，
+                // 存在再调用本方法，缺失时直接走正常下载。
                 String preferredPath = v9MmanItem.getDownLoadPath(getCustomDownloadVideoDirPath());
                 File toFile = new File(preferredPath);
                 File parent = toFile.getParentFile();
@@ -861,24 +866,55 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                     }
                 }
                 if (toFile.exists() && toFile.length() > 0) {
-                    throw new Exception("已经下载过了");
+                    throw new MessageException("已经下载过了");
                 }
                 File toParent = toFile.getParentFile();
                 if (toParent == null || !toParent.exists() || !toParent.canWrite()) {
                     // 仍不可用：再次尝试 ensureDownloadDir 回退；若仍失败给出友好提示而非裸 IOException
                     String ensured = SDCardUtils.ensureDownloadDir(preferredPath, context);
                     if (TextUtils.isEmpty(ensured)) {
-                        throw new Exception("下载目录不可写，请检查存储权限或更换下载目录");
+                        throw new IOException("下载目录不可写，请检查存储权限或更换下载目录");
                     }
                     toFile = new File(ensured);
                 }
-                if (!toFile.createNewFile()) {
-                    throw new Exception("创建文件失败");
+                // M153：File.canWrite() 在 Android 11+ FUSE 上可能误报可写（权限位为 true，
+                // 实际 createNewFile 抛 EACCES，与常规下载路径用的真实写入探测结论相反）。
+                // 因此这里不能只信 canWrite()：首选目录写入失败时，按 ensureDownloadDir
+                // 的真实探测回退目录重试一次，仍失败才抛给上层回退网络下载。
+                boolean copiedToPreferred;
+                try {
+                    if (!toFile.createNewFile()) {
+                        throw new IOException("创建文件失败(" + toFile.getAbsolutePath() + ")");
+                    }
+                    FileUtils.copyFile(fromFile, toFile);
+                    copiedToPreferred = true;
+                } catch (Exception copyEx) {
+                    copiedToPreferred = false;
+                    AppLog.w("Download", "缓存拷贝首选目录写入失败 viewKey=" + v9MmanItem.getViewKey()
+                            + " 目标=" + toFile.getAbsolutePath()
+                            + " err=" + AppLog.cause(copyEx));
                 }
-                FileUtils.copyFile(fromFile, toFile);
+                if (!copiedToPreferred) {
+                    // 清掉首选目录的半成品，再按常规下载同一标准回退目录重试
+                    deleteFileWithTemp(toFile.getAbsolutePath());
+                    String ensured = SDCardUtils.ensureDownloadDir(preferredPath, context);
+                    if (TextUtils.isEmpty(ensured)) {
+                        throw new IOException("下载目录不可写，请检查存储权限或更换下载目录");
+                    }
+                    toFile = new File(ensured);
+                    if (toFile.exists() && toFile.length() > 0) {
+                        throw new MessageException("已经下载过了");
+                    }
+                    if (!toFile.createNewFile()) {
+                        throw new IOException("创建文件失败(" + toFile.getAbsolutePath() + ")");
+                    }
+                    FileUtils.copyFile(fromFile, toFile);
+                }
                 // M99：字段已改 long，去掉 int 强转避免 >2GB 文件尺寸截断
                 v9MmanItem.setTotalFarBytes(fromFile.length());
                 v9MmanItem.setSoFarBytes(fromFile.length());
+                AppLog.i("Download", "缓存拷贝完成 viewKey=" + v9MmanItem.getViewKey()
+                        + " 目标=" + toFile.getAbsolutePath() + " 大小=" + fromFile.length() + "B");
                 return v9MmanItem;
             }
         }).map(new Function<V9MmanItem, String>() {
@@ -917,18 +953,70 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
 
                     @Override
                     public void onError(final String msg, int code) {
-                        if (downloadListener != null) {
-                            downloadListener.onError(msg);
-                        } else {
-                            ifViewAttached(new ViewAction<DownloadView>() {
-                                @Override
-                                public void run(@NonNull DownloadView view) {
-                                    view.showMessage(msg, TastyToast.ERROR);
-                                }
-                            });
+                        AppLog.e("Download", "缓存拷贝失败 viewKey=" + v9MmanItem.getViewKey()
+                                + " msg=" + msg);
+                        if (msg != null && msg.contains("已经下载过了")) {
+                            // 成品已存在：不是故障，维持原提示，不回退重下
+                            notifyCopyError(downloadListener, msg);
+                            return;
                         }
+                        // M153：拷贝失败（目录不可写 / IO 异常 / 缓存源被 LRU 淘汰等）
+                        // 不再终止下载——回退常规网络下载路径（FileDownloader +
+                        // ensureDownloadDir 真实探测目录），保证任务总能完成或给出可诊断的错误
+                        fallbackToNetworkDownload(v9MmanItem, downloadListener);
                     }
                 });
+    }
+
+    /** 拷贝失败的提示（downloadListener 优先，否则 toast） */
+    private void notifyCopyError(final DownloadListener downloadListener, final String msg) {
+        if (downloadListener != null) {
+            downloadListener.onError(msg);
+        } else {
+            ifViewAttached(new ViewAction<DownloadView>() {
+                @Override
+                public void run(@NonNull DownloadView view) {
+                    view.showMessage(msg, TastyToast.ERROR);
+                }
+            });
+        }
+    }
+
+    /**
+     * M153：缓存拷贝失败后的兜底——用 DB 里刚解析成功的直链走常规 FileDownloader 下载，
+     * 目录用 ensureDownloadDir 真实探测（与常规下载路径同一标准，不会踩 canWrite() 误判）。
+     */
+    private void fallbackToNetworkDownload(final V9MmanItem item, final DownloadListener listener) {
+        try {
+            String path = SDCardUtils.ensureDownloadDir(
+                    item.getDownLoadPath(getCustomDownloadVideoDirPath()), context);
+            if (TextUtils.isEmpty(path)) {
+                AppLog.e("Download", "回退下载目录不可写 viewKey=" + item.getViewKey()
+                        + " requested=" + item.getDownLoadPath(getCustomDownloadVideoDirPath()));
+                notifyCopyError(listener, "下载目录不可写，请检查存储权限或更换下载目录");
+                return;
+            }
+            String url = null;
+            try {
+                VideoResult vr = item.getVideoResult();
+                url = vr == null ? null : vr.getVideoUrl();
+            } catch (Exception ignored) {
+                // detached 实体取不到解析结果
+            }
+            boolean wifi = dataManager.isDownloadVideoNeedWifi();
+            if (TextUtils.isEmpty(url)) {
+                AppLog.i("Download", "缓存拷贝失败且无可用直链，重新解析后下载 viewKey=" + item.getViewKey());
+                reparseThenDownload(item, path, wifi, false, listener);
+                return;
+            }
+            AppLog.i("Download", "缓存拷贝失败，回退网络下载 viewKey=" + item.getViewKey()
+                    + " host=" + AppLog.hostOf(url) + " 目录=" + path);
+            startDownloadInternal(item, url, path, wifi, false, listener);
+        } catch (Exception e) {
+            AppLog.e("Download", "回退网络下载失败 viewKey=" + item.getViewKey()
+                    + " " + AppLog.cause(e));
+            notifyCopyError(listener, "下载失败，请稍后重试");
+        }
     }
 
 

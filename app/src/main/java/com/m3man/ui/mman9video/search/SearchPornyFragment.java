@@ -612,6 +612,12 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
             if (btnSearchGoRecommend != null) {
                 btnSearchGoRecommend.setVisibility(View.GONE);
             }
+            // M154：兜底防线——历史面板 match_parent 盖在整个内容区上（分页栏在
+            // FrameLayout 外不受影响），任何路径导致它在结果返回后仍可见时，
+            // 用户看到的就是「分页栏出来了但列表没内容」。有结果时强制收起。
+            if (searchHistoryPanel != null) {
+                searchHistoryPanel.hide();
+            }
         }
     }
 

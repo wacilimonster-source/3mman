@@ -41,6 +41,15 @@ public class SearchHistoryPanel {
     private final DataManager dm;
     private final OnHistoryItemClickListener clickListener;
     private final SearchView searchView;
+    /**
+     * M154：show / showSuggestions 的异步展示订阅。宿主在点击历史条目时会先
+     * setQuery（触发 onQueryTextChange → showSuggestions 发起异步 DB 查询）
+     * 再同步调 hide()；异步回调晚于 hide() 落地时会把面板重新置顶盖住搜索结果
+     * （表现为「底部分页栏出现了，但列表没有内容」）。hide() 时取消这些在途
+     * 回调，保证面板一旦被主动隐藏就不会自己复活。
+     */
+    private final io.reactivex.disposables.CompositeDisposable panelSubscriptions =
+            new io.reactivex.disposables.CompositeDisposable();
 
     public SearchHistoryPanel(View container, DataManager dm, OnHistoryItemClickListener listener) {
         this(container, dm, listener, null);
@@ -115,7 +124,8 @@ public class SearchHistoryPanel {
         if (container != null) {
             container.bringToFront();
         }
-        io.reactivex.Observable.just(1)
+        panelSubscriptions.clear();
+        io.reactivex.disposables.Disposable d = io.reactivex.Observable.just(1)
                 .subscribeOn(io.reactivex.schedulers.Schedulers.io())
                 .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
                 .subscribe(o -> {
@@ -127,9 +137,16 @@ public class SearchHistoryPanel {
                     adapter.setNewData(list);
                     container.setVisibility(View.VISIBLE);
                 });
+        panelSubscriptions.add(d);
     }
 
+    /**
+     * M154：隐藏面板。除置 GONE 外必须取消在途的展示回调（show / showSuggestions
+     * 都是异步 IO→主线程），否则点击历史条目触发的联想查询晚于本方法落地时，
+     * 面板会在搜索结果返回前后自己重新显示出来，盖住结果列表。
+     */
     public void hide() {
+        panelSubscriptions.clear();
         container.setVisibility(View.GONE);
     }
 
@@ -143,7 +160,8 @@ public class SearchHistoryPanel {
             return;
         }
         final String q = query.trim().toLowerCase(java.util.Locale.getDefault());
-        io.reactivex.Observable.just(1)
+        panelSubscriptions.clear();
+        io.reactivex.disposables.Disposable d = io.reactivex.Observable.just(1)
                 .subscribeOn(io.reactivex.schedulers.Schedulers.io())
                 .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
                 .subscribe(o -> {
@@ -168,6 +186,7 @@ public class SearchHistoryPanel {
                     adapter.setNewData(matched);
                     container.setVisibility(View.VISIBLE);
                 });
+        panelSubscriptions.add(d);
     }
 
     /** 搜索提交后调用：记录该关键词（自动去重 + 更新最近使用时间）。M73：写库切 IO 线程 */
@@ -187,7 +206,8 @@ public class SearchHistoryPanel {
                 .subscribeOn(io.reactivex.schedulers.Schedulers.io())
                 .subscribe(o -> dm.clearSearchHistory(TYPE));
         adapter.setNewData(new ArrayList<String>());
-        container.setVisibility(View.GONE);
+        // M154：复用 hide()，取消在途展示回调，防止清空后面板又被异步回调拉起
+        hide();
     }
 
     private void confirmRemove(final String keyword) {
