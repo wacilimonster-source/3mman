@@ -12,7 +12,6 @@ import com.m3man.di.ApplicationContext;
 import com.m3man.di.PreferenceInfo;
 import com.m3man.utils.AppLog;
 import com.m3man.utils.PasswordVault;
-import com.m3man.utils.PlaybackEngine;
 import com.m3man.utils.SDCardUtils;
 import com.m3man.utils.Tags;
 
@@ -39,7 +38,6 @@ public class AppPreferencesHelper implements PreferencesHelper {
     private final static String KEY_SP_USER_LOGIN_PASSWORD = "key_sp_user_login_password";
     private final static String KEY_SP_USER_AUTO_LOGIN = "key_sp_user_auto_login";
     private final static String KEY_SP_USER_FAVORITE_NEED_REFRESH = "key_sp_user_favorite_need_refresh";
-    private final static String KEY_SP_PLAYBACK_ENGINE = "key_sp_playback_engine";
     private final static String KEY_SP_FIRST_IN_SEARCH_VIDEO = "key_sp_first_in_search_video";
     private final static String KEY_SP_DOWNLOAD_VIDEO_NEED_WIFI = "key_sp_download_video_need_wifi";
     private final static String KEY_SP_OPEN_HTTP_PROXY = "key_sp_open_http_proxy";
@@ -179,16 +177,6 @@ public class AppPreferencesHelper implements PreferencesHelper {
     @Override
     public boolean isFavoriteNeedRefresh() {
         return mPrefs.getBoolean(KEY_SP_USER_FAVORITE_NEED_REFRESH, false);
-    }
-
-    @Override
-    public void setPlaybackEngine(int playbackEngine) {
-        mPrefs.edit().putInt(KEY_SP_PLAYBACK_ENGINE, playbackEngine).apply();
-    }
-
-    @Override
-    public int getPlaybackEngine() {
-        return mPrefs.getInt(KEY_SP_PLAYBACK_ENGINE, PlaybackEngine.DEFAULT_PLAYER_ENGINE);
     }
 
     @Override

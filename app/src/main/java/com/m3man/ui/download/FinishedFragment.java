@@ -188,7 +188,7 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
         File file = path != null ? new File(path) : null;
         if (file != null && file.exists()) {
             // 统一走 App 内播放引擎，直接传入本地文件，不再请求远程视频地址。
-            goToPlayLocalVideo(v9MmanItem, presenter.getPlaybackEngine(), file.getAbsolutePath());
+            goToPlayLocalVideo(v9MmanItem, file.getAbsolutePath());
         } else {
             showReDownloadFileDialog(v9MmanItem);
         }

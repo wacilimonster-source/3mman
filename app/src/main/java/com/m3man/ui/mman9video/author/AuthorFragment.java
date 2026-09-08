@@ -81,10 +81,7 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
                 return;
             }
             // 进入该视频的播放页（新 Activity），而非在当前播放页内联播放
-            int engine = PlayVideoPresenter.isPornySource(v9MmanItems)
-                    ? PlaybackEngine.DEFAULT_PLAYER_ENGINE
-                    : authorPresenter.getPlayBackEngine();
-            Intent intent = PlaybackEngine.getPlaybackEngineIntent(getActivity(), engine);
+            Intent intent = PlaybackEngine.getPlaybackEngineIntent(getActivity());
             intent.putExtra(Keys.KEY_INTENT_V9MMAN_ITEM, v9MmanItems);
             startActivityWithAnimation(intent);
         });

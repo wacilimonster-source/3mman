@@ -321,16 +321,6 @@ public class AppDataManager implements DataManager {
     }
 
     @Override
-    public void setPlaybackEngine(int playbackEngine) {
-        mPreferencesHelper.setPlaybackEngine(playbackEngine);
-    }
-
-    @Override
-    public int getPlaybackEngine() {
-        return mPreferencesHelper.getPlaybackEngine();
-    }
-
-    @Override
     public void setFirstInSearchMman91Video(boolean firstInSearchMman91Video) {
         mPreferencesHelper.setFirstInSearchMman91Video(firstInSearchMman91Video);
     }

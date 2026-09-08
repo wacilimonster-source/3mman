@@ -155,8 +155,8 @@ public abstract class BaseFragment extends DaggerFragment {
         }
     }
 
-    protected void goToPlayVideo(V9MmanItem v9MmanItem, int playBackEngine, int skipPage, int position) {
-        goToPlayVideo(v9MmanItem, playBackEngine, skipPage, position, null);
+    protected void goToPlayVideo(V9MmanItem v9MmanItem, int skipPage, int position) {
+        goToPlayVideo(v9MmanItem, skipPage, position, null);
     }
 
     /**
@@ -164,8 +164,8 @@ public abstract class BaseFragment extends DaggerFragment {
      * @param sharedCover 列表项封面 View（item_v_9mman.xml 中 transitionName="video_cover" 的 ImageView），
      *                    传 null 则走普通滑入动画。
      */
-    protected void goToPlayVideo(V9MmanItem v9MmanItem, int playBackEngine, int skipPage, int position, View sharedCover) {
-        Intent intent = PlaybackEngine.getPlaybackEngineIntent(getContext(), playBackEngine);
+    protected void goToPlayVideo(V9MmanItem v9MmanItem, int skipPage, int position, View sharedCover) {
+        Intent intent = PlaybackEngine.getPlaybackEngineIntent(getContext());
         intent.putExtra(Keys.KEY_INTENT_V9MMAN_ITEM, v9MmanItem);
         intent.putExtra(Keys.KEY_INTENT_CATEGORY_ITEM, category);
         intent.putExtra(Keys.KEY_INTENT_SKIP_PAGE, skipPage);
@@ -188,8 +188,8 @@ public abstract class BaseFragment extends DaggerFragment {
     }
 
     /** 启动播放页并直接播放本地下载文件。 */
-    protected void goToPlayLocalVideo(V9MmanItem v9MmanItem, int playBackEngine, String localPath) {
-        Intent intent = PlaybackEngine.getPlaybackEngineIntent(getContext(), playBackEngine);
+    protected void goToPlayLocalVideo(V9MmanItem v9MmanItem, String localPath) {
+        Intent intent = PlaybackEngine.getPlaybackEngineIntent(getContext());
         intent.putExtra(Keys.KEY_INTENT_V9MMAN_ITEM, v9MmanItem);
         intent.putExtra(Keys.KEY_INTENT_LOCAL_VIDEO_PATH, localPath);
         startActivity(intent);

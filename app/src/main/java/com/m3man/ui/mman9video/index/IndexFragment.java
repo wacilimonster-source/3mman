@@ -105,7 +105,7 @@ public class IndexFragment extends MvpFragment<IndexView, IndexPresenter> implem
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
                 V9MmanItem v9MmanItems = (V9MmanItem) adapter.getData().get(position);
                 View coverView = view.findViewById(R.id.iv_91mman_item_img);
-                goToPlayVideo(v9MmanItems, presenter.getPlayBackEngine(), 0, position, coverView);
+                goToPlayVideo(v9MmanItems, 0, position, coverView);
             }
         });
 

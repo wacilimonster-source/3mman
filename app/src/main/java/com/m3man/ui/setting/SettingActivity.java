@@ -37,7 +37,6 @@ import com.m3man.ui.mman9video.user.UserLoginActivity;
 import com.m3man.ui.proxy.ProxySettingActivity;
 import com.m3man.ui.recommend.RecoSettingsDialog;
 import com.m3man.utils.DialogUtils;
-import com.m3man.utils.PlaybackEngine;
 import com.m3man.utils.SDCardUtils;
 
 import java.util.List;
@@ -272,14 +271,6 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
                 })
                 .addTo(qmuiGroupListView);
 
-        //播放引擎
-        QMUICommonListItemView playEngineItemWithChevron = qmuiGroupListView.createItemView(getString(R.string.playback_engine));
-        playEngineItemWithChevron.setId(R.id.setting_item_player_engine_choice);
-        playEngineItemWithChevron.setOrientation(QMUICommonListItemView.VERTICAL);
-        final int checkedIndex = presenter.getPlaybackEngine();
-        playEngineItemWithChevron.setDetailText(PlaybackEngine.PLAY_ENGINE_ITEMS[checkedIndex]);
-        playEngineItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
-
         //自定义下载路径
         final QMUICommonListItemView customDownloadPathItemWithChevron = qmuiGroupListView.createItemView(getString(R.string.setting_custom_download_dir));
         customDownloadPathItemWithChevron.setOrientation(QMUICommonListItemView.VERTICAL);
@@ -293,15 +284,14 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         customDownloadPathItemWithChevron.setAccessoryType(QMUICommonListItemView.ACCESSORY_TYPE_CHEVRON);
 
 
-        QMUIGroupListView.Section downloadDirSection = QMUIGroupListView.newSection(this)
-                .addItemView(playEngineItemWithChevron, this);
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             // Android 9 及以下仍可写公共目录，保留自定义目录选择。
             // Android 10+ 不再加任何「下载保存位置」说明条目：入口本来就不可切换，提示没有意义。
-            downloadDirSection.addItemView(customDownloadPathItemWithChevron, v ->
-                    selectDownloadVideoDir(customDownloadPathItemWithChevron));
+            QMUIGroupListView.newSection(this)
+                    .addItemView(customDownloadPathItemWithChevron, v ->
+                            selectDownloadVideoDir(customDownloadPathItemWithChevron))
+                    .addTo(qmuiGroupListView);
         }
-        downloadDirSection.addTo(qmuiGroupListView);
 
 
         QMUIGroupListView.Section sec = QMUIGroupListView.newSection(this);
@@ -796,23 +786,6 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         recreate();
     }
 
-    private void showPlaybackEngineChoiceDialog(final QMUICommonListItemView qmuiCommonListItemView) {
-        final int checkedIndex = presenter.getPlaybackEngine();
-        new QMUIDialog.CheckableDialogBuilder(this)
-                .setTitle(getString(R.string.setting_playback_engine_title))
-                .setCheckedIndex(checkedIndex)
-                .addItems(PlaybackEngine.PLAY_ENGINE_ITEMS, new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        presenter.setPlaybackEngine(which);
-                        qmuiCommonListItemView.setDetailText(PlaybackEngine.PLAY_ENGINE_ITEMS[which]);
-                        showMessage(getString(R.string.setting_save_success), TastyToast.SUCCESS);
-                        dialog.dismiss();
-                    }
-                })
-                .show();
-    }
-
     private void showExitDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this, R.style.MyDialogTheme);
         builder.setTitle(getString(R.string.exit_login_account));
@@ -836,9 +809,6 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
         switch (v.getId()) {
             case R.id.bt_setting_exit_account:
                 showExitDialog();
-                break;
-            case R.id.setting_item_player_engine_choice:
-                showPlaybackEngineChoiceDialog((QMUICommonListItemView) v);
                 break;
             default:
         }

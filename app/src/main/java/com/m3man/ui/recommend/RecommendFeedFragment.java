@@ -1769,7 +1769,7 @@ public class RecommendFeedFragment extends BaseFragment
             @Override
             public void onClick(View v) {
                 dialog.dismiss();
-                goToPlayVideo(item, dataManager.getPlaybackEngine(), 0, position);
+                goToPlayVideo(item, 0, position);
             }
         });
         dialog.show();

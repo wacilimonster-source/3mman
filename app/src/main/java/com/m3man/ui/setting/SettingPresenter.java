@@ -429,15 +429,6 @@ public class SettingPresenter extends MvpBasePresenter<SettingView> implements I
         dataManager.existLogin();
     }
 
-    @Override
-    public int getPlaybackEngine() {
-        return dataManager.getPlaybackEngine();
-    }
-
-    @Override
-    public void setPlaybackEngine(int playbackEngine) {
-        dataManager.setPlaybackEngine(playbackEngine);
-    }
 
     @Override
     public void setMman9VideoAddress(String mman9VideoAddress) {

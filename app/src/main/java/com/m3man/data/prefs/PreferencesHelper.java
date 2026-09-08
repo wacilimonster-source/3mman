@@ -30,10 +30,6 @@ public interface PreferencesHelper {
 
     boolean isFavoriteNeedRefresh();
 
-    void setPlaybackEngine(int playbackEngine);
-
-    int getPlaybackEngine();
-
     void setFirstInSearchMman91Video(boolean firstInSearchMman91Video);
 
     boolean isFirstInSearchMman91Video();

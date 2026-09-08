@@ -277,10 +277,6 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
         inFlightSearch = null;
     }
 
-    @Override
-    public int getPlayBackEngine() {
-        return dataManager.getPlaybackEngine();
-    }
 
     @Override
     public boolean isFirstInSearchMman91Video() {

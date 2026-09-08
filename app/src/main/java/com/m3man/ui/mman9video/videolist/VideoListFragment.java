@@ -126,7 +126,7 @@ public class VideoListFragment extends MvpFragment<VideoListView, VideoListPrese
                 V9MmanItem v9MmanItems = (V9MmanItem) adapter.getItem(position);
                 View coverView = view.findViewById(R.id.iv_91mman_item_img);
                 // 传入真实点击位置用于详情页内关联列表的滚动定位（之前用 position%20 会导致定位到错误位置）
-                goToPlayVideo(v9MmanItems, presenter.getPlayBackEngine(), presenter.getPage(), position, coverView);
+                goToPlayVideo(v9MmanItems, presenter.getPage(), position, coverView);
             }
         });
         mV91MmanAdapter.setOnLoadMoreListener(new BaseQuickAdapter.RequestLoadMoreListener() {

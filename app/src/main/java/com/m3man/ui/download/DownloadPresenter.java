@@ -931,9 +931,6 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                 });
     }
 
-    public int getPlaybackEngine(){
-        return dataManager.getPlaybackEngine();
-    }
 
     /**
      * M68：判断是否 91porny 源。与 PlayVideoPresenter.isPornySource 保持同一权威逻辑：

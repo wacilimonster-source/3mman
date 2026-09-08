@@ -75,8 +75,4 @@ public class HistoryPresenter extends MvpBasePresenter<HistoryView> implements I
                 });
     }
 
-    @Override
-    public int getPlayBackEngine() {
-        return dataManager.getPlaybackEngine();
-    }
 }

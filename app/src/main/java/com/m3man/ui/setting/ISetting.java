@@ -55,10 +55,6 @@ public interface ISetting {
 
     void existLogin();
 
-    int getPlaybackEngine();
-
-    void setPlaybackEngine(int playbackEngine);
-
     void setMman9VideoAddress(String mman9VideoAddress);
 
     void setCustomDownloadVideoDirPath(String newDirPath);

@@ -82,8 +82,4 @@ public class IndexPresenter extends MvpBasePresenter<IndexView> implements IInde
                 });
     }
 
-    @Override
-    public int getPlayBackEngine() {
-        return dataManager.getPlaybackEngine();
-    }
 }

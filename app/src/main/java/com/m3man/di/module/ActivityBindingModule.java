@@ -18,8 +18,6 @@ import com.m3man.ui.mman9video.history.HistoryActivity;
 import com.m3man.ui.mman9video.history.HistoryActivityModule;
 import com.m3man.ui.mman9video.play.ExoMediaPlayerActivity;
 import com.m3man.ui.mman9video.play.ExoPlayerVideoModule;
-import com.m3man.ui.mman9video.play.JiaoZiVideoPlayerActivity;
-import com.m3man.ui.mman9video.play.JiaoZiVideoPlayerModule;
 import com.m3man.ui.mman9video.user.UserLoginActivity;
 import com.m3man.ui.mman9video.user.UserLoginActivityModule;
 import com.m3man.ui.mman9video.user.UserRegisterActivity;
@@ -66,10 +64,6 @@ public abstract class ActivityBindingModule {
     @PerActivity
     @ContributesAndroidInjector(modules = ExoPlayerVideoModule.class)
     abstract ExoMediaPlayerActivity exoMediaPlayerActivity();
-
-    @PerActivity
-    @ContributesAndroidInjector(modules = JiaoZiVideoPlayerModule.class)
-    abstract JiaoZiVideoPlayerActivity jiaoZiVideoPlayerActivity();
 
     @PerActivity
     @ContributesAndroidInjector(modules = UserLoginActivityModule.class)

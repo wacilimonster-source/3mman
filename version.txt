@@ -1,7 +1,7 @@
 {
-  "versionCode": 152,
-  "versionName": "1.0.119",
-  "updateMessage": "1.0.119 更新内容：\n1）推荐页信息栏改版：@作者名可点击跳转作者主页，并显示添加时间；新增静音开关（状态记忆）；\n2）推荐页新增详情半屏面板与操作指南：支持复制链接、进入播放页；第一页继续下拉可「换一批」；筛选无结果时给出提示并可一键恢复全部筛选；\n3）搜索：输入时按历史记录联想关键词，无结果时提供「去推荐页逛逛」引导；\n4）列表封面按源图比例显示「横屏/竖屏」角标。\n注意：仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.119.apk",
-  "sha256": "6e67965e5f643e7cd66c384371d03a0aa95608417a1e20e90eb9fddf3171d2b0"
+  "versionCode": 153,
+  "versionName": "1.0.120",
+  "updateMessage": "1.0.120 更新内容：\n1）移除设置里的播放引擎切换项，统一使用 Exo 播放引擎，不再需要用户手动选择；\n2）删除 JiaoZi 播放页线（JiaoZiVideoPlayerActivity / Mman9VideoPlayer），之前倍速按钮「标签显示 1.5x 但实际 1x」的状态欺骗问题随之消失；\n3）推荐流内嵌播放器仍使用 JiaoZi 内核，不受本次改动影响。\n注意：仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.120.apk",
+  "sha256": "b15daa3b66b4d956a660ffa404b5fabcb1b28195765d9f00e4671a4e97dd7598"
 }

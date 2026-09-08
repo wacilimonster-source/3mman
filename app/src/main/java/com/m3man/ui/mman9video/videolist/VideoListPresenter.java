@@ -99,10 +99,6 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
         }
     }
 
-    @Override
-    public int getPlayBackEngine() {
-        return dataManager.getPlaybackEngine();
-    }
 
     private void action(Observable<List<V9MmanItem>> observable, boolean pullToRefresh, int skipPage) {
         observable.retryWhen(new RetryWhenProcess(RetryWhenProcess.PROCESS_TIME))

@@ -42,7 +42,6 @@
     <string name="about_item_github">GitHub 项目</string>
     <string name="about_copyright">© %1$s 3mman</string>
     <string name="about_check_update">检查更新</string>
-    <string name="playback_engine">播放引擎</string>
     <string name="address_mman">设置视频地址</string>
     <string name="address_forum_mman">设置论坛地址</string>
     <string name="address_t6y">设置CaoLiu地址</string>
@@ -197,10 +196,6 @@
     <string name="reco_records_empty">暂无记录</string>
     <string name="reco_records_close">关闭</string>
 
-    <!-- 倍速：不可用时要给用户明确原因，不能静默失败（否则按钮标签与实际速度脱节） -->
-    <string name="speed_unsupported">当前设备不支持倍速播放</string>
-    <string name="speed_only_while_playing">请先开始播放，再调整倍速</string>
-    <string name="speed_unsupported_engine">当前播放通道不支持倍速</string>
 
     <!-- M112：文案入库 -->
     <!-- 设置页 -->
@@ -240,7 +235,6 @@
     <string name="setting_night_follow">跟随系统</string>
     <string name="setting_night_on">始终夜间</string>
     <string name="setting_night_off">始终日间</string>
-    <string name="setting_playback_engine_title">播放引擎选择</string>
     <string name="setting_exit_account_confirm_msg">退出当前帐号？</string>
     <string name="setting_exit">退出</string>
     <!-- 推荐流时长筛选：0=不限；其余按分钟数卡上界。未知时长视为放行，避免空池。 -->

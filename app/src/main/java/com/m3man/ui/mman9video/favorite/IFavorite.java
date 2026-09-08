@@ -14,7 +14,6 @@ public interface IFavorite extends IBaseFavorite {
 
     void exportData(boolean onlyUrl);
 
-    int getPlayBackEngine();
 
     boolean isFavoriteNeedRefresh();
 

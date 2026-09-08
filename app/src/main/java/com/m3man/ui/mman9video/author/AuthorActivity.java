@@ -170,11 +170,6 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
         return bySource;
     }
 
-    private int pickEngine() {
-        // 分分钟为 m3u8 HLS，强制 ExoPlayer；视频源用用户偏好引擎
-        return isPorny() ? PlaybackEngine.DEFAULT_PLAYER_ENGINE : presenter.getPlayBackEngine();
-    }
-
     private void init() {
         swipeLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
@@ -196,7 +191,7 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
                 V9MmanItem v9MmanItems = (V9MmanItem) adapter.getData().get(position);
-                Intent intent = PlaybackEngine.getPlaybackEngineIntent(AuthorActivity.this, pickEngine());
+                Intent intent = PlaybackEngine.getPlaybackEngineIntent(AuthorActivity.this);
                 intent.putExtra(Keys.KEY_INTENT_V9MMAN_ITEM, v9MmanItems);
                 startActivityWithAnimation(intent);
             }

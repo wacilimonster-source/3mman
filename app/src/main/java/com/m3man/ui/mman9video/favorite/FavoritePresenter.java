@@ -351,10 +351,6 @@ public class FavoritePresenter extends MvpBasePresenter<FavoriteView> implements
                 });
     }
 
-    @Override
-    public int getPlayBackEngine() {
-        return dataManager.getPlaybackEngine();
-    }
 
     @Override
     public boolean isFavoriteNeedRefresh() {

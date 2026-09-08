@@ -9,5 +9,4 @@ package com.m3man.ui.mman9video.index;
 public interface IIndex {
     void loadIndexData(final boolean pullToRefresh, boolean cleanCache);
 
-    int getPlayBackEngine();
 }

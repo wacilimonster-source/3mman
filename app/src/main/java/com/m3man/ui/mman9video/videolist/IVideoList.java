@@ -17,5 +17,4 @@ public interface IVideoList {
      */
     void loadVideoListData(boolean pullToRefresh, boolean cleanCache, String category, int skipPage);
 
-    int getPlayBackEngine();
 }

@@ -18,7 +18,6 @@ import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.ui.MvpActivity;
 import com.m3man.utils.AdapterDiffUtil;
 import com.m3man.utils.LoadHelperUtils;
-import com.m3man.utils.PlaybackEngine;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -68,7 +67,7 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
                 V9MmanItem item = (V9MmanItem) adapter.getData().get(position);
                 View coverView = view.findViewById(R.id.iv_91mman_item_img);
                 // 91porny 为 m3u8 HLS，强制 ExoPlayer
-                goToPlayVideo(item, PlaybackEngine.DEFAULT_PLAYER_ENGINE, coverView);
+                goToPlayVideo(item, coverView);
             }
         });
         // 左滑菜单中的删除

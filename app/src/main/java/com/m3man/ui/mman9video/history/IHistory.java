@@ -8,5 +8,4 @@ package com.m3man.ui.mman9video.history;
 public interface IHistory {
     void loadHistoryData(boolean pullToRefresh);
 
-    int getPlayBackEngine();
 }

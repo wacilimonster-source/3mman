@@ -437,9 +437,6 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
         return dataManager.isUserLogin();
     }
 
-    public int getPlayBackEngine() {
-        return dataManager.getPlaybackEngine();
-    }
 
     // ---- 作者收藏（本地数据库，需在 IO 线程调用） ----
 

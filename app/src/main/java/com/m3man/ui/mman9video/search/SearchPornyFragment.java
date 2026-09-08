@@ -29,7 +29,6 @@ import com.m3man.data.prefs.PreferencesHelper;
 import com.m3man.ui.MvpFragment;
 import com.m3man.ui.search.SearchHistoryPanel;
 import com.m3man.utils.LoadHelperUtils;
-import com.m3man.utils.PlaybackEngine;
 
 import org.angmarch.views.NiceSpinner;
 
@@ -157,7 +156,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                 V9MmanItem v9MmanItem = (V9MmanItem) adapter.getData().get(position);
                 View coverView = view.findViewById(R.id.iv_91mman_item_img);
                 // 91porny 视频为 m3u8 HLS 流，只有 ExoPlayer 支持；JiaoZi/MediaPlayer 无法播放，强制使用 ExoPlayer
-                goToPlayVideo(v9MmanItem, PlaybackEngine.DEFAULT_PLAYER_ENGINE, 0, position, coverView);
+                goToPlayVideo(v9MmanItem, 0, position, coverView);
             }
         });
         mV91MmanAdapter.setOnLoadMoreListener(new BaseQuickAdapter.RequestLoadMoreListener() {

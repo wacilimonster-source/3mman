@@ -86,7 +86,7 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
                 View coverView = view.findViewById(R.id.iv_91mman_item_img);
-                goToPlayVideo((V9MmanItem) adapter.getItem(position), presenter.getPlayBackEngine(), coverView);
+                goToPlayVideo((V9MmanItem) adapter.getItem(position), coverView);
             }
         });
 

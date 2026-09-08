@@ -35,7 +35,7 @@ import okhttp3.Response;
 public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedListener {
 
     private static final String TAG = ExoMediaPlayerActivity.class.getSimpleName();
-    /** M92f：准备阶段看门狗阈值（与 JiaoZi 引擎 Mman9VideoPlayer 对齐） */
+    /** M92f：准备阶段看门狗阈值 */
     private static final long PREPARE_TIMEOUT_MS = 20_000L;
     private ExoVideoView videoPlayer;
     private ExoVideoControlsMobile videoControlsMobile;
