@@ -1,7 +1,7 @@
 {
-  "versionCode": 153,
-  "versionName": "1.0.120",
-  "updateMessage": "1.0.120 更新内容：\n1）移除设置里的播放引擎切换项，统一使用 Exo 播放引擎，不再需要用户手动选择；\n2）删除 JiaoZi 播放页线（JiaoZiVideoPlayerActivity / Mman9VideoPlayer），之前倍速按钮「标签显示 1.5x 但实际 1x」的状态欺骗问题随之消失；\n3）推荐流内嵌播放器仍使用 JiaoZi 内核，不受本次改动影响。\n注意：仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.120.apk",
-  "sha256": "b15daa3b66b4d956a660ffa404b5fabcb1b28195765d9f00e4671a4e97dd7598"
+  "versionCode": 154,
+  "versionName": "1.0.121",
+  "updateMessage": "1.0.121 更新内容：\n1）修复下载报错：命中播放缓存直接拷贝的下载路径在 Android 11+ 上可能因存储权限误判而失败，现已自动回退可写目录重试，仍失败会自动改走网络下载，不再中断任务；下载缓存拷贝全程记录诊断日志，便于反馈定位；\n2）修复搜索页点击历史关键词后分页栏出现但结果被历史面板遮挡的问题。\n注意：仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.121.apk",
+  "sha256": "ef2d18c587cd9217115ac1ca135b90311ce88e64b4516a1363b0985ba3056386"
 }
