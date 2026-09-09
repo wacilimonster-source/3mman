@@ -6,7 +6,7 @@
     android:layout_height="@dimen/item_skip_page_height"
     android:gravity="center"
     android:background="@color/common_background"
-    android:textColor="@color/common_black_white_text_color"
+    android:textColor="@color/text_primary"
     >
 
 </TextView>

@@ -353,13 +353,14 @@
 
         <TextView
             android:id="@+id/tv_reco_title"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
-            android:maxLines="2"
+            android:maxLines="1"
             android:shadowColor="#FF000000"
             android:shadowRadius="4"
-            android:textAppearance="@style/TextAppearance.App.Inverse.Title" />
+            android:textAppearance="@style/TextAppearance.App.Inverse.Title"
+            android:textColor="#EFFFFFFF" />
 
         <!-- M119：作者名独立可点（跳作者主页），时间信息跟在后面 -->
         <LinearLayout

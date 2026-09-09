@@ -43,7 +43,7 @@
             android:layout_height="match_parent"
             android:contentDescription="@string/send_icon"
             android:padding="5dp"
-            android:tint="@color/colorPrimary"
+            android:tint="@color/brand"
             app:srcCompat="@drawable/ic_send_black_24dp" />
     </LinearLayout>
 </RelativeLayout>

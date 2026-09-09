@@ -57,7 +57,7 @@
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:textColor="@color/author_favorite_item_text"
+                    android:textColor="@color/text_primary"
                     android:textAppearance="@style/TextAppearance.App.Title" />
 
                 <TextView
@@ -85,7 +85,7 @@
                 android:layout_marginTop="3dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="@color/author_favorite_item_text"
+                android:textColor="@color/text_primary"
                 android:textAppearance="@style/TextAppearance.App.Caption"
                 android:alpha="0.85"
                 android:visibility="gone" />
@@ -97,7 +97,7 @@
                 android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="@color/author_favorite_item_text"
+                android:textColor="@color/text_primary"
                 android:textAppearance="@style/TextAppearance.App.Overline"
                 android:alpha="0.6" />
         </LinearLayout>

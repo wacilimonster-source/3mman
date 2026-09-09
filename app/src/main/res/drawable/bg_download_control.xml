@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- UI 优化：给下载控制钮（暂停/继续）加半透明圆形衬底，保证任何封面上都清晰可点。仅视觉。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#59000000" />
+    <stroke
+        android:width="1dp"
+        android:color="#33FFFFFF" />
+    <size
+        android:width="44dp"
+        android:height="44dp" />
+</shape>

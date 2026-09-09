@@ -30,6 +30,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
+                android:background="@drawable/bg_download_control"
+                android:padding="8dp"
                 android:src="@drawable/start_download"  android:contentDescription="@string/cd_download_control"/>
         </FrameLayout>
 
@@ -39,7 +41,7 @@
             android:layout_height="45dp"
             android:layout_toRightOf="@+id/fl_img"
             android:paddingLeft="5dp"
-            android:textColor="@color/item_v9pron_title_text_color"
+            android:textColor="@color/text_primary"
             android:textStyle="bold"
             app:autoSizeMaxTextSize="16sp"
             app:autoSizeMinTextSize="12sp"
@@ -64,7 +66,7 @@
                 android:id="@+id/tv_download_filesize"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/common_black_white_text_color"
+                android:textColor="@color/text_secondary"
                 android:paddingLeft="5dp"
                 android:text="34/45MB" />
 
@@ -76,13 +78,17 @@
                 android:layout_below="@+id/tv_download_filesize"
                 android:layout_toLeftOf="@+id/tv_download_speed"
                 android:paddingLeft="5dp"
-                android:progress="48" />
+                android:progress="48"
+                android:progressTint="@color/accent"
+                android:progressBackgroundTint="@color/divider"
+                android:minHeight="6dp"
+                android:maxHeight="6dp" />
 
             <TextView
                 android:id="@+id/tv_download_speed"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/common_black_white_text_color"
+                android:textColor="@color/text_secondary"
                 android:layout_alignBottom="@+id/progressBar_download"
                 android:layout_toLeftOf="@+id/tv_download_progress"
                 android:gravity="center"
@@ -93,7 +99,7 @@
                 android:id="@+id/tv_download_progress"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/common_black_white_text_color"
+                android:textColor="@color/text_secondary"
                 android:layout_alignBottom="@+id/progressBar_download"
                 android:layout_alignParentRight="true"
                 android:gravity="center"

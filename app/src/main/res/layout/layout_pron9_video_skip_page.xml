@@ -31,7 +31,7 @@
             android:layout_height="match_parent"
             android:gravity="center"
             android:text="@string/skip_layout_loading"
-            android:textColor="@color/common_black_white_text_color" />
+            android:textColor="@color/text_primary" />
     </LinearLayout>
 
 </FrameLayout>

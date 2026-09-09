@@ -12,7 +12,7 @@
         android:layout_height="wrap_content"
         android:lines="1"
         android:textColor="@color/item_3mman_comment_info_text_color"
-        android:textSize="13sp"
+        android:textAppearance="@style/TextAppearance.App.Caption"
         android:text="@string/comment_layout_sample"
         />
 

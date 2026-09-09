@@ -37,8 +37,7 @@
         android:paddingLeft="6dp"
         android:paddingRight="6dp"
         android:paddingTop="2dp"
-        android:textColor="#E6FFFFFF"
-        android:textSize="10sp"
+        android:textAppearance="@style/TextAppearance.App.Inverse.Caption"
         android:visibility="gone"
         app:layout_constraintRight_toRightOf="@id/iv_91mman_item_img"
         app:layout_constraintTop_toTopOf="@id/iv_91mman_item_img" />
@@ -55,7 +54,7 @@
         android:paddingTop="4dp"
         android:paddingRight="6dp"
         android:textAppearance="@style/TextAppearance.App.Title"
-        android:textColor="@color/item_v9pron_title_text_color"
+        android:textColor="@color/text_primary"
         android:textStyle="bold"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
@@ -71,7 +70,7 @@
         android:paddingRight="6dp"
         android:paddingBottom="8dp"
         android:textAppearance="@style/TextAppearance.App.Caption"
-        android:textColor="@color/item_v9pron_info_text_color"
+        android:textColor="@color/text_secondary"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tv_91mman_item_title" />
