@@ -1,7 +1,7 @@
 {
-  "versionCode": 155,
-  "versionName": "1.0.122",
-  "updateMessage": "1.0.122 更新内容：\n1）全面 UI 视觉优化，不改动任何功能：整体配色统一到品牌紫/品红设计体系，各处标题、正文、元信息改用统一语义色，列表卡片与角标更克制；\n2）推荐流顶栏筛选胶囊更紧凑、标题改为单行省略，沉浸页信息更收敛；播放页作者名/收藏按钮、下载与更新进度条、评论发送图标、下载页 Tab 选中色等统一到品牌色。\n注意：仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.122.apk",
-  "sha256": "8e92d3c06cbd26ff5876ad5d2563d2f5d612645c241e4d929a7ed5788535aa97"
+  "versionCode": 156,
+  "versionName": "1.0.123",
+  "updateMessage": "1.0.123 更新内容：\n1）推荐页「详情」交互简化：点击后直接进入播放页，不再弹出复制链接面板。\n注意：仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.123.apk",
+  "sha256": "56b2c76d024eeb55fd17a4ca8f25cac174206d537be6aaa41af9a6257220871a"
 }
