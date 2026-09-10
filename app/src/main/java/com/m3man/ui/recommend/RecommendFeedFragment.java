@@ -1,8 +1,6 @@
 package com.m3man.ui.recommend;
 
 import android.content.Context;
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.graphics.Color;
@@ -33,7 +31,6 @@ import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
-import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.liulishuo.filedownloader.BaseDownloadTask;
 import com.liulishuo.filedownloader.model.FileDownloadStatus;
 import com.m3man.R;
@@ -1415,8 +1412,11 @@ public class RecommendFeedFragment extends BaseFragment
 
     @Override
     public void onDetailClick(int position) {
-        // M119：详情改为半屏面板（复制链接/进播放页），不离开滑动上下文
-        showDetailSheet(position);
+        RecoCandidate candidate = adapter.getItem(position);
+        if (candidate == null || candidate.item == null || getActivity() == null) {
+            return;
+        }
+        goToPlayVideo(candidate.item, 0, position);
     }
 
     @Override
@@ -1728,88 +1728,6 @@ public class RecommendFeedFragment extends BaseFragment
             return "下载中";
         }
         return "排队中";
-    }
-
-    // ==================== M119：详情半屏面板 ====================
-
-    private void showDetailSheet(final int position) {
-        final RecoCandidate candidate = adapter.getItem(position);
-        if (candidate == null || candidate.item == null || getActivity() == null) {
-            return;
-        }
-        final V9MmanItem item = candidate.item;
-        View view = LayoutInflater.from(getActivity())
-                .inflate(R.layout.dialog_reco_detail_bottom, null);
-        TextView titleView = view.findViewById(R.id.tv_detail_sheet_title);
-        TextView metaView = view.findViewById(R.id.tv_detail_sheet_meta);
-        TextView linkView = view.findViewById(R.id.tv_detail_sheet_link);
-        View copyLink = view.findViewById(R.id.bt_detail_copy_link);
-        View openPlay = view.findViewById(R.id.bt_detail_open_play);
-
-        titleView.setText(item.getTitle() == null ? "" : item.getTitle());
-        metaView.setText(adapter.metaText(position));
-        final String url = buildVideoPageUrl(item);
-        if (TextUtils.isEmpty(url)) {
-            copyLink.setVisibility(View.GONE);
-            linkView.setVisibility(View.GONE);
-        } else {
-            linkView.setText(url);
-        }
-        final BottomSheetDialog dialog = new BottomSheetDialog(getActivity());
-        dialog.setContentView(view);
-        copyLink.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                copyToClipboard(url);
-                showMessage("链接已复制", TastyToast.SUCCESS);
-                dialog.dismiss();
-            }
-        });
-        openPlay.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
-                goToPlayVideo(item, 0, position);
-            }
-        });
-        dialog.show();
-    }
-
-    /** 由 viewKey + 用户配置的站点地址还原视频页链接（复制分享用）。
-     * 91porn 的 viewKey 存储形如 "viewkey=xxx"（参数片段），勿重复加前缀。 */
-    private String buildVideoPageUrl(V9MmanItem item) {
-        String key = item.getViewKey();
-        if (TextUtils.isEmpty(key)) {
-            return null;
-        }
-        String source = item.getSource();
-        if ("91porny".equals(source)) {
-            String base = dataManager.getPornyAddress();
-            if (TextUtils.isEmpty(base)) {
-                base = "https://91porny.com/";
-            }
-            String id = key.startsWith("/video/view/") ? key.substring("/video/view/".length()) : key;
-            return base.endsWith("/") ? base + "video/view/" + id
-                    : base + "/video/view/" + id;
-        }
-        String base = dataManager.getMman9VideoAddress();
-        if (TextUtils.isEmpty(base)) {
-            base = "https://www.91porn.com/";
-        }
-        String param = key.startsWith("viewkey=") ? key : "viewkey=" + key;
-        return base.endsWith("/") ? base + "view_video.php?" + param
-                : base + "/view_video.php?" + param;
-    }
-
-    private void copyToClipboard(String text) {
-        if (getActivity() == null || TextUtils.isEmpty(text)) {
-            return;
-        }
-        ClipboardManager cm = (ClipboardManager) getActivity()
-                .getSystemService(Context.CLIPBOARD_SERVICE);
-        if (cm != null) {
-            cm.setPrimaryClip(ClipData.newPlainText("video", text));
-        }
     }
 
     // ==================== 下载 ====================
