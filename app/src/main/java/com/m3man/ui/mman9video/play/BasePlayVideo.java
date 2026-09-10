@@ -671,6 +671,11 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
             downloadPornyVideo();
             return;
         }
+        // M154：解析视频地址 + 直链探活是一整条网络链路（正常也要数秒），
+        // 期间原先没有任何反馈，用户会认为「点了下载没反应」。这里先给一次即时反馈。
+        if (v9MmanItem != null) {
+            showMessage(getString(R.string.reco_download_parsing), TastyToast.INFO);
+        }
         presenter.downloadVideo(v9MmanItem, false);
         Intent intent = new Intent(this, DownloadVideoService.class);
         startService(intent);

@@ -173,7 +173,13 @@ public class HlsDownloadService extends Service {
             // 改为拼接 viewKey 哈希的高低位构造正数，并兜底保证 >0。
             int newPseudoId = stablePositiveId(url);
             cancelledByUser = false;
-            startForeground(NOTIFICATION_ID, buildProgressNotification("下载中 0%", 0, 1));
+            // M154：前台服务升级同样要防崩——应用已在后台时 Android 12+ 会抛
+            // ForegroundServiceStartNotAllowedException，未捕获即整进程闪退。
+            try {
+                startForeground(NOTIFICATION_ID, buildProgressNotification("下载中 0%", 0, 1));
+            } catch (Throwable t) {
+                AppLog.w("HlsDownload", "startForeground 失败(前台服务受限)，降级为后台下载 " + AppLog.cause(t));
+            }
             // M97：以不可变快照一次性发布本任务上下文（downloader 暂沿用旧值，
             // 防止发布与 startDownload 替换之间 PAUSE/CANCEL 取不到旧下载器）
             state = new TaskState(replacedDownloader, newViewKey, newSavePath, newTargetMp4Path, newPseudoId, -1);

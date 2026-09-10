@@ -1,7 +1,7 @@
 {
-  "versionCode": 156,
-  "versionName": "1.0.123",
-  "updateMessage": "1.0.123 更新内容：\n1）推荐页「详情」交互简化：点击后直接进入播放页，不再弹出复制链接面板。\n注意：仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.123.apk",
-  "sha256": "56b2c76d024eeb55fd17a4ca8f25cac174206d537be6aaa41af9a6257220871a"
+  "versionCode": 157,
+  "versionName": "1.0.124",
+  "updateMessage": "1.0.124 更新内容：\n1）修复播放页点击「下载」无反应的问题（解析下载地址时主线程被阻塞）；\n2）修复下载中返回上一页导致闪退的问题；\n3）点击下载后立即提示「正在获取下载地址…」，避免误以为无响应。\n注意：仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.124.apk",
+  "sha256": "a2c34d2fea12906c55a2009a18f91ef13b4af5068a800029ceaf7dc2ba83f353"
 }

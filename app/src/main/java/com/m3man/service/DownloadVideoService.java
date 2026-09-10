@@ -14,6 +14,7 @@ import com.m3man.constants.Constants;
 import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.ui.download.DownloadActivity;
+import com.m3man.utils.AppLog;
 import com.m3man.utils.DownloadManager;
 import com.m3man.utils.NotificationChannelHelper;
 
@@ -96,7 +97,17 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         //M24：Android 8+ 要求启动后立即进入前台，否则约1分钟后被系统停止导致下载中断
-        startForeground(Constants.VIDEO_DOWNLOAD_NOTIFICATION_ID, buildNotification("正在准备下载", 0, "", 0));
+        // M154：startForeground 在受限场景（应用已在后台 + Android 12 的 FGS 启动限制、
+        // Android 14 的 FGS 类型/权限校验、通知渠道被系统关闭）会抛
+        // ForegroundServiceStartNotAllowedException / SecurityException。
+        // 未捕获即为 Service 内未捕获异常 → 整个 App 进程闪退。这里降级为「不升级前台服务」
+        // 并记录日志，绝不让下载服务把主进程带崩。
+        try {
+            startForeground(Constants.VIDEO_DOWNLOAD_NOTIFICATION_ID, buildNotification("正在准备下载", 0, "", 0));
+        } catch (Throwable t) {
+            AppLog.w("Download", "DownloadVideoService startForeground 失败，降级为后台服务 "
+                    + AppLog.cause(t));
+        }
         return START_NOT_STICKY;
     }
 

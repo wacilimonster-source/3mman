@@ -383,21 +383,64 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                             dataManager.updateV9MmanItem(item);
                         } catch (Exception ignored) {
                         }
-                        // 直链 CDN 可能封锁当前网络（下载 error/0% 无速度）：先探活，被拒则走 91porny 备用源
-                        if (!PornyFallbackResolver.isAlive(okHttpClient, freshUrl, buildReferer(item.getViewKey()))) {
-                            AppLog.w("Download", "直链探活失败，走91porny兜底 viewKey=" + item.getViewKey());
-                            tryPornyFallback(item, path, wifi, force, listener);
-                            return;
-                        }
-                        AppLog.i("Download", "重新解析成功，开始下载 viewKey=" + item.getViewKey()
-                                + " host=" + AppLog.hostOf(freshUrl));
-                        startDownloadInternal(item, freshUrl, path, wifi, force, listener);
+                        // M154：直链探活必须离开主线程，见 probeAliveThen 的方法注释
+                        probeAliveThen(item, freshUrl, path, wifi, force, listener);
                     }
 
                     @Override
                     public void onError(String msg, int code) {
                         AppLog.e("Download", "重新解析失败(" + msg + ")，走91porny兜底 viewKey=" + item.getViewKey());
                         tryPornyFallback(item, path, wifi, force, listener);
+                    }
+                });
+    }
+
+    /**
+     * M154：直链探活并决定是否继续用该直链下载。
+     * <p>
+     * 必须放在 IO 线程！{@link PornyFallbackResolver#isAlive} 内部是同步的
+     * {@code okHttpClient.newCall(...).execute()}，而注入的 OkHttpClient 是
+     * connectTimeout=10s / readTimeout=30s（ApiServiceModule:103-104）。
+     * 此前本探活直接写在 {@code ioMainThread()} 的 onSuccess 里（=主线程），
+     * 当 9mman 直链 CDN 被封/不可达时，主线程会被阻塞最长 40 秒：
+     * <ul>
+     *   <li>界面完全无响应——用户看到的就是「点击下载没反应」；</li>
+     *   <li>Android 输入分发超时 5s 即判定 ANR，弹「应用无响应」/被系统直接杀进程，
+     *       用户看到的即是「返回后闪退」。</li>
+     * </ul>
+     * 处理 91porny 备用源的 {@link #tryPornyFallback} 早已用 Observable 切到 IO 线程，
+     * 这里补齐同一处遗漏。
+     */
+    private void probeAliveThen(final V9MmanItem item, final String url, final String path,
+                                final boolean wifi, final boolean force,
+                                final DownloadListener listener) {
+        io.reactivex.Single
+                .fromCallable(() -> PornyFallbackResolver.isAlive(okHttpClient, url, buildReferer(item.getViewKey())))
+                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
+                .subscribe(new io.reactivex.SingleObserver<Boolean>() {
+                    @Override
+                    public void onSubscribe(io.reactivex.disposables.Disposable d) {
+                    }
+
+                    @Override
+                    public void onSuccess(Boolean alive) {
+                        if (alive == null || !alive) {
+                            AppLog.w("Download", "直链探活失败，走91porny兜底 viewKey=" + item.getViewKey());
+                            tryPornyFallback(item, path, wifi, force, listener);
+                            return;
+                        }
+                        AppLog.i("Download", "重新解析成功，开始下载 viewKey=" + item.getViewKey()
+                                + " host=" + AppLog.hostOf(url));
+                        startDownloadInternal(item, url, path, wifi, force, listener);
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        // 探活本身异常（线程中断等）不应中断下载，按「地址可用」继续尝试
+                        AppLog.w("Download", "直链探活异常(" + AppLog.cause(e) + ")，按可用继续下载 viewKey="
+                                + item.getViewKey());
+                        startDownloadInternal(item, url, path, wifi, force, listener);
                     }
                 });
     }
