@@ -1,7 +1,7 @@
 {
-  "versionCode": 157,
-  "versionName": "1.0.124",
-  "updateMessage": "1.0.124 更新内容：\n1）修复播放页点击「下载」无反应的问题（解析下载地址时主线程被阻塞）；\n2）修复下载中返回上一页导致闪退的问题；\n3）点击下载后立即提示「正在获取下载地址…」，避免误以为无响应。\n注意：仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.124.apk",
-  "sha256": "a2c34d2fea12906c55a2009a18f91ef13b4af5068a800029ceaf7dc2ba83f353"
+  "versionCode": 158,
+  "versionName": "1.0.125",
+  "updateMessage": "1.0.125 更新内容：\n1）修复多处偶发闪退：Android 12+ 后台开始下载时、页面退出后弹出提示时、下载记录数据缺失时点「下载」（现改为自动重新解析并兜底）；\n2）推荐流滑动/点赞偶发卡顿修复（本地推荐数据写盘不再阻塞界面）；\n3）下载体验优化：超过 2GB 的大文件进度显示不再错乱；被新下载任务顶替的旧任务显示为「已暂停」可续传，不再误标「失败」；推荐流看完后不再弹出遮挡画面的提示。\n注意：仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.125.apk",
+  "sha256": "9a86667d2c92afff1fe30c3ff56e1340273a60f9d7aa66d888aa45c6090a6d05"
 }

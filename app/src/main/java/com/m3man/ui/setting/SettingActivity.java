@@ -558,6 +558,12 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
             @Override
             public void onClick(View v) {
                 String address = autoCompleteTextView.getText().toString().trim();
+                // M158：与「确定」按钮同一校验标准——先补结尾斜杠再校验。
+                // 此前测试分支直接拿原文校验，合法地址（如 http://xxx.com/v2 无尾斜杠）
+                // 会被 checkAddress 误报“格式不正确”，而同一地址点「确定」却能通过。
+                if (!TextUtils.isEmpty(address) && !address.endsWith("/")) {
+                    address += "/";
+                }
                 if (!checkAddress(address)) {
                     return;
                 }

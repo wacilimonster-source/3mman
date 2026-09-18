@@ -61,6 +61,8 @@ public class RecoStore {
     private boolean dirty = false;
     /** M98：脏变更序号——锁外写盘期间若有新 markDirty，可据此判断不能清 dirty 位 */
     private long dirtySeq = 0L;
+    /** M158：写盘互斥锁——写线程串行化（tmp 文件不被并发写），且不阻塞持 this 锁的读路径 */
+    private final Object ioLock = new Object();
     /** 上次画像学习所用的词典版本；与当前词典不一致时 RecoEngine 会自动重置画像 */
     private int dictVersion = 0;
 
@@ -191,23 +193,52 @@ public class RecoStore {
         return dictVersion;
     }
 
-    /** 记录画像当前对应的词典版本（仅在重置画像后调用） */
-    public synchronized void setDictVersion(int version) {
-        ensureLoaded();
-        dictVersion = version;
-        markDirtyInternal();
-        save();
+    /**
+     * 记录画像当前对应的词典版本（仅在重置画像后调用）。
+     * M158：不再在持 this 锁时调 save()（会形成 this→ioLock 反序，与 writeSnapshot 的
+     * ioLock→this 构成 AB-BA 死锁隐患）——改为锁内改状态+快照、锁外统一写盘。
+     */
+    public void setDictVersion(int version) {
+        long seqAtStart;
+        File dir;
+        StateSnapshot snap;
+        synchronized (this) {
+            ensureLoaded();
+            dictVersion = version;
+            markDirtyInternal();
+            seqAtStart = dirtySeq;
+            dir = prepareStateDir();
+            if (dir == null) {
+                return;
+            }
+            snap = snapshotState();
+        }
+        writeSnapshot(dir, snap, seqAtStart);
     }
 
-    /** 清空推荐记忆（画像 + 交互 + 去重表；词典版本号保留，不属于用户数据） */
-    public synchronized void reset() {
-        ensureLoaded();
-        profile.clear();
-        actions.clear();
-        seen.clear();
-        authorNames.clear();
-        markDirtyInternal();
-        save();
+    /**
+     * 清空推荐记忆（画像 + 交互 + 去重表；词典版本号保留，不属于用户数据）。
+     * M158：同 setDictVersion——锁内清状态+快照，锁外写盘。
+     */
+    public void reset() {
+        long seqAtStart;
+        File dir;
+        StateSnapshot snap;
+        synchronized (this) {
+            ensureLoaded();
+            profile.clear();
+            actions.clear();
+            seen.clear();
+            authorNames.clear();
+            markDirtyInternal();
+            seqAtStart = dirtySeq;
+            dir = prepareStateDir();
+            if (dir == null) {
+                return;
+            }
+            snap = snapshotState();
+        }
+        writeSnapshot(dir, snap, seqAtStart);
     }
 
     private void ensureLoaded() {
@@ -311,23 +342,46 @@ public class RecoStore {
      * 写盘（原子替换）。调用方应放到 IO 线程。
      * <p>
      * M98：锁内只做画像/交互快照拷贝（三张权重表 + actions/seen/authorNames 浅拷贝），
-     * JSON 构建与文件 IO 全部移到锁外执行，避免持锁写盘阻塞 UI 线程的
-     * getAction/isSeen 等同步读路径。写盘成功且期间无新变更时才清 dirty 位。
+     * 写盘成功且期间无新变更时才清 dirty 位。
+     * <p>
+     * M158：修复 M98 的名不符实——原方法整体被 synchronized 修饰，JSON 构建 + 文件 IO
+     * 实际仍在持锁执行，主线程的 getAction/isSeen（推荐流点赞/翻页渲染路径）会被写盘阻塞。
+     * 现拆为「锁内快照 → ioLock 内写盘 → 锁内核对清脏」三段；锁序恒为
+     * this → (释放) → ioLock → this，无 AB-BA 死锁；并发写盘由 ioLock 串行化。
      */
-    public synchronized void save() {
-        ensureLoaded();
-        if (!dirty) {
-            return;
+    public void save() {
+        long seqAtStart;
+        File dir;
+        StateSnapshot snap;
+        synchronized (this) {
+            ensureLoaded();
+            if (!dirty) {
+                return;
+            }
+            dir = prepareStateDir();
+            if (dir == null) {
+                return;
+            }
+            seqAtStart = dirtySeq;
+            snap = snapshotState();
         }
+        writeSnapshot(dir, snap, seqAtStart);
+    }
+
+    /** M158：锁内目录准备（纯内存/快速 mkdir，不做慢 IO） */
+    private File prepareStateDir() {
         File dir = stateDir();
         if (dir == null) {
-            return;
+            return null;
         }
         if (!dir.exists() && !dir.mkdirs()) {
-            return;
+            return null;
         }
-        long seqAtStart = dirtySeq;
-        // ---- 锁内：快照拷贝（仅内存操作）----
+        return dir;
+    }
+
+    /** M158：锁内快照拷贝（仅内存操作，须在 synchronized(this) 内调用） */
+    private StateSnapshot snapshotState() {
         StateSnapshot snap = new StateSnapshot();
         snap.tags = new HashMap<>(profile.tagWeights);
         snap.authors = new HashMap<>(profile.authorWeights);
@@ -341,15 +395,23 @@ public class RecoStore {
         snap.seen = new ArrayList<>(seen);
         snap.authorNames = new LinkedHashMap<>(authorNames);
         snap.dictVersion = dictVersion;
-        // ---- 锁外（同线程、无监视器）：JSON 构建 + 文件 IO ----
-        boolean ok = writeToDisk(snap, dir);
-        if (ok && dirtySeq == seqAtStart) {
-            // 写盘期间没有新变更才清脏位；否则保留 dirty 等下次合并落盘
-            dirty = false;
+        return snap;
+    }
+
+    /** M158：ioLock 内执行 JSON 构建 + 原子写盘，结束后短暂取 this 核对 dirtySeq 清脏位 */
+    private void writeSnapshot(File dir, StateSnapshot snap, long seqAtStart) {
+        synchronized (ioLock) {
+            boolean ok = writeToDisk(snap, dir);
+            synchronized (this) {
+                if (ok && dirtySeq == seqAtStart) {
+                    // 写盘期间没有新变更才清脏位；否则保留 dirty 等下次合并落盘
+                    dirty = false;
+                }
+            }
         }
     }
 
-    /** M98：锁外执行的 JSON 构建 + 原子替换写盘，只读快照不碰成员状态 */
+    /** M158：在 ioLock（而非 this）内执行的 JSON 构建 + 原子替换写盘，只读快照不碰成员状态 */
     private boolean writeToDisk(StateSnapshot snap, File dir) {
         File tmp = new File(dir, TMP);
         File dst = new File(dir, FILE);

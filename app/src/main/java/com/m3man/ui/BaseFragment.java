@@ -208,6 +208,11 @@ public abstract class BaseFragment extends DaggerFragment {
 
 
     protected void showMessage(String msg, int type) {
+        // M158：Fragment 分离后 context 已置空，迟到的异步提示回调会在此 NPE——
+        // 无附着上下文时提示本就无处可弹，直接跳过即可
+        if (context == null) {
+            return;
+        }
         TastyToast.makeText(context.getApplicationContext(), msg, TastyToast.LENGTH_SHORT, type).show();
     }
 

@@ -1024,7 +1024,11 @@ public class ParseV9MmanVideo {
         Element ownerLink = doc.select("a[href*=uvideos.php]").first();
         String ownerId = ownerLink != null ? extractQueryParam(ownerLink.attr("href"), "UID") : "";
         String name = extractOwnerNameFromPlayPage(doc, ownerId);
-        if (!TextUtils.isEmpty(name)) {
+        // M158：改用与 TextUtils.isEmpty 完全等价的普通判空——JVM 单测环境
+        //（unitTests.returnDefaultValues=true）下 TextUtils.isEmpty 恒返回 false，
+        // 会把空 name 误判为有效值提前返回，导致 ParseV9MmanVideoAuthorTest 失败。
+        // 真机行为不变（TextUtils.isEmpty(String) 即 str==null || str.length()==0）。
+        if (name != null && !name.isEmpty()) {
             return name;
         }
         if (ownerLink == null) {

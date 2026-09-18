@@ -309,7 +309,16 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         if (item == null) {
             return;
         }
-        VideoResult videoResult = item.getVideoResult();
+        // M158：VIDEO_RESULT_ID 悬空（解析结果行被清理/迁移边界）或实体脱管时，
+        // getVideoResult() 会返回 null 甚至抛 DaoException，直接取 getVideoUrl 会 NPE
+        // （与 BasePlayVideo.initData 的同源问题，下载入口此前漏了同样保护）。
+        // 悬空判定放在文件/缓存检查之后、首次解引用之前，先尽量复用已下载产物。
+        VideoResult videoResult = null;
+        try {
+            videoResult = item.getVideoResult();
+        } catch (Exception e) {
+            AppLog.w("Download", "getVideoResult 异常(实体脱管?) " + AppLog.cause(e));
+        }
         //先检查文件（M61：兼容回退目录，避免重复下载）
         if (isAlreadyDownloaded(item, downloadListener)) {
             return;
@@ -320,6 +329,12 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         if (cacheFile != null) {
             AppLog.i("Download", "命中播放缓存，走缓存拷贝路径 viewKey=" + item.getViewKey());
             copyCacheFile(item, cacheFile, downloadListener);
+            return;
+        }
+        // M158：悬空/无可用直链时按源路由走重新解析或备用源兜底，不闪退
+        if (videoResult == null || TextUtils.isEmpty(videoResult.getVideoUrl())) {
+            AppLog.w("Download", "DB 行无可用解析结果，走重新解析/备用源兜底 viewKey=" + item.getViewKey());
+            reparseOrFallback(item, isForceReDownload, downloadListener);
             return;
         }
         //检查当前状态 — M68 僵尸任务防护 + M102 pause 探针
@@ -354,6 +369,35 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
             return;
         }
         startDownloadInternal(item, videoResult.getVideoUrl(), path, isDownloadNeedWifi, isForceReDownload, downloadListener);
+    }
+
+    /**
+     * M158：DB 行的解析结果不可用（悬空/脱管/URL 空）时按源路由走兜底：
+     * 91mman 源 → 重新解析播放页（reparseThenDownload，内部失败还有 91porny 备用源链）；
+     * 91porny 源 → 标题反查备用源（tryPornyFallback）。点下载最坏是多等一次解析，不再闪退。
+     */
+    private void reparseOrFallback(V9MmanItem item, boolean force, DownloadListener listener) {
+        String path = SDCardUtils.ensureDownloadDir(
+                item.getDownLoadPath(getCustomDownloadVideoDirPath()), context);
+        if (TextUtils.isEmpty(path)) {
+            if (listener != null) {
+                listener.onError("下载目录不可写，请检查存储权限或更换下载目录");
+            } else {
+                ifViewAttached(new ViewAction<DownloadView>() {
+                    @Override
+                    public void run(@NonNull DownloadView view) {
+                        view.showMessage(context.getString(R.string.download_dir_not_writable), TastyToast.ERROR);
+                    }
+                });
+            }
+            return;
+        }
+        boolean wifi = dataManager.isDownloadVideoNeedWifi();
+        if (isPornyVideo(item)) {
+            tryPornyFallback(item, path, wifi, force, listener);
+        } else {
+            reparseThenDownload(item, path, wifi, force, listener);
+        }
     }
 
     /** 下载前重新解析 91mman 播放页，拿到带新时效签名的直链再下载（失败则退回旧地址尝试） */

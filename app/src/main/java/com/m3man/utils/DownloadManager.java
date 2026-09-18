@@ -178,9 +178,8 @@ public class DownloadManager {
             Integer lastPct = lastSavedProgress.get(task.getId());
             int pct = totalBytes > 0 ? (int) (((float) soFarBytes / totalBytes) * 100) : 0;
             if (lastPct == null || lastPct < 0 || pct - lastPct >= 5) {
-                if (lastPct != null) {
-                    lastSavedProgress.put(task.getId(), pct);
-                }
+                // M158：未知任务也登记——原实现 lastPct==null 时不 put，节流对这类任务永不生效
+                lastSavedProgress.put(task.getId(), pct);
                 saveDownloadInfo(task);
             }
         }
@@ -194,6 +193,8 @@ public class DownloadManager {
         protected void completed(BaseDownloadTask task) {
             Logger.t(TAG).d("completed:" + "--status:" + task.getStatus() + "--:soFarBytes：" + task.getSmallFileSoFarBytes() + "--:totalBytes：" + task.getSmallFileTotalBytes());
             Logger.d("completed");
+            // M158：任务终态清理节流登记，防止 map 随历史任务无界累积
+            lastSavedProgress.remove(task.getId());
             saveDownloadInfo(task);
         }
 
@@ -210,6 +211,8 @@ public class DownloadManager {
             if (isDeleting(task.getId())) {
                 return;
             }
+            // M158：任务终态清理节流登记，防止 map 随历史任务无界累积
+            lastSavedProgress.remove(task.getId());
             // M40/M41：部分机型/系统下文件已完整下载却误报 error（如末尾 sync/重命名失败、
             // 或 CDN Content-Length 与实际字节数不一致导致 soFar < total）。
             // 若目标文件真实大小已达标，则按“完成”处理，避免“能播放却提示下载失败”。
@@ -266,8 +269,14 @@ public class DownloadManager {
             }
             return;
         }
-        int soFarBytes = task.getSmallFileSoFarBytes();
-        int totalBytes = task.getSmallFileTotalBytes();
+        // M158：>2GB 大文件经 Large 通道（long）读取——small 通道按 int 返回，
+        // 超 int 上限会截断变负，导致大小/进度显示错乱（实体字段 M99 已改 long，此处补齐）
+        long totalBytes = task.getSmallFileTotalBytes();
+        long soFarBytes = task.getSmallFileSoFarBytes();
+        if (task.getLargeFileTotalBytes() > Integer.MAX_VALUE) {
+            totalBytes = task.getLargeFileTotalBytes();
+            soFarBytes = task.getLargeFileSoFarBytes();
+        }
         if (soFarBytes > 0) {
             v9MmanItem.setSoFarBytes(soFarBytes);
         }

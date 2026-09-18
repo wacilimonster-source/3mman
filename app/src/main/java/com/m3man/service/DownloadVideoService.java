@@ -112,8 +112,17 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
     }
 
     private void startNotification(String videoName, int progress, String fileSize, int speed) {
-        startForeground(Constants.VIDEO_DOWNLOAD_NOTIFICATION_ID,
-                buildNotification(videoName, progress, fileSize, speed));
+        // M158：与 onStartCommand 的 M154 保护对齐——首次 startForeground 失败降级为后台服务后，
+        // 后续 pending/progress 等回调仍会走到这里再次调用 startForeground，在 Android 12+
+        // 后台受限场景会抛 ForegroundServiceStartNotAllowedException，未捕获即整个 App 进程闪退。
+        // 降级为「不升级前台服务」并记日志，绝不让下载回调把主进程带崩。
+        try {
+            startForeground(Constants.VIDEO_DOWNLOAD_NOTIFICATION_ID,
+                    buildNotification(videoName, progress, fileSize, speed));
+        } catch (Throwable t) {
+            AppLog.w("Download", "DownloadVideoService 通知升级前台失败（后台服务受限），降级继续下载 "
+                    + AppLog.cause(t));
+        }
     }
 
     private Notification buildNotification(String videoName, int progress, String fileSize, int speed) {

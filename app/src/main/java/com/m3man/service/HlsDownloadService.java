@@ -133,10 +133,13 @@ public class HlsDownloadService extends Service {
             final HlsDownloader replacedDownloader = previous.downloader;
             final String replacedViewKey = previous.viewKey;
             final int replacedPseudoId = previous.pseudoDownloadId;
-            // M97：新任务替换旧任务前，若旧记录仍挂在“正在下载”，先置 ERROR 并发一次刷新广播——
-            // 旧 worker 即将被取消、永远等不到终态回调，不处理则旧行一直停留在下载中（幽灵行）
+            // M97：新任务替换旧任务前，若旧记录仍挂在“正在下载”，先置 PAUSED 并发一次刷新广播——
+            // 旧 worker 即将被取消、永远等不到终态回调，不处理则旧行一直停留在下载中（幽灵行）。
+            // M158：由 ERROR 改为 PAUSED——旧任务并非真的失败（分片完好可续传），
+            // 标 ERROR 会让“正在下载”列表出现误导性的红色失败；PAUSED 与点暂停语义一致，
+            // 控制按钮本就支持 paused → 重新下载（分片级续传）。
             if (replacedDownloader != null && replacedPseudoId > 0) {
-                markReplacedRecordError(replacedViewKey, replacedPseudoId);
+                markReplacedRecordPaused(replacedViewKey, replacedPseudoId);
             }
             String newViewKey = intent.getStringExtra(EXTRA_VIEW_KEY);
             String newSavePath = intent.getStringExtra(EXTRA_SAVE_PATH);
@@ -243,11 +246,11 @@ public class HlsDownloadService extends Service {
     }
 
     /**
-     * M97：被新任务顶替的旧任务，其 DB 记录若仍为“下载中”则置 ERROR 并广播刷新。
-     * 沿用现有 DataManager 更新方法与 ACTION_HLS_DONE 刷新通道；
+     * M97：被新任务顶替的旧任务，其 DB 记录若仍为“下载中”则置 PAUSED 并广播刷新。
+     * M158：状态由 ERROR 改为 PAUSED——被顶替 ≠ 下载失败，分片保留可续传；
      * 仅在 status==progress 时才改写，不碰已完成/已暂停的记录。
      */
-    private void markReplacedRecordError(String oldViewKey, int oldPseudoId) {
+    private void markReplacedRecordPaused(String oldViewKey, int oldPseudoId) {
         try {
             V9MmanItem item = TextUtils.isEmpty(oldViewKey)
                     ? null : getDataManager().findV9MmanItemByViewKey(oldViewKey);
@@ -255,15 +258,15 @@ public class HlsDownloadService extends Service {
                 item = getDataManager().findV9MmanItemByDownloadId(oldPseudoId);
             }
             if (item != null && item.getStatus() == FileDownloadStatus.progress) {
-                item.setStatus(FileDownloadStatus.error);
+                item.setStatus(FileDownloadStatus.paused);
                 getDataManager().updateV9MmanItem(item);
                 Intent i = new Intent(ACTION_HLS_DONE);
                 i.putExtra(EXTRA_VIEW_KEY, oldViewKey);
                 LocalBroadcastManager.getInstance(this).sendBroadcast(i);
-                AppLog.i("HlsDownload", "被替换的旧任务记录已置 error viewKey=" + oldViewKey);
+                AppLog.i("HlsDownload", "被替换的旧任务记录已置 paused viewKey=" + oldViewKey);
             }
         } catch (Exception e) {
-            AppLog.e("HlsDownload", "markReplacedRecordError failed: " + e.getMessage());
+            AppLog.e("HlsDownload", "markReplacedRecordPaused failed: " + e.getMessage());
         }
     }
 

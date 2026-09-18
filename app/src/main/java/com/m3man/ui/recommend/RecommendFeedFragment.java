@@ -139,8 +139,6 @@ public class RecommendFeedFragment extends BaseFragment
     private boolean engineInitStarted = false;
     private boolean noMore = false;
     private int emptyRetryCount = 0;
-    /** M98：最近一次加载是否发生过错误（error 不计入空批计数，也不置 noMore，但保留重试入口） */
-    private boolean lastLoadHadError = false;
     private long lastPersistTime = 0L;
     /**
      * L-fix：跟踪上一次推到 RecoRepository 的「时长上限（分钟）」，
@@ -380,8 +378,6 @@ public class RecommendFeedFragment extends BaseFragment
             public void onClick(View v) {
                 noMore = false;
                 emptyRetryCount = 0;
-                // M98：手动重试同时清除错误标记并收起提示层
-                lastLoadHadError = false;
                 engineInitFailed = false;
                 emptyLayout.setVisibility(View.GONE);
                 if (repository == null) {
@@ -763,19 +759,14 @@ public class RecommendFeedFragment extends BaseFragment
             } else {
                 noMore = true;
                 showMessage(getString(R.string.reco_no_more), TastyToast.INFO);
-                // M98：放宽重试按钮显示条件——noMore 且本次会话最近出现过加载错误时也显示，
-                // 给用户手动恢复入口，避免把瞬时网络失败永久限流成「没有更多」
-                if (lastLoadHadError) {
-                    emptyText.setText(getString(R.string.reco_no_more));
-                    emptyLayout.setVisibility(View.VISIBLE);
-                }
+                // M158：有内容时不再弹出居中提示块——提示块会压在正在播放的视频画面中央，
+                // 与 onBatchFailed（M100）确立的「有内容只用 Toast、不遮画面」原则对齐。
+                // 恢复入口保持可用：第一页下拉「换一批」/筛选变更/重进推荐页都会重置 noMore。
             }
             return;
         }
 
         emptyRetryCount = 0;
-        // M98：成功拿到真实内容才清除错误标记（空批不清，供 noMore 分支判断）
-        lastLoadHadError = false;
         boolean wasEmpty = adapter.getItemCount() == 0;
         adapter.appendData(list);
         // L-fix：成功出批后保存本批到本地缓存（保留最近一屏），供下次冷启动秒显
@@ -797,9 +788,8 @@ public class RecommendFeedFragment extends BaseFragment
         if (swipeRefresh != null) {
             swipeRefresh.setRefreshing(false);
         }
-        // M98：召回 error 走这里——不计入连续空批计数、不置 noMore（避免瞬时失败被永久限流），
-        // 只记录错误标记供「noMore + 出错」时放宽重试按钮显示。
-        lastLoadHadError = true;
+        // M98/M158：召回 error 走这里——不计入连续空批计数、不置 noMore（避免瞬时失败被永久限流）；
+        // 下次滑动会自动重试加载更多（M158：原错误标记已随遮罩入口一并移除）。
         String reason = throwable == null ? "unknown" : AppLog.cause(throwable);
         Logger.t(TAG).d("load batch failed: " + reason);
         AppLog.e(TAG, "推荐列表加载失败: " + reason);
@@ -845,7 +835,6 @@ public class RecommendFeedFragment extends BaseFragment
         currentPosition = -1;
         noMore = false;
         emptyRetryCount = 0;
-        lastLoadHadError = false;
         emptyLayout.setVisibility(View.GONE);
         globalLoading.setVisibility(View.VISIBLE);
         loadMore(true);
@@ -1529,7 +1518,6 @@ public class RecommendFeedFragment extends BaseFragment
         currentPosition = -1;
         noMore = false;
         emptyRetryCount = 0;
-        lastLoadHadError = false;
         emptyLayout.setVisibility(View.GONE);
         repository.resetSession();
         loadMore(false);
@@ -1891,7 +1879,6 @@ public class RecommendFeedFragment extends BaseFragment
                     adapter.setData(new java.util.ArrayList<RecoCandidate>());
                     noMore = false;
                     emptyRetryCount = 0;
-                    lastLoadHadError = false;
                     emptyLayout.setVisibility(View.GONE);
                     globalLoading.setVisibility(View.VISIBLE);
                     loadMore(true);
