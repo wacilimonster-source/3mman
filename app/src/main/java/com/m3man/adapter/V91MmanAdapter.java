@@ -35,6 +35,9 @@ public class V91MmanAdapter extends BaseQuickAdapter<V9MmanItem, BaseViewHolder>
         // M119：先清掉复用残留的方向角标，再按源图宽高比重设
         android.widget.TextView badge = helper.getView(R.id.tv_orientation_badge);
         badge.setVisibility(android.view.View.GONE);
+        // 来源角标（蝌蚪/精品）：按 viewKey 前缀判定，先清复用残留
+        android.widget.TextView sourceBadge = helper.getView(R.id.tv_source_badge);
+        applySourceBadge(sourceBadge, item == null ? null : item.getViewKey());
         // H-11: 使用共享工具类加载封面
         GlideLoader.loadCover(simpleDraweeView, coverUrl, orientation -> {
             if (orientation > 0) {
@@ -47,6 +50,27 @@ public class V91MmanAdapter extends BaseQuickAdapter<V9MmanItem, BaseViewHolder>
                 badge.setVisibility(android.view.View.GONE);
             }
         });
+    }
+
+    /**
+     * 91porny 新分区条目来源角标：蝌蚪长视频（videos/）绿、精品（vod/）金。
+     * 主源 9mman 与 91porny 主源条目不显示。搜索结果混排时用于区分来源（产品设计 P5）。
+     */
+    private void applySourceBadge(android.widget.TextView badge, String viewKey) {
+        if (badge == null) {
+            return;
+        }
+        if (com.m3man.parser.Parse91PornyVideo.isTadpoleViewKey(viewKey)) {
+            badge.setText(R.string.porny_source_badge_tad);
+            badge.setBackgroundColor(0xEE0E7C66);
+            badge.setVisibility(android.view.View.VISIBLE);
+        } else if (com.m3man.parser.Parse91PornyVideo.isPremiumViewKey(viewKey)) {
+            badge.setText(R.string.porny_source_badge_prem);
+            badge.setBackgroundColor(0xEEB8730A);
+            badge.setVisibility(android.view.View.VISIBLE);
+        } else {
+            badge.setVisibility(android.view.View.GONE);
+        }
     }
 
     /**

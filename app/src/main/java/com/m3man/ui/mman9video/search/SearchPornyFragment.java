@@ -89,6 +89,8 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
     private String currentTime = "";
     /** 播放量 */
     private String currentViews = "";
+    /** 时长≥10min（蝌蚪长视频接入后启用，本地过滤） */
+    private boolean duration10;
 
     @Inject
     protected SearchPornyPresenter searchPornyPresenter;
@@ -481,6 +483,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         final NiceSpinner sortSpinner = view.findViewById(R.id.spinner_porny_filter_sort);
         final NiceSpinner timeSpinner = view.findViewById(R.id.spinner_porny_filter_time);
         final NiceSpinner viewsSpinner = view.findViewById(R.id.spinner_porny_filter_views);
+        final android.widget.CheckBox duration10Check = view.findViewById(R.id.check_porny_filter_dur10);
         sortSpinner.attachDataSource(sortOptions);
         timeSpinner.attachDataSource(timeOptions);
         viewsSpinner.attachDataSource(viewsOptions);
@@ -489,6 +492,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         sortSpinner.setSelectedIndex(indexOf(sortOptions, currentSort));
         timeSpinner.setSelectedIndex(indexOf(timeOptions, currentTime));
         viewsSpinner.setSelectedIndex(indexOf(viewsOptions, currentViews));
+        duration10Check.setChecked(duration10);
 
         final boolean[] applied = {false};
         AlertDialog dialog = new AlertDialog.Builder(context)
@@ -500,11 +504,13 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                     sortSpinner.setSelectedIndex(0);
                     timeSpinner.setSelectedIndex(0);
                     viewsSpinner.setSelectedIndex(0);
+                    duration10Check.setChecked(false);
                 })
                 .setPositiveButton(getString(R.string.porny_filter_apply), (d, which) -> {
                     currentSort = textOf(sortOptions, sortSpinner);
                     currentTime = textOf(timeOptions, timeSpinner);
                     currentViews = textOf(viewsOptions, viewsSpinner);
+                    duration10 = duration10Check.isChecked();
                     // 调整后本地保存，下次搜索自动套用
                     saveSearchFilters();
                     applied[0] = true;
@@ -543,6 +549,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         currentSort = preferencesHelper.getPornySearchSort();
         currentTime = preferencesHelper.getPornySearchTime();
         currentViews = preferencesHelper.getPornySearchViews();
+        duration10 = preferencesHelper.isPornySearchDuration10();
     }
 
     /** 将当前搜索筛选项持久化到本地，供下次搜索自动套用 */
@@ -553,6 +560,41 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         preferencesHelper.setPornySearchSort(currentSort);
         preferencesHelper.setPornySearchTime(currentTime);
         preferencesHelper.setPornySearchViews(currentViews);
+        preferencesHelper.setPornySearchDuration10(duration10);
+    }
+
+    /**
+     * 时长≥10min 本地过滤（蝌蚪接入后启用）。在 view 层过滤而非 presenter：
+     * 分页计数仍按站点返回口径处理，避免与"总页数/到底判定"纠缠。
+     */
+    private List<V9MmanItem> applyDurationFilter(List<V9MmanItem> data) {
+        if (!duration10 || data == null || data.isEmpty()) {
+            return data;
+        }
+        List<V9MmanItem> filtered = new ArrayList<>();
+        for (V9MmanItem item : data) {
+            if (item != null && durationToSeconds(item.getDuration()) >= 600) {
+                filtered.add(item);
+            }
+        }
+        return filtered;
+    }
+
+    /** "56:37" / "1:58:04" / "00:05:14" → 秒；解析失败按 0 处理 */
+    private static long durationToSeconds(String text) {
+        if (TextUtils.isEmpty(text)) {
+            return 0;
+        }
+        String[] parts = text.trim().split(":");
+        long seconds = 0;
+        for (String part : parts) {
+            try {
+                seconds = seconds * 60 + Long.parseLong(part.trim());
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        }
+        return seconds;
     }
 
     @NonNull
@@ -578,13 +620,13 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
 
     @Override
     public void setMoreData(List<V9MmanItem> v9MmanItemList) {
-        mV91MmanAdapter.addData(v9MmanItemList);
+        mV91MmanAdapter.addData(applyDurationFilter(v9MmanItemList));
         updateSkipBar();
     }
 
     @Override
     public void setData(List<V9MmanItem> data) {
-        mV91MmanAdapter.setNewData(data);
+        mV91MmanAdapter.setNewData(applyDurationFilter(data));
         // 新结果立即回到顶部（用 instant scroll，避免 smooth 在列表重建后被打断导致没回到顶）
         recyclerView.scrollToPosition(0);
         updateSkipBar();

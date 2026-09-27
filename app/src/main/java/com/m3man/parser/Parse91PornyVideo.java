@@ -13,19 +13,28 @@ import org.jsoup.select.Elements;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 91porny 第二视频源解析（首版仅搜索）
+ * 91porny 解析（搜索 / 蝌蚪长视频 / 精品·大神共用，列表结构同为 .video-elem）
  *
- * 搜索结果结构（已真实验证）：
+ * 列表结果结构（已真实验证）：
  *   <div class="video-elem">
  *     <a class="display d-block" href="/video/view/<24位hex>"> ... <div class="img" style="background-image:url(...)"> <small class="layer">时长</small> </a>
  *     <a class="title ..." href="/video/view/<24位hex>">标题</a>
  *   </div>
- * 分页：Bootstrap <a class="page-link" href="...&page=N">
+ * 分页：Bootstrap <a class="page-link" href="...&page=N">；
+ *       蝌蚪区分页为路径式 /videos/{sort}/{N}（无 page= 参数），computeTotalPage 兼容两种。
+ *
+ * viewKey 契约（播放路由依据，见 AppApiHelper.loadPornyVideoUrl）：
+ *   主源视频 /video/view/<hex>   → 裸 hex（历史契约，不带前缀）
+ *   蝌蚪     /videos/view/<id>/<slug>/ → "videos/<id>/<slug>"（去尾斜杠与 "/." 残留）
+ *   精品     /vod/view/<key>          → "vod/<key>"
+ *   大神     /dashen/<name>           → "dashen/<name>"（ownerId/作者收藏键，作者页复用）
  *
  * 顶部广告条目会在 .video-elem 内携带 ad- 相关类或外链 href，这里在解析时过滤掉。
  */
@@ -34,6 +43,8 @@ public class Parse91PornyVideo {
     private static final String TAG = Parse91PornyVideo.class.getSimpleName();
     public static final String SOURCE = "91porny";
     private static final Pattern PAGE_NUM = Pattern.compile("page=(\\d+)");
+    /** 蝌蚪区分页：路径式 /videos/{latest-updates|top-rated|most-popular}/{N} */
+    private static final Pattern PAGE_PATH_NUM = Pattern.compile("/(?:latest-updates|top-rated|most-popular)/(\\d+)/?$");
     private static final Pattern BG_URL = Pattern.compile("url\\(\\s*['\"]?([^'\")]+)['\"]?\\s*\\)");
     /** 匹配 mp4 / m3u8 等直链 */
     private static final Pattern MP4_URL = Pattern.compile("https?://[^\\s\"'<>]+\\.(?:mp4|m3u8)(?:\\?[^\\s\"'<>]*)?", Pattern.CASE_INSENSITIVE);
@@ -43,6 +54,12 @@ public class Parse91PornyVideo {
     private static final Pattern JS_VIDEO_URL = Pattern.compile("(?:file|videoUrl|video_url|mp4_url|mp4Url|data-src|src)\\s*[:=]\\s*['\"]([^'\"]+\\.(?:mp4|m3u8)(?:\\?[^'\"]*)?)['\"]", Pattern.CASE_INSENSITIVE);
     /** 匹配以单个斜杠开头的相对视频路径 */
     private static final Pattern RELATIVE_MP4 = Pattern.compile("/[^\\s\"'<>]+\\.(?:mp4|m3u8)(?:\\?[^\\s\"'<>]*)?", Pattern.CASE_INSENSITIVE);
+    /** M73：m3u8 直链视频 id（/hls/<id>/ 段） */
+    private static final Pattern HLS_ID = Pattern.compile("/hls/([A-Za-z0-9_-]+)/");
+    /** 蝌蚪 MP4 直链文件名（…/115000/115370/115370.mp4 → 115370） */
+    private static final Pattern MP4_FILE_ID = Pattern.compile("/([^/]+)\\.mp4(?:\\?|#|$)");
+    /** 精品 m3u8 无 /hls/ 段（…/2026/08/24/<hash>/index.m3u8 → <hash>） */
+    private static final Pattern M3U8_DIR_ID = Pattern.compile("/([A-Za-z0-9_-]+)/[^/]+\\.m3u8(?:\\?|#|$)");
     /** M95：91porny 站内基准地址（与 AppPreferencesHelper 默认源一致），供外链广告判定的 host 比较基准 */
     private static final String SITE_BASE_URL = "https://91porny.com/";
 
@@ -93,10 +110,13 @@ public class Parse91PornyVideo {
             Element dur = item.selectFirst("small.layer");
             v.setDuration(dur != null ? dur.text().trim() : "");
 
-            // 作者信息：作者: <a class="text-dark" href="/author/xxx">xxx</a>
+            // 作者信息：作者: <a class="text-dark" href="/author/xxx"> 或精品区 /dashen/xxx
             String authorInfo = "";
             try {
                 Element authorA = item.selectFirst("a[href^=/author/]");
+                if (authorA == null) {
+                    authorA = item.selectFirst("a[href^=/dashen/]");
+                }
                 if (authorA != null) {
                     String authorName = authorA.text().trim();
                     if (!TextUtils.isEmpty(authorName)) {
@@ -214,15 +234,26 @@ public class Parse91PornyVideo {
 
     /**
      * 从播放页提取作者信息：返回 [作者标识, 作者显示名]
-     * 结构：<a href="/author/liguvipa">liguvipa</a>
+     * 主源结构：<a href="/author/liguvipa">liguvipa</a>；
+     * 精品区（/vod/view/）作者链接为 /dashen/<name> 形态（2026-09-28 实测，页面无 /author/ 链接），
+     * /author/ 缺失时回退 /dashen/，保持既有 /video/view/ 页面的解析结果不变。
      * M73：从 m3u8 直链提取 porny 视频 id（/hls/<数字>/ 段），作为 DB 去重键。
      */
     private static String extractPornyVideoId(String videoUrl) {
         if (TextUtils.isEmpty(videoUrl)) {
             return null;
         }
-        java.util.regex.Matcher m = java.util.regex.Pattern
-                .compile("/hls/([A-Za-z0-9_-]+)/").matcher(videoUrl);
+        Matcher m = HLS_ID.matcher(videoUrl);
+        if (m.find()) {
+            return m.group(1);
+        }
+        // 蝌蚪区 MP4 直链：文件名即视频数字 id（…/115000/115370/115370.mp4 → 115370）
+        m = MP4_FILE_ID.matcher(videoUrl);
+        if (m.find()) {
+            return m.group(1);
+        }
+        // 精品区 m3u8：取文件名上一级目录段（…/2026/08/24/<hash>/index.m3u8 → <hash>）
+        m = M3U8_DIR_ID.matcher(videoUrl);
         if (m.find()) {
             return m.group(1);
         }
@@ -233,12 +264,24 @@ public class Parse91PornyVideo {
         String[] result = new String[]{"", ""};
         try {
             Element a = doc.select("a[href^=/author/]").first();
+            String prefix = "/author/";
+            if (a == null) {
+                a = doc.select("a[href^=/dashen/]").first();
+                prefix = "/dashen/";
+            }
             if (a != null) {
                 String href = a.attr("href");
-                int idx = href.indexOf("/author/");
+                int idx = href.indexOf(prefix);
                 if (idx >= 0) {
-                    String authorId = href.substring(idx + "/author/".length());
-                    result[0] = authorId;
+                    String key = href.substring(idx + prefix.length());
+                    // href 里的中文段是 URL 编码形态（%E5%A4%A7...），统一解码为显示名作为
+                    // 作者键——键同时用于 /dashen/{name} 请求与 AuthorFavorite 去重，
+                    // 请求时由数据层按需重新编码；不解码会被"长度>32 判 9mman"防御误杀。
+                    try {
+                        key = java.net.URLDecoder.decode(key, "UTF-8");
+                    } catch (Exception ignored) {
+                    }
+                    result[0] = key;
                     result[1] = a.text().trim();
                 }
             }
@@ -361,24 +404,111 @@ public class Parse91PornyVideo {
     }
 
     /**
-     * 只接受站内 /video/view/ 开头的链接，其余（包括空 href、纯锚点、推广链接等）一律视为非视频条目
+     * 只接受站内 /video/view/、/videos/view/（蝌蚪长视频）、/vod/view/（精品）开头的链接，
+     * 其余（包括空 href、纯锚点、推广链接等）一律视为非视频条目。
+     * 注意 "/videos/view/" 不包含子串 "/video/view/"（video 后是 s/view），三种形态互不误命中。
      */
     private static boolean isInternalVideoHref(String href) {
-        return !TextUtils.isEmpty(href) && href.contains("/video/view/");
+        if (TextUtils.isEmpty(href)) {
+            return false;
+        }
+        return href.contains("/video/view/") || href.contains("/videos/view/") || href.contains("/vod/view/");
     }
 
+    /**
+     * viewKey 契约（见类注释）：
+     *   /video/view/<hex>        → 裸 hex
+     *   /videos/view/<id>/<slug> → "videos/<id>/<slug>"
+     *   /vod/view/<key>          → "vod/<key>"
+     * 统一去掉查询参数、尾斜杠与 "/." 残留（搜索结果里见过 /videos/view/x/y/./ 形态）。
+     */
     private static String extractViewKey(String href) {
         if (TextUtils.isEmpty(href)) {
             return "";
         }
-        int idx = href.indexOf("/video/view/");
+        String key;
+        int idx = href.indexOf("/videos/view/");
         if (idx >= 0) {
-            String key = href.substring(idx + "/video/view/".length());
-            // 去掉末尾可能的查询参数
-            int q = key.indexOf('?');
-            return q > 0 ? key.substring(0, q) : key;
+            key = "videos/" + href.substring(idx + "/videos/view/".length());
+        } else {
+            idx = href.indexOf("/vod/view/");
+            if (idx >= 0) {
+                key = "vod/" + href.substring(idx + "/vod/view/".length());
+            } else {
+                idx = href.indexOf("/video/view/");
+                if (idx < 0) {
+                    return href;
+                }
+                key = href.substring(idx + "/video/view/".length());
+            }
         }
-        return href;
+        return normalizePathKey(key);
+    }
+
+    /** 去掉查询参数、尾斜杠与尾部 "/." 残留 */
+    private static String normalizePathKey(String key) {
+        if (key == null) {
+            return "";
+        }
+        int q = key.indexOf('?');
+        if (q >= 0) {
+            key = key.substring(0, q);
+        }
+        while (key.endsWith("/.")) {
+            key = key.substring(0, key.length() - 2);
+        }
+        while (key.endsWith("/") || key.endsWith(".")) {
+            key = key.substring(0, key.length() - 1);
+        }
+        return key;
+    }
+
+    /** 是否蝌蚪长视频条目（列表角标 / 播放路由用） */
+    public static boolean isTadpoleViewKey(String viewKey) {
+        return viewKey != null && viewKey.startsWith("videos/");
+    }
+
+    /** 是否精品区条目（列表角标 / 播放路由用） */
+    public static boolean isPremiumViewKey(String viewKey) {
+        return viewKey != null && viewKey.startsWith("vod/");
+    }
+
+    /** 是否大神作者页标识（ownerId / 作者收藏键形如 "dashen/<name>"） */
+    public static boolean isDashenAuthorKey(String key) {
+        return key != null && key.startsWith("dashen/");
+    }
+
+    /**
+     * P1：从首页 HTML 提取"大神"模块作者名（/dashen/<name> 链接，去重保序，URL 解码）。
+     * 大神区无索引页（/dashen 404），首页模块（实测 9 位）是唯一种子来源，
+     * 运行中再从精品条目/播放页的 /dashen/ 链接增量补充。
+     */
+    public static java.util.List<String> parseDashenNames(String html) {
+        java.util.List<String> names = new ArrayList<>();
+        if (TextUtils.isEmpty(html)) {
+            return names;
+        }
+        Matcher m = Pattern.compile("href=\"/dashen/([^\"]+)\"").matcher(html);
+        Set<String> seen = new HashSet<>();
+        while (m.find()) {
+            String raw = m.group(1);
+            int q = raw.indexOf('?');
+            if (q >= 0) {
+                raw = raw.substring(0, q);
+            }
+            while (raw.endsWith("/")) {
+                raw = raw.substring(0, raw.length() - 1);
+            }
+            if (TextUtils.isEmpty(raw) || !seen.add(raw)) {
+                continue;
+            }
+            try {
+                names.add(java.net.URLDecoder.decode(raw, "UTF-8"));
+            } catch (Exception e) {
+                names.add(raw);
+            }
+        }
+        return names;
     }
 
     private static String extractBackgroundUrl(String style) {
@@ -393,8 +523,20 @@ public class Parse91PornyVideo {
         int maxPage = 1;
         Elements pageLinks = doc.select("a.page-link");
         for (Element a : pageLinks) {
-            Matcher m = PAGE_NUM.matcher(a.attr("href"));
+            String href = a.attr("href");
+            Matcher m = PAGE_NUM.matcher(href);
             while (m.find()) {
+                try {
+                    int n = Integer.parseInt(m.group(1));
+                    if (n > maxPage) {
+                        maxPage = n;
+                    }
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            // 蝌蚪区分页为路径式 /videos/{sort}/{N}，无 page= 参数
+            m = PAGE_PATH_NUM.matcher(href);
+            if (m.find()) {
                 try {
                     int n = Integer.parseInt(m.group(1));
                     if (n > maxPage) {

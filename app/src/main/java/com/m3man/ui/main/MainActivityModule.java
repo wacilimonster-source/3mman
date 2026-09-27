@@ -7,6 +7,8 @@ import com.m3man.di.module.BaseActivityModule;
 import com.m3man.di.PerFragment;
 import com.m3man.ui.mine.MineFragment;
 import com.m3man.ui.mman9video.Main9MmanVideoFragment;
+import com.m3man.ui.mman9video.porny.PornyPremiumFragment;
+import com.m3man.ui.mman9video.porny.PornyTadpoleFragment;
 import com.m3man.ui.mman9video.search.SearchPornyFragment;
 import com.m3man.ui.recommend.RecommendFeedFragment;
 import com.m3man.ui.mman9video.comment.CommentFragment;
@@ -26,6 +28,14 @@ public abstract class MainActivityModule {
     @PerFragment
     @ContributesAndroidInjector
     abstract IndexFragment indexFragment();
+
+    @PerFragment
+    @ContributesAndroidInjector
+    abstract PornyTadpoleFragment pornyTadpoleFragment();
+
+    @PerFragment
+    @ContributesAndroidInjector
+    abstract PornyPremiumFragment pornyPremiumFragment();
 
     @PerFragment
     @ContributesAndroidInjector

@@ -249,14 +249,57 @@ public class AppApiHelper implements ApiHelper {
 
     @Override
     public Observable<VideoResult> loadPornyVideoUrl(String viewKey) {
+        // 蝌蚪（"videos/<id>/<slug>"）与精品（"vod/<key>"）播放页是不同 path 形态，
+        // 按前缀分发；主源 porny（裸 hex）维持原 /video/view/ 请求。
+        if (Parse91PornyVideo.isTadpoleViewKey(viewKey)) {
+            String rest = viewKey.substring("videos/".length());
+            int slash = rest.indexOf('/');
+            String id = slash > 0 ? rest.substring(0, slash) : rest;
+            String slug = slash > 0 ? rest.substring(slash + 1) : "";
+            return pornyServiceApi.getTadpoleVideoPlayPage(id, slug, HeaderUtils.getPornyHeader(addressHelper))
+                    .map(html -> Parse91PornyVideo.parseVideoPlayUrl(html, addressHelper.getPornyAddress()));
+        }
+        if (Parse91PornyVideo.isPremiumViewKey(viewKey)) {
+            String key = viewKey.substring("vod/".length());
+            return pornyServiceApi.getPremiumVideoPlayPage(key, HeaderUtils.getPornyHeader(addressHelper))
+                    .map(html -> Parse91PornyVideo.parseVideoPlayUrl(html, addressHelper.getPornyAddress()));
+        }
         return pornyServiceApi.getVideoPlayPage(viewKey, HeaderUtils.getPornyHeader(addressHelper))
                 .map(html -> Parse91PornyVideo.parseVideoPlayUrl(html, addressHelper.getPornyAddress()));
     }
 
     @Override
     public Observable<BaseResult<List<V9MmanItem>>> loadPornyAuthorVideos(String authorId, int page) {
+        // 大神作者页（/dashen/<name>）与普通作者页（/author/<name>）列表结构一致，
+        // 作者键带 "dashen/" 前缀时自动路由到大神端点（播放页 ownerId / 作者收藏共用该键）。
+        if (Parse91PornyVideo.isDashenAuthorKey(authorId)) {
+            return loadPornyDashenVideos(authorId.substring("dashen/".length()), page);
+        }
         return pornyServiceApi.authorVideos(authorId, page, HeaderUtils.getPornyHeader(addressHelper))
                 .map(Parse91PornyVideo::parseSearchVideos);
+    }
+
+    @Override
+    public Observable<BaseResult<List<V9MmanItem>>> loadPornyTadpoleVideos(String sort, int page) {
+        return pornyServiceApi.tadpoleVideos(sort, page, HeaderUtils.getPornyHeader(addressHelper))
+                .map(Parse91PornyVideo::parseSearchVideos);
+    }
+
+    @Override
+    public Observable<BaseResult<List<V9MmanItem>>> loadPornyPremiumVideos(int page) {
+        return pornyServiceApi.premiumVideos(page, HeaderUtils.getPornyHeader(addressHelper))
+                .map(Parse91PornyVideo::parseSearchVideos);
+    }
+
+    @Override
+    public Observable<BaseResult<List<V9MmanItem>>> loadPornyDashenVideos(String dashenName, int page) {
+        return pornyServiceApi.dashenVideos(dashenName, page, HeaderUtils.getPornyHeader(addressHelper))
+                .map(Parse91PornyVideo::parseSearchVideos);
+    }
+
+    @Override
+    public Observable<String> loadPornyHomepage() {
+        return pornyServiceApi.homepage(HeaderUtils.getPornyHeader(addressHelper));
     }
 
     @Override

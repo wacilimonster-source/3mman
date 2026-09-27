@@ -10,6 +10,8 @@ import android.view.ViewGroup;
 
 import com.m3man.data.db.entity.Category;
 import com.m3man.ui.mman9video.index.IndexFragment;
+import com.m3man.ui.mman9video.porny.PornyPremiumFragment;
+import com.m3man.ui.mman9video.porny.PornyTadpoleFragment;
 import com.m3man.ui.mman9video.videolist.VideoListFragment;
 
 import java.util.List;
@@ -78,6 +80,16 @@ public class BaseMainFragmentAdapter extends FragmentPagerAdapter {
                     IndexFragment indexFragment = IndexFragment.getInstance();
                     indexFragment.setCategory(category);
                     return indexFragment;
+                } else if (Category.VALUE_PORNY_TADPOLE.equals(category.getCategoryValue())) {
+                    // 蝌蚪长视频频道（91porny /videos，条目全为长视频）
+                    PornyTadpoleFragment tadpoleFragment = PornyTadpoleFragment.getInstance();
+                    tadpoleFragment.setCategory(category);
+                    return tadpoleFragment;
+                } else if (Category.VALUE_PORNY_PREMIUM.equals(category.getCategoryValue())) {
+                    // 精品·大神频道（91porny /vod + /dashen）
+                    PornyPremiumFragment premiumFragment = PornyPremiumFragment.getInstance();
+                    premiumFragment.setCategory(category);
+                    return premiumFragment;
                 } else {
                     VideoListFragment videoListFragment = VideoListFragment.getInstance();
                     videoListFragment.setCategory(category);

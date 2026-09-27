@@ -1,7 +1,7 @@
 {
-  "versionCode": 158,
-  "versionName": "1.0.125",
-  "updateMessage": "1.0.125 更新内容：\n1）修复多处偶发闪退：Android 12+ 后台开始下载时、页面退出后弹出提示时、下载记录数据缺失时点「下载」（现改为自动重新解析并兜底）；\n2）推荐流滑动/点赞偶发卡顿修复（本地推荐数据写盘不再阻塞界面）；\n3）下载体验优化：超过 2GB 的大文件进度显示不再错乱；被新下载任务顶替的旧任务显示为「已暂停」可续传，不再误标「失败」；推荐流看完后不再弹出遮挡画面的提示。\n注意：仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.125.apk",
-  "sha256": "9a86667d2c92afff1fe30c3ff56e1340273a60f9d7aa66d888aa45c6090a6d05"
+  "versionCode": 159,
+  "versionName": "1.0.126",
+  "updateMessage": "1.0.126 更新内容：\n1）新增“长视频”频道：91porny 蝌蚪区接入，条目全部 10 分钟以上（多为 30~120 分钟），支持最近更新/最高评分/最受欢迎三种排序翻页浏览；\n2）新增“精品·大神”频道：精品视频列表 + 大神作者横滑条，作者主页可浏览、可收藏（在“我的-作者收藏”查看）；\n3）搜索增强：结果自动包含长视频与精品条目（带来源角标），筛选弹窗新增“只看时长≥10分钟”开关；\n4）长视频 MP4 直链支持拖动进度与断点续传下载，直链失效自动重解析。\n注意：91porny 源功能需可访问外网的网络环境；仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.126.apk",
+  "sha256": "b2d72061587214b71e3775955678e2cfe1dc01c01840f98cb6b230cceef866de"
 }

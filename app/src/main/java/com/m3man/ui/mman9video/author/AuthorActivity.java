@@ -163,6 +163,11 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
         if (TextUtils.isEmpty(uid)) {
             return bySource;
         }
+        // 大神键（"dashen/<名字>"）明确走 porny 侧（数据层按前缀路由到大神端点），
+        // 名字解码后可能含 -/_ 或较长，不能被下方形态防御误判成 9mman
+        if (Parse91PornyVideo.isDashenAuthorKey(uid)) {
+            return true;
+        }
         boolean looksLikeMmanUid = uid.contains("_") || uid.contains("-") || uid.length() > 32;
         if (looksLikeMmanUid) {
             return false;

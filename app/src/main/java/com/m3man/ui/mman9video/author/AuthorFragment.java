@@ -250,8 +250,10 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
         }
         String ownerId = v9MmanItem.getVideoResult().getOwnerId();
         // M66b：ownerId 形态防御——9mman 的加密 UID（含 _/- 或超长）绝不能走 porny /author/，
-        // 否则站点 404（作者其他作品加载失败）
+        // 否则站点 404（作者其他作品加载失败）。
+        // 大神键（"dashen/<name>"，URL 解码后中文/长名也安全）明确走 porny 侧（数据层再按前缀路由）。
         boolean uidLooksLikeMman = ownerId != null
+                && !Parse91PornyVideo.isDashenAuthorKey(ownerId)
                 && (ownerId.contains("_") || ownerId.contains("-") || ownerId.length() > 32);
         if (isPornySource() && !uidLooksLikeMman) {
             // 91porny 作者：ownerId 即作者名，走 /author/{name}
