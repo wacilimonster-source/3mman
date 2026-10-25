@@ -59,6 +59,12 @@ public class RecoCandidate {
     public double authorScore;
     public double recencyScore;
     public double noise;
+    /** v3 P0-3：热度先验分（冷启动阶段系数翻倍） */
+    public double hotScore;
+    /** v3 P1-2：时长桶 + 方向软偏好分 */
+    public double softScore;
+    /** v3 P1-3：UCB 乐观项（试得少的特征加分） */
+    public double exploreScore;
 
     public RecoCandidate(V9MmanItem item, String categoryValue, int from) {
         this.item = item;

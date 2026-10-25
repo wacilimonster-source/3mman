@@ -734,6 +734,25 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         /** 当前绑定的视频 key，供起播时做一致性校验 */
         String boundKey;
         private boolean orientationLandscape;
+        // ==================== v3 P0-1：隐式反馈采集（settle 时读、startPlay 时重置） ====================
+        /** 该页本次停留是否真正起播过 */
+        boolean playbackStarted;
+        /** 解析/起播失败标记：失败离开不学习（与内容无关） */
+        boolean errorNoted;
+        /** 本次停留到达过的最高播放进度（0~1），防 seek 骗分 */
+        float maxRatio;
+        /** 累计有效播放毫秒（仅 playing 状态累计，暂停/seek 不计） */
+        long playedMs;
+        /** 进度 ticker 上次采样时刻（elapsedRealtime），用于折算 playedMs */
+        long lastTickElapsed;
+
+        void resetImplicitStats() {
+            playbackStarted = false;
+            errorNoted = false;
+            maxRatio = 0f;
+            playedMs = 0L;
+            lastTickElapsed = 0L;
+        }
 
         PageHolder(View itemView) {
             super(itemView);

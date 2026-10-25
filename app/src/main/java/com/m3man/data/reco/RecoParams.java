@@ -30,6 +30,13 @@ public class RecoParams {
     private static final String K_FINISH_BOOST = "finish_boost";
     private static final String K_SKIP_PENALTY = "skip_penalty";
     private static final String K_MAX_AGE_YEARS = "max_age_years";
+    private static final String K_QUICK_SKIP_PENALTY = "quick_skip_penalty";
+    private static final String K_HOTNESS_COEF = "hotness_coef";
+    private static final String K_SESSION_COEF = "session_coef";
+    private static final String K_SESSION_HALF_LIFE_MIN = "session_half_life_min";
+    private static final String K_DURATION_COEF = "duration_coef";
+    private static final String K_ORIENTATION_COEF = "orientation_coef";
+    private static final String K_EXPLORE_COEF = "explore_coef";
 
     /** 点赞对画像的正向加权 */
     public static final float DEF_LIKE_BOOST = 3.0f;
@@ -61,6 +68,20 @@ public class RecoParams {
     public static final float DEF_SKIP_PENALTY = 0.8f;
     /** 推荐可纳入的最长发布年限（默认 10 年）：超出该年限的老片不进入推荐池 */
     public static final int DEF_MAX_AGE_YEARS = 10;
+    /** 秒划/未起播负反馈强度（v3 P0-1：起播前划走或有效播放不足 4s 的惩罚） */
+    public static final float DEF_QUICK_SKIP_PENALTY = 1.0f;
+    /** 热度先验系数（v3 P0-3：冷启动阶段自动翻倍） */
+    public static final float DEF_HOTNESS_COEF = 0.25f;
+    /** 会话画像混合系数（v3 P1-1：短期兴趣叠加比例，0=关闭会话画像） */
+    public static final float DEF_SESSION_COEF = 0.8f;
+    /** 会话画像半衰期（分钟，v3 P1-1） */
+    public static final int DEF_SESSION_HALF_LIFE_MIN = 90;
+    /** 时长桶软偏好系数（v3 P1-2） */
+    public static final float DEF_DURATION_COEF = 0.3f;
+    /** 方向软偏好系数（v3 P1-2；方向严格筛选时对排序无影响，天然只在「全部」下生效） */
+    public static final float DEF_ORIENTATION_COEF = 0.2f;
+    /** UCB 乐观项系数（v3 P1-3：试得少的特征天然加分） */
+    public static final float DEF_EXPLORE_COEF = 0.35f;
 
     public float likeBoost = DEF_LIKE_BOOST;
     public float dislikePenalty = DEF_DISLIKE_PENALTY;
@@ -77,6 +98,13 @@ public class RecoParams {
     public float finishBoost = DEF_FINISH_BOOST;
     public float skipPenalty = DEF_SKIP_PENALTY;
     public int maxAgeYears = DEF_MAX_AGE_YEARS;
+    public float quickSkipPenalty = DEF_QUICK_SKIP_PENALTY;
+    public float hotnessCoef = DEF_HOTNESS_COEF;
+    public float sessionCoef = DEF_SESSION_COEF;
+    public int sessionHalfLifeMinutes = DEF_SESSION_HALF_LIFE_MIN;
+    public float durationCoef = DEF_DURATION_COEF;
+    public float orientationCoef = DEF_ORIENTATION_COEF;
+    public float exploreCoef = DEF_EXPLORE_COEF;
 
     private RecoParams() {
     }
@@ -103,6 +131,13 @@ public class RecoParams {
         p.finishBoost = sp.getFloat(K_FINISH_BOOST, DEF_FINISH_BOOST);
         p.skipPenalty = sp.getFloat(K_SKIP_PENALTY, DEF_SKIP_PENALTY);
         p.maxAgeYears = sp.getInt(K_MAX_AGE_YEARS, DEF_MAX_AGE_YEARS);
+        p.quickSkipPenalty = sp.getFloat(K_QUICK_SKIP_PENALTY, DEF_QUICK_SKIP_PENALTY);
+        p.hotnessCoef = sp.getFloat(K_HOTNESS_COEF, DEF_HOTNESS_COEF);
+        p.sessionCoef = sp.getFloat(K_SESSION_COEF, DEF_SESSION_COEF);
+        p.sessionHalfLifeMinutes = sp.getInt(K_SESSION_HALF_LIFE_MIN, DEF_SESSION_HALF_LIFE_MIN);
+        p.durationCoef = sp.getFloat(K_DURATION_COEF, DEF_DURATION_COEF);
+        p.orientationCoef = sp.getFloat(K_ORIENTATION_COEF, DEF_ORIENTATION_COEF);
+        p.exploreCoef = sp.getFloat(K_EXPLORE_COEF, DEF_EXPLORE_COEF);
         p.clamp();
         return p;
     }
@@ -130,6 +165,13 @@ public class RecoParams {
         .putFloat(K_FINISH_BOOST, finishBoost)
         .putFloat(K_SKIP_PENALTY, skipPenalty)
         .putInt(K_MAX_AGE_YEARS, maxAgeYears)
+        .putFloat(K_QUICK_SKIP_PENALTY, quickSkipPenalty)
+        .putFloat(K_HOTNESS_COEF, hotnessCoef)
+        .putFloat(K_SESSION_COEF, sessionCoef)
+        .putInt(K_SESSION_HALF_LIFE_MIN, sessionHalfLifeMinutes)
+        .putFloat(K_DURATION_COEF, durationCoef)
+        .putFloat(K_ORIENTATION_COEF, orientationCoef)
+        .putFloat(K_EXPLORE_COEF, exploreCoef)
         .apply();
     }
 
@@ -150,6 +192,13 @@ public class RecoParams {
         finishBoost = DEF_FINISH_BOOST;
         skipPenalty = DEF_SKIP_PENALTY;
         maxAgeYears = DEF_MAX_AGE_YEARS;
+        quickSkipPenalty = DEF_QUICK_SKIP_PENALTY;
+        hotnessCoef = DEF_HOTNESS_COEF;
+        sessionCoef = DEF_SESSION_COEF;
+        sessionHalfLifeMinutes = DEF_SESSION_HALF_LIFE_MIN;
+        durationCoef = DEF_DURATION_COEF;
+        orientationCoef = DEF_ORIENTATION_COEF;
+        exploreCoef = DEF_EXPLORE_COEF;
     }
 
     /** 参数越界保护，避免用户拖出病态值导致推荐完全失效 */
@@ -168,6 +217,13 @@ public class RecoParams {
         finishBoost = clampF(finishBoost, 0f, 10f);
         skipPenalty = clampF(skipPenalty, 0f, 10f);
         maxAgeYears = clampI(maxAgeYears, 1, 20);
+        quickSkipPenalty = clampF(quickSkipPenalty, 0f, 10f);
+        hotnessCoef = clampF(hotnessCoef, 0f, 2f);
+        sessionCoef = clampF(sessionCoef, 0f, 3f);
+        sessionHalfLifeMinutes = clampI(sessionHalfLifeMinutes, 5, 720);
+        durationCoef = clampF(durationCoef, 0f, 2f);
+        orientationCoef = clampF(orientationCoef, 0f, 2f);
+        exploreCoef = clampF(exploreCoef, 0f, 2f);
     }
 
     private static float clampF(float v, float min, float max) {

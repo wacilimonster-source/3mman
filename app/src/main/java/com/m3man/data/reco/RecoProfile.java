@@ -32,6 +32,10 @@ public class RecoProfile {
     public final Map<String, Double> tagWeights = new ConcurrentHashMap<>();
     public final Map<String, Double> authorWeights = new ConcurrentHashMap<>();
     public final Map<String, Double> categoryWeights = new ConcurrentHashMap<>();
+    /** v3 P1-2：时长桶软偏好（d:0≤1min / d:1 1~3 / d:2 3~10 / d:3>10），桶数固定无需淘汰 */
+    public final Map<String, Double> durationWeights = new ConcurrentHashMap<>();
+    /** v3 P1-2：方向软偏好（o:p 竖 / o:l 横），桶数固定无需淘汰 */
+    public final Map<String, Double> orientationWeights = new ConcurrentHashMap<>();
 
     public long lastDecayTime = 0L;
     public int likeCount = 0;
@@ -49,6 +53,14 @@ public class RecoProfile {
 
     public double category(String key) {
         return value(categoryWeights, key);
+    }
+
+    public double duration(String key) {
+        return value(durationWeights, key);
+    }
+
+    public double orientation(String key) {
+        return value(orientationWeights, key);
     }
 
     private static double value(Map<String, Double> map, String key) {
@@ -70,6 +82,14 @@ public class RecoProfile {
     public void bumpCategory(String key, double delta) {
         // 分类总量固定（十来个），不需要淘汰
         bump(categoryWeights, key, delta, Integer.MAX_VALUE);
+    }
+
+    public void bumpDuration(String key, double delta) {
+        bump(durationWeights, key, delta, Integer.MAX_VALUE);
+    }
+
+    public void bumpOrientation(String key, double delta) {
+        bump(orientationWeights, key, delta, Integer.MAX_VALUE);
     }
 
     private static void bump(Map<String, Double> map, String key, double delta, int capacity) {
@@ -134,6 +154,39 @@ public class RecoProfile {
         decayMap(tagWeights, factor);
         decayMap(authorWeights, factor);
         decayMap(categoryWeights, factor);
+        decayMap(durationWeights, factor);
+        decayMap(orientationWeights, factor);
+        lastDecayTime = nowMillis;
+        return true;
+    }
+
+    /**
+     * v3 P1-1：会话画像专用衰减——半衰期以分钟计。
+     * 现有 {@link #applyDecay} 对不足半天的 elapsed 直接跳过（避免频繁开关 App 的精度损失），
+     * 会话级半衰期（默认 90 分钟）等不了那么久，因此单独提供毫秒级版本。
+     *
+     * @return 本次是否发生了真实衰减
+     */
+    public boolean applyDecayMs(long nowMillis, int halfLifeMinutes) {
+        if (lastDecayTime <= 0L) {
+            lastDecayTime = nowMillis;
+            return false;
+        }
+        if (halfLifeMinutes <= 0) {
+            lastDecayTime = nowMillis;
+            return false;
+        }
+        long elapsed = nowMillis - lastDecayTime;
+        if (elapsed <= 0) {
+            return false;
+        }
+        double minutes = elapsed / 60000.0d;
+        double factor = Math.pow(0.5d, minutes / halfLifeMinutes);
+        decayMap(tagWeights, factor);
+        decayMap(authorWeights, factor);
+        decayMap(categoryWeights, factor);
+        decayMap(durationWeights, factor);
+        decayMap(orientationWeights, factor);
         lastDecayTime = nowMillis;
         return true;
     }
@@ -170,7 +223,12 @@ public class RecoProfile {
             if (e.getValue() < minWeight) {
                 break;
             }
-            out.add(e.getKey());
+            String k = e.getKey();
+            // v3 P0-2："n:" 是作者名键（重名风险、无列表接口），作者召回只认真实 uid
+            if (k != null && k.startsWith("n:")) {
+                continue;
+            }
+            out.add(k);
             if (out.size() >= n) {
                 break;
             }
@@ -182,6 +240,8 @@ public class RecoProfile {
         tagWeights.clear();
         authorWeights.clear();
         categoryWeights.clear();
+        durationWeights.clear();
+        orientationWeights.clear();
         lastDecayTime = 0L;
         likeCount = 0;
         dislikeCount = 0;

@@ -151,6 +151,8 @@ public class RecommendFeedFragment extends BaseFragment
     private boolean userSeeking = false;
     /** M-06: Fragment 销毁后防止 progressTicker 重复触发 */
     private boolean viewDestroyed = false;
+    /** v3 P0-1：当前页进入时刻（elapsedRealtime），结算隐式反馈时算停留时长用 */
+    private long currentEnterElapsed = 0L;
 
     /** M78：方向筛选（0=全部 1=仅竖屏 2=仅横屏） */
     private TextView orientationFilterView;
@@ -613,10 +615,11 @@ public class RecommendFeedFragment extends BaseFragment
         boolean isCurrentPage = holder != null && holder.player == player;
         if (isCurrentPage && PlayUiPrefs.isRecoAutoNextEnabled(context)) {
             if (currentPosition + 1 < adapter.getItemCount()) {
-                // 完播是最强正反馈：AUTO_COMPLETE 态 watchedRatio() 恒 0，翻页前显式补记
+                // 完播是最强正反馈：走 v3 P0-1 的完播结算（含每视频一次封顶，
+                // 循环播放下反复触发只首次全额）；翻页时的 settle 不会重复全额
                 RecoCandidate finished = adapter.getItem(currentPosition);
                 if (finished != null && engine != null) {
-                    engine.onWatchRatio(finished, 1f);
+                    engine.onImplicitFinish(finished);
                 }
                 recyclerView.smoothScrollToPosition(currentPosition + 1);
                 return;
@@ -847,11 +850,13 @@ public class RecommendFeedFragment extends BaseFragment
         if (position < 0 || position >= adapter.getItemCount() || position == currentPosition) {
             return;
         }
-        // 离开上一页时结算观看比例（隐式反馈）
-        recordWatchRatio(currentPosition);
+        // 离开上一页时结算隐式反馈（v3 P0-1：秒划负反馈 + 分级中段 + 防重复加权）
+        settleImplicit(currentPosition);
         // M119：离开上一页时记录断点续播位置（仅 >3 分钟视频）
         captureResumePosition(currentPosition);
         currentPosition = position;
+        // v3 P0-1：刷新当前页进入时刻（dwell 结算基准）
+        currentEnterElapsed = SystemClock.elapsedRealtime();
         // 横屏锁只在手动退出时解除；翻到新视频不自动回竖屏。
         RecoCandidate candidate = adapter.getItem(position);
         if (candidate != null && engine != null) {
@@ -875,7 +880,13 @@ public class RecommendFeedFragment extends BaseFragment
         }
     }
 
-    private void recordWatchRatio(int position) {
+    /**
+     * v3 P0-1：结算一页的隐式反馈。采集维度从「当前播放位置」升级为：
+     * 是否起播 / 最高到达进度 / 累计有效播放时长 / 停留时长——
+     * 起播前划走（旧版完全不学习的最大负信号）现在会记秒划负反馈，
+     * seek 到片尾骗完播、循环播放反复加分都由引擎侧封顶与规则挡住。
+     */
+    private void settleImplicit(int position) {
         if (position < 0 || adapter == null || engine == null) {
             return;
         }
@@ -884,10 +895,14 @@ public class RecommendFeedFragment extends BaseFragment
             return;
         }
         RecommendFeedAdapter.PageHolder holder = findHolder(position);
-        float ratio = holder == null ? 0f : holder.player.watchedRatio();
-        if (ratio > 0f) {
-            engine.onWatchRatio(candidate, ratio);
+        if (holder == null || holder.errorNoted) {
+            // 解析/起播失败离开不学习（与内容无关）
+            return;
         }
+        long dwellMs = currentEnterElapsed > 0L
+                ? SystemClock.elapsedRealtime() - currentEnterElapsed : 0L;
+        engine.onImplicitSettle(candidate, holder.playbackStarted,
+                holder.maxRatio, holder.playedMs, dwellMs);
     }
 
     private void startPlay(final int position) {
@@ -907,6 +922,11 @@ public class RecommendFeedFragment extends BaseFragment
                 }
             }, 60L);
             return;
+        }
+        // v3 P0-1：每次（重）起播重置隐式反馈采集；首帧兜底刷新进入时刻
+        holder.resetImplicitStats();
+        if (currentEnterElapsed <= 0L) {
+            currentEnterElapsed = SystemClock.elapsedRealtime();
         }
 
         // 关掉其它页的循环续播，防止旧页在播完瞬间抢回解码器造成「画面 / 标题」错位
@@ -1030,6 +1050,8 @@ public class RecommendFeedFragment extends BaseFragment
             });
             holder.player.setUp(playUrl, JZVideoPlayerStandard.SCREEN_WINDOW_LIST, title);
             holder.player.startVideo();
+            // v3 P0-1：真正发起过起播（区别于「起播前就划走」的秒划负反馈）
+            holder.playbackStarted = true;
         } catch (Exception e) {
             Logger.t(TAG).d("start video failed: " + e.getMessage());
             AppLog.e(TAG, "推荐起播失败 viewKey=" + candidate.viewKey() + " " + AppLog.cause(e));
@@ -1115,6 +1137,19 @@ public class RecommendFeedFragment extends BaseFragment
                     progressTicker = null;
                     return;
                 }
+                // v3 P0-1：隐式反馈采集——仅真正在播时累计有效播放时长，
+                // 并记录到达过的最高进度（结算用，防循环播放/seek 干扰）
+                long nowElapsed = SystemClock.elapsedRealtime();
+                if (holder.lastTickElapsed > 0L) {
+                    if (holder.player.isPlaying()) {
+                        holder.playedMs += Math.max(0L, nowElapsed - holder.lastTickElapsed);
+                    }
+                }
+                holder.lastTickElapsed = nowElapsed;
+                float ratio = holder.player.watchedRatio();
+                if (ratio > holder.maxRatio) {
+                    holder.maxRatio = ratio;
+                }
                 long duration = holder.player.safeDuration();
                 if (duration > 0) {
                     holder.durTime.setText(formatTime(duration));
@@ -1158,6 +1193,8 @@ public class RecommendFeedFragment extends BaseFragment
         if (holder == null) {
             return;
         }
+        // v3 P0-1：失败离开不学习（与内容质量无关）
+        holder.errorNoted = true;
         stopCoverWatcher();
         stopProgressTicker();
         holder.loading.setVisibility(View.GONE);
@@ -1900,8 +1937,8 @@ public class RecommendFeedFragment extends BaseFragment
     @Override
     public void onPause() {
         // 不使用 goOnPlayOnPause：它只暂停并保留 MediaPlayer，切换页面后仍可能有音频输出。
-        // M98：先结算观看比例再释放播放器——release 后 watchedRatio 恒为 0，隐式反馈会丢失。
-        recordWatchRatio(currentPosition);
+        // M98：先结算隐式反馈再释放播放器——release 后进度读不到，反馈会丢失。
+        settleImplicit(currentPosition);
         // M119：切走前记录断点续播位置（>3 分钟视频）
         captureResumePosition(currentPosition);
         stopPlaybackForLeavingPage();
@@ -1914,8 +1951,8 @@ public class RecommendFeedFragment extends BaseFragment
         super.onHiddenChanged(hidden);
         // hide/show 切换（切到其它 Tab）时必须释放底层播放器，不能只暂停。
         if (hidden) {
-            // M98：先结算观看比例再释放播放器（同 onPause，release 后比例读不到）
-            recordWatchRatio(currentPosition);
+            // M98：先结算隐式反馈再释放播放器（同 onPause，release 后进度读不到）
+            settleImplicit(currentPosition);
             // M119：切走前记录断点续播位置（>3 分钟视频）
             captureResumePosition(currentPosition);
             stopPlaybackForLeavingPage();
@@ -1944,7 +1981,8 @@ public class RecommendFeedFragment extends BaseFragment
         stopProgressTicker();
         viewDestroyed = true;
         handler.removeCallbacksAndMessages(null);
-        recordWatchRatio(currentPosition);
+        // v3 P0-1：隐式反馈已在 onPause/onHiddenChanged 结算过，这里不再重复
+        // （每视频封顶也会把重复结算压到 0.15 倍，但能省则省）
         // View 已销毁，用 RxJava Completable 在 IO 线程持久化画像，避免裸线程
         final RecoEngine target = engine;
         if (target != null) {

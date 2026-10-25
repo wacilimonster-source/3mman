@@ -390,6 +390,8 @@ public class RecoRepository {
     // ==================== 召回 ====================
 
     private Observable<List<RecoCandidate>> fetchOneSource() {
+        // v3 P1-1：每次召回前先做会话画像衰减（毫秒级半衰期，默认 90 分钟）
+        engine.decaySession(System.currentTimeMillis());
         RecoProfile profile = engine.getProfile();
         RecoParams params = engine.getParams();
 
@@ -516,8 +518,13 @@ public class RecoRepository {
             }
             RecoCandidate c = new RecoCandidate(item, categoryValue, from);
             c.tags = engine.getDictionary().tokenize(item.getTitle());
+            // v3 P0-2：作者名前置——列表页就有 authorText，打分不必等播放解析后回填 uid。
+            // "n:" 前缀键与打散键口径一致；重名风险由打分器 0.6 系数打折，作者召回只认真 uid。
+            if (TextUtils.isEmpty(c.authorKey) && !TextUtils.isEmpty(item.getAuthorText())) {
+                c.authorKey = "n:" + item.getAuthorText().trim();
+            }
             c.publishYear = parseAddYear(item.getInfo());
-            scorer.score(c, profile, i, size);
+            scorer.score(c, profile, engine.getSessionProfile(), i, size);
             out.add(c);
         }
         return out;
@@ -573,13 +580,13 @@ public class RecoRepository {
     }
 
     /**
-     * M77 出队（重写）：
+     * M77 出队（v3 P1-3 修订）：
      * <ul>
-     *   <li>保留坑位式探索：每 {@code want} 条里固定留 want/6 个坑位给池内最好的探索来源
-     *       候选，垫在批次末尾；其余位置严格按分数出队。探索不再靠打分层大噪声挤占前排，
-     *       高分垃圾不会污染正常排序。</li>
+     *   <li>坑位式探索升级：探索坑位不再取「探索来源里画像分最高」的候选（那是假探索），
+     *       改为取 UCB 乐观项最高的——真正承担试水职责；正片位仍严格按分数出队。</li>
      *   <li>打散：同一作者 / 同一主标签在一批里最多 MAX_SAME_*_PER_BATCH 条，
      *       超额候选先延后，凑不满时再放宽补齐——避免连刷六条同作者/同题材。</li>
+     *   <li>出队即计入 UCB 特征统计（served++），供打分乐观项与采样倾斜使用。</li>
      * </ul>
      */
     private List<RecoCandidate> take(int want) {
@@ -589,22 +596,33 @@ public class RecoRepository {
         }
         RecoScorer.sortByScoreDesc(pool);
 
-        // 1) 探索坑位：按分数顺序取前 exploreQuota 个探索来源的有效候选
+        // 1) 探索坑位：v3 P1-3 改按 UCB 乐观项排序（试得少的特征优先浮上来）
         int exploreQuota = Math.max(0, want / 6);
         List<RecoCandidate> explorePick = new ArrayList<>();
         Set<String> picked = new HashSet<>();
         if (exploreQuota > 0) {
-        for (RecoCandidate c : pool) {
-            if (explorePick.size() >= exploreQuota) {
-                break;
+            List<RecoCandidate> explores = new ArrayList<>();
+            for (RecoCandidate c : pool) {
+                String key = c.viewKey();
+                if (c.from == RecoCandidate.FROM_EXPLORE && !TextUtils.isEmpty(key)
+                        && !servedKeys.containsKey(key) && passesOrientation(c)) {
+                    explores.add(c);
+                }
             }
-            String key = c.viewKey();
-            if (c.from == RecoCandidate.FROM_EXPLORE && !TextUtils.isEmpty(key)
-                    && !servedKeys.containsKey(key) && passesOrientation(c)) {
+            if (explores.size() > 1) {
+                java.util.Collections.sort(explores, new java.util.Comparator<RecoCandidate>() {
+                    @Override
+                    public int compare(RecoCandidate a, RecoCandidate b) {
+                        int byOptimism = Double.compare(b.exploreScore, a.exploreScore);
+                        return byOptimism != 0 ? byOptimism : Double.compare(b.score, a.score);
+                    }
+                });
+            }
+            for (int i = 0; i < explores.size() && explorePick.size() < exploreQuota; i++) {
+                RecoCandidate c = explores.get(i);
                 explorePick.add(c);
-                picked.add(key);
+                picked.add(c.viewKey());
             }
-        }
         }
 
         // 2) 正片位：按分数顺序出队，受「同作者/同主标签」限额约束
@@ -654,10 +672,19 @@ public class RecoRepository {
         // 3) 组批：正片按分数在前，探索坑位固定垫在批次末尾
         out.addAll(mainPick);
         out.addAll(explorePick);
+        RecoStore statStore = engine.getStore();
         for (RecoCandidate c : out) {
             String key = c.viewKey();
             if (!TextUtils.isEmpty(key)) {
                 servedKeys.put(key, Boolean.TRUE);
+            }
+            // v3 P1-3：出队即计入特征曝光（UCB 的 served 端）
+            if (!TextUtils.isEmpty(c.categoryValue)) {
+                statStore.bumpStatServed("c:" + c.categoryValue);
+            }
+            String top = RecoScorer.topIdfTag(c.tags, engine.getDictionary());
+            if (top != null) {
+                statStore.bumpStatServed("t:" + top);
             }
         }
         // 从池子里移除已出队的候选
@@ -682,18 +709,19 @@ public class RecoRepository {
         return null;
     }
 
-    /** 打散用的主标签：取画像权重 * idf 最高的那个标签，代表该视频的「题材」 */
+    /** 打散用的主标签：取（长期 + 会话混合）画像权重 * idf 最高的那个标签，代表该视频的「题材」 */
     private String diversityTopTag(RecoCandidate c) {
         List<String> tags = c.tags;
         if (tags == null || tags.isEmpty()) {
             return null;
         }
         RecoProfile profile = engine.getProfile();
+        RecoProfile session = engine.getSessionProfile();
         RecoTagDictionary dictionary = engine.getDictionary();
         String best = null;
         double bestW = Double.NEGATIVE_INFINITY;
         for (String t : tags) {
-            double w = profile.tag(t) * dictionary.idf(t);
+            double w = (profile.tag(t) + 0.8d * session.tag(t)) * dictionary.idf(t);
             if (w > bestW) {
                 bestW = w;
                 best = t;
@@ -734,8 +762,10 @@ public class RecoRepository {
     /**
      * 按画像里的分类权重做加权采样（softmax 后归一化）。
      * 冷启动（全 0）时退化为均匀随机。
+     * v3 P1-3：采样权重再乘 UCB 倾斜 (1 + κ/√(1+served))，曝光不足的分类获得倾斜。
      */
     String pickCategoryByWeight(RecoProfile profile) {
+        RecoStore statStore = engine.getStore();
         double[] w = new double[RECO_CATEGORIES.length];
         double sum = 0.0d;
         for (int i = 0; i < RECO_CATEGORIES.length; i++) {
@@ -746,7 +776,8 @@ public class RecoRepository {
             } else if (raw < -3.0d) {
                 raw = -3.0d;
             }
-            w[i] = Math.exp(raw);
+            double tilt = 1.0d + 0.5d / Math.sqrt(1.0d + statStore.served("c:" + RECO_CATEGORIES[i]));
+            w[i] = Math.exp(raw) * tilt;
             sum += w[i];
         }
         if (sum <= 0.0d || Double.isNaN(sum) || Double.isInfinite(sum)) {

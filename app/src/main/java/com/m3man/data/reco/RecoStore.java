@@ -31,7 +31,7 @@ import java.util.Set;
  *
  * @author 3mman
  */
-public class RecoStore {
+public class RecoStore implements RecoScorer.StatSource {
 
     public static final int ACTION_LIKE = 1;
     public static final int ACTION_DISLIKE = 2;
@@ -47,6 +47,10 @@ public class RecoStore {
     private static final int MAX_ACTIONS = 800;
     /** 作者名缓存上限 */
     private static final int MAX_AUTHOR_NAMES = 300;
+    /** v3 P0-1：隐式反馈结算记录上限（viewKey → 正/负封顶位图），LRU 淘汰最老 */
+    private static final int MAX_IMPLICIT = 500;
+    /** v3 P1-3：UCB 特征统计上限（分类 + 标签键），超出淘汰信息量最小的 */
+    private static final int MAX_STATS = 1000;
 
     private final Context appContext;
 
@@ -56,6 +60,12 @@ public class RecoStore {
     private final LinkedHashSet<String> seen = new LinkedHashSet<>();
     /** 作者 id -> 昵称，画像里只有 id，展示学习记录时需要它翻译成人能看懂的名字 */
     private final LinkedHashMap<String, String> authorNames = new LinkedHashMap<>();
+    /** v3 P0-1：viewKey -> 位图（bit1=正反馈已全额学过，bit2=负反馈已全额学过），防重复加权 */
+    private final LinkedHashMap<String, Integer> implicitFlags = new LinkedHashMap<>();
+    /** v3 P1-3：特征键 -> [served, positive]，UCB 乐观项与采样倾斜的数据源 */
+    private final LinkedHashMap<String, long[]> featureStats = new LinkedHashMap<>();
+    /** v3 P1-3：served 总曝光数（ln(1+total) 用），随 bumpStatServed 递增 */
+    private long statTotalServed = 0L;
 
     private boolean loaded = false;
     private boolean dirty = false;
@@ -172,6 +182,114 @@ public class RecoStore {
         markDirtyInternal();
     }
 
+    // ==================== v3：隐式反馈封顶（P0-1） ====================
+
+    /** 位图：bit1 = 正反馈已全额学过，bit2 = 负反馈已全额学过 */
+    public static final int IMPLICIT_POS_DONE = 1;
+    public static final int IMPLICIT_NEG_DONE = 2;
+
+    public synchronized int implicitFlags(String viewKey) {
+        ensureLoaded();
+        if (TextUtils.isEmpty(viewKey)) {
+            return 0;
+        }
+        Integer f = implicitFlags.get(viewKey);
+        return f == null ? 0 : f;
+    }
+
+    /** 标记某极性已全额学过一次；返回标记前是否从未学过该极性 */
+    public synchronized boolean markImplicit(String viewKey, boolean positive) {
+        ensureLoaded();
+        if (TextUtils.isEmpty(viewKey)) {
+            return false;
+        }
+        int cur = implicitFlags(viewKey);
+        int bit = positive ? IMPLICIT_POS_DONE : IMPLICIT_NEG_DONE;
+        boolean first = (cur & bit) == 0;
+        implicitFlags.remove(viewKey);
+        implicitFlags.put(viewKey, cur | bit);
+        while (implicitFlags.size() > MAX_IMPLICIT) {
+            Iterator<String> it = implicitFlags.keySet().iterator();
+            if (!it.hasNext()) {
+                break;
+            }
+            it.next();
+            it.remove();
+        }
+        markDirtyInternal();
+        return first;
+    }
+
+    // ==================== v3：UCB 特征统计（P1-3） ====================
+
+    /** 特征键（"c:分类" / "t:标签"）累计曝光数，实现 {@link RecoScorer.StatSource} */
+    public synchronized long served(String key) {
+        ensureLoaded();
+        if (TextUtils.isEmpty(key)) {
+            return 0L;
+        }
+        long[] v = featureStats.get(key);
+        return v == null ? 0L : v[0];
+    }
+
+    /** 全部特征累计曝光总数（UCB 的 ln(1+total) 项），实现 {@link RecoScorer.StatSource} */
+    public synchronized long totalServed() {
+        ensureLoaded();
+        return statTotalServed;
+    }
+
+    public synchronized void bumpStatServed(String key) {
+        ensureLoaded();
+        if (TextUtils.isEmpty(key)) {
+            return;
+        }
+        long[] v = featureStats.get(key);
+        if (v == null) {
+            v = new long[]{0L, 0L};
+            featureStats.remove(key);
+            featureStats.put(key, v);
+            evictSmallestStat();
+        }
+        v[0]++;
+        statTotalServed++;
+        markDirtyInternal();
+    }
+
+    public synchronized void bumpStatPositive(String key) {
+        ensureLoaded();
+        if (TextUtils.isEmpty(key)) {
+            return;
+        }
+        long[] v = featureStats.get(key);
+        if (v == null) {
+            v = new long[]{0L, 0L};
+            featureStats.remove(key);
+            featureStats.put(key, v);
+            evictSmallestStat();
+        }
+        v[1]++;
+        markDirtyInternal();
+    }
+
+    /** 统计表超限时淘汰 served+positive 最小的键（信息量最低） */
+    private void evictSmallestStat() {
+        while (featureStats.size() > MAX_STATS) {
+            String worst = null;
+            long worstSum = Long.MAX_VALUE;
+            for (Map.Entry<String, long[]> e : featureStats.entrySet()) {
+                long sum = e.getValue()[0] + e.getValue()[1];
+                if (sum < worstSum) {
+                    worstSum = sum;
+                    worst = e.getKey();
+                }
+            }
+            if (worst == null) {
+                break;
+            }
+            featureStats.remove(worst);
+        }
+    }
+
     public synchronized void markDirty() {
         markDirtyInternal();
     }
@@ -230,6 +348,9 @@ public class RecoStore {
             actions.clear();
             seen.clear();
             authorNames.clear();
+            implicitFlags.clear();
+            featureStats.clear();
+            statTotalServed = 0L;
             markDirtyInternal();
             seqAtStart = dirtySeq;
             dir = prepareStateDir();
@@ -267,6 +388,9 @@ public class RecoStore {
             profile = new RecoProfile();
             actions.clear();
             seen.clear();
+            implicitFlags.clear();
+            featureStats.clear();
+            statTotalServed = 0L;
         } finally {
             close(reader);
             close(fis);
@@ -281,6 +405,8 @@ public class RecoStore {
             readWeights(prof.optJSONObject("tags"), p.tagWeights);
             readWeights(prof.optJSONObject("authors"), p.authorWeights);
             readWeights(prof.optJSONObject("categories"), p.categoryWeights);
+            readWeights(prof.optJSONObject("durations"), p.durationWeights);
+            readWeights(prof.optJSONObject("orientations"), p.orientationWeights);
             p.lastDecayTime = prof.optLong("lastDecayTime", 0L);
             p.likeCount = prof.optInt("likeCount", 0);
             p.dislikeCount = prof.optInt("dislikeCount", 0);
@@ -317,9 +443,39 @@ public class RecoStore {
             while (it.hasNext()) {
                 String k = it.next();
                 String v = names.optString(k, null);
-                if (!TextUtils.isEmpty(v)) {
+                if (!TextUtils.isEmpty(k) && !TextUtils.isEmpty(v)) {
                     authorNames.put(k, v);
                 }
+            }
+        }
+
+        implicitFlags.clear();
+        JSONObject flags = root.optJSONObject("implicitFlags");
+        if (flags != null) {
+            Iterator<String> it = flags.keys();
+            while (it.hasNext()) {
+                String k = it.next();
+                if (!TextUtils.isEmpty(k)) {
+                    implicitFlags.put(k, flags.optInt(k, 0));
+                }
+            }
+        }
+
+        featureStats.clear();
+        statTotalServed = 0L;
+        JSONObject stats = root.optJSONObject("featureStats");
+        if (stats != null) {
+            Iterator<String> it = stats.keys();
+            while (it.hasNext()) {
+                String k = it.next();
+                JSONObject v = stats.optJSONObject(k);
+                if (TextUtils.isEmpty(k) || v == null) {
+                    continue;
+                }
+                long served = Math.max(0L, v.optLong("s", 0L));
+                long positive = Math.max(0L, v.optLong("p", 0L));
+                featureStats.put(k, new long[]{served, positive});
+                statTotalServed += served;
             }
         }
     }
@@ -386,6 +542,8 @@ public class RecoStore {
         snap.tags = new HashMap<>(profile.tagWeights);
         snap.authors = new HashMap<>(profile.authorWeights);
         snap.categories = new HashMap<>(profile.categoryWeights);
+        snap.durations = new HashMap<>(profile.durationWeights);
+        snap.orientations = new HashMap<>(profile.orientationWeights);
         snap.lastDecayTime = profile.lastDecayTime;
         snap.likeCount = profile.likeCount;
         snap.dislikeCount = profile.dislikeCount;
@@ -394,6 +552,12 @@ public class RecoStore {
         snap.actions = new LinkedHashMap<>(actions);
         snap.seen = new ArrayList<>(seen);
         snap.authorNames = new LinkedHashMap<>(authorNames);
+        snap.implicitFlags = new LinkedHashMap<>(implicitFlags);
+        snap.featureStats = new LinkedHashMap<String, long[]>();
+        for (Map.Entry<String, long[]> e : featureStats.entrySet()) {
+            snap.featureStats.put(e.getKey(), new long[]{e.getValue()[0], e.getValue()[1]});
+        }
+        snap.statTotalServed = statTotalServed;
         snap.dictVersion = dictVersion;
         return snap;
     }
@@ -423,6 +587,8 @@ public class RecoStore {
             prof.put("tags", new JSONObject(snap.tags));
             prof.put("authors", new JSONObject(snap.authors));
             prof.put("categories", new JSONObject(snap.categories));
+            prof.put("durations", new JSONObject(snap.durations));
+            prof.put("orientations", new JSONObject(snap.orientations));
             prof.put("lastDecayTime", snap.lastDecayTime);
             prof.put("likeCount", snap.likeCount);
             prof.put("dislikeCount", snap.dislikeCount);
@@ -436,8 +602,22 @@ public class RecoStore {
             }
             root.put("seen", arr);
             root.put("authorNames", new JSONObject(snap.authorNames));
+            JSONObject flags = new JSONObject();
+            for (Map.Entry<String, Integer> e : snap.implicitFlags.entrySet()) {
+                flags.put(e.getKey(), e.getValue());
+            }
+            root.put("implicitFlags", flags);
+            JSONObject stats = new JSONObject();
+            for (Map.Entry<String, long[]> e : snap.featureStats.entrySet()) {
+                JSONObject v = new JSONObject();
+                v.put("s", e.getValue()[0]);
+                v.put("p", e.getValue()[1]);
+                stats.put(e.getKey(), v);
+            }
+            root.put("featureStats", stats);
+            root.put("statTotalServed", snap.statTotalServed);
             root.put("dictVersion", snap.dictVersion);
-            root.put("v", 1);
+            root.put("v", 2);
 
             fos = new FileOutputStream(tmp);
             writer = new OutputStreamWriter(fos, "UTF-8");
@@ -470,6 +650,8 @@ public class RecoStore {
         Map<String, Double> tags;
         Map<String, Double> authors;
         Map<String, Double> categories;
+        Map<String, Double> durations;
+        Map<String, Double> orientations;
         long lastDecayTime;
         int likeCount;
         int dislikeCount;
@@ -478,6 +660,9 @@ public class RecoStore {
         Map<String, Integer> actions;
         List<String> seen;
         Map<String, String> authorNames;
+        Map<String, Integer> implicitFlags;
+        Map<String, long[]> featureStats;
+        long statTotalServed;
         int dictVersion;
     }
 
