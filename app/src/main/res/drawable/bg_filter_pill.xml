@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 推荐页右上角“方向 · 时长”入口：浮在画面上，实色 + 轻描边。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="8dp" />
+    <solid android:color="@color/overlay_pill" />
+    <stroke
+        android:width="1dp"
+        android:color="#33FFFFFF" />
+</shape>

@@ -1,15 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 视频首页（EX-01）：品牌 + 小尺寸 18+ 标识 + 下载入口，分类紧随其后，
+     不出现搜索栏/搜索按钮/继续观看/最近观看模块。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/bg_base"
     android:orientation="vertical"
     tools:context="com.m3man.ui.mman9video.Main9MmanVideoFragment">
+
+    <LinearLayout
+        android:id="@+id/ll_home_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/bg_surface"
+        android:gravity="center_vertical"
+        android:minHeight="@dimen/toolbar_min_height"
+        android:orientation="horizontal"
+        android:paddingLeft="@dimen/page_horizontal_padding"
+        android:paddingRight="@dimen/space_1">
+
+        <TextView
+            android:id="@+id/tv_home_brand"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:letterSpacing="-0.03"
+            android:text="3mman"
+            android:textAppearance="@style/TextAppearance.App.PageTitle"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_home_adult_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/space_2"
+            android:layout_marginLeft="@dimen/space_2"
+            android:background="@drawable/bg_adult_badge"
+            android:paddingLeft="5dp"
+            android:paddingTop="1dp"
+            android:paddingRight="5dp"
+            android:paddingBottom="1dp"
+            android:text="18+"
+            android:textColor="@color/identity_badge_text"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_home_adult_caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/space_2"
+            android:layout_marginLeft="@dimen/space_2"
+            android:letterSpacing="0.12"
+            android:text="@string/home_adult_caption"
+            android:textColor="@color/text_tertiary"
+            android:textSize="8sp" />
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/iv_home_download"
+            android:layout_width="@dimen/touch_min"
+            android:layout_height="@dimen/touch_min"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/home_download_entry"
+            android:padding="@dimen/touch_padding_icon_24"
+            android:src="@drawable/ic_file_download_black_24dp"
+            app:tint="@color/text_primary" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/divider" />
 
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/colorPrimary">
+        android:background="@color/bg_surface">
 
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/tabLayout"
@@ -17,25 +89,32 @@
             android:layout_height="wrap_content"
             android:layout_toLeftOf="@id/iv_sort_category"
             android:layout_toStartOf="@id/iv_sort_category"
-            app:tabBackground="@color/colorPrimary"
+            app:tabBackground="@android:color/transparent"
             app:tabGravity="center"
-            app:tabIndicatorColor="@android:color/white"
+            app:tabIndicatorColor="@color/brand"
             app:tabIndicatorHeight="2dp"
             app:tabMode="scrollable"
-            app:tabSelectedTextColor="@android:color/white"
-            app:tabTextColor="@color/LightGray" />
+            app:tabSelectedTextColor="@color/brand"
+            app:tabTextColor="@color/text_secondary" />
 
         <androidx.appcompat.widget.AppCompatImageButton
             android:id="@+id/iv_sort_category"
-            android:layout_width="55dp"
-            android:layout_height="wrap_content"
+            android:layout_width="@dimen/touch_min"
+            android:layout_height="@dimen/touch_min"
             android:layout_alignParentEnd="true"
             android:layout_alignParentRight="true"
             android:layout_centerVertical="true"
-            android:background="@null"
-            android:padding="10dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/common_drag_slider_tip"
+            android:padding="@dimen/touch_padding_icon_24"
+            app:tint="@color/text_secondary"
             app:srcCompat="@drawable/ic_sort" />
     </RelativeLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/divider" />
 
     <androidx.viewpager.widget.ViewPager
         android:id="@+id/viewPager"

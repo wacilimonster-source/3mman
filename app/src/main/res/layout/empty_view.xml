@@ -1,25 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 空内容状态（spec EX-02）：分类专用文案 + 可选的下一步动作；
+     没有可靠动作时按钮保持隐藏，不制造无功能按钮。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@color/common_background"
+    android:background="@color/bg_base"
     android:gravity="center"
-    >
+    android:orientation="vertical"
+    android:paddingLeft="@dimen/space_6"
+    android:paddingRight="@dimen/space_6">
 
     <TextView
         android:id="@+id/tv_empty_info"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:text="@string/no_data"
-        android:textColor="@color/common_black_white_text_color"
-        android:textSize="20sp" />
+        android:text="@string/state_empty_category"
+        android:textAppearance="@style/TextAppearance.App.Title"
+        android:textColor="@color/text_primary" />
 
     <Button
         android:id="@+id/load_empty_id_btn"
+        style="@style/Widget.App.SecondaryButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:visibility="gone"
-        android:text="@string/click_retry" />
+        android:layout_marginTop="@dimen/space_5"
+        android:minWidth="144dp"
+        android:text="@string/state_go_recommend"
+        android:visibility="gone" />
 </LinearLayout>

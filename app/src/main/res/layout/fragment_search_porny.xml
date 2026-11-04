@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/common_background"
+    android:background="@color/bg_base"
     android:orientation="vertical">
 
     <androidx.appcompat.widget.Toolbar
@@ -21,7 +21,21 @@
             android:layout_height="match_parent" />
     </androidx.appcompat.widget.Toolbar>
 
-    <!-- 内容区：列表 + 默认搜索提示（未搜索 / 无结果时居中展示，避免一进来太空） -->
+    <!-- EX-04：先说明“在哪找”，再展示结果；当前仅分分钟一个来源，不做跨源聚合。 -->
+    <TextView
+        android:id="@+id/tv_search_scope"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/bg_surface"
+        android:paddingLeft="@dimen/page_horizontal_padding"
+        android:paddingTop="@dimen/space_1"
+        android:paddingRight="@dimen/page_horizontal_padding"
+        android:paddingBottom="@dimen/space_1"
+        android:text="@string/search_scope_note"
+        android:textAppearance="@style/TextAppearance.App.Caption"
+        android:textColor="@color/text_tertiary" />
+
+    <!-- 内容区：列表 + 状态提示（未搜索 / 无结果 / 失败） -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -30,30 +44,68 @@
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerView"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
-
-        <TextView
-            android:id="@+id/tv_search_hint"
-            android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:gravity="center"
-            android:lineSpacingExtra="6dp"
-            android:paddingStart="32dp"
-            android:paddingEnd="32dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:text="@string/search_hint_default"
-            android:textAppearance="@style/TextAppearance.App.Body" />
+            android:clipToPadding="false"
+            android:paddingLeft="@dimen/video_list_horizontal_padding"
+            android:paddingTop="@dimen/space_3"
+            android:paddingRight="@dimen/video_list_horizontal_padding" />
 
-        <!-- M119：搜索无结果时的引导按钮（配合 tv_search_hint 的空结果文案出现） -->
-        <Button
-            android:id="@+id/btn_search_go_recommend"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:id="@+id/ll_search_state"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal|bottom"
-            android:layout_marginBottom="72dp"
-            android:text="@string/search_go_recommend"
-            android:visibility="gone" />
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingLeft="@dimen/space_6"
+            android:paddingRight="@dimen/space_6">
+
+            <TextView
+                android:id="@+id/tv_search_hint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:lineSpacingExtra="6dp"
+                android:paddingTop="@dimen/space_2"
+                android:paddingBottom="@dimen/space_2"
+                android:text="@string/search_hint_default"
+                android:textAppearance="@style/TextAppearance.App.Body" />
+
+            <!-- 无结果才显示的恢复动作：改词 / 重置筛选 / 去推荐 -->
+            <LinearLayout
+                android:id="@+id/ll_search_empty_actions"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_3"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <Button
+                    android:id="@+id/btn_search_edit_query"
+                    style="@style/Widget.App.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/search_edit_keyword" />
+
+                <Button
+                    android:id="@+id/btn_search_reset_filters"
+                    style="@style/Widget.App.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/search_reset_filters"
+                    android:visibility="gone" />
+
+                <Button
+                    android:id="@+id/btn_search_go_recommend"
+                    style="@style/Widget.App.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/search_go_recommend" />
+            </LinearLayout>
+        </LinearLayout>
 
         <!-- M44 搜索历史面板：未搜索时叠加在列表上 -->
         <include

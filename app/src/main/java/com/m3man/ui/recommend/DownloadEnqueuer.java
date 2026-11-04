@@ -60,6 +60,8 @@ class DownloadEnqueuer {
     interface Callback {
         boolean isUsable();
         void showMessage(String msg, int type);
+        /** EX-05：真正入队成功后回调（UI 用带“查看”动作的 Snackbar 呈现）。 */
+        void onEnqueued(String message);
         void startDownloadService();
     }
 
@@ -116,7 +118,7 @@ class DownloadEnqueuer {
                     && target.getDownloadId() != 0) {
                 DownloadDiag.append(viewKey, "enqueue=已在下载(status=" + target.getStatus()
                         + ", downloadId=" + target.getDownloadId() + ") → 跳过");
-                throw new IllegalStateException("已经在下载了");
+                throw new IllegalStateException("已在下载中 · 查看");
             }
             return target;
         }).flatMap(target -> {
@@ -145,7 +147,7 @@ class DownloadEnqueuer {
                                     if (ensured != null) hlsPath = ensured;
                                 } catch (Exception ignored) {}
                                 PornyFallbackResolver.enqueueHlsDownload(context, target, porny.getVideoUrl(), hlsPath);
-                                return Single.just(new DownloadResult(true, "已改用 91porny 源下载"));
+                                return Single.just(new DownloadResult(true, "已加入下载队列 · 查看"));
                             } else {
                                 DownloadDiag.append(viewKey, "91porny=直链m3u8为空 → 退回原直链");
                                 return Single.error(new IllegalStateException("porny empty"));
@@ -207,7 +209,7 @@ class DownloadEnqueuer {
         if (DownloadManager.isHlsUrl(url)) {
             DownloadDiag.append(viewKey, "HLS=改走HlsDownloadService");
             PornyFallbackResolver.enqueueHlsDownload(context, target, url, path);
-            return Single.just(new DownloadResult(true, "已加入后台下载"));
+            return Single.just(new DownloadResult(true, "已加入下载队列 · 查看"));
         }
 
         int predictedId = DownloadManager.predictDownloadId(url, path);
@@ -232,7 +234,7 @@ class DownloadEnqueuer {
         }
         dataManager.updateV9MmanItem(target);
         // 复查修正：方法签名返回 Single<DownloadResult>，原语句直接 return 实体导致类型不匹配
-        return Single.just(new DownloadResult(true, "已加入后台下载"));
+        return Single.just(new DownloadResult(true, "已加入下载队列 · 查看"));
     }
 
     /**
@@ -289,9 +291,12 @@ class DownloadEnqueuer {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(result -> {
                     downloadInFlight.remove(viewKey);
-                    callback.showMessage(result.message, result.ok ? TastyToast.SUCCESS : TastyToast.INFO);
                     if (result.ok) {
+                        // 成功才提示可查看；失败保留具体原因，不伪报成功
+                        callback.onEnqueued(result.message);
                         callback.startDownloadService();
+                    } else {
+                        callback.showMessage(result.message, TastyToast.INFO);
                     }
                 }, throwable -> {
                     downloadInFlight.remove(viewKey);

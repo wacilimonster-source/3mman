@@ -109,6 +109,8 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
 
     private AlertDialog mAlertDialog;
     private AlertDialog favoriteDialog;
+    /** EX-05：收藏写入在途标记，同项请求期间禁用重复点击。 */
+    private boolean favoriteInFlight;
 
     private LoadViewHelper helper;
 
@@ -604,12 +606,14 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
 
     @Override
     public void favoriteSuccess() {
+        favoriteInFlight = false;
         presenter.setFavoriteNeedRefresh(true);
         showMessage(getString(R.string.play_favorite_success), TastyToast.SUCCESS);
     }
 
     @Override
     public void showError(String message) {
+        favoriteInFlight = false;
         showMessage(message, TastyToast.ERROR);
         dismissDialog();
     }
@@ -732,21 +736,27 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     }
 
     private void favoriteVideo() {
+        if (favoriteInFlight) {
+            return;
+        }
         if (v9MmanItem == null || v9MmanItem.getVideoResultId() == 0) {
             showMessage(getString(R.string.play_not_parsed_cannot_favorite), TastyToast.INFO);
             return;
         }
         // 91porny 无账号体系，走本地收藏；M42：本地收藏模式下所有源都走本地收藏（无需登录）
         if (PlayVideoPresenter.isPornySource(v9MmanItem) || presenter.isLocalFavoriteMode()) {
+            favoriteInFlight = true;
             favoriteDialog.show();
             mDisposables.add(io.reactivex.Observable.just(1)
                     .map(integer -> presenter.addLocalFavorite(v9MmanItem))
                     .subscribeOn(io.reactivex.schedulers.Schedulers.io())
                     .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
                     .subscribe(aBoolean -> {
+                        favoriteInFlight = false;
                         dismissDialog();
                         showMessage(getString(R.string.play_favorite_saved_local), TastyToast.SUCCESS);
                     }, throwable -> {
+                        favoriteInFlight = false;
                         dismissDialog();
                         showMessage(getString(R.string.play_favorite_failed), TastyToast.ERROR);
                     }));
@@ -759,6 +769,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
             showMessage(getString(R.string.play_please_login_first), TastyToast.WARNING);
             return;
         }
+        favoriteInFlight = true;
         favoriteDialog.show();
         presenter.favorite(String.valueOf(presenter.getLoginUserId()), videoResult.getVideoId(), videoResult.getAuthorId());
     }

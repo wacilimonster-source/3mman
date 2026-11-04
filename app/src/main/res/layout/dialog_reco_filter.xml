@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 推荐筛选面板（spec EX-03）：打开时复制已应用值到草稿，只有「应用」才提交；
+     Back / 遮罩 / 关闭一律丢弃草稿。 -->
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_sheet_top"
+    android:fillViewport="true"
+    android:overScrollMode="never">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingLeft="@dimen/space_5"
+        android:paddingTop="@dimen/space_2"
+        android:paddingRight="@dimen/space_5"
+        android:paddingBottom="@dimen/space_6">
+
+        <View
+            android:layout_width="36dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="@dimen/space_4"
+            android:background="@drawable/bg_duration_badge" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/reco_filter_sheet_title"
+                android:textAppearance="@style/TextAppearance.App.Title"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/iv_reco_filter_close"
+                android:layout_width="@dimen/touch_min"
+                android:layout_height="@dimen/touch_min"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/close"
+                android:padding="@dimen/touch_padding_icon_24"
+                android:src="@drawable/ic_close_black_24dp"
+                app:tint="@color/text_secondary" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_1"
+            android:text="@string/reco_filter_sheet_desc"
+            android:textAppearance="@style/TextAppearance.App.Body" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_5"
+            android:text="@string/reco_filter_orientation"
+            android:textAppearance="@style/TextAppearance.App.Caption"
+            android:textColor="@color/text_primary" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_2"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/chip_reco_orientation_all"
+                style="@style/Widget.App.Chip"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="@dimen/space_2"
+                android:layout_weight="1"
+                android:text="@string/reco_filter_orientation_all" />
+
+            <TextView
+                android:id="@+id/chip_reco_orientation_portrait"
+                style="@style/Widget.App.Chip"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="@dimen/space_2"
+                android:layout_weight="1"
+                android:text="@string/reco_filter_orientation_portrait" />
+
+            <TextView
+                android:id="@+id/chip_reco_orientation_landscape"
+                style="@style/Widget.App.Chip"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/reco_filter_orientation_landscape" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_5"
+            android:text="@string/reco_filter_duration"
+            android:textAppearance="@style/TextAppearance.App.Caption"
+            android:textColor="@color/text_primary" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_2"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/chip_reco_duration_0"
+                style="@style/Widget.App.Chip"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="@dimen/space_2"
+                android:layout_weight="1"
+                android:text="@string/reco_filter_duration_unlimited" />
+
+            <TextView
+                android:id="@+id/chip_reco_duration_1"
+                style="@style/Widget.App.Chip"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="@dimen/space_2"
+                android:layout_weight="1"
+                android:text="≤1 分钟" />
+
+            <TextView
+                android:id="@+id/chip_reco_duration_2"
+                style="@style/Widget.App.Chip"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="≤2 分钟" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_2"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/chip_reco_duration_3"
+                style="@style/Widget.App.Chip"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="@dimen/space_2"
+                android:layout_weight="1"
+                android:text="≤3 分钟" />
+
+            <TextView
+                android:id="@+id/chip_reco_duration_5"
+                style="@style/Widget.App.Chip"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="@dimen/space_2"
+                android:layout_weight="1"
+                android:text="≤5 分钟" />
+
+            <TextView
+                android:id="@+id/chip_reco_duration_10"
+                style="@style/Widget.App.Chip"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="≤10 分钟" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_5"
+            android:text="@string/reco_filter_after_play"
+            android:textAppearance="@style/TextAppearance.App.Caption"
+            android:textColor="@color/text_primary" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_2"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/chip_reco_autoplay_off"
+                style="@style/Widget.App.Chip"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="@dimen/space_2"
+                android:layout_weight="1"
+                android:text="@string/reco_filter_loop_current" />
+
+            <TextView
+                android:id="@+id/chip_reco_autoplay_on"
+                style="@style/Widget.App.Chip"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/reco_filter_auto_next" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_6"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_reco_filter_reset"
+                style="@style/Widget.App.SecondaryButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="@dimen/space_2"
+                android:layout_weight="1"
+                android:text="@string/reco_filter_reset_draft" />
+
+            <Button
+                android:id="@+id/btn_reco_filter_apply"
+                style="@style/Widget.App.PrimaryButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/space_2"
+                android:layout_weight="1"
+                android:text="@string/reco_filter_apply" />
+        </LinearLayout>
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

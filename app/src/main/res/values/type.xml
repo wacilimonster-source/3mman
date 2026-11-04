@@ -51,4 +51,31 @@
         <item name="android:textColor">@color/text_inverse</item>
     </style>
 
+    <!-- ==================== 2026-11 体验精修（spec §3 标尺）==================== -->
+    <style name="TextAppearance.App.PageTitle" parent="TextAppearance.App">
+        <item name="android:textSize">23sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:lineSpacingMultiplier">1.3</item>
+    </style>
+
+    <style name="TextAppearance.App.SectionTitle" parent="TextAppearance.App">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:lineSpacingMultiplier">1.45</item>
+    </style>
+
+    <!-- 卡片标题：15sp / 行高 23sp / Medium，最多两行（布局层限制）。 -->
+    <style name="TextAppearance.App.CardTitle" parent="TextAppearance.App">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:lineSpacingMultiplier">1.53</item>
+    </style>
+
+    <style name="TextAppearance.App.CardMeta" parent="TextAppearance.App">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:lineSpacingMultiplier">1.3</item>
+    </style>
 </resources>

@@ -17,6 +17,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.chad.library.adapter.base.BaseQuickAdapter;
+import com.google.android.material.snackbar.Snackbar;
 import com.helper.loadviewhelper.help.OnLoadViewListener;
 import com.helper.loadviewhelper.load.LoadViewHelper;
 import com.sdsmdg.tastytoast.TastyToast;
@@ -27,8 +28,11 @@ import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.DataManager;
 import com.m3man.data.prefs.PreferencesHelper;
 import com.m3man.ui.MvpFragment;
+import com.m3man.ui.download.DownloadActivity;
+import com.m3man.ui.mman9video.videolist.VideoCardActions;
 import com.m3man.ui.search.SearchHistoryPanel;
 import com.m3man.utils.LoadHelperUtils;
+import com.m3man.widget.VerticalSpaceItemDecoration;
 
 import org.angmarch.views.NiceSpinner;
 
@@ -69,6 +73,13 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
     // M119：搜索无结果时「去推荐页逛逛」引导按钮
     @BindView(R.id.btn_search_go_recommend)
     android.widget.Button btnSearchGoRecommend;
+    // EX-04：无结果时的恢复动作（改词 / 重置筛选 / 去推荐）
+    @BindView(R.id.ll_search_empty_actions)
+    ViewGroup searchEmptyActions;
+    @BindView(R.id.btn_search_edit_query)
+    android.widget.Button btnSearchEditQuery;
+    @BindView(R.id.btn_search_reset_filters)
+    android.widget.Button btnSearchResetFilters;
     // M43：底部页码跳转栏（参考视频分类交互）
     @BindView(R.id.fl_skip_page)
     FrameLayout skipPageLayout;
@@ -128,6 +139,14 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
             searchView.clearFocus();
         }
         hideSoftInput();
+        // 播放页返回后共享元素会清空封面 drawable，延迟到返回动画结束后重新加载。
+        if (mV91MmanAdapter != null && getView() != null) {
+            getView().postDelayed(() -> {
+                if (isAdded() && mV91MmanAdapter != null) {
+                    mV91MmanAdapter.reloadCovers(recyclerView);
+                }
+            }, 600);
+        }
     }
 
     @Override
@@ -145,9 +164,12 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         searchView.setIconified(true);
 
         mV91MmanAdapter = new V91MmanAdapter(R.layout.item_v_9mman);
+        mV91MmanAdapter.setDataManager(dataManager);
         mV91MmanAdapter.openLoadAnimation();
         recyclerView.setLayoutManager(new LinearLayoutManager(context));
         recyclerView.setHasFixedSize(true);
+        recyclerView.addItemDecoration(new VerticalSpaceItemDecoration(
+                getResources().getDimensionPixelSize(R.dimen.video_card_spacing)));
         // RV 自身尺寸由父布局固定（match_parent），子项增删不会改其大小，
         // 标记为 fixed 可跳过无谓的整体布局请求，滚动更顺滑
         recyclerView.setAdapter(mV91MmanAdapter);
@@ -159,6 +181,42 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                 View coverView = view.findViewById(R.id.iv_91mman_item_img);
                 // 91porny 视频为 m3u8 HLS 流，只有 ExoPlayer 支持；JiaoZi/MediaPlayer 无法播放，强制使用 ExoPlayer
                 goToPlayVideo(v9MmanItem, 0, position, coverView);
+            }
+        });
+        // EX-02：搜索结果的「更多」与视频列表共用真实收藏/下载动作。
+        mV91MmanAdapter.setOnCardActionListener(new V91MmanAdapter.OnCardActionListener() {
+            @Override
+            public void onFavoriteAction(V9MmanItem item) {
+                VideoCardActions.toggleFavorite(dataManager, item, (message, success, openDownloads) -> {
+                    if (!isAdded()) {
+                        return;
+                    }
+                    showMessage(message, success ? TastyToast.SUCCESS : TastyToast.ERROR);
+                    int index = mV91MmanAdapter.getData().indexOf(item);
+                    if (success && index >= 0) {
+                        mV91MmanAdapter.notifyItemChanged(index);
+                    }
+                });
+            }
+
+            @Override
+            public void onDownloadAction(V9MmanItem item) {
+                VideoCardActions.download(getContext(), dataManager, item, (message, success, openDownloads) -> {
+                    if (!isAdded()) {
+                        return;
+                    }
+                    if (openDownloads) {
+                        Snackbar.make(recyclerView, message, Snackbar.LENGTH_LONG)
+                                .setAction(getString(R.string.common_view), v -> {
+                                    if (getActivity() != null) {
+                                        startActivity(new android.content.Intent(getActivity(), DownloadActivity.class));
+                                    }
+                                })
+                                .show();
+                    } else {
+                        showMessage(message, success ? TastyToast.SUCCESS : TastyToast.INFO);
+                    }
+                });
             }
         });
         mV91MmanAdapter.setOnLoadMoreListener(new BaseQuickAdapter.RequestLoadMoreListener() {
@@ -194,6 +252,33 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                     if (getActivity() instanceof com.m3man.ui.main.MainActivity) {
                         ((com.m3man.ui.main.MainActivity) getActivity()).switchToTab(1);
                     }
+                }
+            });
+        }
+        // EX-04：无结果时的“修改关键词”
+        if (btnSearchEditQuery != null) {
+            btnSearchEditQuery.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (searchView.isIconified()) {
+                        searchView.setIconified(false);
+                    }
+                    searchView.requestFocus();
+                    android.view.inputmethod.InputMethodManager imm =
+                            (android.view.inputmethod.InputMethodManager) context
+                                    .getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+                    if (imm != null) {
+                        imm.showSoftInput(searchView, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+                    }
+                }
+            });
+        }
+        // EX-04：存在有效筛选且无结果时，允许一键重置筛选并重搜
+        if (btnSearchResetFilters != null) {
+            btnSearchResetFilters.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    resetSearchFilters();
                 }
             });
         }
@@ -237,7 +322,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
             return;
         }
         toolbar.setTitle(R.string.title_porny);
-        toolbar.setBackgroundColor(getResources().getColor(R.color.colorPrimary));
+        toolbar.setBackgroundColor(getResources().getColor(R.color.toolbar_background));
         toolbar.inflateMenu(R.menu.menu_porny_search);
         toolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == R.id.action_porny_filter) {
@@ -274,9 +359,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         helper.showContent();
         // 5. 回到初始提示 + 搜索历史
         showSearchHint(R.string.search_hint_default);
-        if (btnSearchGoRecommend != null) {
-            btnSearchGoRecommend.setVisibility(View.GONE);
-        }
+        hideEmptyActions();
         searchHistoryPanel.show();
     }
 
@@ -361,6 +444,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         }
         tvSearchHint.setText(msgRes);
         tvSearchHint.setVisibility(View.VISIBLE);
+        hideEmptyActions();
     }
 
     private void hideSearchHint() {
@@ -394,6 +478,14 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                     go.setPadding(go.getPaddingLeft() + extra, go.getPaddingTop() + extra,
                             go.getPaddingRight() + extra, go.getPaddingBottom() + extra);
                 }
+                // EX-04：客户端约束 100 字符（不改变服务端编码）。
+                View srcText = findSearchViewInnerView("search_src_text");
+                if (srcText instanceof android.widget.EditText) {
+                    ((android.widget.EditText) srcText).setFilters(
+                            new android.text.InputFilter[]{
+                                    new android.text.InputFilter.LengthFilter(100)
+                            });
+                }
             }
         });
     }
@@ -414,25 +506,41 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         searchView.setOnQueryTextListener(new androidx.appcompat.widget.SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
-                if (!TextUtils.isEmpty(query)) {
-                    searchHistoryPanel.onKeywordSubmitted(query);
+                // EX-04：只由 IME/搜索按钮/历史词触发；trim 后为空阻止提交。
+                final String keyword = query == null ? "" : query.trim();
+                if (TextUtils.isEmpty(keyword)) {
+                    showMessage(getString(R.string.search_keyword_required), TastyToast.INFO);
+                    return true;
                 }
-                if (TextUtils.equals(query, searchId)) {
+                // 同一进行中查询重复提交：不重复请求（AC-04.1）
+                if (TextUtils.equals(keyword, searchId) && presenter.isSearching()) {
                     searchHistoryPanel.hide();
-                    return false;
+                    searchView.clearFocus();
+                    hideSoftInput();
+                    return true;
                 }
-                searchId = query;
+                searchHistoryPanel.onKeywordSubmitted(keyword);
+                // 输入框回填 trim 后的值，保证用户看到的就是实际查询词
+                if (!TextUtils.equals(keyword, query)) {
+                    searchView.setQuery(keyword, false);
+                }
+                searchId = keyword;
                 triggerSearch(true);
                 searchHistoryPanel.hide();
-                return false;
+                // EX-04：提交后收起键盘，避免结果被输入法挡住。
+                searchView.clearFocus();
+                hideSoftInput();
+                return true;
             }
 
             @Override
             public boolean onQueryTextChange(String newText) {
                 if (TextUtils.isEmpty(newText)) {
+                    hideEmptyActions();
                     searchHistoryPanel.show();
                 } else {
                     // M119：输入时用本地历史做关键词联想
+                    hideEmptyActions();
                     searchHistoryPanel.showSuggestions(newText);
                 }
                 return false;
@@ -456,10 +564,16 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
             // 没有关键词时不发起请求，避免无意义的请求
             return;
         }
+        searchId = searchId.trim();
+        if (TextUtils.isEmpty(searchId)) {
+            showMessage(getString(R.string.search_keyword_required), TastyToast.INFO);
+            return;
+        }
         if (pullToRefresh) {
             // 新关键词 / 重新筛选：先回到顶部并收起默认提示，避免滚动后搜新词还停在底部
             scrollListToTop();
             hideSearchHint();
+            hideEmptyActions();
             skipPageLayout.setVisibility(View.GONE);
         }
         presenter.searchVideos(searchId, currentSort, currentTime, currentViews, pullToRefresh);
@@ -610,6 +724,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
 
     @Override
     public void loadMoreFailed() {
+        showMessage(getString(R.string.state_page_load_failed), TastyToast.ERROR);
         mV91MmanAdapter.loadMoreFail();
     }
 
@@ -620,20 +735,59 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
 
     @Override
     public void setMoreData(List<V9MmanItem> v9MmanItemList) {
-        mV91MmanAdapter.addData(applyDurationFilter(v9MmanItemList));
+        mV91MmanAdapter.addData(dedupeBySourceAndKey(applyDurationFilter(v9MmanItemList), true));
         updateSkipBar();
     }
 
     @Override
     public void setData(List<V9MmanItem> data) {
-        mV91MmanAdapter.setNewData(applyDurationFilter(data));
+        mV91MmanAdapter.setNewData(dedupeBySourceAndKey(applyDurationFilter(data), false));
         // 新结果立即回到顶部（用 instant scroll，避免 smooth 在列表重建后被打断导致没回到顶）
         recyclerView.scrollToPosition(0);
         updateSkipBar();
     }
 
+    /**
+     * EX-04：分页去重以「来源 + viewKey」为唯一键，不用标题（同名不同 key 是合法内容）。
+     * @param alsoExcludeExisting 追加页需要排除已经在列表中的条目
+     */
+    private List<V9MmanItem> dedupeBySourceAndKey(List<V9MmanItem> input, boolean alsoExcludeExisting) {
+        if (input == null || input.isEmpty()) {
+            return input;
+        }
+        java.util.HashSet<String> seen = new java.util.HashSet<>();
+        if (alsoExcludeExisting) {
+            for (V9MmanItem old : mV91MmanAdapter.getData()) {
+                String key = identityOf(old);
+                if (key != null) {
+                    seen.add(key);
+                }
+            }
+        }
+        List<V9MmanItem> result = new ArrayList<>(input.size());
+        for (V9MmanItem item : input) {
+            String key = identityOf(item);
+            if (key != null && !seen.add(key)) {
+                continue;
+            }
+            result.add(item);
+        }
+        return result;
+    }
+
+    private static String identityOf(V9MmanItem item) {
+        if (item == null || TextUtils.isEmpty(item.getViewKey())) {
+            return null;
+        }
+        String source = !TextUtils.isEmpty(item.getSourceName()) ? item.getSourceName()
+                : (!TextUtils.isEmpty(item.getSource()) ? item.getSource() : "porny");
+        return source + "|" + item.getViewKey();
+    }
+
     @Override
     public void showLoading(boolean pullToRefresh) {
+        hideSearchHint();
+        hideEmptyActions();
         helper.showLoading();
         LoadHelperUtils.setLoadingText(helper.getLoadIng(), R.id.tv_loading_text, "搜索中，请稍候...");
     }
@@ -642,24 +796,62 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
     public void showContent() {
         helper.showContent();
         if (mV91MmanAdapter.getData().size() == 0) {
-            // 无结果：用居中提示代替空列表，避免一进来/换词后页面太空
-            showSearchHint(R.string.search_empty_result);
+            // EX-04：无结果保留搜索栏与来源/关键词，提供改词、去推荐、重置筛选
+            showSearchHintText(getString(R.string.search_empty_with_keyword,
+                    getString(R.string.source_name_porny),
+                    TextUtils.isEmpty(searchId) ? "" : searchId));
             skipPageLayout.setVisibility(View.GONE);
-            // M119：空结果给出「去推荐页逛逛」引导
-            if (btnSearchGoRecommend != null) {
-                btnSearchGoRecommend.setVisibility(View.VISIBLE);
+            showEmptyActions(isSearchFilterActive());
+            if (searchHistoryPanel != null) {
+                searchHistoryPanel.hide();
             }
         } else {
             hideSearchHint();
-            if (btnSearchGoRecommend != null) {
-                btnSearchGoRecommend.setVisibility(View.GONE);
-            }
+            hideEmptyActions();
             // M154：兜底防线——历史面板 match_parent 盖在整个内容区上（分页栏在
             // FrameLayout 外不受影响），任何路径导致它在结果返回后仍可见时，
             // 用户看到的就是「分页栏出来了但列表没内容」。有结果时强制收起。
             if (searchHistoryPanel != null) {
                 searchHistoryPanel.hide();
             }
+        }
+    }
+
+    /** 空结果动作区：改词/去推荐始终可见，重置筛选仅在存在有效筛选时出现。 */
+    private void showEmptyActions(boolean showResetFilter) {
+        if (searchEmptyActions == null) {
+            return;
+        }
+        searchEmptyActions.setVisibility(View.VISIBLE);
+        if (btnSearchGoRecommend != null) {
+            btnSearchGoRecommend.setVisibility(View.VISIBLE);
+        }
+        if (btnSearchResetFilters != null) {
+            btnSearchResetFilters.setVisibility(showResetFilter ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private void hideEmptyActions() {
+        if (searchEmptyActions != null) {
+            searchEmptyActions.setVisibility(View.GONE);
+        }
+    }
+
+    private boolean isSearchFilterActive() {
+        return !TextUtils.isEmpty(currentSort) || !TextUtils.isEmpty(currentTime)
+                || !TextUtils.isEmpty(currentViews) || duration10;
+    }
+
+    /** 无结果且带筛选时的一键恢复：清空排序/时间/播放量/时长筛选并重搜。 */
+    private void resetSearchFilters() {
+        currentSort = "";
+        currentTime = "";
+        currentViews = "";
+        duration10 = false;
+        saveSearchFilters();
+        hideEmptyActions();
+        if (!TextUtils.isEmpty(searchId)) {
+            triggerSearch(true);
         }
     }
 
@@ -672,7 +864,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
     public void showError(String message) {
         showMessage(message, TastyToast.ERROR);
         helper.showError();
-        LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, "搜索失败了，点击重试");
+        LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, "搜索失败了，请检查网络后重试");
         // L-fix：历史面板/hint 层叠在结果区之上，失败时仅 toast+loadError 用户无感
         // （表现为点了历史后毫无反应）。直接把顶层提示换成失败信息并收起面板，确保可见。
         if (!TextUtils.isEmpty(message)) {
@@ -681,6 +873,25 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                 searchHistoryPanel.hide();
             }
         }
+        hideEmptyActions();
+        wireErrorRetryButton();
+    }
+
+    /** 全屏错误态的独立重试按钮：重试同一 query，不当作无结果。 */
+    private void wireErrorRetryButton() {
+        if (helper.getLoadError() == null) {
+            return;
+        }
+        android.widget.Button retry = helper.getLoadError().findViewById(R.id.btn_error_retry);
+        if (retry == null) {
+            return;
+        }
+        retry.setVisibility(View.VISIBLE);
+        retry.setOnClickListener(v -> {
+            if (!TextUtils.isEmpty(searchId)) {
+                triggerSearch(true);
+            }
+        });
     }
 
     /** L-fix：以任意文本显示顶层提示层 */

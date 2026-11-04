@@ -19,6 +19,7 @@ import com.m3man.adapter.V9MmanItemAdapter;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.ui.MvpActivity;
 import com.m3man.utils.AdapterDiffUtil;
+import com.m3man.widget.VerticalSpaceItemDecoration;
 import com.m3man.utils.DialogUtils;
 import com.m3man.utils.LoadHelperUtils;
 import com.m3man.utils.UndoSnackbar;
@@ -78,6 +79,8 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setHasFixedSize(true);
+        recyclerView.addItemDecoration(new VerticalSpaceItemDecoration(
+                getResources().getDimensionPixelSize(R.dimen.video_card_spacing)));
 
         recyclerView.setAdapter(mUnLimit91Adapter);
         mUnLimit91Adapter.setEmptyView(R.layout.empty_view, recyclerView);

@@ -70,7 +70,7 @@ public abstract class BaseAppCompatActivity extends DaggerAppCompatActivity impl
     @Override
     public void setContentView(int layoutResID) {
         super.setContentView(layoutResID);
-        setStatusBarColor(ContextCompat.getColor(this, R.color.colorPrimary));
+        setStatusBarColor(ContextCompat.getColor(this, R.color.status_bar_color));
     }
 
     /**

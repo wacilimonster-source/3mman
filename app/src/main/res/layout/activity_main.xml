@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white"
+    android:background="@color/bg_base"
     tools:context=".ui.main.MainActivity">
 
     <androidx.coordinatorlayout.widget.CoordinatorLayout
@@ -13,16 +12,8 @@
 
         <include layout="@layout/content_main" />
 
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fab_search"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end|bottom"
-            android:layout_margin="10dp"
-            android:tint="@color/colorPrimary"
-            app:backgroundTint="@color/floating_action_button_tine_bg_color"
-            app:srcCompat="@drawable/ic_add_black_24dp" />
-
+        <!-- 2026-11 体验精修（EX-01）：首页不再提供搜索 FAB / 搜索入口，
+             搜索统一由底部独立「搜索」Tab 进入；此处不保留占位。 -->
         <com.ashokvarma.bottomnavigation.BottomNavigationBar
             android:id="@+id/bottom_navigation_bar"
             android:layout_width="match_parent"

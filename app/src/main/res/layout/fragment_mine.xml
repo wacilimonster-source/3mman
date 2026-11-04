@@ -1,9 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/root_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white"
+    android:background="@color/bg_base"
     tools:context="com.m3man.ui.mine.MineFragment">
 
     <include layout="@layout/layout_mine_header" />
@@ -12,14 +13,161 @@
         android:id="@+id/ov_setting_wrapper"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:scrollbars="none"
         android:layout_marginTop="@dimen/nav_header_height"
-        android:background="@color/setting_bg">
+        android:background="@color/bg_base"
+        android:scrollbars="none">
 
-        <com.qmuiteam.qmui.widget.grouplist.QMUIGroupListView
-            android:id="@+id/mine_list"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingLeft="@dimen/page_horizontal_padding"
+            android:paddingRight="@dimen/page_horizontal_padding">
+
+            <!-- EX-06：本地内容计数（真实 DAO 查询；失败显示 “—”，不伪装成 0） -->
+            <LinearLayout
+                android:id="@+id/ll_mine_stats"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_3"
+                android:background="@drawable/bg_stats_panel"
+                android:orientation="horizontal"
+                android:paddingTop="@dimen/space_2"
+                android:paddingBottom="@dimen/space_2">
+
+                <LinearLayout
+                    android:id="@+id/ll_mine_stat_favorite"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:minHeight="52dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tv_mine_favorite_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="—"
+                        android:textAppearance="@style/TextAppearance.App.PageTitle"
+                        android:textSize="19sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/mine_stats_favorite"
+                        android:textAppearance="@style/TextAppearance.App.Caption" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginTop="@dimen/space_2"
+                    android:layout_marginBottom="@dimen/space_2"
+                    android:background="@color/divider" />
+
+                <LinearLayout
+                    android:id="@+id/ll_mine_stat_history"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:minHeight="52dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tv_mine_history_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="—"
+                        android:textAppearance="@style/TextAppearance.App.PageTitle"
+                        android:textSize="19sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/mine_stats_history"
+                        android:textAppearance="@style/TextAppearance.App.Caption" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginTop="@dimen/space_2"
+                    android:layout_marginBottom="@dimen/space_2"
+                    android:background="@color/divider" />
+
+                <LinearLayout
+                    android:id="@+id/ll_mine_stat_download"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:minHeight="52dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tv_mine_download_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="—"
+                        android:textAppearance="@style/TextAppearance.App.PageTitle"
+                        android:textSize="19sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/mine_stats_download"
+                        android:textAppearance="@style/TextAppearance.App.Caption" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/ll_mine_stats_error"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/mine_stats_load_failed"
+                    android:textAppearance="@style/TextAppearance.App.Caption"
+                    android:textColor="@color/state_error" />
+
+                <Button
+                    android:id="@+id/btn_mine_stats_retry"
+                    style="@style/Widget.App.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/mine_stats_retry" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_2"
+                android:text="@string/mine_stats_local_note"
+                android:textAppearance="@style/TextAppearance.App.Caption" />
+
+            <com.qmuiteam.qmui.widget.grouplist.QMUIGroupListView
+                android:id="@+id/mine_list"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_2" />
+        </LinearLayout>
 
     </com.m3man.widget.ObservableScrollView>
 </RelativeLayout>

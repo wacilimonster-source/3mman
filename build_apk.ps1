@@ -44,7 +44,7 @@ Start-Sleep -Seconds 2
 
 # Set environment
 $env:JAVA_TOOL_OPTIONS = "-Dorg.gradle.native=false"
-$env:GRADLE_USER_HOME = "C:\grd_cache"
+$env:GRADLE_USER_HOME = "C:\Users\wacil\.gradle"
 
 # Pre-create necessary directories
 $dirs = @(

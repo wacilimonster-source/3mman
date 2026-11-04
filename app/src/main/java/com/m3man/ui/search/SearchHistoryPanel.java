@@ -32,7 +32,8 @@ public class SearchHistoryPanel {
     }
 
     private static final int TYPE = AutoCompleteEntity.TYPE_SEARCH_HISTORY;
-    private static final int LIMIT = 30;
+    /** EX-04：历史展示最多 10 个词，最近在前。 */
+    private static final int LIMIT = 10;
 
     private final View container;
     private final RecyclerView rv;
@@ -200,14 +201,27 @@ public class SearchHistoryPanel {
                 .subscribe(o -> dm.saveAutoComplete(kw, TYPE));
     }
 
-    /** M73：清空历史切 IO 线程，避免主线程直写 DB */
+    /** EX-04：清空当前来源的历史需要二次确认，避免误触丢记录。M73：写库切 IO 线程。 */
     private void clearAll() {
-        io.reactivex.Observable.just(1)
-                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
-                .subscribe(o -> dm.clearSearchHistory(TYPE));
-        adapter.setNewData(new ArrayList<String>());
-        // M154：复用 hide()，取消在途展示回调，防止清空后面板又被异步回调拉起
-        hide();
+        new AlertDialog.Builder(container.getContext())
+                .setTitle(R.string.search_history_clear_confirm_title)
+                .setMessage(R.string.search_history_clear_confirm_msg)
+                .setPositiveButton(R.string.clean, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        io.reactivex.Observable.just(1)
+                                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                                .subscribe(o -> dm.clearSearchHistory(TYPE));
+                        adapter.setNewData(new ArrayList<String>());
+                        // M154：复用 hide()，取消在途展示回调，防止清空后面板又被异步回调拉起
+                        hide();
+                        android.widget.Toast.makeText(container.getContext(),
+                                R.string.search_history_cleared,
+                                android.widget.Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void confirmRemove(final String keyword) {

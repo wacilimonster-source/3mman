@@ -1,7 +1,7 @@
 {
-  "versionCode": 160,
-  "versionName": "1.0.127",
-  "updateMessage": "1.0.127 更新内容：\n1）推荐精准度大升级：新增「秒划负反馈」——刷走或没兴趣的内容会实时拉低同类推荐，越刷越准；\n2）新增短期兴趣记忆：刚看完的题材立刻跟上，隔天自动淡出；\n3）完播判定升级：拖动进度条不会被误判为「看完」，同一视频不再重复计分；\n4）冷启动优化：新用户优先推荐热门内容，不再随机；\n5）作者识别前置：列表页即可识别你喜欢的作者；\n6）时长与横竖屏偏好自动学习，探索位真正带来新题材（试过不喜欢的自动沉底）。\n注意：91porny 源功能需可访问外网的网络环境；仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.127.apk",
-  "sha256": "9965da6ce725c66617a7dd93a5e9520011a88c671f091bee77644d698021dc0b"
+  "versionCode": 161,
+  "versionName": "1.0.128",
+  "updateMessage": "1.0.128 更新内容：\n1）修复「我的」页收藏/历史/下载数量在切换底部 Tab 后不刷新的问题；\n2）修复列表卡片「更多」菜单收藏状态显示与实际动作相反的问题；\n3）搜索提交后自动收起键盘，搜索结果不再被输入法遮挡；\n4）修复历史/收藏列表卡片贴屏幕边缘、标题首字被裁切的问题；\n5）修复深色模式下「更多」弹出菜单仍为白色、部分顶部栏与「我的」页头部配色偏离深色主题的问题；\n6）修复从播放页返回后，原卡片封面短暂空白的问题。\n注意：91porny 源功能需可访问外网的网络环境；仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.128.apk",
+  "sha256": "519364416ac46b15300a42fcb0060e9c402d52b1eafb4483f7b0c259ddad4f24"
 }

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@android:color/black">
@@ -96,14 +97,14 @@
         android:visibility="gone" />
 
     <!-- M119：点赞心形爆流动效（横屏与竖屏一致） -->
-    <ImageView
+    <androidx.appcompat.widget.AppCompatImageView
         android:id="@+id/iv_reco_burst_heart"
         android:layout_width="96dp"
         android:layout_height="96dp"
         android:layout_gravity="center"
         android:contentDescription="@string/reco_like"
         android:src="@drawable/ic_favorite_white_32dp"
-        android:tint="#FFFF4D67"
+        app:tint="#FFFF4D67"
         android:visibility="gone" />
 
     <!-- 右侧操作栏（横屏专用）：结构含标签视图但由 applyOrientationUi 在横屏隐藏，
@@ -209,14 +210,14 @@
             android:gravity="center_horizontal"
             android:orientation="vertical">
 
-            <ImageView
+            <androidx.appcompat.widget.AppCompatImageView
                 android:id="@+id/iv_reco_detail"
                 android:layout_width="@dimen/touch_min"
                 android:layout_height="@dimen/touch_min"
                 android:contentDescription="@string/reco_detail"
                 android:padding="@dimen/touch_padding_icon_36"
                 android:src="@drawable/ic_slow_motion_video_black_24dp"
-                android:tint="#FFFFFFFF" />
+                app:tint="#FFFFFFFF" />
 
             <TextView
                 android:id="@+id/tv_reco_detail_label"
@@ -234,14 +235,14 @@
             android:gravity="center_horizontal"
             android:orientation="vertical">
 
-            <ImageView
+            <androidx.appcompat.widget.AppCompatImageView
                 android:id="@+id/iv_reco_download"
                 android:layout_width="@dimen/touch_min"
                 android:layout_height="@dimen/touch_min"
                 android:contentDescription="@string/reco_download"
                 android:padding="@dimen/touch_padding_icon_36"
                 android:src="@drawable/ic_file_download_black_24dp"
-                android:tint="#FFFFFFFF" />
+                app:tint="#FFFFFFFF" />
 
             <TextView
                 android:id="@+id/tv_reco_download_label"
@@ -352,6 +353,16 @@
         android:orientation="vertical">
 
         <TextView
+            android:id="@+id/tv_reco_reason"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:shadowColor="#FF000000"
+            android:shadowRadius="4"
+            android:textColor="@color/brand"
+            android:textSize="11sp"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/tv_reco_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -393,5 +404,15 @@
                 android:textColor="#CCFFFFFF"
                 android:textSize="12sp" />
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_reco_autoplay_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:shadowColor="#FF000000"
+            android:shadowRadius="4"
+            android:textColor="#B3FFFFFF"
+            android:textSize="11sp" />
     </LinearLayout>
 </FrameLayout>

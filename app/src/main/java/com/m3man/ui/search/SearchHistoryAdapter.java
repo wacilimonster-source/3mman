@@ -34,6 +34,7 @@ public class SearchHistoryAdapter extends BaseQuickAdapter<String, BaseViewHolde
     protected void convert(BaseViewHolder helper, String item) {
         helper.setText(R.id.tv_search_history_keyword, item);
         final String keyword = item;
+        helper.itemView.setContentDescription(keyword + "，长按可删除");
         helper.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -51,5 +52,17 @@ public class SearchHistoryAdapter extends BaseQuickAdapter<String, BaseViewHolde
                 return true;
             }
         });
+        // EX-04：长按不是唯一入口——TalkBack 可通过自定义动作删除单条历史。
+        androidx.core.view.ViewCompat.addAccessibilityAction(helper.itemView, "删除该记录",
+                new androidx.core.view.accessibility.AccessibilityViewCommand() {
+                    @Override
+                    public boolean perform(View view,
+                                           androidx.core.view.accessibility.AccessibilityViewCommand.CommandArguments arguments) {
+                        if (actionListener != null) {
+                            actionListener.onItemLongClick(keyword);
+                        }
+                        return true;
+                    }
+                });
     }
 }

@@ -65,7 +65,7 @@
     <string name="reco_mute">静音</string>
     <string name="reco_reset_filters">恢复全部筛选</string>
     <string name="reco_guide_title">操作指南</string>
-    <string name="reco_guide_lines">上下滑动 · 切换视频\n单击 · 暂停 / 播放\n双击左侧点赞 · 双击其他区域快进 1/8\n长按左侧 · 2 倍速\n右上角 · 方向 / 时长 / 连播\n第一页继续下拉 · 换一批</string>
+    <string name="reco_guide_lines">上下滑动 · 切换视频\n单击 · 暂停 / 播放\n双击左侧点赞 · 双击其他区域快进 1/8\n长按左侧 · 2 倍速\n右上角 · 筛选与连播\n第一页继续下拉 · 换一批</string>
     <string name="reco_guide_dismiss">点击任意位置关闭</string>
     <string name="reco_empty_filtered">当前筛选条件下没有更多内容</string>
     <string name="search_go_recommend">换个关键词，或去推荐页逛逛 ↓</string>
@@ -501,4 +501,77 @@
     <!-- 作者相关 -->
     <string name="author_favorite_added">已收藏作者</string>
     <string name="author_favorite_removed">已取消收藏作者</string>
+
+    <!-- ==================== 2026-11 体验精修 ==================== -->
+    <!-- 首页 / 卡片 -->
+    <string name="home_adult_caption">ADULT VIDEO</string>
+    <string name="home_download_entry">我的下载</string>
+    <string name="card_more_actions">更多操作</string>
+    <string name="card_action_favorite">加入收藏</string>
+    <string name="card_action_unfavorite">取消收藏</string>
+    <string name="card_action_download">下载</string>
+    <string name="card_action_downloading">已在下载中</string>
+    <string name="source_name_mman9">视频源</string>
+    <string name="source_name_porny">分分钟</string>
+
+    <!-- 通用内容状态（EX-02） -->
+    <string name="state_load_slow">连接较慢，仍在加载</string>
+    <string name="state_connect_failed">暂时连接不上</string>
+    <string name="state_connect_failed_desc">请检查网络后重试，当前分类和页码会保留。</string>
+    <string name="state_retry">重新加载</string>
+    <string name="state_empty_category">这个分类暂时没有内容</string>
+    <string name="state_go_recommend">去推荐看看</string>
+    <string name="state_empty_search">没有找到相关内容</string>
+    <string name="state_page_load_failed">加载下一页失败</string>
+    <string name="state_page_retry">重试下一页</string>
+    <string name="state_no_more">没有更多了</string>
+    <string name="state_refresh_failed_keep_content">刷新失败，已保留当前内容</string>
+    <string name="common_view">查看</string>
+
+    <!-- 推荐筛选（EX-03） -->
+    <string name="reco_filter_entry">%1$s · %2$s</string>
+    <string name="reco_filter_orientation_all">全部方向</string>
+    <string name="reco_filter_orientation_portrait">竖屏</string>
+    <string name="reco_filter_orientation_landscape">横屏</string>
+    <string name="reco_filter_duration_unlimited">时长不限</string>
+    <string name="reco_filter_duration_value">≤%1$d 分钟</string>
+    <string name="reco_filter_sheet_title">筛选与播放</string>
+    <string name="reco_filter_sheet_desc">应用前，当前内容不会改变。</string>
+    <string name="reco_filter_orientation">视频方向</string>
+    <string name="reco_filter_duration">最长时长</string>
+    <string name="reco_filter_after_play">播完之后</string>
+    <string name="reco_filter_loop_current">循环当前</string>
+    <string name="reco_filter_auto_next">自动下一条</string>
+    <string name="reco_filter_reset_draft">重置草稿</string>
+    <string name="reco_filter_apply">应用</string>
+    <string name="reco_filter_applied">已应用筛选</string>
+    <string name="reco_filter_autoplay_on_hint">连播已开启 · 播完进入下一条</string>
+    <string name="reco_filter_autoplay_off_hint">连播关闭 · 播完循环当前视频</string>
+    <string name="reco_empty_filtered_action">暂时没有符合条件的内容</string>
+    <string name="reco_empty_adjust_filter">调整筛选</string>
+    <string name="reco_empty_reset_filter">恢复全部筛选</string>
+    <string name="reco_filter_a11y_next">下一视频</string>
+    <string name="reco_filter_a11y_previous">上一视频</string>
+    <string name="reco_reason_author">你常看的作者</string>
+    <string name="reco_reason_tags">与你的偏好相似</string>
+    <string name="reco_reason_explore">换一种发现</string>
+    <string name="reco_favorite_in_flight">收藏正在处理中，请稍候</string>
+
+    <!-- 搜索（EX-04） -->
+    <string name="search_keyword_required">请输入搜索关键词</string>
+    <string name="search_scope_note">仅在「分分钟」内搜索 · 结果以实际加载为准</string>
+    <string name="search_empty_with_keyword">在「%1$s」中没有找到“%2$s”\n试试更短的关键词</string>
+    <string name="search_edit_keyword">修改关键词</string>
+    <string name="search_reset_filters">重置筛选</string>
+    <string name="search_history_clear_confirm_title">清空搜索记录？</string>
+    <string name="search_history_clear_confirm_msg">只清除当前来源在本机保存的搜索词。</string>
+    <string name="search_history_cleared">已清空当前来源的搜索记录</string>
+
+    <!-- 我的（EX-06） -->
+    <string name="mine_stats_favorite">收藏</string>
+    <string name="mine_stats_history">历史</string>
+    <string name="mine_stats_download">下载</string>
+    <string name="mine_stats_load_failed">本地记录读取失败</string>
+    <string name="mine_stats_retry">重新读取</string>
+    <string name="mine_stats_local_note">记录与偏好保存在本机</string>
 </resources>

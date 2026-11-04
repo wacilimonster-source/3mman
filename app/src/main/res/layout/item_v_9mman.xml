@@ -1,30 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- M112 重构（原结构 CardView > LinearLayout > ConstraintLayout > ImageView，4 层）：
-     1. 原 CardView 的 cardCornerRadius=0dp、无 margin、contentPadding 仅 1dp —— 它只当
-        「纯 padding 壳」用，却多出一层背景导致过度绘制，且 minSdk 28 下
-        cardUseCompatPadding 也不产生任何间距，故整个 CardView 层删除；
-     2. 原中间的 ConstraintLayout 只包了一个 ImageView，同样合并；
-     3. scaleType 由 fitCenter 改为 centerCrop：16:9 约束下非 16:9 封面原来会留黑边。
-     id 保持不变（iv_91mman_item_img / tv_91mman_item_title / tv_91mman_item_info），
-     V91MmanAdapter / V9MmanItemAdapter / DownloadVideoAdapter 及右滑菜单 include 均不受影响。 -->
+<!-- 2026-11 体验精修（spec EX-02 / §3）：单列大卡片、16:9 封面、10dp 圆角、
+     标题 15sp 最多两行、元信息 11sp；封面与文字外置，不加卡片投影。
+     既有 View ID（iv_91mman_item_img / tv_91mman_item_title / tv_91mman_item_info）
+     全部保留，历史/收藏/下载/搜索/视频列表共用本布局。 -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/recycler_item_selector">
+    android:background="@drawable/bg_video_card">
 
-    <ImageView
+    <com.m3man.widget.RoundedCornerImageView
         android:id="@+id/iv_91mman_item_img"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:contentDescription="@string/cd_video_cover"
         android:scaleType="centerCrop"
         android:transitionName="video_cover"
         app:layout_constraintDimensionRatio="H,16:9"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent"  android:contentDescription="@string/cd_video_cover"/>
+        app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- M119：视频方向角标（竖屏/横屏），源图宽高比由 SmartCoverTransformation 登记后回读 -->
+    <!-- 时长角标：mm:ss / h:mm:ss，解析失败时由适配器置 GONE（不输出 00:00）。 -->
+    <TextView
+        android:id="@+id/tv_duration_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="9dp"
+        android:layout_marginRight="9dp"
+        android:layout_marginBottom="9dp"
+        android:background="@drawable/bg_duration_badge"
+        android:paddingLeft="6dp"
+        android:paddingTop="2dp"
+        android:paddingRight="6dp"
+        android:paddingBottom="2dp"
+        android:textColor="#FFFFFFFF"
+        android:textSize="11sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/iv_91mman_item_img"
+        app:layout_constraintRight_toRightOf="@id/iv_91mman_item_img" />
+
+    <!-- 视频方向角标（竖屏/横屏），源图宽高比由 SmartCoverTransformation 登记后回读 -->
     <TextView
         android:id="@+id/tv_orientation_badge"
         android:layout_width="wrap_content"
@@ -33,16 +49,16 @@
         android:layout_marginEnd="6dp"
         android:layout_marginRight="6dp"
         android:background="#66000000"
-        android:paddingBottom="2dp"
         android:paddingLeft="6dp"
-        android:paddingRight="6dp"
         android:paddingTop="2dp"
+        android:paddingRight="6dp"
+        android:paddingBottom="2dp"
         android:textAppearance="@style/TextAppearance.App.Inverse.Caption"
         android:visibility="gone"
         app:layout_constraintRight_toRightOf="@id/iv_91mman_item_img"
         app:layout_constraintTop_toTopOf="@id/iv_91mman_item_img" />
 
-    <!-- 蝌蚪/精品 来源角标（91porny 新频道条目），viewKey 前缀判定，V91MmanAdapter 控制 -->
+    <!-- 蝌蚪/精品 来源角标（91porny 新频道条目），viewKey 前缀判定 -->
     <TextView
         android:id="@+id/tv_source_badge"
         android:layout_width="wrap_content"
@@ -50,46 +66,69 @@
         android:layout_marginStart="6dp"
         android:layout_marginLeft="6dp"
         android:layout_marginTop="6dp"
-        android:paddingBottom="2dp"
         android:paddingLeft="6dp"
-        android:paddingRight="6dp"
         android:paddingTop="2dp"
+        android:paddingRight="6dp"
+        android:paddingBottom="2dp"
         android:textAppearance="@style/TextAppearance.App.Inverse.Caption"
         android:visibility="gone"
         app:layout_constraintLeft_toLeftOf="@id/iv_91mman_item_img"
         app:layout_constraintStart_toStartOf="@id/iv_91mman_item_img"
         app:layout_constraintTop_toTopOf="@id/iv_91mman_item_img" />
 
-    <androidx.appcompat.widget.AppCompatTextView
-        android:id="@+id/tv_91mman_item_title"
+    <!-- 图外文字区：标题/元信息在左，“更多”是独立 48dp 热区。 -->
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:ellipsize="end"
-        android:gravity="center_vertical"
-        android:maxLines="2"
-        android:minHeight="42dp"
-        android:paddingLeft="6dp"
-        android:paddingTop="4dp"
-        android:paddingRight="6dp"
-        android:textAppearance="@style/TextAppearance.App.Title"
-        android:textColor="@color/text_primary"
-        android:textStyle="bold"
+        android:orientation="horizontal"
+        android:paddingTop="9dp"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/iv_91mman_item_img" />
+        app:layout_constraintTop_toBottomOf="@id/iv_91mman_item_img">
 
-    <androidx.appcompat.widget.AppCompatTextView
-        android:id="@+id/tv_91mman_item_info"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:paddingLeft="6dp"
-        android:paddingRight="6dp"
-        android:paddingBottom="8dp"
-        android:textAppearance="@style/TextAppearance.App.Caption"
-        android:textColor="@color/text_secondary"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tv_91mman_item_title" />
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/tv_91mman_item_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="start"
+                android:maxLines="2"
+                android:textAppearance="@style/TextAppearance.App.CardTitle" />
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/tv_91mman_item_meta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.App.CardMeta"
+                android:visibility="gone" />
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/tv_91mman_item_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAppearance="@style/TextAppearance.App.CardMeta" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/iv_91mman_item_more"
+            android:layout_width="@dimen/touch_min"
+            android:layout_height="@dimen/touch_min"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/card_more_actions"
+            android:padding="@dimen/touch_padding_icon_24"
+            android:src="@drawable/ic_more_vert_24dp"
+            android:visibility="gone" />
+    </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

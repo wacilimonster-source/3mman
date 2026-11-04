@@ -2,6 +2,7 @@ package com.m3man.ui.basemain;
 
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.drawable.ColorDrawable;
 import android.view.Gravity;
 import android.os.Build;
@@ -35,6 +36,7 @@ import com.m3man.adapter.SortCategoryAdapter;
 import com.m3man.data.db.entity.Category;
 import com.m3man.eventbus.LowMemoryEvent;
 import com.m3man.ui.MvpFragment;
+import com.m3man.ui.download.DownloadActivity;
 import com.m3man.utils.AnimationUtils;
 import com.m3man.utils.FragmentUtils;
 
@@ -121,6 +123,12 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         unbinder = ButterKnife.bind(this, view);
+        // EX-01：首页头部右侧下载入口，进入现有下载管理页；不放搜索入口。
+        View downloadEntry = view.findViewById(R.id.iv_home_download);
+        if (downloadEntry != null) {
+            downloadEntry.setOnClickListener(v ->
+                    startActivity(new Intent(context, DownloadActivity.class)));
+        }
 //        Drawable dropDownDrawable = ResourceUtil.tintList(context, R.drawable.ic_arrow_drop_down_black_24dp, R.color.common_always_white_text_color);
 //        ivSortCategory.setImageDrawable(dropDownDrawable);
         ivSortCategory.setOnClickListener(this);

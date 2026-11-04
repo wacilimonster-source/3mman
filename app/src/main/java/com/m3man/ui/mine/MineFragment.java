@@ -24,6 +24,7 @@ import com.m3man.R;
 import com.m3man.constants.Constants;
 import com.m3man.constants.Keys;
 import com.m3man.constants.KeysActivityRequestResultCode;
+import com.m3man.data.DataManager;
 import com.m3man.data.model.User;
 import com.m3man.ui.MvpFragment;
 import com.m3man.ui.about.AboutActivity;
@@ -69,6 +70,14 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
     ImageView imageView;
     @BindView(R.id.ov_setting_wrapper)
     ObservableScrollView observableScrollView;
+    @BindView(R.id.tv_mine_favorite_count)
+    TextView favoriteCountView;
+    @BindView(R.id.tv_mine_history_count)
+    TextView historyCountView;
+    @BindView(R.id.tv_mine_download_count)
+    TextView downloadCountView;
+    @BindView(R.id.ll_mine_stats_error)
+    View statsErrorView;
     private String myFavoriteStr;
     public String myDownloadStr;
     private String viewHistoryStr;
@@ -87,6 +96,12 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
 
     @Inject
     protected MinePresenter minePresenter;
+    @Inject
+    protected DataManager dataManager;
+
+    /** EX-06：本地计数查询，页面销毁时取消，避免回调写已解绑的 View。 */
+    private final io.reactivex.disposables.CompositeDisposable countDisposables =
+            new io.reactivex.disposables.CompositeDisposable();
 
     public MineFragment() {
 
@@ -143,17 +158,93 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
         };
         observableScrollView.postDelayed(restoreScrollRunnable, 200);
         initMineSection();
+        initStatsPanel();
+    }
+
+    /** EX-06：三项本地计数与入口；点击沿用现有收藏/历史/下载页面。 */
+    private void initStatsPanel() {
+        View favorite = getView().findViewById(R.id.ll_mine_stat_favorite);
+        View history = getView().findViewById(R.id.ll_mine_stat_history);
+        View download = getView().findViewById(R.id.ll_mine_stat_download);
+        if (favorite != null) {
+            favorite.setOnClickListener(v -> actionClickList(myFavoriteStr));
+        }
+        if (history != null) {
+            history.setOnClickListener(v -> actionClickList(viewHistoryStr));
+        }
+        if (download != null) {
+            download.setOnClickListener(v -> actionClickList(myDownloadStr));
+        }
+        View retry = getView().findViewById(R.id.btn_mine_stats_retry);
+        if (retry != null) {
+            retry.setOnClickListener(v -> loadLocalCounts());
+        }
+    }
+
+    /**
+     * EX-06：后台线程读取真实计数；读取失败显示 “—” 与重试，不把错误伪装成 0。
+     */
+    private void loadLocalCounts() {
+        if (dataManager == null) {
+            showCountsUnavailable();
+            return;
+        }
+        countDisposables.clear();
+        countDisposables.add(io.reactivex.Observable.fromCallable(() -> new long[]{
+                        dataManager.countLocalFavorites(),
+                        dataManager.countHistoryItems(),
+                        dataManager.countDownloadTasks()
+                })
+                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
+                .subscribe(counts -> {
+                    if (!isAdded() || favoriteCountView == null) {
+                        return;
+                    }
+                    favoriteCountView.setText(String.valueOf(counts[0]));
+                    historyCountView.setText(String.valueOf(counts[1]));
+                    downloadCountView.setText(String.valueOf(counts[2]));
+                    if (statsErrorView != null) {
+                        statsErrorView.setVisibility(View.GONE);
+                    }
+                }, throwable -> showCountsUnavailable()));
+    }
+
+    private void showCountsUnavailable() {
+        if (!isAdded()) {
+            return;
+        }
+        if (favoriteCountView != null) {
+            favoriteCountView.setText("—");
+            historyCountView.setText("—");
+            downloadCountView.setText("—");
+        }
+        if (statsErrorView != null) {
+            statsErrorView.setVisibility(View.VISIBLE);
+        }
     }
 
     @Override
     public void onResume() {
         super.onResume();
         setUpUserInfo(presenter.getLoginUser());
+        // EX-06：从收藏/历史/下载页返回后刷新真实计数
+        loadLocalCounts();
         // M97：统一走 rebuildLogoutEntry，未创建过入口时也能补建
         if (logoutItemView == null) {
             rebuildLogoutEntry();
         } else {
             logoutItemView.setVisibility(presenter.isUserLogin() ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    @Override
+    public void onHiddenChanged(boolean hidden) {
+        super.onHiddenChanged(hidden);
+        // EX-06：主 Tab 使用 hide/show 切换，不会回调 onResume；
+        // 从视频/推荐/搜索页收藏或观看后切回「我的」时在此刷新真实计数。
+        if (!hidden) {
+            loadLocalCounts();
         }
     }
 
@@ -334,6 +425,7 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        countDisposables.clear();
         //移除未执行的延迟任务，防止内存泄漏
         if (observableScrollView != null && restoreScrollRunnable != null) {
             observableScrollView.removeCallbacks(restoreScrollRunnable);

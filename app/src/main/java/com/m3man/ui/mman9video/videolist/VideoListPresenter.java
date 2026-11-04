@@ -40,6 +40,9 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
     private boolean isLoadMoreCleanCache = false;
     private DataManager dataManager;
     private String m;
+    /** 请求代际：页面超时取消后，迟到的旧响应不得改写新状态（spec EX-02 / AC-02.5）。 */
+    private volatile long requestGeneration;
+    private Disposable inFlight;
 
     @Inject
     public VideoListPresenter(LifecycleProvider<Lifecycle.Event> provider, DataManager dataManager) {
@@ -67,6 +70,8 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
             return;
         }
         isLoading = true;
+        final long generation = ++requestGeneration;
+        disposeInFlight();
         if ("watch".equalsIgnoreCase(category)) {
             //最近更新
             action(dataManager.loadMman9VideoRecentUpdates(category, page, cleanCache, isLoadMoreCleanCache)
@@ -77,7 +82,7 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
                             totalPage = baseResult.getTotalPage();
                         }
                         return baseResult.getData();
-                    }), pullToRefresh, skipPage);
+                    }), pullToRefresh, skipPage, generation);
         } else {
             //其他栏目
             if (!"top1".equals(category)) {
@@ -95,18 +100,40 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
                         }
                         return baseResult.getData();
                     });
-            action(ob, pullToRefresh, skipPage);
+            action(ob, pullToRefresh, skipPage, generation);
         }
     }
 
+    /**
+     * 取消在途请求并让迟到响应失效（页面 15s 超时进入可重试状态时调用）。
+     */
+    public void cancelCurrentRequest() {
+        requestGeneration++;
+        disposeInFlight();
+        isLoading = false;
+    }
 
-    private void action(Observable<List<V9MmanItem>> observable, boolean pullToRefresh, int skipPage) {
+    private void disposeInFlight() {
+        if (inFlight != null && !inFlight.isDisposed()) {
+            inFlight.dispose();
+        }
+        inFlight = null;
+    }
+
+
+    private void action(Observable<List<V9MmanItem>> observable, boolean pullToRefresh, int skipPage,
+                        final long generation) {
         observable.retryWhen(new RetryWhenProcess(RetryWhenProcess.PROCESS_TIME))
                 .compose(RxSchedulersHelper.ioMainThread())
                 .compose(provider.bindUntilEvent(Lifecycle.Event.ON_DESTROY))
                 .subscribe(new CallBackWrapper<List<V9MmanItem>>() {
                     @Override
                     public void onBegin(Disposable d) {
+                        if (generation != requestGeneration) {
+                            d.dispose();
+                            return;
+                        }
+                        inFlight = d;
                         //首次加载显示加载页
                         ifViewAttached(view -> {
                             if (page == 1 && !pullToRefresh && skipPage != 1) {
@@ -120,6 +147,10 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
 
                     @Override
                     public void onSuccess(final List<V9MmanItem> v9MmanItems) {
+                        if (generation != requestGeneration) {
+                            return;
+                        }
+                        inFlight = null;
                         isLoading = false;
                         // M97：先记录本页页码再自增，getPage() 依据它返回真实已加载页
                         lastLoadedPage = page;
@@ -150,6 +181,10 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
 
                     @Override
                     public void onError(final String msg, int code) {
+                        if (generation != requestGeneration) {
+                            return;
+                        }
+                        inFlight = null;
                         isLoading = false;
                         //首次加载失败，显示重试页
                         ifViewAttached(view -> {

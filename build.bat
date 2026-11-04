@@ -39,7 +39,7 @@ if not exist "C:\grd_cache\wrapper\dists" mkdir "C:\grd_cache\wrapper\dists"
 
 :: Set environment variables
 set JAVA_TOOL_OPTIONS=-Dorg.gradle.native=false
-set GRADLE_USER_HOME=C:\grd_cache
+set GRADLE_USER_HOME=C:\Users\wacil\.gradle
 
 :: Build APK
 echo.

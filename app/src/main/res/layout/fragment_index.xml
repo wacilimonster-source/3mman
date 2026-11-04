@@ -2,7 +2,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/common_background"
+    android:background="@color/bg_base"
     tools:context="com.m3man.ui.mman9video.index.IndexFragment">
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout

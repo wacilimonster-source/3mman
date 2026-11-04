@@ -36,6 +36,15 @@ public interface DbHelper {
 
     List<V9MmanItem> loadLocalFavoriteItems();
 
+    /** EX-06：本地收藏数（isLocalFavorite = true）。 */
+    long countLocalFavorites();
+
+    /** EX-06：观看历史数（viewHistoryDate 非空）。 */
+    long countHistoryItems();
+
+    /** EX-06：下载任务数（downloadId 非 0，含进行中/已完成）。 */
+    long countDownloadTasks();
+
     List<V9MmanItem> findV9MmanItemByDownloadStatus(int status);
 
     List<Category> loadAllCategoryDataByType(int type);

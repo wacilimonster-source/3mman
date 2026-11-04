@@ -100,6 +100,11 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
         return currentPageShown;
     }
 
+    /** EX-04：同一 queryKey 是否仍在途（用于拦截重复提交）。 */
+    public boolean isSearching() {
+        return inFlightSearch != null && !inFlightSearch.isDisposed();
+    }
+
     private void doSearch(final int currentPage, String searchId, String sort, String time, String views, final boolean jumpMode) {
         AppLog.i(TAG, "分分钟搜索 page=" + currentPage + " keyword=" + searchId);
         // M100：串位修复——searchVideos/jumpToPage 均汇入本方法，发起前先取消上一条在途请求（保留 ON_DESTROY 绑定）

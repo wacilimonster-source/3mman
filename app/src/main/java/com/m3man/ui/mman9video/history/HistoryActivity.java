@@ -15,6 +15,7 @@ import com.m3man.R;
 import com.m3man.adapter.V9MmanItemAdapter;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.ui.MvpActivity;
+import com.m3man.widget.VerticalSpaceItemDecoration;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +54,8 @@ public class HistoryActivity extends MvpActivity<HistoryView, HistoryPresenter> 
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setHasFixedSize(true);
+        recyclerView.addItemDecoration(new VerticalSpaceItemDecoration(
+                getResources().getDimensionPixelSize(R.dimen.video_card_spacing)));
 
         recyclerView.setAdapter(mUnLimit91Adapter);
         mUnLimit91Adapter.setEmptyView(R.layout.empty_view, recyclerView);

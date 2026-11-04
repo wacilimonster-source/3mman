@@ -1,9 +1,10 @@
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
+    <!-- 夜间仍保留品牌紫身份，不再退化成灰色。 -->
     <gradient
         android:angle="135"
-        android:centerColor="@color/qmui_config_color_gray_3"
-        android:endColor="@color/qmui_config_color_gray_1"
-        android:startColor="@color/qmui_config_color_gray_6"
+        android:centerColor="#6A1B9A"
+        android:endColor="@color/brand_container"
+        android:startColor="#4A148C"
         android:type="linear" />
 </shape>

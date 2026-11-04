@@ -8,8 +8,8 @@
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="?colorPrimary"
-        app:titleTextColor="@color/common_always_white_text_color"
+        android:background="@color/toolbar_background"
+        app:titleTextColor="@color/toolbar_text"
         app:popupTheme="@style/AppTheme.PopupOverlay"
         app:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar" />
 </merge>

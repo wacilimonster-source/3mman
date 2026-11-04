@@ -1,24 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 首次加载失败状态（spec EX-02）：语义明确的标题、可选用原因、独立重试按钮。
+     仍保留 tv_error_text，兼容既有 LoadHelperUtils.setErrorText 调用。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/bg_base"
     android:gravity="center"
-    android:background="@color/common_background"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:paddingLeft="@dimen/space_6"
+    android:paddingRight="@dimen/space_6">
 
     <ImageView
-        android:layout_width="160dp"
-        android:layout_height="160dp"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:contentDescription="@null"
         android:src="@drawable/ic_cloud_off" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_3"
+        android:gravity="center"
+        android:text="@string/state_connect_failed"
+        android:textAppearance="@style/TextAppearance.App.Title"
+        android:textStyle="bold" />
 
     <TextView
         android:id="@+id/tv_error_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
+        android:layout_marginTop="@dimen/space_2"
         android:gravity="center"
-        android:padding="16dp"
-        android:text="@string/error_view_message"
-        android:textAppearance="@style/TextAppearance.App.Title" />
+        android:text="@string/state_connect_failed_desc"
+        android:textAppearance="@style/TextAppearance.App.Body" />
+
+    <Button
+        android:id="@+id/btn_error_retry"
+        style="@style/Widget.App.SecondaryButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/space_5"
+        android:minWidth="144dp"
+        android:text="@string/state_retry"
+        android:visibility="gone" />
 
 </LinearLayout>

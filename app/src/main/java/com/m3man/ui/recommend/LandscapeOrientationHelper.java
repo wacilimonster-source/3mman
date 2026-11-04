@@ -143,10 +143,6 @@ class LandscapeOrientationHelper {
             lp.bottomMargin = 0;
             content.setLayoutParams(lp);
         }
-        View fab = floatingActionButtonView(activity);
-        if (fab != null) {
-            fab.setVisibility(View.GONE);
-        }
         if (activity instanceof BaseAppCompatActivity) {
             ((BaseAppCompatActivity) activity).setNavigationBarOverlap(true);
         }
@@ -210,7 +206,8 @@ class LandscapeOrientationHelper {
         applyFeedContentFullBleed(activity);
         ViewGroup contentParent = (ViewGroup) activity.findViewById(android.R.id.content);
         if (contentParent != null && contentParent.getChildCount() > 0) {
-            contentParent.getChildAt(0).setBackgroundColor(Color.WHITE);
+            contentParent.getChildAt(0).setBackgroundColor(
+                    ContextCompat.getColor(activity, R.color.bg_base));
         }
         View landscapeBackView = host.getLandscapeBackView();
         if (landscapeBackView != null) {
@@ -265,11 +262,12 @@ class LandscapeOrientationHelper {
         }
         ViewGroup contentParent = (ViewGroup) activity.findViewById(android.R.id.content);
         if (contentParent != null && contentParent.getChildCount() > 0) {
-            contentParent.getChildAt(0).setBackgroundColor(Color.WHITE);
+            contentParent.getChildAt(0).setBackgroundColor(
+                    ContextCompat.getColor(activity, R.color.bg_base));
         }
         if (activity instanceof BaseAppCompatActivity) {
             ((BaseAppCompatActivity) activity)
-                    .setStatusBarColor(ContextCompat.getColor(activity, R.color.colorPrimary));
+                    .setStatusBarColor(ContextCompat.getColor(activity, R.color.status_bar_color));
         }
         View landscapeBackView = host.getLandscapeBackView();
         if (landscapeBackView != null) {
@@ -330,17 +328,20 @@ class LandscapeOrientationHelper {
             }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.setStatusBarColor(Color.TRANSPARENT);
+            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+            // 推荐流是全屏深色媒体区：状态栏用黑色 + 浅色图标，避免白色状态栏截断画面。
+            window.setStatusBarColor(Color.BLACK);
             window.setNavigationBarColor(Color.BLACK);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                View decor = window.getDecorView();
+                int vis = decor.getSystemUiVisibility();
+                vis &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+                decor.setSystemUiVisibility(vis);
+            }
         }
     }
 
     private View bottomNavigationBarView(Activity activity) {
         return activity == null ? null : activity.findViewById(R.id.bottom_navigation_bar);
-    }
-
-    private View floatingActionButtonView(Activity activity) {
-        // 复查修正：主界面 FAB 的真实 id 是 fab_search（floatingActionButton 不存在）
-        return activity == null ? null : activity.findViewById(R.id.fab_search);
     }
 }

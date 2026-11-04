@@ -121,6 +121,21 @@ public class AppDataManager implements DataManager {
     }
 
     @Override
+    public long countLocalFavorites() {
+        return mDbHelper.countLocalFavorites();
+    }
+
+    @Override
+    public long countHistoryItems() {
+        return mDbHelper.countHistoryItems();
+    }
+
+    @Override
+    public long countDownloadTasks() {
+        return mDbHelper.countDownloadTasks();
+    }
+
+    @Override
     public List<V9MmanItem> findV9MmanItemByDownloadStatus(int status) {
         return mDbHelper.findV9MmanItemByDownloadStatus(status);
     }

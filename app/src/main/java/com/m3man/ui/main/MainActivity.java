@@ -5,11 +5,9 @@ import android.os.Bundle;
 import androidx.annotation.IntRange;
 import androidx.annotation.NonNull;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
-import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import com.ashokvarma.bottomnavigation.BottomNavigationBar;
@@ -18,7 +16,6 @@ import com.devbrackets.android.exomedia.util.ResourceUtil;
 import com.liulishuo.filedownloader.FileDownloader;
 import com.orhanobut.logger.Logger;
 import com.qmuiteam.qmui.util.QMUIDisplayHelper;
-import com.qmuiteam.qmui.widget.dialog.QMUIBottomSheet;
 import com.qmuiteam.qmui.widget.dialog.QMUIDialog;
 import com.sdsmdg.tastytoast.TastyToast;
 import com.m3man.BuildConfig;
@@ -31,7 +28,6 @@ import com.m3man.data.network.Api;
 import com.m3man.eventbus.LowMemoryEvent;
 import com.m3man.ui.MvpActivity;
 import com.m3man.ui.basemain.BaseMainFragment;
-import com.m3man.ui.download.DownloadActivity;
 import com.m3man.ui.mine.MineFragment;
 import com.m3man.ui.mman9video.Main9MmanVideoFragment;
 import com.m3man.ui.update.UpdateActivity;
@@ -56,7 +52,6 @@ import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
@@ -74,8 +69,6 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
 
     @BindView(R.id.bottom_navigation_bar)
     BottomNavigationBar bottomNavigationBar;
-    @BindView(R.id.fab_search)
-    FloatingActionButton fabSearch;
     @BindView(R.id.content)
     FrameLayout contentFrameLayout;
 
@@ -112,8 +105,6 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
     private String firstTabShow;
     private boolean isBackground = false;
 
-    private List<String> firstTagsArray = new ArrayList<>();
-
     @Inject
     MainPresenter mainPresenter;
 
@@ -123,9 +114,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         setContentView(R.layout.activity_main);
         NotificationChannelHelper.initChannel(this);
         ButterKnife.bind(this);
-        // 9mman 站内搜索入口已移除，仅保留主界面底部「搜索」Tab（91porny 搜索）
-        firstTagsArray.add(Tags.TAG_MY_DOWNLOAD);
-        firstTagsArray.add(Tags.TAG_PRON_9_VIDEO);
+        // EX-01：首页不设任何搜索入口，搜索只保留底部独立「搜索」Tab。
 
         fragmentManager = getSupportFragmentManager();
         selectIndex = getIntent().getIntExtra(Keys.KEY_SELECT_INDEX, 0);
@@ -138,7 +127,6 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         makeDirAndCheckPermission();
         requestNotificationPermission();
 
-        fabSearch.setOnClickListener(v -> doOnFloatingActionButtonClick(selectIndex));
         firstTabShow = presenter.getMainFirstTabShow();
         doOnTabSelected(selectIndex);
         checkNeedToShowUpdateOrNoticeDialog();
@@ -202,35 +190,6 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         Logger.t(TAG).d("检查新公告：" + message);
     }
 
-    private void doOnFloatingActionButtonClick(@IntRange(from = 0, to = 1) int position) {
-        switch (position) {
-            case 0:
-                showVideoBottomSheet(firstTagsArray.indexOf(firstTabShow));
-                break;
-            default:
-        }
-    }
-
-    private void showVideoBottomSheet(final int checkIndex) {
-        new QMUIBottomSheet.BottomListSheetBuilder(this, true)
-                .addItem(ResourceUtil.getDrawable(this, R.drawable.ic_my_download), Tags.TAG_MY_DOWNLOAD)
-                .addItem(ResourceUtil.getDrawable(this, R.drawable.ic_video_library_black_24dp), Tags.TAG_PRON_9_VIDEO)
-                .setCheckedIndex(checkIndex)
-                .setOnSheetItemClickListener((dialog, itemView, position, tag) -> {
-                    dialog.dismiss();
-                    switch (tag) {
-                        case Tags.TAG_MY_DOWNLOAD:
-                            Intent intent = new Intent(context, DownloadActivity.class);
-                            startActivityWithAnimation(intent);
-                            break;
-                        default:
-                            handlerFirstTabClickToShow(tag, selectIndex, true);
-                    }
-                })
-                .build()
-                .show();
-    }
-
     private void initBottomNavigationBar(@IntRange(from = 0, to = 3) int position) {
         bottomNavigationBar.addItem(new BottomNavigationItem(ResourceUtil.getDrawable(this, R.drawable.ic_video_library_black_24dp), R.string.title_video));
         bottomNavigationBar.addItem(new BottomNavigationItem(ResourceUtil.getDrawable(this, R.drawable.ic_recommend_black_24dp), R.string.title_recommend));
@@ -251,7 +210,6 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
             }
         });
         bottomNavigationBar.setBarBackgroundColor(R.color.bottom_navigation_bar_background);
-        bottomNavigationBar.setFab(fabSearch);
         // 首页底部导航栏固定展示，不再提供自动隐藏开关。
         bottomNavigationBar.setAutoHideEnabled(false);
         bottomNavigationBar.initialise();
@@ -270,7 +228,6 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         switch (position) {
             case 0:
                 handlerFirstTabClickToShow(firstTabShow, position, false);
-                showFloatingActionButton(fabSearch);
                 break;
             case 1:
                 // 推荐流固定嵌入主界面，不再启动新 Activity
@@ -283,7 +240,6 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                 if (mCurrentFragment instanceof RecommendFeedFragment) {
                     mRecommendFeedFragment = (RecommendFeedFragment) mCurrentFragment;
                 }
-                hideFloatingActionButton(fabSearch);
                 break;
             case 2:
                 // 分分钟固定嵌入主界面，不再启动新 Activity
@@ -298,7 +254,6 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                 if (mCurrentFragment instanceof SearchPornyFragment) {
                     mSearchPornyFragment = (SearchPornyFragment) mCurrentFragment;
                 }
-                hideFloatingActionButton(fabSearch);
                 break;
             case 3:
                 if (mMineFragment == null) {
@@ -308,7 +263,6 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                 if (mCurrentFragment instanceof MineFragment) {
                     mMineFragment = (MineFragment) mCurrentFragment;
                 }
-                hideFloatingActionButton(fabSearch);
                 break;
             default:
         }
@@ -363,26 +317,6 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         });
         builder.addAction(getString(R.string.back), (dialog, index) -> dialog.dismiss());
         builder.show();
-    }
-
-    private void hideFloatingActionButton(FloatingActionButton fabSearch) {
-        ViewGroup.LayoutParams layoutParams = fabSearch.getLayoutParams();
-        if (layoutParams instanceof CoordinatorLayout.LayoutParams) {
-            CoordinatorLayout.LayoutParams coLayoutParams = (CoordinatorLayout.LayoutParams) layoutParams;
-            FloatingActionButton.Behavior behavior = new FloatingActionButton.Behavior();
-            coLayoutParams.setBehavior(behavior);
-        }
-        fabSearch.hide();
-    }
-
-    private void showFloatingActionButton(final FloatingActionButton fabSearch) {
-        fabSearch.show(new FloatingActionButton.OnVisibilityChangedListener() {
-            @Override
-            public void onShown(FloatingActionButton fab) {
-                fabSearch.requestLayout();
-                bottomNavigationBar.setFab(fab);
-            }
-        });
     }
 
     @Override

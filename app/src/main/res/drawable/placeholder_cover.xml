@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 缺图占位：与封面同尺寸（16:9），加载失败时不闪烁、不改变行高。 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/cover_placeholder" />
+        </shape>
+    </item>
+    <item
+        android:width="36dp"
+        android:height="36dp"
+        android:drawable="@drawable/ic_placeholder_play"
+        android:gravity="center" />
+</layer-list>

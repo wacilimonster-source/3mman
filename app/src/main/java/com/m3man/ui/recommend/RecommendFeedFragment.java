@@ -33,6 +33,7 @@ import android.widget.TextView;
 
 import com.liulishuo.filedownloader.BaseDownloadTask;
 import com.liulishuo.filedownloader.model.FileDownloadStatus;
+import com.google.android.material.snackbar.Snackbar;
 import com.m3man.R;
 import com.m3man.constants.Keys;
 import com.m3man.data.DataManager;
@@ -155,12 +156,12 @@ public class RecommendFeedFragment extends BaseFragment
     private long currentEnterElapsed = 0L;
 
     /** M78：方向筛选（0=全部 1=仅竖屏 2=仅横屏） */
-    private TextView orientationFilterView;
     private ImageView landscapeBackView;
 
-    /** M118：右上角时长筛选胶囊（≤N分钟，0=不限）与自动连播开关胶囊 */
-    private TextView durationFilterView;
-    private TextView autoNextView;
+    /** EX-03：右上角唯一筛选入口（显示“方向 · 时长”），不再拆成三枚胶囊。 */
+    private TextView filterEntryView;
+    /** EX-03：在途批次请求，结构变更时必须先取消，杜绝旧响应回灌新流。 */
+    private io.reactivex.disposables.Disposable batchDisposable;
 
     /** M119：倍速可选项（与右栏长按 2x 手势共存，菜单选择会持久化） */
     private static final float[] RECO_SPEED_VALUES = {0.75f, 1.0f, 1.25f, 1.5f, 2.0f};
@@ -176,10 +177,13 @@ public class RecommendFeedFragment extends BaseFragment
     private final HashMap<Integer, String> downloadIdToViewKey = new HashMap<>();
     private final Set<String> hydratedDownloadKeys = new HashSet<>();
     private final Set<Integer> downloadIdLookupInFlight = new HashSet<>();
+    /** EX-05：收藏请求在途去重（同一 itemKey 只允许一次写库/学习）。 */
+    private final Set<String> favoriteInFlight = new HashSet<>();
 
     /** M119：新手引导浮层与筛选空池恢复按钮 */
     private View guideView;
     private Button resetFilterButton;
+    private Button adjustFilterButton;
     /** M119：第一页下拉换一批 */
     private androidx.swiperefreshlayout.widget.SwipeRefreshLayout swipeRefresh;
 
@@ -311,7 +315,7 @@ public class RecommendFeedFragment extends BaseFragment
             }
         } catch (Exception ignored) {
         }
-        // M118：右上角整体容器（方向 / 时长 / 连播三枚胶囊）统一做状态栏避让
+        // EX-03：筛选入口整体做状态栏避让；横屏左侧给返回箭头让位，避免热区重叠。
         View topFilters = getView() == null ? null : getView().findViewById(R.id.ll_reco_top_filters);
         if (topFilters != null) {
             ViewGroup.LayoutParams raw = topFilters.getLayoutParams();
@@ -319,6 +323,11 @@ public class RecommendFeedFragment extends BaseFragment
                 ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) raw;
                 lp.topMargin = statusBarHeight + dp(14);
                 lp.topMargin = Math.max(lp.topMargin, dp(14));
+                boolean landscape = getResources().getConfiguration().orientation
+                        == Configuration.ORIENTATION_LANDSCAPE;
+                int start = dp(landscape ? 62 : 14);
+                lp.setMarginStart(start);
+                lp.leftMargin = start;
                 topFilters.setLayoutParams(lp);
             }
         }
@@ -408,6 +417,15 @@ public class RecommendFeedFragment extends BaseFragment
                 resetAllFilters();
             }
         });
+        adjustFilterButton = getView().findViewById(R.id.btn_recommend_adjust_filter);
+        if (adjustFilterButton != null) {
+            adjustFilterButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showFilterSheet();
+                }
+            });
+        }
         // M119：第一页下拉换一批（SwipeRefreshLayout 只在列表到顶时拦截下拉）
         swipeRefresh = getView().findViewById(R.id.swipe_refresh_recommend);
         if (swipeRefresh != null) {
@@ -422,183 +440,179 @@ public class RecommendFeedFragment extends BaseFragment
         // M119：注册下载状态回调（右栏"下载"标签实时显示进度/完成）
         DownloadManager.getImpl().addUpdater(downloadUpdater);
 
-        initOrientationFilterPill();
-        initDurationFilterPill();
-        initAutoNextPill();
+        initFilterEntry();
+        setupFeedAccessibilityActions();
     }
 
-    // ==================== 方向筛选（M78） ====================
+    /**
+     * EX-03：TalkBack 自定义「下一视频 / 上一视频」动作；
+     * 画面上仍不放下一条/上一条按钮，翻页只用手势与吸附。
+     */
+    private void setupFeedAccessibilityActions() {
+        androidx.core.view.ViewCompat.addAccessibilityAction(recyclerView,
+                getString(R.string.reco_filter_a11y_next),
+                new androidx.core.view.accessibility.AccessibilityViewCommand() {
+                    @Override
+                    public boolean perform(View view,
+                                           androidx.core.view.accessibility.AccessibilityViewCommand.CommandArguments arguments) {
+                        moveFeedBy(1);
+                        return true;
+                    }
+                });
+        androidx.core.view.ViewCompat.addAccessibilityAction(recyclerView,
+                getString(R.string.reco_filter_a11y_previous),
+                new androidx.core.view.accessibility.AccessibilityViewCommand() {
+                    @Override
+                    public boolean perform(View view,
+                                           androidx.core.view.accessibility.AccessibilityViewCommand.CommandArguments arguments) {
+                        moveFeedBy(-1);
+                        return true;
+                    }
+                });
+    }
 
-    private void initOrientationFilterPill() {
-        orientationFilterView = getView().findViewById(R.id.tv_reco_orientation_filter);
-        updateOrientationPill(PlayUiPrefs.getOrientationFilter(context));
-        orientationFilterView.setOnClickListener(new View.OnClickListener() {
+    /** 无障碍切片：首条下滑/末条上滑不越界，翻页仍走 onPageSelected 的既有结算与起播链路。 */
+    private void moveFeedBy(int delta) {
+        if (adapter == null || recyclerView == null) {
+            return;
+        }
+        int base = Math.max(0, currentPosition);
+        int target = Math.max(0, Math.min(adapter.getItemCount() - 1, base + delta));
+        if (target != currentPosition) {
+            recyclerView.smoothScrollToPosition(target);
+        }
+    }
+
+    // ==================== 筛选与播放（EX-03） ====================
+
+    private void initFilterEntry() {
+        filterEntryView = getView().findViewById(R.id.tv_reco_filter_entry);
+        updateFilterEntry();
+        filterEntryView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                showOrientationFilterMenu();
+                showFilterSheet();
             }
         });
     }
 
-    private void updateOrientationPill(int filter) {
-        if (orientationFilterView == null) {
+    /** 入口只显示当前已应用值：方向 · 时长。 */
+    private void updateFilterEntry() {
+        if (filterEntryView == null || context == null) {
             return;
         }
-        int label = filter == PlayUiPrefs.FILTER_PORTRAIT ? R.string.reco_filter_portrait
-                : filter == PlayUiPrefs.FILTER_LANDSCAPE ? R.string.reco_filter_landscape
-                : R.string.reco_filter_all;
-        orientationFilterView.setText(label);
+        int orientation = PlayUiPrefs.getOrientationFilter(context);
+        int minutes = dataManager.getRecoMaxDurationMinutes();
+        filterEntryView.setText(getString(R.string.reco_filter_entry,
+                orientationLabel(orientation), durationLabel(minutes)));
     }
 
-    /** 右上角胶囊三选菜单：全部 / 仅竖屏 / 仅横屏 */
-    private void showOrientationFilterMenu() {
-        final int current = PlayUiPrefs.getOrientationFilter(context);
-        final String[] items = {"全部", "仅竖屏", "仅横屏"};
-        new androidx.appcompat.app.AlertDialog.Builder(getActivity(), R.style.RecoOrientationDialogTheme)
-                .setTitle(getString(R.string.reco_orientation_filter))
-                .setSingleChoiceItems(items, current, new android.content.DialogInterface.OnClickListener() {
+    private String orientationLabel(int filter) {
+        if (filter == PlayUiPrefs.FILTER_PORTRAIT) {
+            return getString(R.string.reco_filter_orientation_portrait);
+        }
+        if (filter == PlayUiPrefs.FILTER_LANDSCAPE) {
+            return getString(R.string.reco_filter_orientation_landscape);
+        }
+        return getString(R.string.reco_filter_orientation_all);
+    }
+
+    private String durationLabel(int minutes) {
+        return minutes <= 0
+                ? getString(R.string.reco_filter_duration_unlimited)
+                : getString(R.string.reco_filter_duration_value, minutes);
+    }
+
+    /** 打开筛选面板：复制已应用值到草稿，取消/遮罩/Back 不产生任何副作用。 */
+    private void showFilterSheet() {
+        if (context == null || dataManager == null) {
+            return;
+        }
+        RecoFilterSheet.show(context,
+                PlayUiPrefs.getOrientationFilter(context),
+                dataManager.getRecoMaxDurationMinutes(),
+                PlayUiPrefs.isRecoAutoNextEnabled(context),
+                new RecoFilterSheet.Listener() {
                     @Override
-                    public void onClick(android.content.DialogInterface dialog, int which) {
-                        dialog.dismiss();
-                        if (which == current) {
-                            return;
-                        }
-                        applyOrientationFilter(which);
+                    public void onApply(int orientation, int maxDurationMinutes, boolean autoplay) {
+                        applyFilters(orientation, maxDurationMinutes, autoplay);
                     }
-                })
-                .setNegativeButton("取消", null)
-                .show();
+                });
     }
 
     /**
-     * 切换方向筛选：严格过滤——立即重置会话并重新拉取，不符合方向的候选直接丢弃；
-     * 池子被筛空时给出提示，用户可点「重试」或切回「全部」恢复。
+     * 一次提交：
+     * 1. 结构变更（方向/时长）→ 按已有规则结算一次当前条目 → 原子写偏好 →
+     *    取消旧批次 → 一次 reset/refill；
+     * 2. 仅连播变化 → 只写偏好并刷新提示，不 reset、不重排、不中断播放；
+     * 3. 无任何变化 → 只关闭面板。
      */
-    private void applyOrientationFilter(int filter) {
-        PlayUiPrefs.setOrientationFilter(context, filter);
+    private void applyFilters(int newOrientation, int newMinutes, boolean newAutoplay) {
+        if (context == null) {
+            return;
+        }
+        int oldOrientation = PlayUiPrefs.getOrientationFilter(context);
+        int oldMinutes = dataManager.getRecoMaxDurationMinutes();
+        boolean oldAutoplay = PlayUiPrefs.isRecoAutoNextEnabled(context);
+        boolean structureChanged = newOrientation != oldOrientation || newMinutes != oldMinutes;
+        boolean autoplayChanged = newAutoplay != oldAutoplay;
+        if (!structureChanged && !autoplayChanged) {
+            return;
+        }
+
+        if (structureChanged) {
+            // 结构变更前按已有有效观看规则结算离开条目一次（不叠加额外隐式反馈）
+            settleImplicit(currentPosition);
+            captureResumePosition(currentPosition);
+        }
+
+        // 原子写入：方向/时长/连播各写原有键，不创建重复键
+        PlayUiPrefs.setOrientationFilter(context, newOrientation);
+        dataManager.setRecoMaxDurationMinutes(newMinutes);
+        lastAppliedRecoDurationMinutes = newMinutes;
+        PlayUiPrefs.setRecoAutoNextEnabled(context, newAutoplay);
+        updateFilterEntry();
+        if (adapter != null) {
+            adapter.refreshAutoplayHints(recyclerView);
+        }
+
+        if (!structureChanged) {
+            showMessage(getString(R.string.reco_filter_applied), TastyToast.INFO);
+            return;
+        }
+
+        // 新 generation：先取消在途旧批次，保证只有本轮流能落到 adapter
+        cancelBatchRequest();
         if (repository == null) {
             return;
         }
-        repository.setOrientationFilter(filter);
-        updateOrientationPill(filter);
-        // 严格过滤：清空当前流与已服务标记，从头按新方向拉取
+        repository.setOrientationFilter(newOrientation);
+        repository.setMaxDurationMinutes(newMinutes);
         adapter.setData(new ArrayList<RecoCandidate>());
         currentPosition = -1;
         noMore = false;
         emptyRetryCount = 0;
+        emptyLayout.setVisibility(View.GONE);
+        resetFilterButton.setVisibility(View.GONE);
+        if (adjustFilterButton != null) {
+            adjustFilterButton.setVisibility(View.GONE);
+        }
         JZVideoPlayer.releaseAllVideos();
         stopCoverWatcher();
         stopProgressTicker();
         repository.resetSession();
+        globalLoading.setVisibility(View.VISIBLE);
         loadMore(true);
-        showMessage(filter == PlayUiPrefs.FILTER_PORTRAIT ? "已切换：仅竖屏"
-                        : filter == PlayUiPrefs.FILTER_LANDSCAPE ? "已切换：仅横屏"
-                        : "已切换：全部",
-                TastyToast.INFO);
+        showMessage(getString(R.string.reco_filter_applied), TastyToast.INFO);
     }
 
-    // ==================== 时长筛选（M118） ====================
-
-    /** 与设置页 SettingActivity 的选项保持一致：0=不限，其余为分钟上限 */
-    private static final int[] RECO_DURATION_VALUES = {0, 1, 2, 3, 5, 10};
-
-    private void initDurationFilterPill() {
-        durationFilterView = getView().findViewById(R.id.tv_reco_duration_filter);
-        updateDurationPill(dataManager.getRecoMaxDurationMinutes());
-        durationFilterView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showDurationFilterMenu();
-            }
-        });
-    }
-
-    private void updateDurationPill(int minutes) {
-        if (durationFilterView == null) {
-            return;
+    /** 取消在途批次请求（结构变更/换一批时调用，防止旧响应回灌新流）。 */
+    private void cancelBatchRequest() {
+        if (batchDisposable != null && !batchDisposable.isDisposed()) {
+            batchDisposable.dispose();
         }
-        durationFilterView.setText(minutes <= 0
-                ? getString(R.string.reco_duration_all)
-                : "≤" + minutes + "分 ▾");
-    }
-
-    /** 右上角胶囊单选菜单：不限 / 1 / 2 / 3 / 5 / 10 分钟（与设置页选项一致） */
-    private void showDurationFilterMenu() {
-        final int current = dataManager.getRecoMaxDurationMinutes();
-        final String[] items = {"不限", "1 分钟", "2 分钟", "3 分钟", "5 分钟", "10 分钟"};
-        int checkedIndex = 0;
-        for (int i = 0; i < RECO_DURATION_VALUES.length; i++) {
-            if (RECO_DURATION_VALUES[i] == current) {
-                checkedIndex = i;
-                break;
-            }
-        }
-        new androidx.appcompat.app.AlertDialog.Builder(getActivity(), R.style.RecoOrientationDialogTheme)
-                .setTitle(getString(R.string.reco_duration_filter))
-                .setSingleChoiceItems(items, checkedIndex, new android.content.DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(android.content.DialogInterface dialog, int which) {
-                        dialog.dismiss();
-                        int picked = RECO_DURATION_VALUES[which];
-                        if (picked != current) {
-                            applyDurationFilter(picked);
-                        }
-                    }
-                })
-                .setNegativeButton("取消", null)
-                .show();
-    }
-
-    /**
-     * 切换时长上限：写与设置页同一个持久化值（两处入口永远一致），严格过滤——
-     * 清空当前流重拉，已出队的超时长候选不可逆丢弃。
-     * lastApplied 同步更新，避免 onResume 把本页刚改的值误判成设置页改动造成二次重置。
-     */
-    private void applyDurationFilter(int minutes) {
-        dataManager.setRecoMaxDurationMinutes(minutes);
-        lastAppliedRecoDurationMinutes = minutes;
-        updateDurationPill(minutes);
-        if (repository == null) {
-            return;
-        }
-        repository.setMaxDurationMinutes(minutes);
-        // 严格过滤：清空当前流与已服务标记，从头按新时长上限拉取
-        adapter.setData(new ArrayList<RecoCandidate>());
-        currentPosition = -1;
-        noMore = false;
-        emptyRetryCount = 0;
-        JZVideoPlayer.releaseAllVideos();
-        stopCoverWatcher();
-        stopProgressTicker();
-        repository.resetSession();
-        loadMore(true);
-        showMessage(minutes <= 0 ? "已切换：不限" : "已切换：≤" + minutes + " 分钟以内",
-                TastyToast.INFO);
-    }
-
-    // ==================== 自动连播（M118） ====================
-
-    private void initAutoNextPill() {
-        autoNextView = getView().findViewById(R.id.tv_reco_auto_next);
-        updateAutoNextPill(PlayUiPrefs.isRecoAutoNextEnabled(context));
-        autoNextView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                boolean enabled = !PlayUiPrefs.isRecoAutoNextEnabled(context);
-                PlayUiPrefs.setRecoAutoNextEnabled(context, enabled);
-                updateAutoNextPill(enabled);
-                showMessage(enabled ? "已开启自动连播，播完自动播放下一条"
-                                : "已关闭自动连播，播完循环当前视频",
-                        TastyToast.INFO);
-            }
-        });
-    }
-
-    private void updateAutoNextPill(boolean enabled) {
-        if (autoNextView == null) {
-            return;
-        }
-        autoNextView.setText(enabled ? R.string.reco_auto_next_on : R.string.reco_auto_next_off);
+        batchDisposable = null;
+        loading = false;
     }
 
     /**
@@ -729,7 +743,7 @@ public class RecommendFeedFragment extends BaseFragment
             globalLoading.setVisibility(View.VISIBLE);
             emptyLayout.setVisibility(View.GONE);
         }
-        disposables.add(repository.nextBatch(BATCH_SIZE)
+        disposables.add(batchDisposable = repository.nextBatch(BATCH_SIZE)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(list -> onBatchLoaded(list, first),
@@ -738,6 +752,7 @@ public class RecommendFeedFragment extends BaseFragment
 
     private void onBatchLoaded(List<RecoCandidate> list, boolean first) {
         loading = false;
+        batchDisposable = null;
         globalLoading.setVisibility(View.GONE);
         if (swipeRefresh != null) {
             swipeRefresh.setRefreshing(false);
@@ -754,8 +769,11 @@ public class RecommendFeedFragment extends BaseFragment
             if (adapter.getItemCount() == 0) {
                 // M119：方向/时长严格筛选可能把池子筛空，此时给出一键恢复入口
                 if (isFilterActive()) {
-                    showEmpty(getString(R.string.reco_empty_filtered));
+                    showEmpty(getString(R.string.reco_empty_filtered_action));
                     resetFilterButton.setVisibility(View.VISIBLE);
+                    if (adjustFilterButton != null) {
+                        adjustFilterButton.setVisibility(View.VISIBLE);
+                    }
                 } else {
                     showEmpty(getString(R.string.reco_empty));
                 }
@@ -787,6 +805,7 @@ public class RecommendFeedFragment extends BaseFragment
 
     private void onBatchFailed(boolean first, Throwable throwable) {
         loading = false;
+        batchDisposable = null;
         globalLoading.setVisibility(View.GONE);
         if (swipeRefresh != null) {
             swipeRefresh.setRefreshing(false);
@@ -811,6 +830,9 @@ public class RecommendFeedFragment extends BaseFragment
         if (resetFilterButton != null) {
             resetFilterButton.setVisibility(View.GONE);
         }
+        if (adjustFilterButton != null) {
+            adjustFilterButton.setVisibility(View.GONE);
+        }
     }
 
     /** M119：方向/时长筛选是否处于非默认状态 */
@@ -819,29 +841,9 @@ public class RecommendFeedFragment extends BaseFragment
                 || dataManager.getRecoMaxDurationMinutes() > 0;
     }
 
-    /** M119：一键恢复全部筛选（方向=全部、时长=不限），单次重置重拉 */
+    /** M119/EX-03：一键恢复全部筛选（方向=全部、时长=不限），保留连播选择，只 reset 一次。 */
     private void resetAllFilters() {
-        if (context != null) {
-            PlayUiPrefs.setOrientationFilter(context, PlayUiPrefs.FILTER_ALL);
-        }
-        dataManager.setRecoMaxDurationMinutes(0);
-        lastAppliedRecoDurationMinutes = 0;
-        updateOrientationPill(PlayUiPrefs.FILTER_ALL);
-        updateDurationPill(0);
-        if (repository == null) {
-            return;
-        }
-        repository.setOrientationFilter(PlayUiPrefs.FILTER_ALL);
-        repository.setMaxDurationMinutes(0);
-        repository.resetSession();
-        adapter.setData(new ArrayList<RecoCandidate>());
-        currentPosition = -1;
-        noMore = false;
-        emptyRetryCount = 0;
-        emptyLayout.setVisibility(View.GONE);
-        globalLoading.setVisibility(View.VISIBLE);
-        loadMore(true);
-        showMessage("已恢复全部筛选", TastyToast.INFO);
+        applyFilters(PlayUiPrefs.FILTER_ALL, 0, PlayUiPrefs.isRecoAutoNextEnabled(context));
     }
 
     // ==================== 翻页 / 播放 ====================
@@ -1396,27 +1398,41 @@ public class RecommendFeedFragment extends BaseFragment
         if (candidate == null || candidate.item == null || engine == null) {
             return;
         }
-        final boolean wasFavorited = isFavorited(candidate);
-        if (wasFavorited) {
-            engine.onUnfavorite(candidate);
-        } else {
-            engine.onFavorite(candidate);
+        final String key = candidate.viewKey();
+        if (!favoriteInFlight.add(key)) {
+            // 同项请求期间禁用重复操作（EX-05）
+            showMessage(getString(R.string.reco_favorite_in_flight), TastyToast.INFO);
+            return;
         }
+        final boolean wasFavorited = isFavorited(candidate);
+        final boolean targetFavorite = !wasFavorited;
         final V9MmanItem item = candidate.item;
+        // 先写库，写入成功后才更新引擎学习与选中态；失败保持原状态并提示（可重试）。
         disposables.add(Observable.just(1)
                 .map(i -> {
-                    saveFavorite(item, !wasFavorited);
+                    saveFavorite(item, targetFavorite);
                     return true;
                 })
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(ok -> {
+                    favoriteInFlight.remove(key);
+                    if (targetFavorite) {
+                        engine.onFavorite(candidate);
+                    } else {
+                        engine.onUnfavorite(candidate);
+                    }
                     adapter.refreshActionState(recyclerView, position);
-                    showMessage(getString(wasFavorited
-                            ? R.string.reco_unfavorited : R.string.reco_favorited),
+                    showMessage(getString(targetFavorite
+                            ? R.string.reco_favorited : R.string.reco_unfavorited),
                             TastyToast.SUCCESS);
-                }, throwable -> showMessage(getString(R.string.play_favorite_failed), TastyToast.ERROR)));
-        persistAsync(true);
+                    persistAsync(true);
+                }, throwable -> {
+                    favoriteInFlight.remove(key);
+                    // 失败不改变选中态，用户可重试；不提交任何学习信号
+                    adapter.refreshActionState(recyclerView, position);
+                    showMessage(getString(R.string.play_favorite_failed), TastyToast.ERROR);
+                }));
     }
 
     @Override
@@ -1542,12 +1558,13 @@ public class RecommendFeedFragment extends BaseFragment
     /** M119：换一批——清空当前流、重置会话重新召回（第一页下拉触发）。
      * 用 loadMore(false) 避免全屏 loading 遮罩（SwipeRefreshLayout 自带转圈）。 */
     private void swapBatch() {
-        if (loading || repository == null) {
+        if (repository == null) {
             if (swipeRefresh != null) {
                 swipeRefresh.setRefreshing(false);
             }
             return;
         }
+        cancelBatchRequest();
         JZVideoPlayer.releaseAllVideos();
         stopCoverWatcher();
         stopProgressTicker();
@@ -1757,6 +1774,17 @@ public class RecommendFeedFragment extends BaseFragment
 
     // ==================== 下载 ====================
 
+    /** EX-05：成功入队后提供“查看”，导航到下载进行中列表。 */
+    private void showDownloadQueuedSnackbar(String message) {
+        if (!isUsable() || recyclerView == null || getActivity() == null) {
+            return;
+        }
+        Snackbar.make(recyclerView, message, Snackbar.LENGTH_LONG)
+                .setAction(getString(R.string.common_view), v ->
+                        startActivity(new Intent(getActivity(), DownloadActivity.class)))
+                .show();
+    }
+
     @Override
     public void onDownloadClick(int position) {
         final RecoCandidate candidate = adapter.getItem(position);
@@ -1782,6 +1810,11 @@ public class RecommendFeedFragment extends BaseFragment
                         @Override
                         public void showMessage(String msg, int type) {
                             RecommendFeedFragment.this.showMessage(msg, type);
+                        }
+
+                        @Override
+                        public void onEnqueued(String message) {
+                            showDownloadQueuedSnackbar(message);
                         }
 
                         @Override
@@ -1816,6 +1849,11 @@ public class RecommendFeedFragment extends BaseFragment
                             @Override
                             public void showMessage(String msg, int type) {
                                 RecommendFeedFragment.this.showMessage(msg, type);
+                            }
+
+                            @Override
+                            public void onEnqueued(String message) {
+                                showDownloadQueuedSnackbar(message);
                             }
 
                             @Override
@@ -1899,18 +1937,19 @@ public class RecommendFeedFragment extends BaseFragment
         if (repository != null && context != null) {
             repository.setAutoRotateLandscape(PlayUiPrefs.isAutoRotateLandscape(context));
             repository.setOrientationFilter(PlayUiPrefs.getOrientationFilter(context));
-            updateOrientationPill(PlayUiPrefs.getOrientationFilter(context));
+            updateFilterEntry();
             // 推荐时长筛选变化检测：用户在设置页改完，回到这里若发现值不同则重置会话重拉，
             // 否则出队过的候选会保留，UI 与新阈值不一致。
             int persistedMax = dataManager.getRecoMaxDurationMinutes();
             if (persistedMax != lastAppliedRecoDurationMinutes) {
                 repository.setMaxDurationMinutes(persistedMax);
                 lastAppliedRecoDurationMinutes = persistedMax;
-                // M118：设置页改的值，右上角时长胶囊文案同步刷新
-                updateDurationPill(persistedMax);
+                // M118：设置页改的值，入口文案与当前流同步刷新
+                updateFilterEntry();
                 if (engineInitFailed) {
                     // 引擎初始化失败导致 repository 没建出来——忽略，下一次 resume 再补偿
                 } else if (repository != null && adapter != null) {
+                    cancelBatchRequest();
                     repository.resetSession();
                     // 避免重置把正在播放的 page 状态搞乱，先彻底清空再重新拉首批
                     adapter.setData(new java.util.ArrayList<RecoCandidate>());
@@ -2027,6 +2066,8 @@ public class RecommendFeedFragment extends BaseFragment
         if (orientationHelper != null && orientationHelper.isLandscapeLock()) {
             orientationHelper.enterLandscapeFullscreen();
         }
+        // 横竖屏切换后重新计算筛选入口位置（横屏避开左上角返回箭头）
+        applyTopBarInsets();
     }
 
     @Override

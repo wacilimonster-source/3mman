@@ -28,9 +28,9 @@ echo [2/4] 清理构建缓存...
 taskkill /F /IM java.exe 2>nul
 timeout /t 2 /nobreak >nul
 
-:: 设置全新的 Gradle 缓存目录（避免锁文件冲突）
-set GRADLE_USER_HOME=%TEMP%\gradle_home_3mman_%RANDOM%
-echo 使用临时缓存目录: %GRADLE_USER_HOME%
+:: 统一使用全局 Gradle 缓存目录（原逻辑为每次随机临时目录，导致缓存反复累积）
+set GRADLE_USER_HOME=C:\Users\wacil\.gradle
+echo 使用统一缓存目录: %GRADLE_USER_HOME%
 
 echo.
 echo [3/4] 开始构建 Debug APK（耗时较长，请耐心等待）...

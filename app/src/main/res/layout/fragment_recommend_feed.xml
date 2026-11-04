@@ -31,60 +31,32 @@
         android:src="@drawable/ic_arrow_back_white_32dp"
         android:visibility="gone" />
 
-    <!-- M118：右上角筛选/开关组合（方向筛选 + 时长筛选 + 自动连播）。
-         状态栏避让由 applyTopBarInsets 统一调本容器 topMargin。 -->
+    <!-- EX-03：右上角唯一筛选入口，显示“方向 · 时长”。画面上不放置
+         下一条/上一条按钮，翻页只用手势。 -->
     <LinearLayout
         android:id="@+id/ll_reco_top_filters"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="top|end"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="14dp"
+        android:layout_marginLeft="14dp"
         android:layout_marginTop="14dp"
-        android:layout_marginEnd="14dp"
-        android:layout_marginRight="14dp"
         android:orientation="horizontal">
 
         <TextView
-            android:id="@+id/tv_reco_orientation_filter"
+            android:id="@+id/tv_reco_filter_entry"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="#66000000"
-            android:paddingBottom="2dp"
-            android:paddingLeft="12dp"
-            android:paddingRight="12dp"
-            android:paddingTop="2dp"
+            android:background="@drawable/bg_filter_pill"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:minHeight="@dimen/touch_min"
+            android:paddingLeft="14dp"
+            android:paddingRight="14dp"
             android:text="@string/reco_filter_all"
-            android:textColor="#CCFFFFFF"
-            android:textSize="11sp" />
-
-        <TextView
-            android:id="@+id/tv_reco_duration_filter"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="8dp"
-            android:layout_marginStart="8dp"
-            android:background="#66000000"
-            android:paddingBottom="2dp"
-            android:paddingLeft="12dp"
-            android:paddingRight="12dp"
-            android:paddingTop="2dp"
-            android:text="@string/reco_duration_all"
-            android:textColor="#CCFFFFFF"
-            android:textSize="11sp" />
-
-        <TextView
-            android:id="@+id/tv_reco_auto_next"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="8dp"
-            android:layout_marginStart="8dp"
-            android:background="#66000000"
-            android:paddingBottom="2dp"
-            android:paddingLeft="12dp"
-            android:paddingRight="12dp"
-            android:paddingTop="2dp"
-            android:text="@string/reco_auto_next_on"
-            android:textColor="#CCFFFFFF"
-            android:textSize="11sp" />
+            android:textColor="#E6FFFFFF"
+            android:textSize="12sp" />
     </LinearLayout>
 
     <ProgressBar
@@ -95,36 +67,57 @@
 
     <LinearLayout
         android:id="@+id/ll_recommend_empty"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:gravity="center_horizontal"
         android:orientation="vertical"
+        android:paddingLeft="@dimen/space_6"
+        android:paddingRight="@dimen/space_6"
         android:visibility="gone">
 
         <TextView
             android:id="@+id/tv_recommend_empty"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:gravity="center"
             android:text="@string/reco_empty"
             android:textColor="#FFFFFFFF"
             android:textSize="15sp" />
 
         <Button
             android:id="@+id/btn_recommend_retry"
+            style="@style/Widget.App.SecondaryButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
+            android:minWidth="160dp"
             android:text="@string/reco_retry" />
 
-        <!-- M119：方向/时长筛选把池子筛空时的一键恢复入口 -->
-        <Button
-            android:id="@+id/btn_recommend_reset_filter"
+        <!-- EX-03：筛选把池子筛空时，提供“调整筛选”和“恢复全部筛选”。 -->
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="@string/reco_reset_filters"
-            android:visibility="gone" />
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_recommend_adjust_filter"
+                style="@style/Widget.App.SecondaryButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="@string/reco_empty_adjust_filter"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/btn_recommend_reset_filter"
+                style="@style/Widget.App.PrimaryButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/reco_empty_reset_filter"
+                android:visibility="gone" />
+        </LinearLayout>
     </LinearLayout>
 
     <!-- M119：新手手势/操作引导浮层（仅首次进入推荐页显示，点击任意处关闭） -->

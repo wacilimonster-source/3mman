@@ -42,9 +42,9 @@
     <color name="setting_list_detail_text_color">@color/qmui_config_color_gray_5</color>
     <color name="setting_list_separator_color">@color/qmui_drawable_color_list_separator</color>
     <!-- setting end-->
-    <color name="bottom_navigation_bar_active">@color/colorPrimary</color>
-    <color name="bottom_navigation_bar_inactive">#9E9E9E</color>
-    <color name="bottom_navigation_bar_background">@color/white</color>
+    <color name="bottom_navigation_bar_active">@color/brand</color>
+    <color name="bottom_navigation_bar_inactive">#8A8494</color>
+    <color name="bottom_navigation_bar_background">@color/bg_surface</color>
     <color name="floating_action_button_tine_bg_color">@color/white</color>
     <color name="mine_header_text_color">@color/white</color>
     <color name="play_head_video_info_text_color">@color/white</color>
@@ -59,26 +59,42 @@
          black / white / LightGray 这类「物理色命名」——它们在 values-night
          下会被重定义成相反的颜色（如 white → 深灰），是长期维护陷阱。
          values-night/colors.xml 中有同名对应定义，成对维护。 -->
-    <color name="bg_base">@color/common_background</color>
-    <color name="bg_surface">@color/item_background</color>
-    <color name="bg_elevated">@color/setting_list_bg_normal</color>
-    <color name="bg_scrim">#99000000</color>
+    <color name="bg_base">#F7F6F9</color>
+    <color name="bg_surface">#FFFFFF</color>
+    <color name="bg_elevated">#FFFFFF</color>
+    <color name="bg_scrim">#8016101F</color>
 
-    <color name="text_primary">@color/common_black_white_text_color</color>
-    <color name="text_secondary">@color/item_v9pron_info_text_color</color>
-    <color name="text_tertiary">#8A8A8A</color>
-    <color name="text_disabled">#BDBDBD</color>
+    <color name="text_primary">#262331</color>
+    <color name="text_secondary">#635D71</color>
+    <color name="text_tertiary">#706B7E</color>
+    <color name="text_disabled">#A9A3B4</color>
     <color name="text_inverse">@color/common_always_white_text_color</color>
 
-    <color name="brand">@color/colorPrimary</color>
+    <color name="brand">#6A1B9A</color>
     <color name="brand_dark">@color/colorPrimaryDark</color>
+    <!-- 顶部栏：日间沿用品牌紫；夜间改为 bg_surface，与内容页同底色。 -->
+    <color name="toolbar_background">@color/colorPrimary</color>
+    <color name="toolbar_text">@color/white</color>
+    <color name="brand_container">#F0E7F7</color>
+    <color name="on_brand">#FFFFFF</color>
     <color name="accent">@color/colorAccent</color>
 
-    <color name="state_success">@color/green</color>
+    <color name="state_success">#237957</color>
     <color name="state_warning">@color/yeloo</color>
-    <color name="state_error">@color/lightred</color>
+    <color name="state_error">#BA3550</color>
 
-    <color name="divider">#1F000000</color>
-    <color name="divider_strong">#33000000</color>
+    <color name="divider">#E4E0E9</color>
+    <color name="divider_strong">#D5CFDC</color>
+    <!-- 系统状态栏：日间跟随品牌紫，夜间使用页面底色，避免白条截断深色页面。 -->
+    <color name="status_bar_color">@color/colorPrimary</color>
+
+    <!-- 18+ 身份标识：深色页面上也需要稳定可读，故不跟随主题反转。 -->
+    <color name="identity_badge_border">#A34460</color>
+    <color name="identity_badge_text">#B03A5B</color>
+    <!-- 视频封面加载前占位（同尺寸、无闪烁）。 -->
+    <color name="cover_placeholder">#E7E2EC</color>
+    <!-- 覆盖在视频/封面上的浮层与胶囊。 -->
+    <color name="overlay_scrim">#8016101F</color>
+    <color name="overlay_pill">#66000000</color>
     <!-- ==================== 语义色层 end ==================== -->
 </resources>

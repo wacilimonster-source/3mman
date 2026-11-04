@@ -35,4 +35,16 @@
     <dimen name="icon_visual_36">36dp</dimen>
     <dimen name="touch_padding_icon_24">12dp</dimen>
     <dimen name="touch_padding_icon_36">6dp</dimen>
+
+    <!-- ==================== 2026-11 体验精修（experience-2026-11-03）====================
+         依 spec §3：视频列表水平 12dp、单列大卡片行间距 18dp、封面 16:9 圆角 10dp；
+         详情页水平 16dp；Toolbar 最小 56dp。 -->
+    <dimen name="video_list_horizontal_padding">12dp</dimen>
+    <dimen name="video_card_spacing">18dp</dimen>
+    <dimen name="video_cover_radius">10dp</dimen>
+    <dimen name="page_horizontal_padding">16dp</dimen>
+    <dimen name="toolbar_min_height">56dp</dimen>
+    <dimen name="sheet_corner_radius">24dp</dimen>
+    <dimen name="sheet_max_height_percent">90</dimen>
+    <dimen name="filter_chip_min_height">48dp</dimen>
 </resources>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 底部筛选面板：顶部圆角 24dp，浮层与页面使用实色（spec §3）。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners
+        android:topLeftRadius="@dimen/sheet_corner_radius"
+        android:topRightRadius="@dimen/sheet_corner_radius" />
+    <solid android:color="@color/bg_surface" />
+</shape>

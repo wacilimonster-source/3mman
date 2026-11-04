@@ -416,6 +416,52 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         // 就按当前方向布局，即使旋转动画期间旧 Holder 被 detach 导致遍历漏掉，
         // 新页面也带正确的按钮位置。
         holder.applyOrientationUi(landscapeMode);
+        applyReason(holder, candidate);
+        applyAutoplayHint(holder);
+    }
+
+    /**
+     * EX-03：推荐理由只使用引擎已有的召回来源。
+     * 作者召回 / 探索召回可直接解释当前条目；分类召回没有足够可靠的说法时隐藏。
+     */
+    private void applyReason(PageHolder holder, RecoCandidate candidate) {
+        if (holder.reason == null) {
+            return;
+        }
+        int textRes = 0;
+        if (candidate.from == RecoCandidate.FROM_AUTHOR) {
+            textRes = R.string.reco_reason_author;
+        } else if (candidate.from == RecoCandidate.FROM_EXPLORE) {
+            textRes = R.string.reco_reason_explore;
+        }
+        if (textRes == 0) {
+            holder.reason.setVisibility(View.GONE);
+        } else {
+            holder.reason.setText(textRes);
+            holder.reason.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void applyAutoplayHint(PageHolder holder) {
+        if (holder.autoplayHint == null) {
+            return;
+        }
+        boolean enabled = PlayUiPrefs.isRecoAutoNextEnabled(holder.itemView.getContext());
+        holder.autoplayHint.setText(enabled
+                ? R.string.reco_filter_autoplay_on_hint : R.string.reco_filter_autoplay_off_hint);
+    }
+
+    /** 连播偏好提交后，刷新所有已挂载页的底部短提示（不重绑、不打断播放）。 */
+    public void refreshAutoplayHints(RecyclerView recyclerView) {
+        if (recyclerView == null) {
+            return;
+        }
+        for (int i = 0; i < recyclerView.getChildCount(); i++) {
+            RecyclerView.ViewHolder vh = recyclerView.getChildViewHolder(recyclerView.getChildAt(i));
+            if (vh instanceof PageHolder) {
+                applyAutoplayHint((PageHolder) vh);
+            }
+        }
     }
 
     private void dispatch(PageHolder holder, int what) {
@@ -721,6 +767,10 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
         final ImageView burstHeart;
         final TextView title;
         final TextView meta;
+        /** EX-03：真实召回来源解释（作者/探索），无可靠信号时隐藏 */
+        final TextView reason;
+        /** EX-03：内容底部连播状态短句 */
+        final TextView autoplayHint;
         final SeekBar progress;
         final TextView curTime;
         final TextView durTime;
@@ -778,6 +828,8 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
             burstHeart = itemView.findViewById(R.id.iv_reco_burst_heart);
             title = itemView.findViewById(R.id.tv_reco_title);
             meta = itemView.findViewById(R.id.tv_reco_meta);
+            reason = itemView.findViewById(R.id.tv_reco_reason);
+            autoplayHint = itemView.findViewById(R.id.tv_reco_autoplay_hint);
             author = itemView.findViewById(R.id.tv_reco_author);
             progress = itemView.findViewById(R.id.sb_reco_progress);
             curTime = itemView.findViewById(R.id.tv_reco_cur);
@@ -800,6 +852,18 @@ public class RecommendFeedAdapter extends RecyclerView.Adapter<RecommendFeedAdap
                     toggleActions();
                 }
             });
+            // EX-03：从操作栏/进度条起手时禁止 RecyclerView 拦截成翻页手势，
+            // 避免切片手势误触播放控制；点击与拖动仍由子控件正常处理。
+            View.OnTouchListener disallowPaging = (v, event) -> {
+                if (event != null && event.getActionMasked() == android.view.MotionEvent.ACTION_DOWN) {
+                    if (v.getParent() != null) {
+                        v.getParent().requestDisallowInterceptTouchEvent(true);
+                    }
+                }
+                return false;
+            };
+            actionsContainer.setOnTouchListener(disallowPaging);
+            progressContainer.setOnTouchListener(disallowPaging);
         }
 
         /** M78：根据「隐藏播放页操作栏」偏好设置初始状态。 */

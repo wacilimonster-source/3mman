@@ -8,9 +8,15 @@
     tools:context="com.m3man.ui.favoriteJsonResult.FavoriteActivity">
     <include layout="@layout/layout_toolbar" />
 
+    <!-- EX-02 / §3：与视频列表共用 12dp 水平边距，避免圆角卡片和标题贴屏幕边缘。 -->
     <com.aitsuki.swipe.SwipeMenuRecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingLeft="@dimen/video_list_horizontal_padding"
+        android:paddingTop="@dimen/video_list_horizontal_padding"
+        android:paddingRight="@dimen/video_list_horizontal_padding"
+        android:paddingBottom="@dimen/space_3" />
 
 </LinearLayout>

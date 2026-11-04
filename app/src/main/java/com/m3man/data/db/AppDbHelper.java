@@ -341,6 +341,27 @@ public class AppDbHelper implements DbHelper {
     }
 
     @Override
+    public long countLocalFavorites() {
+        return mDaoSession.getV9MmanItemDao().queryBuilder()
+                .where(V9MmanItemDao.Properties.IsLocalFavorite.eq(true))
+                .count();
+    }
+
+    @Override
+    public long countHistoryItems() {
+        return mDaoSession.getV9MmanItemDao().queryBuilder()
+                .where(V9MmanItemDao.Properties.ViewHistoryDate.isNotNull())
+                .count();
+    }
+
+    @Override
+    public long countDownloadTasks() {
+        return mDaoSession.getV9MmanItemDao().queryBuilder()
+                .where(V9MmanItemDao.Properties.DownloadId.notEq(0))
+                .count();
+    }
+
+    @Override
     public List<V9MmanItem> findV9MmanItemByDownloadStatus(int status) {
         V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
         return dao.queryBuilder().where(V9MmanItemDao.Properties.Status.eq(status)).build().list();
