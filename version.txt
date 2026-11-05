@@ -1,7 +1,7 @@
 {
-  "versionCode": 161,
-  "versionName": "1.0.128",
-  "updateMessage": "1.0.128 更新内容：\n1）修复「我的」页收藏/历史/下载数量在切换底部 Tab 后不刷新的问题；\n2）修复列表卡片「更多」菜单收藏状态显示与实际动作相反的问题；\n3）搜索提交后自动收起键盘，搜索结果不再被输入法遮挡；\n4）修复历史/收藏列表卡片贴屏幕边缘、标题首字被裁切的问题；\n5）修复深色模式下「更多」弹出菜单仍为白色、部分顶部栏与「我的」页头部配色偏离深色主题的问题；\n6）修复从播放页返回后，原卡片封面短暂空白的问题。\n注意：91porny 源功能需可访问外网的网络环境；仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.128.apk",
-  "sha256": "519364416ac46b15300a42fcb0060e9c402d52b1eafb4483f7b0c259ddad4f24"
+  "versionCode": 162,
+  "versionName": "1.0.129",
+  "updateMessage": "1.0.129 更新内容：\n1）推荐页新增本地缓存首屏：再次进入秒开，不再等待推荐引擎初始化；\n2）推荐预取改为窗口调度：翻页/切 Tab 自动取消过期预取，省流量、起播更快；\n3）封面加载与预取统一请求规格，减少重复解码与内存峰值；\n4）HLS 下载改为有界并发：超多分片不再堆积任务，暂停/取消更及时，进度更准；\n5）推荐偏好保存改为原子写盘，异常退出不丢状态；\n6）数据库延迟初始化 + 查询索引：冷启动更快；历史/收藏/下载列表分页加载更流畅；\n7）列表差异计算移到后台线程，大列表刷新不卡顿。\n注意：91porny 源功能需可访问外网的网络环境；仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.129.apk",
+  "sha256": "809f13c1c95edece7e20d39adde0590c39b70af14c8d5ec7338e33c1ab53b3a2"
 }
