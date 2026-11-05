@@ -7,7 +7,6 @@ import com.m3man.data.db.entity.AuthorFavorite;
 import com.m3man.data.db.entity.AuthorFavoriteDao;
 import com.m3man.data.db.entity.Category;
 import com.m3man.data.db.entity.CategoryDao;
-import com.m3man.data.db.entity.DaoMaster;
 import com.m3man.data.db.entity.DaoSession;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.db.entity.V9MmanItemDao;
@@ -22,7 +21,6 @@ import java.util.Date;
 import com.m3man.di.ApplicationContext;
 import com.m3man.utils.AppLog;
 import org.greenrobot.greendao.AbstractDao;
-import org.greenrobot.greendao.database.Database;
 import org.greenrobot.greendao.query.QueryBuilder;
 
 import java.util.ArrayList;
@@ -41,7 +39,6 @@ import javax.inject.Singleton;
 
 @Singleton
 public class AppDbHelper implements DbHelper {
-    private final DaoSession mDaoSession;
 
     /** M66b：持久化来源标记取值，与 PlayVideoPresenter.SOURCE_MMAN9_PERSIST 一致 */
     private static final String SOURCE_MMAN9 = "mman9";
@@ -50,22 +47,22 @@ public class AppDbHelper implements DbHelper {
     private static final String REPAIR_PORNY_SP_NAME = "repair_porny_v1";
     private static final String REPAIR_PORNY_DONE_KEY = "repair_porny_v1_done";
 
+    /** T07：DB 惰性就绪链——构造不再同步开库 */
+    private final DbRuntime dbRuntime;
+
     @Inject
     AppDbHelper(MySQLiteOpenHelper helper, @ApplicationContext Context context) {
         this.mAppContext = context;
         //如果你想查看日志信息，请将DEBUG设置为true
         MigrationHelper.DEBUG = BuildConfig.DEBUG;
-        Database db = helper.getWritableDb();
-        this.mDaoSession = new DaoMaster(db).newSession();
-        // 复查修正（C-02）：原来通过每次读前 detachAll() 规避脏读，导致缓存形同虚设。
-        // 现设计：全工程仅此一个 DaoSession（单写入方），greenDAO 的 IdentityScope 内部已
-        // 做同步保护，跨线程读写同一 Session 不会产生撕裂数据；若未来引入第二个
-        // 写入口/裸连接，必须自行调用 mDaoSession.clear() 刷新缓存。此处仅清空一次。
-        // 注：原修复曾试图 dao.setIdentityScope(null) 禁用缓存，但 greenDAO 3.2.2 的
-        // AbstractDao 并未公开该方法（字段为 protected final），已改为上述单会话约束。
-        this.mDaoSession.clear();
+        // T07（方案 §5-T07）：懒开库——构造只保存 helper 并后台启动就绪链，
+        // DI 注入关键路径（主进程与 :filedownloader 子进程）不再承担同步开库成本；
+        // 开库/迁移在 db-init 单线程执行器上只执行一次（埋点见 DbRuntime）。
+        this.dbRuntime = new DbRuntime(helper);
+        dbRuntime.startOpen();
         // M73：启动时的写库与全表扫描修复移到后台线程执行——
-        // 构造发生在主线程（Dagger 初始化），数据量大时拖慢冷启动
+        // 构造发生在主线程（Dagger 初始化），数据量大时拖慢冷启动。
+        // T07：ready 链内有序执行（开库 → 默认分类种子 → 误标修复），避免种子与首次分类查询竞态
         java.util.concurrent.ExecutorService io = java.util.concurrent.Executors.newSingleThreadExecutor();
         io.execute(new Runnable() {
             @Override
@@ -81,6 +78,24 @@ public class AppDbHelper implements DbHelper {
                 }
             }
         });
+    }
+
+    /**
+     * T07：session 访问器。既有同步 DbHelper 接口保留，调用者必须在 IO 线程；
+     * 内部走 DbRuntime.awaitSession 等待就绪（主线程误用在 PERF_STRICT 构建记错误并兜底）。
+     * 开库失败/超时抛出明确错误（原路径是注入期崩溃，此处等价后移到首次使用）。
+     */
+    private DaoSession daoSession() {
+        DaoSession s = dbRuntime.awaitSession();
+        if (s == null) {
+            throw new IllegalStateException("DaoSession 未就绪（DB 初始化失败或超时）");
+        }
+        return s;
+    }
+
+    /** T07：worker 专用（不等待）；未 ready 返回 null，调用方自行决定异步路径 */
+    private DaoSession sessionIfReady() {
+        return dbRuntime.requireReadySession();
     }
 
     /** M99：应用上下文，供 repairMisflaggedPornyRows 读写一次性标记 */
@@ -104,7 +119,7 @@ public class AppDbHelper implements DbHelper {
             // SP 不可用时仍执行一次修复，失败不影响启动
         }
         try {
-            List<V9MmanItem> misflagged = mDaoSession.getV9MmanItemDao().queryBuilder()
+            List<V9MmanItem> misflagged = daoSession().getV9MmanItemDao().queryBuilder()
                     .where(V9MmanItemDao.Properties.SourceName.eq("91porny"))
                     .build().list();
             // M99：只把实际修改的行收集起来提交，避免把未变更行整批 updateInTx
@@ -117,7 +132,7 @@ public class AppDbHelper implements DbHelper {
                 }
             }
             if (!modified.isEmpty()) {
-                mDaoSession.getV9MmanItemDao().updateInTx(modified);
+                daoSession().getV9MmanItemDao().updateInTx(modified);
             }
             // 全部成功后才落"已执行"标记；中途异常则下次启动重试
             mAppContext.getSharedPreferences(REPAIR_PORNY_SP_NAME, Context.MODE_PRIVATE)
@@ -140,7 +155,7 @@ public class AppDbHelper implements DbHelper {
             return;
         }
         int length = name.length;
-        List<Category> existList = mDaoSession.getCategoryDao().queryBuilder()
+        List<Category> existList = daoSession().getCategoryDao().queryBuilder()
                 .where(CategoryDao.Properties.CategoryType.eq(type)).build().list();
 
         //M2：原实现仅比较"行数是否等于默认数组长度"，一旦默认分类数组增删，
@@ -169,31 +184,100 @@ public class AppDbHelper implements DbHelper {
         if (needInsert.isEmpty()) {
             return;
         }
-        mDaoSession.getCategoryDao().insertOrReplaceInTx(needInsert);
+        daoSession().getCategoryDao().insertOrReplaceInTx(needInsert);
     }
 
     @Override
     public synchronized void updateV9MmanItem(V9MmanItem v9MmanItem) {
-        mDaoSession.getV9MmanItemDao().update(v9MmanItem);
+        daoSession().getV9MmanItemDao().update(v9MmanItem);
+    }
+
+    @Override
+    public void updateHlsProgressColumns(long rowId, int progress, long soFarBytes) {
+        // T05：定向列更新，不触碰其他字段（收藏/来源/状态由各自入口负责），
+        // 避免用启动时的过时实体快照覆盖下载期间用户改过的字段。
+        // 列名与 greenDAO 生成 schema 一致（V9MmanItemDao: _id/PROGRESS/SO_FAR_BYTES）。
+        if (rowId <= 0) {
+            return;
+        }
+        try {
+            daoSession().getV9MmanItemDao().getDatabase().execSQL(
+                    "UPDATE V9_MMAN_ITEM SET PROGRESS=?, SO_FAR_BYTES=? WHERE _id=?",
+                    new Object[]{progress, soFarBytes, rowId});
+        } catch (Exception e) {
+            AppLog.e("AppDbHelper", "updateHlsProgressColumns failed: " + AppLog.cause(e));
+        }
     }
 
     @Override
     public List<V9MmanItem> loadDownloadingData() {
-        V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
+        V9MmanItemDao dao = daoSession().getV9MmanItemDao();
         return dao.queryBuilder().where(V9MmanItemDao.Properties.Status.notEq(FileDownloadStatus.completed), V9MmanItemDao.Properties.DownloadId.notEq(0)).orderDesc(V9MmanItemDao.Properties.AddDownloadDate).build().list();
 
     }
 
     @Override
     public List<V9MmanItem> loadFinishedData() {
-        V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
+        V9MmanItemDao dao = daoSession().getV9MmanItemDao();
         return dao.queryBuilder().where(V9MmanItemDao.Properties.Status.eq(FileDownloadStatus.completed), V9MmanItemDao.Properties.DownloadId.notEq(0)).orderDesc(V9MmanItemDao.Properties.FinishedDownloadDate).build().list();
     }
 
     @Override
     public List<V9MmanItem> loadHistoryData(int page, int pageSize) {
-        V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
+        V9MmanItemDao dao = daoSession().getV9MmanItemDao();
         return dao.queryBuilder().where(V9MmanItemDao.Properties.ViewHistoryDate.isNotNull()).orderDesc(V9MmanItemDao.Properties.ViewHistoryDate).offset((page - 1) * pageSize).limit(pageSize).build().list();
+    }
+
+    // ==================== T08：游标分页 ====================
+    // 50,000 行 EXPLAIN QUERY PLAN 验证由 T00 基线任务执行（build-tools/perf/）；
+    // 索引见 DbPerformanceIndexes。开关关闭时 UI 停用新分页（索引保留不 DROP）。
+    // 界面迁移到分页前，既有 offset/全量接口继续保留兼容。
+
+    @Override
+    public Page<V9MmanItem> loadHistoryAfter(Long lastDateMs, Long lastId, int limit) {
+        int n = Math.max(1, Math.min(100, limit));
+        QueryBuilder<V9MmanItem> qb = daoSession().getV9MmanItemDao().queryBuilder()
+                .where(V9MmanItemDao.Properties.ViewHistoryDate.isNotNull())
+                .orderDesc(V9MmanItemDao.Properties.ViewHistoryDate, V9MmanItemDao.Properties.Id)
+                .limit(n + 1);
+        if (lastDateMs != null && lastId != null) {
+            // (date < :t OR (date = :t AND _id < :id))——同时间按 id 消歧
+            qb.where(qb.or(
+                    V9MmanItemDao.Properties.ViewHistoryDate.lt(new Date(lastDateMs)),
+                    qb.and(V9MmanItemDao.Properties.ViewHistoryDate.eq(new Date(lastDateMs)),
+                            V9MmanItemDao.Properties.Id.lt(lastId))));
+        }
+        return Page.fromProbe(qb.build().list(), n);
+    }
+
+    @Override
+    public Page<V9MmanItem> loadLocalFavoritesBefore(Long lastId, int limit) {
+        int n = Math.max(1, Math.min(100, limit));
+        QueryBuilder<V9MmanItem> qb = daoSession().getV9MmanItemDao().queryBuilder()
+                .where(V9MmanItemDao.Properties.IsLocalFavorite.eq(true))
+                .orderDesc(V9MmanItemDao.Properties.Id)
+                .limit(n + 1);
+        if (lastId != null) {
+            qb.where(V9MmanItemDao.Properties.Id.lt(lastId));
+        }
+        return Page.fromProbe(qb.build().list(), n);
+    }
+
+    @Override
+    public Page<V9MmanItem> loadFinishedAfter(Long lastDateMs, Long lastId, int limit) {
+        int n = Math.max(1, Math.min(100, limit));
+        QueryBuilder<V9MmanItem> qb = daoSession().getV9MmanItemDao().queryBuilder()
+                .where(V9MmanItemDao.Properties.Status.eq(FileDownloadStatus.completed),
+                        V9MmanItemDao.Properties.DownloadId.notEq(0))
+                .orderDesc(V9MmanItemDao.Properties.FinishedDownloadDate, V9MmanItemDao.Properties.Id)
+                .limit(n + 1);
+        if (lastDateMs != null && lastId != null) {
+            qb.where(qb.or(
+                    V9MmanItemDao.Properties.FinishedDownloadDate.lt(new Date(lastDateMs)),
+                    qb.and(V9MmanItemDao.Properties.FinishedDownloadDate.eq(new Date(lastDateMs)),
+                            V9MmanItemDao.Properties.Id.lt(lastId))));
+        }
+        return Page.fromProbe(qb.build().list(), n);
     }
 
     @Override
@@ -211,7 +295,7 @@ public class AppDbHelper implements DbHelper {
                 mergeDownloadState(old, v9MmanItem);
             }
         }
-        return mDaoSession.getV9MmanItemDao().insertOrReplace(v9MmanItem);
+        return daoSession().getV9MmanItemDao().insertOrReplace(v9MmanItem);
     }
 
     /**
@@ -268,7 +352,7 @@ public class AppDbHelper implements DbHelper {
             try {
                 // M99：unique() 在历史脏数据（同 videoId 多行）下会抛 DaoException，
                 // 改用 list() 取第一条，保留 insertOrReplace 主键复用语义
-                List<VideoResult> existList = mDaoSession.getVideoResultDao().queryBuilder()
+                List<VideoResult> existList = daoSession().getVideoResultDao().queryBuilder()
                         .where(VideoResultDao.Properties.VideoId.eq(videoResult.getVideoId()))
                         .build().list();
                 VideoResult existing = (existList != null && !existList.isEmpty()) ? existList.get(0) : null;
@@ -278,7 +362,7 @@ public class AppDbHelper implements DbHelper {
             } catch (Exception ignored) {
             }
         }
-        return mDaoSession.getVideoResultDao().insertOrReplace(videoResult);
+        return daoSession().getVideoResultDao().insertOrReplace(videoResult);
     }
 
     @Override
@@ -286,7 +370,7 @@ public class AppDbHelper implements DbHelper {
         if (TextUtils.isEmpty(viewKey)) {
             return null;
         }
-        V9MmanItemDao v9MmanItemDao = mDaoSession.getV9MmanItemDao();
+        V9MmanItemDao v9MmanItemDao = daoSession().getV9MmanItemDao();
         // M66b/M-09：历史数据存在「同一视频存成两行」的分裂（裸 key / 带前缀 key）。
         // M-09：合并为单次查询，使用 OR 条件一次性匹配三种形态，减少 3 次 DB 往返。
         // 复查修正：三形态必须用 queryBuilder.or() 组合，直接塞进同一 where() 会被 AND 连接，
@@ -312,7 +396,7 @@ public class AppDbHelper implements DbHelper {
 
     @Override
     public V9MmanItem findV9MmanItemByDownloadId(int downloadId) {
-        V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
+        V9MmanItemDao dao = daoSession().getV9MmanItemDao();
         try {
             return dao.queryBuilder().where(V9MmanItemDao.Properties.DownloadId.eq(downloadId)).build().unique();
         } catch (Exception e) {
@@ -327,13 +411,13 @@ public class AppDbHelper implements DbHelper {
 
     @Override
     public List<V9MmanItem> loadV9MmanItems() {
-        V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
+        V9MmanItemDao dao = daoSession().getV9MmanItemDao();
         return dao.loadAll();
     }
 
     @Override
     public List<V9MmanItem> loadLocalFavoriteItems() {
-        V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
+        V9MmanItemDao dao = daoSession().getV9MmanItemDao();
         return dao.queryBuilder()
                 .where(V9MmanItemDao.Properties.IsLocalFavorite.eq(true))
                 .orderDesc(V9MmanItemDao.Properties.Id)
@@ -342,57 +426,57 @@ public class AppDbHelper implements DbHelper {
 
     @Override
     public long countLocalFavorites() {
-        return mDaoSession.getV9MmanItemDao().queryBuilder()
+        return daoSession().getV9MmanItemDao().queryBuilder()
                 .where(V9MmanItemDao.Properties.IsLocalFavorite.eq(true))
                 .count();
     }
 
     @Override
     public long countHistoryItems() {
-        return mDaoSession.getV9MmanItemDao().queryBuilder()
+        return daoSession().getV9MmanItemDao().queryBuilder()
                 .where(V9MmanItemDao.Properties.ViewHistoryDate.isNotNull())
                 .count();
     }
 
     @Override
     public long countDownloadTasks() {
-        return mDaoSession.getV9MmanItemDao().queryBuilder()
+        return daoSession().getV9MmanItemDao().queryBuilder()
                 .where(V9MmanItemDao.Properties.DownloadId.notEq(0))
                 .count();
     }
 
     @Override
     public List<V9MmanItem> findV9MmanItemByDownloadStatus(int status) {
-        V9MmanItemDao dao = mDaoSession.getV9MmanItemDao();
+        V9MmanItemDao dao = daoSession().getV9MmanItemDao();
         return dao.queryBuilder().where(V9MmanItemDao.Properties.Status.eq(status)).build().list();
     }
 
     @Override
     public List<Category> loadAllCategoryDataByType(int type) {
-        CategoryDao categoryDao = mDaoSession.getCategoryDao();
+        CategoryDao categoryDao = daoSession().getCategoryDao();
         return categoryDao.queryBuilder().where(CategoryDao.Properties.CategoryType.eq(type)).orderAsc(CategoryDao.Properties.SortId).build().list();
     }
 
     @Override
     public List<Category> loadCategoryDataByType(int type) {
-        CategoryDao categoryDao = mDaoSession.getCategoryDao();
+        CategoryDao categoryDao = daoSession().getCategoryDao();
         return categoryDao.queryBuilder().where(CategoryDao.Properties.CategoryType.eq(type), CategoryDao.Properties.IsShow.eq(true)).orderAsc(CategoryDao.Properties.SortId).build().list();
     }
 
     @Override
     public void updateCategoryData(List<Category> categoryList) {
-        mDaoSession.getCategoryDao().updateInTx(categoryList);
+        daoSession().getCategoryDao().updateInTx(categoryList);
     }
 
     @Override
     public Category findCategoryById(Long id) {
-        CategoryDao categoryDao = mDaoSession.getCategoryDao();
+        CategoryDao categoryDao = daoSession().getCategoryDao();
         return categoryDao.load(id);
     }
 
     @Override
     public List<AuthorFavorite> loadAuthorFavorites() {
-        AuthorFavoriteDao dao = mDaoSession.getAuthorFavoriteDao();
+        AuthorFavoriteDao dao = daoSession().getAuthorFavoriteDao();
         return dao.queryBuilder()
                 .orderDesc(AuthorFavoriteDao.Properties.FavoriteDate)
                 .build().list();
@@ -401,7 +485,7 @@ public class AppDbHelper implements DbHelper {
     @Override
     public AuthorFavorite findAuthorFavorite(String authorKey, String source) {
         // D5：用 list().get(0) 而非 unique()，即便历史上已存在重复行也不会抛 DaoException 导致功能永久损坏
-        List<AuthorFavorite> list = mDaoSession.getAuthorFavoriteDao().queryBuilder()
+        List<AuthorFavorite> list = daoSession().getAuthorFavoriteDao().queryBuilder()
                 .where(AuthorFavoriteDao.Properties.AuthorKey.eq(authorKey),
                         AuthorFavoriteDao.Properties.Source.eq(source))
                 .build().list();
@@ -415,7 +499,7 @@ public class AppDbHelper implements DbHelper {
         if (findAuthorFavorite(authorKeyOrNull(authorFavorite), sourceOrNull(authorFavorite)) != null) {
             return -1;
         }
-        return mDaoSession.getAuthorFavoriteDao().insertOrReplace(authorFavorite);
+        return daoSession().getAuthorFavoriteDao().insertOrReplace(authorFavorite);
     }
 
     private static String authorKeyOrNull(AuthorFavorite f) {
@@ -431,12 +515,12 @@ public class AppDbHelper implements DbHelper {
         if (authorFavorite == null || authorFavorite.getId() == null) {
             return;
         }
-        mDaoSession.getAuthorFavoriteDao().update(authorFavorite);
+        daoSession().getAuthorFavoriteDao().update(authorFavorite);
     }
 
     @Override
     public void deleteAuthorFavorite(AuthorFavorite authorFavorite) {
-        mDaoSession.getAuthorFavoriteDao().delete(authorFavorite);
+        daoSession().getAuthorFavoriteDao().delete(authorFavorite);
     }
 
     @Override
@@ -450,7 +534,7 @@ public class AppDbHelper implements DbHelper {
     public List<String> getAutoCompleteNames(int type) {
         Set<String> nameSet = new LinkedHashSet<>();
         try {
-            List<AutoCompleteEntity> list = mDaoSession.getAutoCompleteEntityDao().queryBuilder()
+            List<AutoCompleteEntity> list = daoSession().getAutoCompleteEntityDao().queryBuilder()
                     .where(AutoCompleteEntityDao.Properties.Type.eq(type))
                     .orderDesc(AutoCompleteEntityDao.Properties.UseTime)
                     .list();
@@ -471,7 +555,7 @@ public class AppDbHelper implements DbHelper {
             return;
         }
         try {
-            AutoCompleteEntityDao dao = mDaoSession.getAutoCompleteEntityDao();
+            AutoCompleteEntityDao dao = daoSession().getAutoCompleteEntityDao();
             AutoCompleteEntity exist = dao.queryBuilder()
                     .where(AutoCompleteEntityDao.Properties.Name.eq(name),
                             AutoCompleteEntityDao.Properties.Type.eq(type))
@@ -494,7 +578,7 @@ public class AppDbHelper implements DbHelper {
     public List<String> getSearchHistory(int type, int limit) {
         List<String> names = new ArrayList<>();
         try {
-            List<AutoCompleteEntity> list = mDaoSession.getAutoCompleteEntityDao().queryBuilder()
+            List<AutoCompleteEntity> list = daoSession().getAutoCompleteEntityDao().queryBuilder()
                     .where(AutoCompleteEntityDao.Properties.Type.eq(type))
                     .orderDesc(AutoCompleteEntityDao.Properties.UpdateDate)
                     .limit(limit)
@@ -515,11 +599,11 @@ public class AppDbHelper implements DbHelper {
     @Override
     public void clearSearchHistory(int type) {
         try {
-            List<AutoCompleteEntity> list = mDaoSession.getAutoCompleteEntityDao().queryBuilder()
+            List<AutoCompleteEntity> list = daoSession().getAutoCompleteEntityDao().queryBuilder()
                     .where(AutoCompleteEntityDao.Properties.Type.eq(type))
                     .list();
             if (list != null && !list.isEmpty()) {
-                mDaoSession.getAutoCompleteEntityDao().deleteInTx(list);
+                daoSession().getAutoCompleteEntityDao().deleteInTx(list);
             }
         } catch (Exception e) {
             // 删除失败不应影响 UI
@@ -532,12 +616,12 @@ public class AppDbHelper implements DbHelper {
             return;
         }
         try {
-            AutoCompleteEntity entity = mDaoSession.getAutoCompleteEntityDao().queryBuilder()
+            AutoCompleteEntity entity = daoSession().getAutoCompleteEntityDao().queryBuilder()
                     .where(AutoCompleteEntityDao.Properties.Name.eq(name),
                             AutoCompleteEntityDao.Properties.Type.eq(type))
                     .unique();
             if (entity != null) {
-                mDaoSession.getAutoCompleteEntityDao().delete(entity);
+                daoSession().getAutoCompleteEntityDao().delete(entity);
             }
         } catch (Exception e) {
             // 删除失败不应影响 UI

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "scenario": "reco_scroll",
+  "status": "NOT_RUN",
+  "sampleCount": 0,
+  "failureCount": 0,
+  "p50": null,
+  "p95": null,
+  "raw": {
+    "ttid_ms": [],
+    "wait_ms": [],
+    "java_heap_kb": [],
+    "pss_kb": [],
+    "failures": [],
+    "frames_total": 1453,
+    "frames_janky": 12,
+    "janky_pct": 0.8258774948382657,
+    "frame_p95_ms": 19
+  },
+  "environment": {
+    "apkSha256": "ee0637478ca6d770c558845bebd8a34341e0eadb0b8e71d6d1f6fed79eead301",
+    "commit": "d1453dc7989852724da7f4014d8089cb1a7a2dba",
+    "device": "PGEM10 api35"
+  }
+}

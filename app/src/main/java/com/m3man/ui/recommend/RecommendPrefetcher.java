@@ -58,8 +58,6 @@ public class RecommendPrefetcher {
     private static final int MAX_CACHE = 60;
     /** 只对紧邻的 N 条做字节级预热（解析本身按 prefetchAhead 做） */
     private static final int WARM_AHEAD = 1;
-    /** M98：负缓存 TTL——解析失败后 10 分钟内直接快速失败，不再反复打详情页 */
-    private static final long NEGATIVE_CACHE_TTL_MS = 10L * 60L * 1000L;
 
     /** 解析回调 */
     public interface ResolveCallback {
@@ -82,11 +80,6 @@ public class RecommendPrefetcher {
     private final Set<String> inFlight = new HashSet<>();
     private final Set<String> warmed = new HashSet<>();
     /**
-     * M98：负缓存——viewKey -> 失败封禁截止时间（elapsedRealtime）。
-     * 解析失败的 key 在 TTL 内直接 fail-fast，避免反复对同一条死链打详情页网络请求。
-     */
-    private final Map<String, Long> failedUntil = new ConcurrentHashMap<>();
-    /**
      * viewKey -> 等待该 key 解析结果的回调列表。
      * 同一条视频可能被「起播」和「下载」同时等待，所以是一对多，
      * 早期用单值 Map 会导致后来者把前面的回调顶掉（表现为点了下载后视频卡住不播）。
@@ -95,6 +88,32 @@ public class RecommendPrefetcher {
 
     private final ExecutorService warmExecutor = Executors.newSingleThreadExecutor();
     private volatile boolean released = false;
+
+    // ==================== T04：预取调度 ====================
+
+    /**
+     * T04：负缓存——viewKey → 失败封禁截止时间（elapsedRealtime）。
+     * 分级 TTL（方案 §5-T04）：断网/超时/5xx 短 TTL（5s，站点恢复即可重试）；
+     * 解析无结果（确定不可用）保留长 TTL（10min）；403 失效只允许一次快速重解析。
+     * LRU ≤120，满时淘汰最旧，并顺带清除过期项（不再整体清空）。
+     */
+    private static final long NEG_TTL_NETWORK_MS = 5_000L;
+    private static final long NEG_TTL_NO_RESULT_MS = 10L * 60L * 1000L;
+    private static final long NEG_TTL_FORBIDDEN_MS = 1_000L;
+    private static final int MAX_NEG_CACHE = 120;
+    private final LinkedHashMap<String, Long> failedUntil = new LinkedHashMap<>();
+    /** 403 失效计数：每个 key 只允许一次快速重解析，第二次按解析失败长封禁 */
+    private final Set<String> forbiddenReparseUsed = new HashSet<>();
+    /** 后台解析任务表：viewKey → Disposable（翻页出窗可取消；前台/下载解析不进这张表） */
+    private final Map<String, io.reactivex.disposables.Disposable> backgroundParses =
+            new ConcurrentHashMap<>();
+    /** 当前窗口（current + 后续 ahead 条的 viewKey） */
+    private final Set<String> windowKeys = new HashSet<>();
+    /** warm 等待队列计数：同时 1 个执行 + 最多 1 条待队列 */
+    private final java.util.concurrent.atomic.AtomicInteger warmPending =
+            new java.util.concurrent.atomic.AtomicInteger();
+    /** 活动预热连接句柄：release/翻页立即断开 */
+    private volatile HttpURLConnection warmConnection;
 
     public RecommendPrefetcher(Context context, DataManager dataManager) {
         this.appContext = context.getApplicationContext();
@@ -219,9 +238,8 @@ public class RecommendPrefetcher {
                 return;
             }
         }
-        // M98：负缓存未到期直接快速失败，不打网络请求
-        Long until = failedUntil.get(viewKey);
-        if (until != null && android.os.SystemClock.elapsedRealtime() < until) {
+        // M98/T04：负缓存未到期直接快速失败，不打网络请求
+        if (isNegativeCached(viewKey)) {
             AppLog.i(TAG, "负缓存命中，跳过解析 viewKey=" + viewKey);
             if (callback != null) {
                 callback.onFailed(viewKey, "解析视频链接失败了");
@@ -285,7 +303,21 @@ public class RecommendPrefetcher {
             return;
         }
         try {
-            GlideApp.with(appContext).load(imgUrl).preload();
+            if (com.m3man.perf.PerfFlags.coverRequestV2) {
+                // T03：与展示侧共享同一 spec（String model + override + SmartCoverTransformation），
+                // 预取的解码结果能命中展示请求的 resource cache——旧 load(String).preload()
+                // 与展示 load(Uri) 缓存键不一致，预取白做。
+                com.m3man.utils.CoverRequests.Spec spec =
+                        com.m3man.utils.CoverRequests.Spec.card(imgUrl);
+                com.m3man.utils.GlideApp.with(appContext)
+                        .load(imgUrl)
+                        .apply(new com.bumptech.glide.request.RequestOptions()
+                                .override(spec.widthPx, spec.heightPx)
+                                .transform(new com.m3man.utils.SmartCoverTransformation(imgUrl)))
+                        .preload();
+            } else {
+                GlideApp.with(appContext).load(imgUrl).preload();
+            }
         } catch (Exception e) {
             Logger.t(TAG).d("preload cover failed: " + e.getMessage());
         }
@@ -293,9 +325,8 @@ public class RecommendPrefetcher {
 
     private void parse(final RecoCandidate candidate, final boolean urgent) {
         final String viewKey = candidate.viewKey();
-        // M98：负缓存 fail-fast——TTL 内失败过的 key 不再发起网络解析，直接回调失败
-        Long until = failedUntil.get(viewKey);
-        if (until != null && android.os.SystemClock.elapsedRealtime() < until) {
+        // M98/T04：负缓存 fail-fast——分级 TTL 内失败过的 key 不再发起网络解析
+        if (isNegativeCached(viewKey)) {
             AppLog.i(TAG, "负缓存命中(parse)，跳过 viewKey=" + viewKey);
             for (ResolveCallback cb : drainWaiting(viewKey)) {
                 try {
@@ -430,11 +461,12 @@ public class RecommendPrefetcher {
         synchronized (inFlight) {
             inFlight.remove(viewKey);
         }
-        // M98：记入负缓存，10 分钟内对该 key 的解析请求直接 fail-fast
+        // M98/T04：记入分级负缓存（断网/超时/5xx 短 TTL；解析无结果长 TTL；
+        // 403 只允许一次快速重解析），LRU ≤120
         if (!TextUtils.isEmpty(viewKey)) {
-            failedUntil.put(viewKey,
-                    android.os.SystemClock.elapsedRealtime() + NEGATIVE_CACHE_TTL_MS);
+            recordFailure(viewKey, throwable);
         }
+        backgroundParses.remove(viewKey);
         String msg = throwable == null || TextUtils.isEmpty(throwable.getMessage())
                 ? "解析视频链接失败了" : throwable.getMessage();
         // M75：升为 AppLog.e（diag 可见），便于定位某条视频详情页 HTTP 200 后静默解析失败的根因
@@ -446,6 +478,223 @@ public class RecommendPrefetcher {
                 cb.onFailed(viewKey, msg);
             } catch (Exception e) {
                 Logger.t(TAG).d("failed callback error: " + e.getMessage());
+            }
+        }
+    }
+
+    // ==================== T04：负缓存（分级 TTL + LRU） ====================
+
+    /** 负缓存是否命中；顺带清除已过期项 */
+    private boolean isNegativeCached(String viewKey) {
+        if (TextUtils.isEmpty(viewKey)) {
+            return false;
+        }
+        Long until;
+        synchronized (failedUntil) {
+            until = failedUntil.get(viewKey);
+        }
+        return until != null && android.os.SystemClock.elapsedRealtime() < until;
+    }
+
+    /** 按异常分类记录负缓存（方案 §5-T04） */
+    private void recordFailure(String viewKey, Throwable t) {
+        String msg = t == null ? "" : String.valueOf(t.getMessage());
+        long ttl;
+        boolean networkish = t != null && (t instanceof java.net.SocketTimeoutException
+                || t instanceof java.net.UnknownHostException
+                || t instanceof java.net.ConnectException
+                || t instanceof java.io.IOException);
+        if (msg != null && msg.contains("403")) {
+            // 403 失效：只允许一次快速重解析（签名刷新场景），第二次按解析失败长封禁
+            synchronized (forbiddenReparseUsed) {
+                if (forbiddenReparseUsed.add(viewKey)) {
+                    ttl = NEG_TTL_FORBIDDEN_MS;
+                } else {
+                    ttl = NEG_TTL_NO_RESULT_MS;
+                }
+            }
+        } else if (networkish) {
+            ttl = NEG_TTL_NETWORK_MS; // 断网/超时/5xx：短 TTL，网络恢复即可重试
+        } else {
+            ttl = NEG_TTL_NO_RESULT_MS; // 解析无结果：确定不可用，长 TTL
+        }
+        synchronized (failedUntil) {
+            failedUntil.remove(viewKey);
+            failedUntil.put(viewKey, android.os.SystemClock.elapsedRealtime() + ttl);
+            // LRU 淘汰最旧 + 清除过期项（不整体清空）
+            Iterator<String> it = failedUntil.keySet().iterator();
+            while (failedUntil.size() > MAX_NEG_CACHE && it.hasNext()) {
+                it.next();
+                it.remove();
+            }
+            long now = android.os.SystemClock.elapsedRealtime();
+            it = failedUntil.keySet().iterator();
+            while (it.hasNext()) {
+                if (failedUntil.get(it.next()) <= now) {
+                    it.remove();
+                }
+            }
+        }
+    }
+
+    /** 用户显式重试：绕过负缓存一次（清掉该 key 的封禁） */
+    public void bypassNegativeCacheOnce(String viewKey) {
+        if (TextUtils.isEmpty(viewKey)) {
+            return;
+        }
+        synchronized (failedUntil) {
+            failedUntil.remove(viewKey);
+        }
+        synchronized (forbiddenReparseUsed) {
+            forbiddenReparseUsed.remove(viewKey);
+        }
+    }
+
+    // ==================== T04：窗口调度 ====================
+
+    /**
+     * 更新预取窗口：当前页 + 后续 ahead 条（方案 §5-T04）。
+     * 窗口外已发起的后台解析取消（仍有前台/下载等待者或已缓存的除外）；
+     * 窗口内未解析的条目发起后台解析（在途后台解析 ≤8，只保留最新窗口）。
+     */
+    public void updateWindow(List<RecoCandidate> list, int currentPosition, int ahead) {
+        // L-fix：预取开关关闭时不做任何后台预取（解析/封面/字节预热）；
+        // 用户明确请求的播放与下载解析走 resolveNow，不受此影响
+        if (appContext != null && !PlayUiPrefs.isRecoPrefetchEnabled(appContext)) {
+            return;
+        }
+        if (released || list == null || currentPosition < 0 || currentPosition >= list.size()) {
+            return;
+        }
+        // 1. 计算新窗口
+        Set<String> newWindow = new HashSet<>();
+        for (int i = currentPosition; i < list.size() && i <= currentPosition + ahead; i++) {
+            RecoCandidate c = list.get(i);
+            if (c != null && c.item != null && !TextUtils.isEmpty(c.viewKey())) {
+                newWindow.add(c.viewKey());
+            }
+        }
+        windowKeys.clear();
+        windowKeys.addAll(newWindow);
+
+        // 2. 取消窗口外的后台解析（有等待者/已完成的除外——等待者由 waiting 表判定）
+        for (Map.Entry<String, io.reactivex.disposables.Disposable> e
+                : backgroundParses.entrySet()) {
+            if (!newWindow.contains(e.getKey())) {
+                boolean hasWaiter;
+                synchronized (waiting) {
+                    hasWaiter = waiting.containsKey(e.getKey());
+                }
+                if (!hasWaiter) {
+                    io.reactivex.disposables.Disposable d = backgroundParses.remove(e.getKey());
+                    if (d != null && !d.isDisposed()) {
+                        d.dispose(); // 真取消网络（不只是停回调）
+                        AppLog.i(TAG, "后台解析出窗取消 viewKey=" + e.getKey());
+                    }
+                    synchronized (inFlight) {
+                        inFlight.remove(e.getKey());
+                    }
+                }
+            }
+        }
+
+        // 3. 窗口内未解析条目发起后台解析（前台当前页由 resolveNow 单独走，不在此列）
+        int launched = 0;
+        for (int i = currentPosition + 1; i < list.size() && launched < ahead; i++) {
+            RecoCandidate c = list.get(i);
+            if (c == null || c.item == null || TextUtils.isEmpty(c.viewKey())) {
+                continue;
+            }
+            String key = c.viewKey();
+            if (!TextUtils.isEmpty(peekRawUrl(key)) || isNegativeCached(key)) {
+                continue;
+            }
+            synchronized (inFlight) {
+                if (inFlight.contains(key)) {
+                    continue;
+                }
+            }
+            boolean hasWaiter;
+            synchronized (waiting) {
+                hasWaiter = waiting.containsKey(key);
+            }
+            if (hasWaiter) {
+                continue; // 已有前台/下载在等，parse 会由其触发
+            }
+            synchronized (backgroundParses) {
+                if (backgroundParses.size() >= 8) {
+                    break; // 后台待队列 ≤8：只保留最新窗口
+                }
+            }
+            final RecoCandidate bc = c;
+            disposables.add(parseTracked(bc));
+            launched++;
+        }
+    }
+
+    /** 发起后台解析并登记到可取消表（不在 CompositeDisposable 里与前台混放） */
+    private io.reactivex.disposables.Disposable parseTracked(final RecoCandidate candidate) {
+        final String viewKey = candidate.viewKey();
+        final boolean isMmanPrefixed = viewKey != null && viewKey.startsWith("viewkey=");
+        final boolean isHexViewKey = !isMmanPrefixed && viewKey != null
+                && viewKey.matches("[0-9a-fA-F]{16,32}");
+        final Observable<VideoResult> parseObs = isHexViewKey
+                ? dataManager.loadPornyVideoUrl(viewKey)
+                : dataManager.loadMman9VideoUrl(viewKey);
+        synchronized (inFlight) {
+            inFlight.add(viewKey);
+        }
+        io.reactivex.disposables.Disposable d = Observable
+                .defer(() -> {
+                    VideoResult dbCached = loadDbCachedResult(viewKey);
+                    if (dbCached != null) {
+                        put(viewKey, dbCached.getVideoUrl());
+                        return Observable.just(dbCached);
+                    }
+                    return parseObs;
+                })
+                .subscribeOn(Schedulers.io())
+                .map(videoResult -> {
+                    if (videoResult == null || TextUtils.isEmpty(videoResult.getVideoUrl())) {
+                        throw new IllegalStateException("解析视频链接失败了");
+                    }
+                    persist(videoResult, candidate.item);
+                    return videoResult;
+                })
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        videoResult -> {
+                            backgroundParses.remove(viewKey);
+                            onParseSuccess(viewKey, candidate, videoResult, false);
+                        },
+                        throwable -> onParseFailed(viewKey, throwable));
+        backgroundParses.put(viewKey, d);
+        return d;
+    }
+
+    /** 退出页面/隐藏时取消全部后台预取（前台与下载等待不受影响） */
+    public void cancelBackground() {
+        windowKeys.clear();
+        for (Map.Entry<String, io.reactivex.disposables.Disposable> e
+                : backgroundParses.entrySet()) {
+            io.reactivex.disposables.Disposable d = e.getValue();
+            if (d != null && !d.isDisposed()) {
+                d.dispose();
+            }
+        }
+        backgroundParses.clear();
+        // 取消未开始的 warm 待队列（在途的由连接断开与循环检查收尾）
+        warmPending.set(0);
+        disconnectWarm();
+    }
+
+    /** 立即断开活动预热连接（阻塞 read 1 秒内失败退出） */
+    private void disconnectWarm() {
+        HttpURLConnection conn = warmConnection;
+        if (conn != null) {
+            try {
+                conn.disconnect();
+            } catch (Exception ignored) {
             }
         }
     }
@@ -519,9 +768,16 @@ public class RecommendPrefetcher {
     /**
      * 通过 videocache 代理拉首包，把本地缓存文件建立起来。
      * 失败不影响播放（播放器自己会拉流），所以全程吞异常。
+     * T04：warm 同时 1 个、待队列最多紧邻 1 条（warmPending ≥2 时跳过新请求），
+     * 队列不累计；release/翻页断开活动连接。
      */
     private void warm(final String rawUrl) {
         if (released || TextUtils.isEmpty(rawUrl)) {
+            return;
+        }
+        // T04（第一期）：HLS 直接读 manifest 未形成媒体缓存，无收益——禁止此 warm，
+        // 保留必要的详情解析；分片预热留给未来播放器统一缓存任务
+        if (isHlsUrl(rawUrl)) {
             return;
         }
         synchronized (warmed) {
@@ -534,15 +790,24 @@ public class RecommendPrefetcher {
                 warmed.add(rawUrl);
             }
         }
+        if (warmPending.get() >= 2) {
+            return; // 1 执行 + 1 待队列，不再累积
+        }
+        warmPending.incrementAndGet();
         try {
             warmExecutor.execute(new Runnable() {
                 @Override
                 public void run() {
-                    // HLS 不经过 videocache，避免缓存服务错误解析相对 ts 分片。
-                    doWarm(toPlayUrl(rawUrl));
+                    try {
+                        // HLS 不经过 videocache（上面已跳过）；MP4 包代理拉首包
+                        doWarm(toPlayUrl(rawUrl));
+                    } finally {
+                        warmPending.decrementAndGet();
+                    }
                 }
             });
         } catch (Exception ignored) {
+            warmPending.decrementAndGet();
             // 线程池已关闭
         }
     }
@@ -553,20 +818,29 @@ public class RecommendPrefetcher {
         }
         HttpURLConnection conn = null;
         InputStream is = null;
+        long readBytes = 0L;
         try {
             conn = (HttpURLConnection) new URL(playUrl).openConnection();
             conn.setConnectTimeout(8000);
             conn.setReadTimeout(8000);
             conn.setRequestProperty("Range", "bytes=0-" + (WARM_BYTES - 1));
+            warmConnection = conn;
             conn.connect();
             is = conn.getInputStream();
             byte[] buf = new byte[16 * 1024];
             int total = 0;
             int len;
-            while (!released && total < WARM_BYTES && (len = is.read(buf)) > 0) {
+            // T04：应用读取上限 512KiB；每次 read 最多 min(buf, remaining)；
+            // Range 被忽略时读满上限立即关流（底层代理仍可能自主取数，以网络统计区分）
+            while (!released && total < WARM_BYTES) {
+                int want = (int) Math.min(buf.length, WARM_BYTES - total);
+                len = is.read(buf, 0, want);
+                if (len <= 0) {
+                    break;
+                }
                 total += len;
             }
-            Logger.t(TAG).d("warm " + total + " bytes");
+            readBytes = total;
         } catch (Throwable t) {
             Logger.t(TAG).d("warm failed: " + t.getMessage());
         } finally {
@@ -582,12 +856,21 @@ public class RecommendPrefetcher {
                 } catch (Exception ignored) {
                 }
             }
+            if (warmConnection == conn) {
+                warmConnection = null;
+            }
+            // Range 被忽略时实际读取量可能超过 512KiB 计划值——如实记录供网络统计核对
+            if (readBytes > WARM_BYTES) {
+                AppLog.i(TAG, "warm 实际读取超过上限: " + readBytes + "B（服务端忽略 Range）");
+            }
         }
     }
 
     public void release() {
         released = true;
         disposables.clear();
+        // T04：翻页/隐藏/release 立即取消后台解析并断开活动预热连接
+        cancelBackground();
         synchronized (waiting) {
             waiting.clear();
         }
@@ -595,10 +878,16 @@ public class RecommendPrefetcher {
             inFlight.clear();
         }
         // M98：一并清空负缓存，避免复用实例时旧失败记录误伤新会话
-        failedUntil.clear();
+        synchronized (failedUntil) {
+            failedUntil.clear();
+        }
+        synchronized (forbiddenReparseUsed) {
+            forbiddenReparseUsed.clear();
+        }
         try {
             warmExecutor.shutdownNow();
         } catch (Exception ignored) {
         }
+        disconnectWarm();
     }
 }

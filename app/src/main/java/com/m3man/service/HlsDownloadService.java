@@ -82,19 +82,22 @@ public class HlsDownloadService extends Service {
         final String targetMp4Path;
         final int pseudoDownloadId;
         final int lastProgress;
+        /** T05：任务记录行 id——进度只按 id 定向更新进度列，不用过时实体整行覆盖 */
+        final long rowId;
 
         TaskState(HlsDownloader downloader, String viewKey, String savePath,
-                  String targetMp4Path, int pseudoDownloadId, int lastProgress) {
+                  String targetMp4Path, int pseudoDownloadId, int lastProgress, long rowId) {
             this.downloader = downloader;
             this.viewKey = viewKey == null ? "" : viewKey;
             this.savePath = savePath == null ? "" : savePath;
             this.targetMp4Path = targetMp4Path == null ? "" : targetMp4Path;
             this.pseudoDownloadId = pseudoDownloadId;
             this.lastProgress = lastProgress;
+            this.rowId = rowId;
         }
     }
 
-    private volatile TaskState state = new TaskState(null, "", "", "", 0, -1);
+    private volatile TaskState state = new TaskState(null, "", "", "", 0, -1, 0L);
 
     @Override
     public void onCreate() {
@@ -156,6 +159,8 @@ public class HlsDownloadService extends Service {
                 return START_NOT_STICKY;
             }
             notifyTitle = TextUtils.isEmpty(title) ? "视频下载" : title;
+            // T05：新任务开始前复位终态栅栏
+            terminalSubmitted.set(false);
             // 优先使用调用方算好的完整路径（与「我的下载」播放路径一致），否则回退旧的标题拼接 .mp4 路径逻辑
             String newTargetMp4Path;
             if (TextUtils.isEmpty(newSavePath)) {
@@ -185,7 +190,7 @@ public class HlsDownloadService extends Service {
             }
             // M97：以不可变快照一次性发布本任务上下文（downloader 暂沿用旧值，
             // 防止发布与 startDownload 替换之间 PAUSE/CANCEL 取不到旧下载器）
-            state = new TaskState(replacedDownloader, newViewKey, newSavePath, newTargetMp4Path, newPseudoId, -1);
+            state = new TaskState(replacedDownloader, newViewKey, newSavePath, newTargetMp4Path, newPseudoId, -1, 0L);
             // M62：统一在此落伪 downloadId + status=progress（修复 2.5）——
             // 各启动入口（推荐流/兜底/重新下载等）此前不写 downloadId，导致整个下载期间
             // 记录在「正在下载」「下载完成」两列表均不可见、进度广播空转。
@@ -205,7 +210,7 @@ public class HlsDownloadService extends Service {
             // M102：暂停≠取消——保留已下分片，下次 ACTION_START 时同目录分片级续传
             s.downloader.stop(false);
             s.downloader.shutdown();
-            state = new TaskState(null, s.viewKey, s.savePath, s.targetMp4Path, s.pseudoDownloadId, s.lastProgress);
+            state = new TaskState(null, s.viewKey, s.savePath, s.targetMp4Path, s.pseudoDownloadId, s.lastProgress, s.rowId);
             V9MmanItem item = findItem();
             if (item != null) {
                 item.setStatus(FileDownloadStatus.paused);
@@ -233,7 +238,7 @@ public class HlsDownloadService extends Service {
             // M102：取消=彻底丢弃，已下分片一并删除
             s.downloader.stop(true);
             s.downloader.shutdown();
-            state = new TaskState(null, s.viewKey, s.savePath, s.targetMp4Path, s.pseudoDownloadId, s.lastProgress);
+            state = new TaskState(null, s.viewKey, s.savePath, s.targetMp4Path, s.pseudoDownloadId, s.lastProgress, s.rowId);
             // 当前 stop(true) 只清理本任务临时目录，不再全局删除其他 HLS 任务。
             // 复位 DB 记录，使其从「正在下载」列表移除
             resetRecord();
@@ -305,7 +310,7 @@ public class HlsDownloadService extends Service {
         final HlsDownloader activeDownloader = new HlsDownloader(this);
         // M97：把活跃下载器写入快照整体发布（其余字段沿用当前快照值）
         TaskState cur = state;
-        state = new TaskState(activeDownloader, cur.viewKey, cur.savePath, cur.targetMp4Path, cur.pseudoDownloadId, -1);
+        state = new TaskState(activeDownloader, cur.viewKey, cur.savePath, cur.targetMp4Path, cur.pseudoDownloadId, -1, cur.rowId);
         // M43：传入播放缓存目录，若该视频播放过（分片已缓存）则直接复用，避免重复下载
         activeDownloader.download(url, saveDir, fileName, AppCacheUtils.getVideoCacheDir(this), new HlsDownloader.HlsDownloadListener() {
             @Override
@@ -315,6 +320,15 @@ public class HlsDownloadService extends Service {
                     return;
                 }
                 handleProgress(done, total, bytesDone);
+            }
+
+            @Override
+            public void onPhase(String phase) {
+                if (activeDownloader != state.downloader) {
+                    // 旧任务迟到阶段事件：不刷新当前通知
+                    return;
+                }
+                onPhaseChanged(phase);
             }
 
             @Override
@@ -414,62 +428,87 @@ public class HlsDownloadService extends Service {
                 item.setSoFarBytes(0);
                 item.setTotalFarBytes(0);
                 getDataManager().updateV9MmanItem(item);
+                // T05：启动时在协调路径查一次记录 id，后续进度按 id 定向更新进度列，
+                // 不再用本实体整行覆盖（防下载期间用户改过的收藏/来源被旧快照回写）
+                Long id = item.getId();
+                TaskState cur = state;
+                state = new TaskState(cur.downloader, cur.viewKey, cur.savePath, cur.targetMp4Path,
+                        cur.pseudoDownloadId, cur.lastProgress, id == null ? 0L : id);
             }
         } catch (Exception e) {
             AppLog.e("HlsDownload", "markRecordDownloading failed: " + e.getMessage());
         }
     }
 
-    // L-fix：HLS 进度速率估算与广播节流状态（服务内单任务串行，volatile 仅为可见性保障）
+    // L-fix/T05：HLS 进度速率估算与节流状态。
+    // 节流判断必须在昂贵操作之前：普通通知与广播各 500ms 一次（≤2次/秒），
+    // 进度 DB 写 2 秒一次（按 rowId 定向更新进度列，保留最新值）；
+    // 阶段切换与暂停/错误/完成立即 flush（见 onPhaseChanged / 各终态路径）。
     private volatile long lastProgressBytes = 0L;
     private volatile long lastProgressBytesAt = 0L;
     private volatile long smoothedSpeedBps = 0L;
-    private volatile int lastBroadcastPercent = -1;
-    private volatile long lastBroadcastAtMs = 0L;
-    private volatile long lastDbWriteAtMs = 0L;
+    /** T05：终态栅栏——完成/错误只允许提交一次，重复迟到回调直接丢弃 */
+    private final java.util.concurrent.atomic.AtomicBoolean terminalSubmitted =
+            new java.util.concurrent.atomic.AtomicBoolean(false);
+    /** handleProgress 可能被 3 个分片 worker 并发回调，节流窗口检查在锁内完成 */
+    private final Object progressLock = new Object();
+    private long lastSeenBytes = -1L;
+    private long lastNotifyAtMs = 0L;
+    private long lastBroadcastAtMs = 0L;
+    private long lastDbWriteAtMs = 0L;
 
     private void handleProgress(int done, int total, long bytesDone) {
-        int percent = total <= 0 ? 0 : (int) (done * 100L / total);
-        // L-fix：窗口速率 + 指数平滑。分片并发完成时每片都回调，
-        // 不节流会导致通知栏与列表高频重绘（缩略图/整行反复缩放闪烁的诱因之一）。
         long now = android.os.SystemClock.elapsedRealtime();
-        if (lastProgressBytesAt > 0 && now > lastProgressBytesAt && bytesDone >= lastProgressBytes) {
-            long dtMs = now - lastProgressBytesAt;
-            if (dtMs > 0) {
-                long windowBps = (bytesDone - lastProgressBytes) * 1000L / dtMs;
-                smoothedSpeedBps = smoothedSpeedBps <= 0 ? windowBps
-                        : (smoothedSpeedBps * 7 + windowBps * 3) / 10;
+        boolean doNotify;
+        boolean doBroadcast;
+        boolean doDbWrite;
+        int percent;
+        synchronized (progressLock) {
+            // T05：进度单调——采用聚合后的累计值，不信任乱序的旧 done/bytes（迟到回调丢弃）
+            if (bytesDone < lastSeenBytes) {
+                return;
             }
-        }
-        lastProgressBytes = bytesDone;
-        lastProgressBytesAt = now;
+            lastSeenBytes = bytesDone;
+            // 内存采样随事件更新（廉价，不节流）
+            if (lastProgressBytesAt > 0 && now > lastProgressBytesAt && bytesDone >= lastProgressBytes) {
+                long dtMs = now - lastProgressBytesAt;
+                if (dtMs > 0) {
+                    long windowBps = (bytesDone - lastProgressBytes) * 1000L / dtMs;
+                    smoothedSpeedBps = smoothedSpeedBps <= 0 ? windowBps
+                            : (smoothedSpeedBps * 7 + windowBps * 3) / 10;
+                }
+            }
+            lastProgressBytes = bytesDone;
+            lastProgressBytesAt = now;
 
-        boolean percentChanged = percent != lastBroadcastPercent;
-        boolean firstBroadcast = lastBroadcastPercent < 0;
-        boolean throttlePassed = now - lastBroadcastAtMs >= 800;
-
-        // M41：分片全部下载完成后进入合并/转码阶段，提示用户（避免误以为卡死）
-        if (total > 0 && done >= total) {
-            updateProgress("分片下载完成，正在转码", percent, total);
-        } else {
-            updateProgress("下载中 " + percent + "%", percent, total);
-        }
-        V9MmanItem item = findItem();
-        if (item != null) {
-            item.setProgress(percent);
-            item.setStatus(FileDownloadStatus.progress);
-            // M62：totalFarBytes 分片阶段保持 0（总量未知；存分片数曾导致垃圾尺寸渲染与误判）。
-            // L-fix：soFarBytes 改为真实已落盘字节，供「正在下载」列表展示已下载大小。
-            item.setSoFarBytes(bytesDone);
-            item.setTotalFarBytes(0);
-            if (percentChanged || firstBroadcast || now - lastDbWriteAtMs >= 5000) {
-                getDataManager().updateV9MmanItem(item);
+            percent = total <= 0 ? 0 : (int) (done * 100L / total);
+            // 先算节流窗口（在一切昂贵操作之前），命不中直接返回
+            doNotify = now - lastNotifyAtMs >= 500;
+            doBroadcast = now - lastBroadcastAtMs >= 500;
+            doDbWrite = now - lastDbWriteAtMs >= 2000;
+            if (doNotify) {
+                lastNotifyAtMs = now;
+            }
+            if (doBroadcast) {
+                lastBroadcastAtMs = now;
+            }
+            if (doDbWrite) {
                 lastDbWriteAtMs = now;
             }
         }
-        if (percentChanged || firstBroadcast || throttlePassed) {
-            lastBroadcastPercent = percent;
-            lastBroadcastAtMs = now;
+        // M41：分片全部下载完成后进入合并/转码阶段，提示用户（避免误以为卡死）
+        if (doNotify) {
+            String text = (total > 0 && done >= total) ? "分片下载完成，正在转码" : ("下载中 " + percent + "%");
+            updateProgress(text, percent, total);
+        }
+        // T05：DB 进度按 rowId 定向更新进度列（≤1次/2秒），每次进度不 findItem、不整行覆盖
+        if (doDbWrite) {
+            long rowId = state.rowId;
+            if (rowId > 0) {
+                getDataManager().updateHlsProgressColumns(rowId, percent, bytesDone);
+            }
+        }
+        if (doBroadcast) {
             Intent i = new Intent(ACTION_HLS_PROGRESS);
             i.putExtra(EXTRA_VIEW_KEY, state.viewKey);
             i.putExtra(EXTRA_PROGRESS, percent);
@@ -481,7 +520,33 @@ public class HlsDownloadService extends Service {
         }
     }
 
+    /**
+     * T05：阶段切换立即 flush 通知（不受 500ms 节流约束）；阶段事件单列计数。
+     * 阶段链：DOWNLOADING → MERGING → REMUXING →（归档）→ COMPLETED。
+     */
+    private void onPhaseChanged(String phase) {
+        com.m3man.perf.Perf.recorder().counter("hls.phase." + phase, 1);
+        int percent = state.lastProgress < 0 ? 0 : state.lastProgress;
+        String text;
+        if (com.m3man.utils.HlsDownloader.PHASE_MERGING.equals(phase)) {
+            text = "分片下载完成，正在合并";
+        } else if (com.m3man.utils.HlsDownloader.PHASE_REMUXING.equals(phase)) {
+            text = "正在转码为 MP4";
+        } else {
+            text = "处理中";
+        }
+        try {
+            notificationManager.notify(NOTIFICATION_ID, buildProgressNotification(text, percent, 100));
+        } catch (Exception ignored) {
+        }
+    }
+
     private void handleSuccess(File mp4File) {
+        // T05：终态只能提交一次——重复迟到成功回调直接丢弃
+        if (!terminalSubmitted.compareAndSet(false, true)) {
+            AppLog.i("HlsDownload", "忽略重复终态（成功）回调 path=" + mp4File.getPath());
+            return;
+        }
         // M97：读端取一次快照，成功处理全程使用同一份任务上下文
         TaskState s = state;
         // M62：已取消的任务不得复活为"下载完成"（取消发生在合并/转码阶段时到达此处）
@@ -508,6 +573,7 @@ public class HlsDownloadService extends Service {
         }
         // V13：HLS 转码成品归档进 MediaStore 公共 Movies/3mman（best-effort，失败保留私有副本）。
         // 需在 showCompletedNotification 之前执行——归档成功会删除私有 mp4File，通知要指向归档成品。
+        com.m3man.perf.Perf.recorder().counter("hls.phase.archive", 1);
         String archivedPath = null;
         try {
             String archived = MediaStoreArchiver.archiveVideo(this, mp4File, (item != null ? item.getTitle() : null), s.viewKey);
@@ -530,6 +596,11 @@ public class HlsDownloadService extends Service {
     }
 
     private void handleError(String message) {
+        // T05：终态只能提交一次——重复迟到错误回调直接丢弃
+        if (!terminalSubmitted.compareAndSet(false, true)) {
+            AppLog.i("HlsDownload", "忽略重复终态（错误）回调 msg=" + message);
+            return;
+        }
         // M97：读端取一次快照，失败处理全程使用同一份任务上下文
         TaskState s = state;
         // M62：已取消的任务不得复活为"下载错误"（worker 阻塞在 socket 读时用户取消，迟到回调到达此处）
@@ -602,7 +673,7 @@ public class HlsDownloadService extends Service {
         TaskState s = state;
         if (s.downloader != null) {
             s.downloader.shutdown();
-            state = new TaskState(null, s.viewKey, s.savePath, s.targetMp4Path, s.pseudoDownloadId, s.lastProgress);
+            state = new TaskState(null, s.viewKey, s.savePath, s.targetMp4Path, s.pseudoDownloadId, s.lastProgress, s.rowId);
         }
     }
 
@@ -612,7 +683,7 @@ public class HlsDownloadService extends Service {
         if (percent == s.lastProgress) {
             return;
         }
-        state = new TaskState(s.downloader, s.viewKey, s.savePath, s.targetMp4Path, s.pseudoDownloadId, percent);
+        state = new TaskState(s.downloader, s.viewKey, s.savePath, s.targetMp4Path, s.pseudoDownloadId, percent, s.rowId);
         Notification notification = buildProgressNotification(text, percent, total);
         notificationManager.notify(NOTIFICATION_ID, notification);
     }

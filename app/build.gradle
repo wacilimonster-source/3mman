@@ -13,6 +13,8 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
         multiDexEnabled true
+        // T00：perf 埋点/StrictMode 构建标记，仅 debug 与 benchmark 打开，release 保持关闭
+        buildConfigField "boolean", "PERF_STRICT", "false"
         ndk {
             // 设置支持的SO库架构：仅保留 64 位 arm64-v8a（R8 混淆 + 64 位，兼顾体积与新机型兼容）
             abiFilters 'arm64-v8a'
@@ -22,6 +24,9 @@ android {
     testOptions {
         unitTests.returnDefaultValues = true
     }
+    // T00：androidTest 变体随 benchmark 构建生成（AGP 7.4 只为 testBuildType 建 androidTest），
+    // 设备种子/冒烟（DbSeedTest/PerfSmokeTest）都打进 .perf 测试包，与正式包隔离
+    testBuildType "benchmark"
     signingConfigs {
         release {
             storeFile file('C:/gwork/origks/debug.keystore')
@@ -48,6 +53,20 @@ android {
             ext.enableBugsnag = false
             signingConfig signingConfigs.debug
             minifyEnabled false
+            buildConfigField "boolean", "PERF_STRICT", "true"
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+        // T00：性能测量专用构建。从 release 继承（R8/资源收缩/zipalign 同开），
+        // 加 profileable 供 Perfetto 采样；独立包名 .perf 隔离测试数据（种子只写测试包，不清用户数据）。
+        // 禁止把 debug 构建的 BODY 日志耗时当 release 基线；性能结论一律以 benchmark 构建为准。
+        benchmark {
+            initWith release
+            matchingFallbacks = ['release']
+            ext.enableBugsnag = false
+            signingConfig signingConfigs.release
+            applicationIdSuffix '.perf'
+            versionNameSuffix '-perf'
+            buildConfigField "boolean", "PERF_STRICT", "true"
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }

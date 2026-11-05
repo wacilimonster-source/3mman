@@ -19,12 +19,35 @@ import java.util.List;
  */
 public final class AdapterDiffUtil {
 
+    /** T02：每个 adapter 独立一个异步 differ（adapter 回收后弱引用随之释放） */
+    private static final java.util.Map<BaseQuickAdapter<?, ?>, AsyncAdapterDiffer<?>> DIFFERS =
+            java.util.Collections.synchronizedMap(
+                    new java.util.WeakHashMap<BaseQuickAdapter<?, ?>, AsyncAdapterDiffer<?>>());
+
     private AdapterDiffUtil() {
     }
 
+    /**
+     * T02：列表刷新统一入口。asyncDiff 开启时走异步计算（主线程零 diff 成本，
+     * 过期提交按代际丢弃），关闭时保持 M115 同步路径（行为完全不变）。
+     * 调用点无需感知差别；BRVAH header/empty/loadMore 行为两条路径一致。
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public static <T> void apply(BaseQuickAdapter<T, ?> adapter,
                                  @Nullable List<T> newData,
                                  DiffUtil.ItemCallback<T> itemCallback) {
+        if (com.m3man.perf.PerfFlags.asyncDiff) {
+            DIFFERS.put(adapter, new AsyncAdapterDiffer(adapter));
+            ((AsyncAdapterDiffer<T>) DIFFERS.get(adapter)).submit(newData, itemCallback);
+        } else {
+            legacyApply(adapter, newData, itemCallback);
+        }
+    }
+
+    /** M115 原同步实现（asyncDiff 关闭时的回退路径，逐行保留）。 */
+    private static <T> void legacyApply(BaseQuickAdapter<T, ?> adapter,
+                                        @Nullable List<T> newData,
+                                        DiffUtil.ItemCallback<T> itemCallback) {
         List<T> target = newData == null ? new ArrayList<T>() : newData;
         List<T> current = adapter.getData();
         if (current == null || current.isEmpty() || target.isEmpty()) {
@@ -38,12 +61,21 @@ public final class AdapterDiffUtil {
         result.dispatchUpdatesTo(adapter);
     }
 
-    /** V9MmanItem（视频/下载记录）：以数据库 _id 为身份，比较列表渲染用到的字段 */
+    /**
+     * V9MmanItem（视频/下载记录）：身份优先业务键 viewKey（T02——网络项 DB id 为空也能
+     * 稳定识别，不再误判为「删除+插入」）；缺 viewKey 的纯本地记录回退 DB id；
+     * 两者皆空返回 false（未知对象不共享同一个 NO_ID）。
+     */
     public static DiffUtil.ItemCallback<com.m3man.data.db.entity.V9MmanItem> v9MmanItem() {
         return new DiffUtil.ItemCallback<com.m3man.data.db.entity.V9MmanItem>() {
             @Override
             public boolean areItemsTheSame(@NonNull com.m3man.data.db.entity.V9MmanItem oldItem,
                                            @NonNull com.m3man.data.db.entity.V9MmanItem newItem) {
+                String oldKey = identityOf(oldItem);
+                String newKey = identityOf(newItem);
+                if (oldKey != null || newKey != null) {
+                    return oldKey != null && oldKey.equals(newKey);
+                }
                 Long oldId = oldItem.getId();
                 Long newId = newItem.getId();
                 return oldId != null && newId != null && oldId.equals(newId);
@@ -112,7 +144,15 @@ public final class AdapterDiffUtil {
         return a == null ? b == null : a.equals(b);
     }
 
-    private static final class WrapperCallback<T> extends DiffUtil.Callback {        private final List<T> oldList;
+    /** T02：V9MmanItem 业务身份键（归一化 viewKey）；为空返回 null（交给 DB id 回退）。 */
+    private static String identityOf(com.m3man.data.db.entity.V9MmanItem item) {
+        String key = com.m3man.perf.VideoKey.canonicalize(item.getViewKey());
+        return key == null || key.length() == 0 ? null : key;
+    }
+
+    /** T02：包内可见（AsyncAdapterDiffer 复用同一派发语义） */
+    static final class WrapperCallback<T> extends DiffUtil.Callback {
+        private final List<T> oldList;
         private final List<T> newList;
         private final DiffUtil.ItemCallback<T> itemCallback;
 

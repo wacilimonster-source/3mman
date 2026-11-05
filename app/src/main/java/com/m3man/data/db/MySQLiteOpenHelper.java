@@ -52,5 +52,20 @@ public class MySQLiteOpenHelper extends DaoMaster.OpenHelper {
             db.endTransaction();
         }
     }
+
+    @Override
+    public void onOpen(Database db) {
+        super.onOpen(db);
+        // T08：后台幂等建查询索引（非唯一、CREATE INDEX IF NOT EXISTS；
+        // 不改字段、不提高 schemaVersion；进程内只执行一次，成本记录见 DbPerformanceIndexes）
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                DbPerformanceIndexes.ensure(db);
+            }
+        }, "db-index");
+        t.setPriority(Thread.NORM_PRIORITY - 1);
+        t.start();
+    }
 }
 

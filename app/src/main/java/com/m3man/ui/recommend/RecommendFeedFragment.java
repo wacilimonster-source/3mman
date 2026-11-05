@@ -75,11 +75,9 @@ import javax.inject.Inject;
 import cn.jzvd.JZVideoPlayer;
 import cn.jzvd.JZVideoPlayerStandard;
 import com.google.gson.Gson;
-import io.reactivex.Completable;
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
-import io.reactivex.functions.Action;
 import io.reactivex.functions.Consumer;
 import io.reactivex.schedulers.Schedulers;
 
@@ -102,8 +100,6 @@ public class RecommendFeedFragment extends BaseFragment
     /** 起播状态轮询间隔 / 超时 */
     private static final long PLAY_POLL_INTERVAL = 120L;
     private static final long PLAY_POLL_TIMEOUT = 15000L;
-    /** 画像落盘节流 */
-    private static final long PERSIST_INTERVAL = 2000L;
     /** 进度条刷新间隔 */
     private static final long PROGRESS_INTERVAL = 400L;
     /** 进度条刻度上限（越大拖动越顺滑） */
@@ -140,7 +136,6 @@ public class RecommendFeedFragment extends BaseFragment
     private boolean engineInitStarted = false;
     private boolean noMore = false;
     private int emptyRetryCount = 0;
-    private long lastPersistTime = 0L;
     /**
      * L-fix：跟踪上一次推到 RecoRepository 的「时长上限（分钟）」，
      * onResume 时与持久化值对比，变化则重置会话重拉（已出队不可逆）。
@@ -192,6 +187,17 @@ public class RecommendFeedFragment extends BaseFragment
     /** 下载入队 Helper（从 Fragment 提取，降低 God Class 复杂度） */
     private DownloadEnqueuer downloadEnqueuer;
 
+    /** T01：推荐缓存批次读写器（cacheFirst 开时启用；JSON/IO 全在缓存执行器） */
+    private RecoBatchCache batchCache;
+    /** T01：视图代际——onViewCreated/筛选结构变更递增，旧缓存读结果按代际丢弃 */
+    private int viewGeneration = 0;
+    /** T01：缓存批次已上屏（后续不再重复盖 globalLoading、不重复自动起播/曝光） */
+    private boolean cacheRendered = false;
+    /** T01：网络内容已上屏（后到的缓存不清空前到内容） */
+    private boolean networkVisible = false;
+    /** T01：缓存已渲染但引擎未就绪——引擎 ready 且当前页有效时补一次自动起播 */
+    private boolean pendingAutoPlay = false;
+
     public static RecommendFeedFragment getInstance() {
         return new RecommendFeedFragment();
     }
@@ -235,6 +241,16 @@ public class RecommendFeedFragment extends BaseFragment
         if (appContext == null) {
             return;
         }
+        // T01：视图重建 generation 递增；旧视图的在途缓存读结果按代际丢弃
+        viewGeneration++;
+        // T01（方案 §5-T01 顺序 1）：View 就绪后缓存 IO 与引擎 IO 并行启动。
+        // 缓存解析/过滤/DTO 构造在缓存执行器，主线程只接收不可变批次渲染。
+        // 保留既有缓存启用规则：仅预取开关开启时读缓存展示（不改变设置语义）。
+        if (com.m3man.perf.PerfFlags.cacheFirst
+                && PlayUiPrefs.isRecoPrefetchEnabled(appContext)) {
+            batchCache = new RecoBatchCache(appContext, dataManager);
+            startCacheBatchRead();
+        }
         disposables.add(Observable.fromCallable(new Callable<RecoEngine>() {
             @Override
             public RecoEngine call() throws Exception {
@@ -269,7 +285,19 @@ public class RecommendFeedFragment extends BaseFragment
                             adapter.setEngine(engine);
                             adapter.refreshAttachedActionStates(recyclerView);
                         }
-                        loadMore(true);
+                        // T01（方案 §5-T01 顺序 2）：缓存已上屏时不再显示遮挡内容的 globalLoading，
+                        // 静默续拉网络召回；需要画像的自动起播/曝光结算在引擎 ready
+                        // 且当前页仍有效时执行一次（pendingAutoPlay 只消费一次）。
+                        if (com.m3man.perf.PerfFlags.cacheFirst && cacheRendered
+                                && adapter != null && adapter.getItemCount() > 0) {
+                            if (pendingAutoPlay && currentPosition == -1) {
+                                pendingAutoPlay = false;
+                                onPageSelected(0);
+                            }
+                            loadMore(false);
+                        } else {
+                            loadMore(true);
+                        }
                     }
                 }, new Consumer<Throwable>() {
                     @Override
@@ -360,6 +388,17 @@ public class RecommendFeedFragment extends BaseFragment
         recyclerView.setHasFixedSize(true);
         // 关掉默认动画，避免插入新页时当前页被重绘导致画面闪烁
         recyclerView.setItemAnimator(null);
+        // T03：注册推荐页封面容器实测尺寸（全屏页），预取与展示共享同一 spec 缓存键
+        recyclerView.post(new Runnable() {
+            @Override
+            public void run() {
+                if (getView() != null && recyclerView.getWidth() > 0
+                        && recyclerView.getHeight() > 0) {
+                    com.m3man.utils.CoverRequests.registerCardSize(
+                            recyclerView.getWidth(), recyclerView.getHeight());
+                }
+            }
+        });
 
         adapter = new RecommendFeedAdapter(engine, this);
         recyclerView.setAdapter(adapter);
@@ -601,6 +640,12 @@ public class RecommendFeedFragment extends BaseFragment
         stopCoverWatcher();
         stopProgressTicker();
         repository.resetSession();
+        // T01：筛选结构变更 = 新会话；作废在途缓存读，复位缓存/网络可见状态。
+        // 旧缓存批次因 scope（方向/时长）已变化，本来也不会再命中。
+        viewGeneration++;
+        cacheRendered = false;
+        networkVisible = false;
+        pendingAutoPlay = false;
         globalLoading.setVisibility(View.VISIBLE);
         loadMore(true);
         showMessage(getString(R.string.reco_filter_applied), TastyToast.INFO);
@@ -667,8 +712,75 @@ public class RecommendFeedFragment extends BaseFragment
     // ==================== 数据 ====================
 
     /**
+     * T01（方案 §5-T01 顺序 1）：并行启动缓存批次读取。
+     * SP 读/JSON 解析/候选重建都在缓存执行器；主线程只接收不可变批次渲染。
+     */
+    private void startCacheBatchRead() {
+        final int gen = viewGeneration;
+        disposables.add(batchCache.read()
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(batch -> {
+                    // 缓存命中计数（供 T00 基线区分 cacheHit）
+                    com.m3man.perf.Perf.recorder().counter(
+                            batch == null || batch.expired ? "reco.cache.miss" : "reco.cache.hit", 1);
+                    renderCachedBatch(batch, gen);
+                }, throwable -> {
+                    com.m3man.perf.Perf.recorder().counter("reco.cache.read_fail", 1);
+                    // 读缓存失败按未命中处理，不阻断引擎路径
+                    Logger.t(TAG).d("read reco cache failed: %s", throwable.getMessage());
+                }));
+    }
+
+    /**
+     * T01（方案 §5-T01 顺序 3）：渲染缓存批次。
+     * 状态机：EMPTY_LOADING → CACHE_VISIBLE → NETWORK_VISIBLE（或 EMPTY_ERROR）。
+     * 已有条目（网络先到/重复进入）时不再渲染，后到的缓存不清空前到内容；
+     * 自动起播只在引擎 ready 后执行一次，不重复记录曝光。
+     */
+    private void renderCachedBatch(RecoBatchCache.CacheBatch batch, int gen) {
+        if (gen != viewGeneration || getView() == null || !isAdded() || isDetached() || viewDestroyed) {
+            return; // 过期代际 / 视图已销毁
+        }
+        if (batch == null || batch.expired || batch.candidates.isEmpty()) {
+            return; // 未命中：等待引擎路径，不改状态
+        }
+        if (adapter == null || adapter.getItemCount() != 0 || networkVisible) {
+            return; // 已有内容：后到缓存不清空前到内容
+        }
+        long renderReq = com.m3man.perf.Perf.nextRequestId();
+        long renderBegin = com.m3man.perf.Perf.recorder()
+                .begin(com.m3man.perf.Perf.ST_RECO_CACHE_RENDER, renderReq);
+        try {
+            adapter.appendData(batch.candidates);
+            cacheRendered = true;
+            globalLoading.setVisibility(View.GONE);
+            emptyLayout.setVisibility(View.GONE);
+            if (engine != null) {
+                // 缓存后到但引擎已就绪：与 M119 一致补自动起播首页（只此一次）
+                if (currentPosition == -1) {
+                    recyclerView.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (currentPosition == -1) {
+                                onPageSelected(0);
+                            }
+                        }
+                    });
+                }
+            } else {
+                // 引擎未就绪：挂起自动起播，引擎 ready 后消费（见引擎回调）
+                pendingAutoPlay = true;
+            }
+        } finally {
+            com.m3man.perf.Perf.recorder().end(com.m3man.perf.Perf.ST_RECO_CACHE_RENDER,
+                    renderReq, renderBegin, com.m3man.perf.Perf.OUTCOME_OK);
+        }
+    }
+
+    /**
      * L-fix：读取上次会话的本地缓存批次并立即上屏。条目点击后走既有播放解析流程。
      * 与后续网络批次的衔接：网络批次 append 在尾部，用户滑过缓存条目即进入新内容。
+     * T01：cacheFirst 开启时该 v1 路径不再进入（缓存展示移至 onViewCreated 并行读取）。
      */
     private void showCachedBatchFirst() {
         try {
@@ -726,12 +838,114 @@ public class RecommendFeedFragment extends BaseFragment
         }
     }
 
+    /**
+     * T01（方案 §5-T01 顺序 4）：主线程标量拷贝构造 DTO → 缓存执行器编码落盘。
+     * 保留最近一屏（与 v1 saveBatchToCache 语义一致），合并旧写、只写最新批。
+     */
+    private void saveBatchToCacheV2(java.util.List<RecoCandidate> list) {
+        if (batchCache == null || list == null || list.isEmpty()) {
+            return;
+        }
+        ArrayList<CachedVideo> keep = new ArrayList<>(list.size());
+        for (RecoCandidate c : list) {
+            CachedVideo d = CachedVideo.fromCandidate(c);
+            if (d != null) {
+                keep.add(d);
+            }
+        }
+        if (keep.size() > BATCH_SIZE) {
+            keep.subList(0, keep.size() - BATCH_SIZE).clear();
+        }
+        if (!keep.isEmpty()) {
+            batchCache.writeLatest(keep);
+        }
+    }
+
+    /**
+     * T01：与已展示内容按 VideoKey 去重；批内同 key 也去重。
+     * 同 key 的网络候选携带权威元数据——就地回填到已展示条目（不 notify、不重绑定）。
+     */
+    private List<RecoCandidate> dedupAgainstDisplayed(List<RecoCandidate> list) {
+        Set<String> seen = new HashSet<>();
+        List<RecoCandidate> existing = adapter == null ? null : adapter.getData();
+        if (existing != null) {
+            for (RecoCandidate c : existing) {
+                String k = displayKey(c);
+                if (k != null) {
+                    seen.add(k);
+                }
+            }
+        }
+        List<RecoCandidate> out = new ArrayList<>(list.size());
+        for (RecoCandidate c : list) {
+            if (c == null || c.item == null) {
+                continue;
+            }
+            String k = displayKey(c);
+            if (k != null && seen.contains(k)) {
+                mergeAuthoritativeMetadata(k, c);
+                continue;
+            }
+            if (k != null) {
+                seen.add(k);
+            }
+            out.add(c);
+        }
+        return out;
+    }
+
+    /** T01：展示身份键（源+归一化 viewKey）；无法构造稳定身份返回 null（调用方不当作同一 NO_ID）。 */
+    private static String displayKey(RecoCandidate c) {
+        if (c == null || c.item == null) {
+            return null;
+        }
+        com.m3man.perf.VideoKey k = com.m3man.perf.VideoKey.of(
+                c.item.getSourceName(), c.item.getViewKey());
+        return k != null ? k.toString() : null;
+    }
+
+    /**
+     * T01：网络同 key 更新权威元数据。已展示条目为 detached 对象（缓存壳/解析新建），
+     * 原地改标量字段但不 notifyItemChanged——保留正在播放的 ViewHolder 与位置，不重启播放器。
+     */
+    private void mergeAuthoritativeMetadata(String key, RecoCandidate network) {
+        if (adapter == null || network == null || network.item == null) {
+            return;
+        }
+        List<RecoCandidate> data = adapter.getData();
+        for (int i = 0; i < data.size(); i++) {
+            RecoCandidate c = data.get(i);
+            if (!key.equals(displayKey(c))) {
+                continue;
+            }
+            V9MmanItem src = network.item;
+            V9MmanItem dst = c.item;
+            if (!TextUtils.equals(dst.getTitle(), src.getTitle())) {
+                dst.setTitle(src.getTitle());
+            }
+            if (!TextUtils.equals(dst.getImgUrl(), src.getImgUrl())) {
+                dst.setImgUrl(src.getImgUrl());
+            }
+            if (!TextUtils.equals(dst.getDuration(), src.getDuration())) {
+                dst.setDuration(src.getDuration());
+            }
+            if (!TextUtils.equals(dst.getInfo(), src.getInfo())) {
+                dst.setInfo(src.getInfo());
+            }
+            if (c.publishYear != network.publishYear) {
+                c.publishYear = network.publishYear;
+            }
+            break;
+        }
+    }
+
     private void loadMore(final boolean first) {
         if (loading || (noMore && !first) || repository == null) {
             return;
         }
         // L-fix：进入推荐先渲染上次会话的本地缓存批次（秒开，不转圈），随后照常拉取新批次追加在后
-        if (first && PlayUiPrefs.isRecoPrefetchEnabled(
+        // T01：cacheFirst 开启时缓存展示已移至 onViewCreated 并行读取，此处仅保留旧路径
+        if (first && !com.m3man.perf.PerfFlags.cacheFirst && PlayUiPrefs.isRecoPrefetchEnabled(
                 getContext() != null ? getContext().getApplicationContext() : null)) {
             showCachedBatchFirst();
         }
@@ -788,10 +1002,26 @@ public class RecommendFeedFragment extends BaseFragment
         }
 
         emptyRetryCount = 0;
+        // T01（方案 §5-T01 顺序 4）：缓存与网络按 VideoKey 去重——
+        // 网络同 key 只更新权威元数据（不重绑定、不重启播放器），新 key 才追加；
+        // 全部重复视为成功空操作，不进空批重试、不清空已到内容。
+        if (com.m3man.perf.PerfFlags.cacheFirst) {
+            int before = list.size();
+            list = dedupAgainstDisplayed(list);
+            if (list.isEmpty() && before > 0) {
+                return;
+            }
+        }
         boolean wasEmpty = adapter.getItemCount() == 0;
         adapter.appendData(list);
+        networkVisible = true;
         // L-fix：成功出批后保存本批到本地缓存（保留最近一屏），供下次冷启动秒显
-        saveBatchToCache(list);
+        if (com.m3man.perf.PerfFlags.cacheFirst) {
+            // T01：主线程只做标量拷贝构造 DTO，JSON 编码落盘在缓存执行器（合并旧写）
+            saveBatchToCacheV2(list);
+        } else {
+            saveBatchToCache(list);
+        }
         emptyLayout.setVisibility(View.GONE);
         if (wasEmpty) {
             recyclerView.post(new Runnable() {
@@ -869,7 +1099,12 @@ public class RecommendFeedFragment extends BaseFragment
 
         if (engine != null && prefetcher != null) {
             RecoParams params = engine.getParams();
-            prefetcher.prefetch(adapter.getData(), position + 1, params.prefetchAhead);
+            if (com.m3man.perf.PerfFlags.prefetchScheduler) {
+                // T04：窗口调度——当前页+后续 ahead 条；出窗后台解析取消，队列不累计
+                prefetcher.updateWindow(adapter.getData(), position, params.prefetchAhead);
+            } else {
+                prefetcher.prefetch(adapter.getData(), position + 1, params.prefetchAhead);
+            }
         }
 
         if (position >= adapter.getItemCount() - LOAD_MORE_THRESHOLD) {
@@ -1574,6 +1809,11 @@ public class RecommendFeedFragment extends BaseFragment
         emptyRetryCount = 0;
         emptyLayout.setVisibility(View.GONE);
         repository.resetSession();
+        // T01：换一批 = 新会话；作废在途缓存读，复位缓存/网络可见状态
+        viewGeneration++;
+        cacheRendered = false;
+        networkVisible = false;
+        pendingAutoPlay = false;
         loadMore(false);
         showMessage("换一批", TastyToast.INFO);
     }
@@ -1910,23 +2150,18 @@ public class RecommendFeedFragment extends BaseFragment
 
     // ==================== 持久化 ====================
 
-    /** M98：force 请求的合并窗口——强制落盘也走合并调度，500ms 内的多次请求合并为一次 */
-    private static final long PERSIST_FORCE_INTERVAL = 500L;
 
     private void persistAsync(boolean force) {
-        long now = SystemClock.uptimeMillis();
-        // M98：force 不再绕过节流直写。统一走合并调度：普通间隔 PERSIST_INTERVAL(2s)，
-        // 强制间隔降到 PERSIST_FORCE_INTERVAL(500ms)。崩溃时最多丢最近 500ms 的
-        // actions/seen 增量——这些属可再学习数据（重新观看即可重建反馈），可容忍。
-        long window = force ? PERSIST_FORCE_INTERVAL : PERSIST_INTERVAL;
-        if (now - lastPersistTime < window) {
+        // T06（方案 §5-T06）：保存统一交进程级单写者协调器——
+        // 普通请求 2s 合并、urgent 最多 500ms 后执行，窗口内请求安排尾沿补写（不再直接 return 丢请求）；
+        // 保存订阅不再挂进 View 的 CompositeDisposable，onDestroyView clear 不再取消保存。
+        // 退出页面只发请求，不阻塞主线程等待；交互发生时已在 store 内标脏。
+        if (engine == null || context == null) {
             return;
         }
-        lastPersistTime = now;
-        disposables.add(Observable.just(1)
-                .subscribeOn(Schedulers.io())
-                .subscribe(i -> { if (engine != null) engine.persist(); },
-                        throwable -> Logger.t(TAG).d("persist failed: " + throwable.getMessage())));
+        com.m3man.data.reco.RecoPersistenceCoordinator
+                .get(context.getApplicationContext())
+                .requestSave(engine.getStore(), "fragment:" + (force ? "urgent" : "normal"), force);
     }
 
     // ==================== 生命周期 ====================
@@ -1957,6 +2192,11 @@ public class RecommendFeedFragment extends BaseFragment
                     emptyRetryCount = 0;
                     emptyLayout.setVisibility(View.GONE);
                     globalLoading.setVisibility(View.VISIBLE);
+                    // T01：时长筛选变化 = 新会话；作废在途缓存读，复位缓存/网络可见状态
+                    viewGeneration++;
+                    cacheRendered = false;
+                    networkVisible = false;
+                    pendingAutoPlay = false;
                     loadMore(true);
                 }
             }
@@ -1996,6 +2236,10 @@ public class RecommendFeedFragment extends BaseFragment
             captureResumePosition(currentPosition);
             stopPlaybackForLeavingPage();
             persistAsync(true);
+            // T04：隐藏页面停止后台预取（解析/封面/字节预热），回前台由翻页重新开窗
+            if (prefetcher != null) {
+                prefetcher.cancelBackground();
+            }
             // 切到其它 Tab：恢复 App 默认紫色状态栏（推荐流内才透明）
             orientationHelper.restoreAppStatusBar();
         } else if (isResumed()) {
@@ -2022,17 +2266,14 @@ public class RecommendFeedFragment extends BaseFragment
         handler.removeCallbacksAndMessages(null);
         // v3 P0-1：隐式反馈已在 onPause/onHiddenChanged 结算过，这里不再重复
         // （每视频封顶也会把重复结算压到 0.15 倍，但能省则省）
-        // View 已销毁，用 RxJava Completable 在 IO 线程持久化画像，避免裸线程
+        // T06：退出页面只发请求，交进程级单写者协调器保存——
+        // 不再新建保存订阅后立刻 disposables.clear()（旧写法可把保存取消掉，尾沿丢失）。
+        // 也不依赖 onDestroy 必达；进程级 writer 在 appContext 上执行。
         final RecoEngine target = engine;
-        if (target != null) {
-            disposables.add(Completable.fromAction(new Action() {
-                @Override
-                public void run() throws Exception {
-                    target.persist();
-                }
-            })
-                    .subscribeOn(Schedulers.io())
-                    .subscribe());
+        if (target != null && context != null) {
+            com.m3man.data.reco.RecoPersistenceCoordinator
+                    .get(context.getApplicationContext())
+                    .requestSave(target.getStore(), "onDestroyView", true);
         }
         if (!disposables.isDisposed()) {
             disposables.clear();

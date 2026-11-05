@@ -45,10 +45,29 @@ public class SmartCoverTransformation extends BitmapTransformation {
     /**
      * M119：源图方向登记表（orientationKey → 1=竖屏 / -1=横屏）。
      * transform 在解码线程运行，能拿到真实的源图宽高（输出被统一成 16:9，外层读不到），
-     * 列表方向角标从这张表取值。键为封面 URL，超量直接清空（可再学习数据）。
+     * 列表方向角标从这张表取值。键为封面 URL。
+     * T03：容量 800 的 LRU（满时淘汰最旧条目，不再整体清空——
+     * 旧 clear() 会让滑动中已展示的角标集体退化为「未知」）。
+     * 注意：resource disk hit 不会重跑 transform——方向未登记时保持未知语义，
+     * 不能用处理后的 16:9 结果图反推源图方向。
      */
-    public static final java.util.concurrent.ConcurrentHashMap<String, Integer> ORIENTATION_MAP =
-            new java.util.concurrent.ConcurrentHashMap<>();
+    private static final int ORIENTATION_CACHE_CAPACITY = 800;
+    public static final java.util.Map<String, Integer> ORIENTATION_MAP =
+            java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<String, Integer>(
+                    128, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(java.util.Map.Entry<String, Integer> eldest) {
+                    return size() > ORIENTATION_CACHE_CAPACITY;
+                }
+            });
+
+    /** 方向读取（未知返回 null——调用方保持未知语义） */
+    public static Integer orientationOf(String url) {
+        if (url == null) {
+            return null;
+        }
+        return ORIENTATION_MAP.get(url);
+    }
 
     private final String orientationKey;
 
@@ -93,14 +112,18 @@ public class SmartCoverTransformation extends BitmapTransformation {
             return out;
         }
 
-        // 差异大：背景先降采样再拉伸 → 双线性过滤天然模糊
+        // 差异大：背景先降采样再拉伸 → 双线性过滤天然模糊。
+        // T03：缩略图从 BitmapPool 取还（try/finally 保证归还），绝不 recycle 框架持有的 source
         int sw = Math.max(1, source.getWidth() / BLUR_DOWNSCALE);
         int sh = Math.max(1, source.getHeight() / BLUR_DOWNSCALE);
-        Bitmap small = Bitmap.createBitmap(sw, sh, Bitmap.Config.ARGB_8888);
-        Canvas smallCanvas = new Canvas(small);
-        smallCanvas.drawBitmap(source, null, new Rect(0, 0, sw, sh), paint);
-        canvas.drawBitmap(small, null, coverRect, paint);
-        small.recycle();
+        Bitmap small = pool.get(sw, sh, Bitmap.Config.ARGB_8888);
+        try {
+            Canvas smallCanvas = new Canvas(small);
+            smallCanvas.drawBitmap(source, null, new Rect(0, 0, sw, sh), paint);
+            canvas.drawBitmap(small, null, coverRect, paint);
+        } finally {
+            pool.put(small);
+        }
 
         // 前景层的目标区域：原图完整居中（fitCenter 语义），主体不裁不变形。
         RectF foreground = fitCenterRect(source.getWidth(), source.getHeight(),

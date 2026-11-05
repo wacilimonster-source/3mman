@@ -264,3 +264,6 @@ public static java.lang.String TABLENAME;
 -dontoptimize
 -dontwarn com.alibaba.sdk.android.utils.**
 -dontwarn cn.qqtheme.framework.util.**
+# T00：perf 基础件保持原名——benchmark/测试 APK 跨 dex 直接调用、
+# 线程名（Perfetto 定位）、阶段字符串都依赖这些符号；类小、keep 成本可忽略
+-keep class com.m3man.perf.** { *; }

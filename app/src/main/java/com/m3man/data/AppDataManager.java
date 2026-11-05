@@ -6,6 +6,7 @@ import android.text.TextUtils;
 import com.danikula.videocache.HttpProxyCacheServer;
 import com.m3man.cookie.CookieManager;
 import com.m3man.data.db.DbHelper;
+import com.m3man.data.db.Page;
 import com.m3man.data.db.entity.AuthorFavorite;
 import com.m3man.data.db.entity.Category;
 import com.m3man.data.db.entity.V9MmanItem;
@@ -73,6 +74,26 @@ public class AppDataManager implements DataManager {
     @Override
     public void updateV9MmanItem(V9MmanItem v9MmanItem) {
         mDbHelper.updateV9MmanItem(v9MmanItem);
+    }
+
+    @Override
+    public void updateHlsProgressColumns(long rowId, int progress, long soFarBytes) {
+        mDbHelper.updateHlsProgressColumns(rowId, progress, soFarBytes);
+    }
+
+    @Override
+    public Page<V9MmanItem> loadHistoryAfter(Long lastDateMs, Long lastId, int limit) {
+        return mDbHelper.loadHistoryAfter(lastDateMs, lastId, limit);
+    }
+
+    @Override
+    public Page<V9MmanItem> loadLocalFavoritesBefore(Long lastId, int limit) {
+        return mDbHelper.loadLocalFavoritesBefore(lastId, limit);
+    }
+
+    @Override
+    public Page<V9MmanItem> loadFinishedAfter(Long lastDateMs, Long lastId, int limit) {
+        return mDbHelper.loadFinishedAfter(lastDateMs, lastId, limit);
     }
 
     @Override

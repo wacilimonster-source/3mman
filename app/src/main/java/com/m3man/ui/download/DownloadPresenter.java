@@ -592,7 +592,17 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
             item.setAddDownloadDate(new Date());
         }
         item.setDownloadId(id);
-        dataManager.updateV9MmanItem(item);
+        // T07：主线程点击路径的 DB 写移到 IO（写结果不被调用方使用，fire-and-forget；
+        // 下载列表刷新在广播回调时才读库，无读取竞态）
+        io.reactivex.Completable.fromRunnable(() -> {
+            try {
+                dataManager.updateV9MmanItem(item);
+            } catch (Exception e) {
+                AppLog.e("Download", "startDownload 落库失败 viewKey=" + item.getViewKey()
+                        + " " + AppLog.cause(e));
+            }
+        }).subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                .subscribe(() -> { }, t -> AppLog.e("Download", "startDownload 落库异常 " + AppLog.cause(t)));
         if (listener != null) {
             listener.onSuccess("开始下载");
         } else {
@@ -603,6 +613,14 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                 }
             });
         }
+    }
+
+    /**
+     * T08：完成下载游标分页查询（pagedLocalList 开启时由完成页 loadMore 使用）；
+     * lastDateMs=null 查首页；需在 IO 线程调用。
+     */
+    public com.m3man.data.db.Page<V9MmanItem> loadFinishedPage(Long lastDateMs, Long lastId, int limit) {
+        return dataManager.loadFinishedAfter(lastDateMs, lastId, limit);
     }
 
     /**
@@ -713,7 +731,14 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                 .create(new ObservableOnSubscribe<List<V9MmanItem>>() {
                     @Override
                     public void subscribe(ObservableEmitter<List<V9MmanItem>> emitter) throws Exception {
-                        List<V9MmanItem> v9MmanItems = dataManager.loadFinishedData();
+                        List<V9MmanItem> v9MmanItems;
+                        if (com.m3man.perf.PerfFlags.pagedLocalList) {
+                            // T08：完成页不再全量装载（方案 §5-T08）——首页游标分页，
+                            // 后续页由 UI loadMore 走 loadFinishedPage；事件刷新仍走本方法（重置到首页）
+                            v9MmanItems = dataManager.loadFinishedAfter(null, null, 50).items;
+                        } else {
+                            v9MmanItems = dataManager.loadFinishedData();
+                        }
                         emitter.onNext(v9MmanItems);
                         emitter.onComplete();
                     }

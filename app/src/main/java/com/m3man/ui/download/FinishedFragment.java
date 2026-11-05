@@ -66,6 +66,9 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
     private boolean isFocusRefresh = false;
     // M97：缓存应用级 Context，onDestroy 反注销 LocalBroadcastManager 时 getContext() 可能为 null
     private Context appContext;
+    // T08：完成页续页请求订阅（onDestroy 统一清理）
+    private final io.reactivex.disposables.CompositeDisposable mDisposables =
+            new io.reactivex.disposables.CompositeDisposable();
 
     private BroadcastReceiver hlsReceiver = new BroadcastReceiver() {
         @Override
@@ -117,6 +120,15 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
         recyclerView.setHasFixedSize(true);
         recyclerView.setAdapter(mDownloadAdapter);
         mDownloadAdapter.setEmptyView(R.layout.empty_view, recyclerView);
+        // T08：pagedLocalList 开启时完成页游标续页（首页由 presenter.loadFinishedData 出 50 条）
+        if (com.m3man.perf.PerfFlags.pagedLocalList) {
+            mDownloadAdapter.setOnLoadMoreListener(new BaseQuickAdapter.RequestLoadMoreListener() {
+                @Override
+                public void onLoadMoreRequested() {
+                    loadFinishedMore();
+                }
+            }, recyclerView);
+        }
         mDownloadAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
@@ -263,6 +275,8 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        // T08：离开页面取消在途续页请求（回调有 isAdded 防线，此处再省一层）
+        mDisposables.clear();
         unbinder.unbind();
     }
 
@@ -298,6 +312,61 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
     @Override
     public void setFinishedData(List<V9MmanItem> v9MmanItems) {
         AdapterDiffUtil.apply(mDownloadAdapter, v9MmanItems, AdapterDiffUtil.v9MmanItem());
+        // T08：刷新即重置游标（取本批最后一行 date/id；空批回到首页状态）
+        if (v9MmanItems != null && !v9MmanItems.isEmpty()) {
+            V9MmanItem last = v9MmanItems.get(v9MmanItems.size() - 1);
+            finishedLastDate = last != null && last.getFinishedDownloadDate() != null
+                    ? Long.valueOf(last.getFinishedDownloadDate().getTime()) : null;
+            finishedLastId = last != null ? last.getId() : null;
+            finishedNoMore = false;
+        } else {
+            finishedLastDate = null;
+            finishedLastId = null;
+            finishedNoMore = false;
+        }
+    }
+
+    // T08：完成页游标分页状态（pagedLocalList 开启时生效；主线程串行访问）
+    private static final int FINISHED_PAGE_SIZE = 50;
+    private Long finishedLastDate;
+    private Long finishedLastId;
+    private boolean finishedLoading;
+    private boolean finishedNoMore;
+
+    /** T08：完成页游标续页（追加不复刷已有行，不触发封面重载） */
+    private void loadFinishedMore() {
+        if (finishedLoading || finishedNoMore || !com.m3man.perf.PerfFlags.pagedLocalList) {
+            return;
+        }
+        finishedLoading = true;
+        final Long cursorDate = finishedLastDate;
+        final Long cursorId = finishedLastId;
+        mDisposables.add(io.reactivex.Observable.just(1)
+                .map(integer -> presenter.loadFinishedPage(cursorDate, cursorId, FINISHED_PAGE_SIZE))
+                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
+                .subscribe(page -> {
+                    finishedLoading = false;
+                    if (!isAdded() || isDetached()) {
+                        return;
+                    }
+                    if (page.items != null && !page.items.isEmpty()) {
+                        mDownloadAdapter.addData(page.items);
+                        V9MmanItem last = page.items.get(page.items.size() - 1);
+                        finishedLastDate = last != null && last.getFinishedDownloadDate() != null
+                                ? Long.valueOf(last.getFinishedDownloadDate().getTime()) : null;
+                        finishedLastId = last != null ? last.getId() : null;
+                    }
+                    if (!page.hasMore) {
+                        finishedNoMore = true;
+                        mDownloadAdapter.loadMoreEnd(true);
+                    } else {
+                        mDownloadAdapter.loadMoreComplete();
+                    }
+                }, throwable -> {
+                    finishedLoading = false;
+                    mDownloadAdapter.loadMoreFail();
+                }));
     }
 
 

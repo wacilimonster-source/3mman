@@ -58,6 +58,16 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
     private boolean localMode = false;
     private final CompositeDisposable mDisposables = new CompositeDisposable();
 
+    // T08：本地收藏游标分页状态（pagedLocalList 开启时生效；主线程串行访问）
+    /** 本地收藏分页大小（方案 §5-T08 默认 50） */
+    private static final int LOCAL_PAGE_SIZE = 50;
+    /** 游标：最后一行 _id；null=首页 */
+    private Long localLastId;
+    /** 刷新代际：下拉刷新/重试递增，过期分页回调丢弃 */
+    private int localGeneration;
+    private boolean localLoading;
+    private boolean localNoMore;
+
     @Inject
     protected FavoritePresenter favoritePresenter;
 
@@ -122,12 +132,21 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
             }
         });
 
-        // M42：本地收藏模式无远程分页，不启用“加载更多”
+        // M42：本地收藏模式无远程分页，不启用“加载更多”。
+        // T08：pagedLocalList 开启时本地收藏改为游标分页（方案 §5-T08，不全量装载），
+        // 重新启用加载更多；flag 关闭回退全量装载旧行为。
         if (!localMode) {
             mUnLimit91Adapter.setOnLoadMoreListener(new BaseQuickAdapter.RequestLoadMoreListener() {
                 @Override
                 public void onLoadMoreRequested() {
                     presenter.loadRemoteFavoriteData(false);
+                }
+            }, recyclerView);
+        } else if (com.m3man.perf.PerfFlags.pagedLocalList) {
+            mUnLimit91Adapter.setOnLoadMoreListener(new BaseQuickAdapter.RequestLoadMoreListener() {
+                @Override
+                public void onLoadMoreRequested() {
+                    loadLocalFavoriteMore();
                 }
             }, recyclerView);
         }
@@ -252,23 +271,97 @@ public class FavoriteActivity extends MvpActivity<FavoriteView, FavoritePresente
     private void loadLocalFavoriteData() {
         helper.showLoading();
         LoadHelperUtils.setLoadingText(helper.getLoadIng(), R.id.tv_loading_text, getString(R.string.favorite_loading));
+        // T08：游标分页状态复位（新刷新会话）
+        localLastId = null;
+        localGeneration++;
+        localNoMore = false;
+        final int gen = localGeneration;
         mDisposables.add(Observable.just(1)
-                .map(integer -> presenter.loadLocalFavoriteItems())
+                .map(integer -> {
+                    if (com.m3man.perf.PerfFlags.pagedLocalList) {
+                        // T08：首页 cursor=null，limit 50（IO 线程）
+                        return (Object) presenter.loadLocalFavoritePage(null, LOCAL_PAGE_SIZE);
+                    }
+                    // flag 关闭：全量装载旧行为（仍在 IO 线程）
+                    return (Object) presenter.loadLocalFavoriteItems();
+                })
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(items -> {
-                    if (items == null || items.isEmpty()) {
-                        helper.showEmpty();
-                        LoadHelperUtils.setEmptyText(helper.getLoadEmpty(), R.id.tv_empty_info, getString(R.string.favorite_empty_local));
-                        mUnLimit91Adapter.setNewData(new ArrayList<>());
-                    } else {
+                .subscribe(result -> {
+                    if (gen != localGeneration || isFinishing()) {
+                        return; // 过期分页回调不得污染刷新结果
+                    }
+                    if (result instanceof com.m3man.data.db.Page) {
+                        com.m3man.data.db.Page<V9MmanItem> page =
+                                (com.m3man.data.db.Page<V9MmanItem>) result;
                         helper.showContent();
-                        AdapterDiffUtil.apply(mUnLimit91Adapter, items, AdapterDiffUtil.v9MmanItem());
+                        AdapterDiffUtil.apply(mUnLimit91Adapter, page.items, AdapterDiffUtil.v9MmanItem());
+                        if (!page.items.isEmpty()) {
+                            V9MmanItem last = page.items.get(page.items.size() - 1);
+                            localLastId = last != null ? last.getId() : null;
+                        }
+                        if (!page.hasMore) {
+                            localNoMore = true;
+                            mUnLimit91Adapter.loadMoreEnd(true);
+                        } else {
+                            mUnLimit91Adapter.loadMoreComplete();
+                        }
+                    } else {
+                        @SuppressWarnings("unchecked")
+                        List<V9MmanItem> items = (List<V9MmanItem>) result;
+                        applyLocalFavoriteItems(items);
                     }
                 }, throwable -> {
                     helper.showError();
                     LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, getString(R.string.favorite_load_failed_retry));
                 }));
+    }
+
+    /** T08：本地收藏加载更多（游标续页；追加不复刷已有行，不触发封面重载） */
+    private void loadLocalFavoriteMore() {
+        if (localLoading || localNoMore || !com.m3man.perf.PerfFlags.pagedLocalList) {
+            return;
+        }
+        localLoading = true;
+        final int gen = localGeneration;
+        final Long cursor = localLastId;
+        mDisposables.add(Observable.just(1)
+                .map(integer -> presenter.loadLocalFavoritePage(cursor, LOCAL_PAGE_SIZE))
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(page -> {
+                    localLoading = false;
+                    if (gen != localGeneration || isFinishing()) {
+                        return; // 刷新期间到达的旧分页丢弃
+                    }
+                    if (page.items != null && !page.items.isEmpty()) {
+                        mUnLimit91Adapter.addData(page.items);
+                        V9MmanItem last = page.items.get(page.items.size() - 1);
+                        localLastId = last != null ? last.getId() : null;
+                    }
+                    if (!page.hasMore) {
+                        localNoMore = true;
+                        mUnLimit91Adapter.loadMoreEnd(true);
+                    } else {
+                        mUnLimit91Adapter.loadMoreComplete();
+                    }
+                }, throwable -> {
+                    localLoading = false;
+                    showMessage(getString(R.string.favorite_load_more_failed), TastyToast.ERROR);
+                    mUnLimit91Adapter.loadMoreFail();
+                }));
+    }
+
+    /** 旧全量路径（flag 关闭时保留）：空态/内容态与原实现一致 */
+    private void applyLocalFavoriteItems(List<V9MmanItem> items) {
+        if (items == null || items.isEmpty()) {
+            helper.showEmpty();
+            LoadHelperUtils.setEmptyText(helper.getLoadEmpty(), R.id.tv_empty_info, getString(R.string.favorite_empty_local));
+            mUnLimit91Adapter.setNewData(new ArrayList<>());
+        } else {
+            helper.showContent();
+            AdapterDiffUtil.apply(mUnLimit91Adapter, items, AdapterDiffUtil.v9MmanItem());
+        }
     }
 
     /** M42：本地收藏模式删除（仅取消本地收藏标记） */

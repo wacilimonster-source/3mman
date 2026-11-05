@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "runId": "smoke_coldstart_20261106",
+  "timestamp": "2026-11-06T01:35:30+0800",
+  "scenario": "cold_start",
+  "iterations": 10,
+  "package": "com.m3man.perf",
+  "apk": {
+    "path": "G:\\game\\nw\\3mman\\app\\build\\outputs\\apk\\benchmark\\3mman_v1.0.128.apk",
+    "sha256": "4aa41ab8960b8d99f637f8653a693209ab6b5efe9633ce2f8187471c8bd9f960"
+  },
+  "source": {
+    "commit": "d1453dc7989852724da7f4014d8089cb1a7a2dba",
+    "workspaceChangedFiles": 77
+  },
+  "device": {
+    "model": "PGEM10",
+    "brand": "OPPO",
+    "apiLevel": "35",
+    "fingerprint": "OPPO/wukong/wukong:15/V417IR/1171:user/release-keys",
+    "ramTotalKb": null,
+    "refreshRate": null,
+    "abi": "x86_64"
+  },
+  "version": {
+    "versionName": "1.0.128-perf",
+    "versionCode": 161
+  },
+  "buildMode": "benchmark(release-derived,R8)",
+  "networkModel": "as-is(记录用，未注入限速)"
+}

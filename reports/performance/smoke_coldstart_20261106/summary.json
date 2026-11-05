@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "scenario": "cold_start",
+  "status": "OK",
+  "sampleCount": 10,
+  "failureCount": 0,
+  "p50": 473,
+  "p95": 609,
+  "raw": {
+    "ttid_ms": [
+      473,
+      350,
+      571,
+      396,
+      438,
+      476,
+      340,
+      533,
+      509,
+      609
+    ],
+    "wait_ms": [
+      475,
+      352,
+      572,
+      398,
+      439,
+      477,
+      342,
+      535,
+      513,
+      611
+    ],
+    "java_heap_kb": [],
+    "pss_kb": [],
+    "failures": []
+  },
+  "environment": {
+    "apkSha256": "4aa41ab8960b8d99f637f8653a693209ab6b5efe9633ce2f8187471c8bd9f960",
+    "commit": "d1453dc7989852724da7f4014d8089cb1a7a2dba",
+    "device": "PGEM10 api35"
+  }
+}

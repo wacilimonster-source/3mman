@@ -400,6 +400,14 @@ public class FavoritePresenter extends MvpBasePresenter<FavoriteView> implements
         return dataManager.loadLocalFavoriteItems();
     }
 
+    /**
+     * T08：本地收藏游标分页（pagedLocalList 开启时使用；方案 §5-T08，
+     * UI 不再一次性全表装载）。lastId=null 查首页；需在 IO 线程调用。
+     */
+    public com.m3man.data.db.Page<V9MmanItem> loadLocalFavoritePage(Long lastId, int limit) {
+        return dataManager.loadLocalFavoritesBefore(lastId, limit);
+    }
+
     /** M42：是否本地收藏模式（true=本地收藏，与分分钟合并展示；false=服务器收藏） */
     public boolean isLocalFavoriteMode() {
         return dataManager.isLocalFavoriteMode();

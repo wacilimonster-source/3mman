@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- T00：仅 benchmark 构建合并此清单，开放 shell profile 采集（Perfetto/simpleperf）。 -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+        <profileable
+            android:shell="true"
+            tools:targetApi="q" />
+    </application>
+
+</manifest>

@@ -82,6 +82,17 @@ public final class PlayUiPrefs {
         prefs(context).edit().putString(KEY_RECO_CACHE_BATCH, json).apply();
     }
 
+    /** T01：v2 缓存批次（带 scope 摘要与保存时间，由 RecoBatchCache 读写）；v1 键保留不动 */
+    private static final String KEY_RECO_CACHE_BATCH_V2 = "reco_cache_batch_v2";
+
+    public static String getRecoCacheBatchV2(Context context) {
+        return prefs(context).getString(KEY_RECO_CACHE_BATCH_V2, null);
+    }
+
+    public static void setRecoCacheBatchV2(Context context, String json) {
+        prefs(context).edit().putString(KEY_RECO_CACHE_BATCH_V2, json).apply();
+    }
+
     public static boolean isRecoAutoNextEnabled(Context context) {
         return prefs(context).getBoolean(KEY_RECO_AUTO_NEXT, true);
     }

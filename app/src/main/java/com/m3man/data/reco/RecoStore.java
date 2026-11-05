@@ -7,7 +7,6 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -39,7 +38,6 @@ public class RecoStore implements RecoScorer.StatSource {
 
     private static final String DIR = "reco";
     private static final String FILE = "reco_state.json";
-    private static final String TMP = "reco_state.json.tmp";
 
     /** 已展示过的视频（用于去重），超过后按插入顺序淘汰最老的 */
     private static final int MAX_SEEN = 1500;
@@ -318,29 +316,25 @@ public class RecoStore implements RecoScorer.StatSource {
      */
     public void setDictVersion(int version) {
         long seqAtStart;
-        File dir;
         StateSnapshot snap;
         synchronized (this) {
             ensureLoaded();
             dictVersion = version;
             markDirtyInternal();
             seqAtStart = dirtySeq;
-            dir = prepareStateDir();
-            if (dir == null) {
-                return;
-            }
             snap = snapshotState();
         }
-        writeSnapshot(dir, snap, seqAtStart);
+        // T06：目录准备（mkdir 也是 IO）与写盘都在状态锁外执行
+        writeSnapshotToDisk(snap);
+        clearDirtyIfStable(seqAtStart);
     }
 
     /**
      * 清空推荐记忆（画像 + 交互 + 去重表；词典版本号保留，不属于用户数据）。
-     * M158：同 setDictVersion——锁内清状态+快照，锁外写盘。
+     * M158/T06：锁内清状态+快照，锁外写盘（单写者协调器串行化后不存在新旧交错）。
      */
     public void reset() {
         long seqAtStart;
-        File dir;
         StateSnapshot snap;
         synchronized (this) {
             ensureLoaded();
@@ -353,13 +347,10 @@ public class RecoStore implements RecoScorer.StatSource {
             statTotalServed = 0L;
             markDirtyInternal();
             seqAtStart = dirtySeq;
-            dir = prepareStateDir();
-            if (dir == null) {
-                return;
-            }
             snap = snapshotState();
         }
-        writeSnapshot(dir, snap, seqAtStart);
+        writeSnapshotToDisk(snap);
+        clearDirtyIfStable(seqAtStart);
     }
 
     private void ensureLoaded() {
@@ -368,14 +359,15 @@ public class RecoStore implements RecoScorer.StatSource {
         }
         loaded = true;
         File f = stateFile();
-        if (f == null || !f.exists()) {
+        // T06：AtomicFile.openRead 自动在 base 与 backup 之间选择；
+        // 两者都不存在视为首启（兼容旧版普通文件的直接读取——AtomicFile 基文件名不变）
+        File backup = f == null ? null : new File(f.getParentFile(), f.getName() + ".bak");
+        if (f == null || (!f.exists() && (backup == null || !backup.exists()))) {
             return;
         }
-        FileInputStream fis = null;
         InputStreamReader reader = null;
         try {
-            fis = new FileInputStream(f);
-            reader = new InputStreamReader(fis, "UTF-8");
+            reader = new InputStreamReader(new android.util.AtomicFile(f).openRead(), "UTF-8");
             StringBuilder sb = new StringBuilder();
             char[] buf = new char[4096];
             int len;
@@ -393,7 +385,6 @@ public class RecoStore implements RecoScorer.StatSource {
             statTotalServed = 0L;
         } finally {
             close(reader);
-            close(fis);
         }
     }
 
@@ -497,90 +488,70 @@ public class RecoStore implements RecoScorer.StatSource {
     /**
      * 写盘（原子替换）。调用方应放到 IO 线程。
      * <p>
-     * M98：锁内只做画像/交互快照拷贝（三张权重表 + actions/seen/authorNames 浅拷贝），
-     * 写盘成功且期间无新变更时才清 dirty 位。
-     * <p>
-     * M158：修复 M98 的名不符实——原方法整体被 synchronized 修饰，JSON 构建 + 文件 IO
-     * 实际仍在持锁执行，主线程的 getAction/isSeen（推荐流点赞/翻页渲染路径）会被写盘阻塞。
-     * 现拆为「锁内快照 → ioLock 内写盘 → 锁内核对清脏」三段；锁序恒为
+     * M98：锁内只做画像/交互快照拷贝，写盘成功且期间无新变更时才清 dirty 位。
+     * M158：拆为「锁内快照 → ioLock 内写盘 → 锁内核对清脏」三段；锁序恒为
      * this → (释放) → ioLock → this，无 AB-BA 死锁；并发写盘由 ioLock 串行化。
+     * T06：目录 mkdir 与 {@link android.util.AtomicFile} 写盘均在 ioLock 内（状态锁外），
+     * saveNow 返回真实成功与否；失败保留 dirty，由 {@link RecoPersistenceCoordinator} 退避重试。
      */
     public void save() {
+        saveNow("manual");
+    }
+
+    /**
+     * T06：执行一次保存并返回真实结果（供 RecoPersistenceCoordinator 决定重试）。
+     * dirty=false 时直接返回成功（无需写盘）。
+     */
+    public boolean saveNow(String reason) {
         long seqAtStart;
-        File dir;
         StateSnapshot snap;
         synchronized (this) {
             ensureLoaded();
             if (!dirty) {
-                return;
-            }
-            dir = prepareStateDir();
-            if (dir == null) {
-                return;
+                return true;
             }
             seqAtStart = dirtySeq;
             snap = snapshotState();
         }
-        writeSnapshot(dir, snap, seqAtStart);
+        boolean ok = writeSnapshotToDisk(snap);
+        clearDirtyIfStable(seqAtStart);
+        if (!ok) {
+            android.util.Log.w("RecoStore", "save failed (kept dirty) reason=" + reason);
+        }
+        return ok;
     }
 
-    /** M158：锁内目录准备（纯内存/快速 mkdir，不做慢 IO） */
-    private File prepareStateDir() {
-        File dir = stateDir();
-        if (dir == null) {
-            return null;
-        }
-        if (!dir.exists() && !dir.mkdirs()) {
-            return null;
-        }
-        return dir;
-    }
-
-    /** M158：锁内快照拷贝（仅内存操作，须在 synchronized(this) 内调用） */
-    private StateSnapshot snapshotState() {
-        StateSnapshot snap = new StateSnapshot();
-        snap.tags = new HashMap<>(profile.tagWeights);
-        snap.authors = new HashMap<>(profile.authorWeights);
-        snap.categories = new HashMap<>(profile.categoryWeights);
-        snap.durations = new HashMap<>(profile.durationWeights);
-        snap.orientations = new HashMap<>(profile.orientationWeights);
-        snap.lastDecayTime = profile.lastDecayTime;
-        snap.likeCount = profile.likeCount;
-        snap.dislikeCount = profile.dislikeCount;
-        snap.favoriteCount = profile.favoriteCount;
-        snap.watchCount = profile.watchCount;
-        snap.actions = new LinkedHashMap<>(actions);
-        snap.seen = new ArrayList<>(seen);
-        snap.authorNames = new LinkedHashMap<>(authorNames);
-        snap.implicitFlags = new LinkedHashMap<>(implicitFlags);
-        snap.featureStats = new LinkedHashMap<String, long[]>();
-        for (Map.Entry<String, long[]> e : featureStats.entrySet()) {
-            snap.featureStats.put(e.getKey(), new long[]{e.getValue()[0], e.getValue()[1]});
-        }
-        snap.statTotalServed = statTotalServed;
-        snap.dictVersion = dictVersion;
-        return snap;
-    }
-
-    /** M158：ioLock 内执行 JSON 构建 + 原子写盘，结束后短暂取 this 核对 dirtySeq 清脏位 */
-    private void writeSnapshot(File dir, StateSnapshot snap, long seqAtStart) {
-        synchronized (ioLock) {
-            boolean ok = writeToDisk(snap, dir);
-            synchronized (this) {
-                if (ok && dirtySeq == seqAtStart) {
-                    // 写盘期间没有新变更才清脏位；否则保留 dirty 等下次合并落盘
-                    dirty = false;
-                }
+    /** 写盘成功且期间无新变更时清脏位；有新变更保留 dirty 等下次合并落盘 */
+    private void clearDirtyIfStable(long seqAtStart) {
+        synchronized (this) {
+            if (dirtySeq == seqAtStart) {
+                dirty = false;
             }
         }
     }
 
-    /** M158：在 ioLock（而非 this）内执行的 JSON 构建 + 原子替换写盘，只读快照不碰成员状态 */
+    /** M158/T06：ioLock 内执行 JSON 构建 + AtomicFile 原子写盘，只读快照不碰成员状态 */
+    private boolean writeSnapshotToDisk(StateSnapshot snap) {
+        synchronized (ioLock) {
+            File dir = stateDir();
+            if (dir == null) {
+                return false;
+            }
+            // T06：mkdir 也是 IO，必须移出状态锁（旧注释「mkdir纯内存」作废）
+            if (!dir.exists() && !dir.mkdirs()) {
+                android.util.Log.w("RecoStore", "state dir mkdir failed");
+                return false;
+            }
+            return writeToDisk(snap, dir);
+        }
+    }
+
+    /** M158/T06：AtomicFile startWrite/finishWrite/failWrite 原子替换，替代「先 delete 后 rename」 */
     private boolean writeToDisk(StateSnapshot snap, File dir) {
-        File tmp = new File(dir, TMP);
         File dst = new File(dir, FILE);
+        android.util.AtomicFile atomic = new android.util.AtomicFile(dst);
         FileOutputStream fos = null;
-        OutputStreamWriter writer = null;
+        boolean finished = false;
         try {
             JSONObject root = new JSONObject();
             JSONObject prof = new JSONObject();
@@ -617,33 +588,60 @@ public class RecoStore implements RecoScorer.StatSource {
             root.put("featureStats", stats);
             root.put("statTotalServed", snap.statTotalServed);
             root.put("dictVersion", snap.dictVersion);
+            // JSON v2 字段与旧格式保持一致可读；AtomicFile 基文件名不变，首次读取兼容旧文件
             root.put("v", 2);
 
-            fos = new FileOutputStream(tmp);
-            writer = new OutputStreamWriter(fos, "UTF-8");
-            writer.write(root.toString());
-            writer.flush();
-            close(writer);
-            close(fos);
-            writer = null;
-            fos = null;
-            if (dst.exists() && !dst.delete()) {
-                // 删除失败也尝试 rename（部分文件系统允许覆盖）
-                android.util.Log.w("RecoStore", "old state delete failed");
-            }
-            if (!tmp.renameTo(dst)) {
-                android.util.Log.w("RecoStore", "state rename failed");
+            // T06：先写临时流，finishWrite 才对读者可见；写失败 failWrite 恢复上次有效文件，
+            // 不删原文件（修复旧「先 delete 后 rename」的空窗）
+            fos = atomic.startWrite();
+            if (fos == null) {
                 return false;
             }
+            OutputStreamWriter writer = new OutputStreamWriter(fos, "UTF-8");
+            writer.write(root.toString());
+            writer.flush();
+            writer.close();
+            atomic.finishWrite(fos); // 同一流实例；close 幂等
+            finished = true;
             return true;
         } catch (Exception e) {
             android.util.Log.w("RecoStore", "save reco state failed: " + e.getMessage());
+            if (fos != null && !finished) {
+                try {
+                    atomic.failWrite(fos); // 删除半成品并恢复备份，保留上次有效状态
+                } catch (Exception ignored) {
+                }
+            }
             return false;
-        } finally {
-            close(writer);
-            close(fos);
         }
     }
+
+    /** M158：锁内快照拷贝（仅内存操作，须在 synchronized(this) 内调用） */
+    private StateSnapshot snapshotState() {
+        StateSnapshot snap = new StateSnapshot();
+        snap.tags = new HashMap<>(profile.tagWeights);
+        snap.authors = new HashMap<>(profile.authorWeights);
+        snap.categories = new HashMap<>(profile.categoryWeights);
+        snap.durations = new HashMap<>(profile.durationWeights);
+        snap.orientations = new HashMap<>(profile.orientationWeights);
+        snap.lastDecayTime = profile.lastDecayTime;
+        snap.likeCount = profile.likeCount;
+        snap.dislikeCount = profile.dislikeCount;
+        snap.favoriteCount = profile.favoriteCount;
+        snap.watchCount = profile.watchCount;
+        snap.actions = new LinkedHashMap<>(actions);
+        snap.seen = new ArrayList<>(seen);
+        snap.authorNames = new LinkedHashMap<>(authorNames);
+        snap.implicitFlags = new LinkedHashMap<>(implicitFlags);
+        snap.featureStats = new LinkedHashMap<String, long[]>();
+        for (Map.Entry<String, long[]> e : featureStats.entrySet()) {
+            snap.featureStats.put(e.getKey(), new long[]{e.getValue()[0], e.getValue()[1]});
+        }
+        snap.statTotalServed = statTotalServed;
+        snap.dictVersion = dictVersion;
+        return snap;
+    }
+
 
     /** M98：save() 锁内拷贝出的不可变快照（字段即拷贝时刻的值） */
     private static final class StateSnapshot {

@@ -60,10 +60,20 @@ public class MyApplication extends DaggerApplication {
     public void onCreate() {
         // M112：启动耗时埋点起点（进程创建 → onCreate 结束），结束时刻见 onCreate 末尾 logStartupCost
         final long startUptime = android.os.SystemClock.uptimeMillis();
+        // T00：StrictMode 仅测试/调试构建启用（release 关闭），检测主线程磁盘/网络访问
+        if (BuildConfig.PERF_STRICT) {
+            com.m3man.perf.Perf.enableStrictMode();
+        }
+        // T00：DI 注入段埋点（super.onCreate 内完成整张 DI 图构建，含 DbHelper 同步开库）
+        long injectReq = com.m3man.perf.Perf.nextRequestId();
+        long injectBegin = com.m3man.perf.Perf.recorder()
+                .begin(com.m3man.perf.Perf.ST_APP_INJECT, injectReq);
         // M99：DaggerApplication 的 super.onCreate() 内部会完成整张 DI 图的构建与注入
         // （applicationInjector→DataManager/AppDbHelper 等单例），框架约束下无法把注入
         // 挪到进程判断之后——该构造成本为已知限制。
         super.onCreate();
+        com.m3man.perf.Perf.recorder().end(com.m3man.perf.Perf.ST_APP_INJECT, injectReq, injectBegin,
+                com.m3man.perf.Perf.OUTCOME_OK);
         myApplication = this;
         // M73/M99：进程隔离——FileDownloader 会派生 :filedownloader 进程，该进程中重复执行
         // ProxySelector 注入/Bugly/夜间模式等主进程初始化会引发难复现的线上问题。

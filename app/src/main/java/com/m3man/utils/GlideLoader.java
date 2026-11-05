@@ -47,9 +47,15 @@ public final class GlideLoader {
     public static void loadCover(@NonNull ImageView imageView, @NonNull String coverUrl,
                                  @DrawableRes int placeholderRes,
                                  @Nullable final OrientationCallback orientationCallback) {
+        // T03：coverRequestV2 开启时走统一请求规格（String model + override + 变换，
+        // 与预取共享缓存键）；关闭时保持 M112/M119 旧实现（行为完全不变）。
+        if (com.m3man.perf.PerfFlags.coverRequestV2) {
+            CoverRequests.load(imageView, CoverRequests.Spec.card(coverUrl), orientationCallback);
+            return;
+        }
         // M119：已登记方向先同步回调（tag 防抖跳过重载时也能立刻拿到方向）
         if (orientationCallback != null) {
-            Integer known = SmartCoverTransformation.ORIENTATION_MAP.get(coverUrl);
+            Integer known = SmartCoverTransformation.orientationOf(coverUrl);
             if (known != null) {
                 orientationCallback.onOrientation(known);
             }
@@ -96,7 +102,7 @@ public final class GlideLoader {
                 public boolean onResourceReady(Drawable resource, Object model,
                                                Target<Drawable> target, DataSource dataSource,
                                                boolean isFirstResource) {
-                    Integer orientation = SmartCoverTransformation.ORIENTATION_MAP.get(coverUrl);
+                    Integer orientation = SmartCoverTransformation.orientationOf(coverUrl);
                     orientationCallback.onOrientation(orientation == null ? 0 : orientation);
                     return false;
                 }

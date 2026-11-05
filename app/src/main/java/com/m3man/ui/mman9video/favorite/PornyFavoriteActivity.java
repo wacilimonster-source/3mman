@@ -95,6 +95,15 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setHasFixedSize(true);
         recyclerView.setAdapter(mAdapter);
+        // T08：pagedLocalList 开启时本地收藏游标分页（不全量装载）；flag 关闭回退全量旧行为
+        if (com.m3man.perf.PerfFlags.pagedLocalList) {
+            mAdapter.setOnLoadMoreListener(new BaseQuickAdapter.RequestLoadMoreListener() {
+                @Override
+                public void onLoadMoreRequested() {
+                    loadMore();
+                }
+            }, recyclerView);
+        }
 
         helper = new LoadViewHelper(recyclerView);
         helper.setListener(new OnLoadViewListener() {
@@ -111,14 +120,48 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
         loadData();
     }
 
+    // T08：本地收藏游标分页状态（pagedLocalList 开启时生效；主线程串行访问）
+    private static final int PAGE_SIZE = 50;
+    private Long lastId;
+    private boolean loading;
+    private boolean noMore;
+
     private void loadData() {
         helper.showLoading();
         LoadHelperUtils.setLoadingText(helper.getLoadIng(), R.id.tv_loading_text, getString(R.string.porny_fav_loading));
+        lastId = null;
+        noMore = false;
         mDisposables.add(Observable.just(1)
-                .map(integer -> presenter.loadLocalFavoriteItems())
+                .map(integer -> {
+                    if (com.m3man.perf.PerfFlags.pagedLocalList) {
+                        // T08：首页游标分页（IO 线程）
+                        return (Object) presenter.loadLocalFavoritePage(null, PAGE_SIZE);
+                    }
+                    return (Object) presenter.loadLocalFavoriteItems();
+                })
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(items -> {
+                .subscribe(result -> {
+                    if (result instanceof com.m3man.data.db.Page) {
+                        @SuppressWarnings("unchecked")
+                        com.m3man.data.db.Page<V9MmanItem> page =
+                                (com.m3man.data.db.Page<V9MmanItem>) result;
+                        helper.showContent();
+                        AdapterDiffUtil.apply(mAdapter, page.items, AdapterDiffUtil.v9MmanItem());
+                        if (!page.items.isEmpty()) {
+                            V9MmanItem last = page.items.get(page.items.size() - 1);
+                            lastId = last != null ? last.getId() : null;
+                        }
+                        if (!page.hasMore) {
+                            noMore = true;
+                            mAdapter.loadMoreEnd(true);
+                        } else {
+                            mAdapter.loadMoreComplete();
+                        }
+                        return;
+                    }
+                    @SuppressWarnings("unchecked")
+                    List<V9MmanItem> items = (List<V9MmanItem>) result;
                     if (items == null || items.isEmpty()) {
                         helper.showEmpty();
                         LoadHelperUtils.setEmptyText(helper.getLoadEmpty(), R.id.tv_empty_info, getString(R.string.porny_fav_empty));
@@ -130,6 +173,39 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
                 }, throwable -> {
                     helper.showError();
                     LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, getString(R.string.porny_fav_load_failed_retry));
+                }));
+    }
+
+    /** T08：游标续页（追加不复刷已有行） */
+    private void loadMore() {
+        if (loading || noMore || !com.m3man.perf.PerfFlags.pagedLocalList) {
+            return;
+        }
+        loading = true;
+        final Long cursor = lastId;
+        mDisposables.add(Observable.just(1)
+                .map(integer -> presenter.loadLocalFavoritePage(cursor, PAGE_SIZE))
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(page -> {
+                    loading = false;
+                    if (isFinishing()) {
+                        return;
+                    }
+                    if (page.items != null && !page.items.isEmpty()) {
+                        mAdapter.addData(page.items);
+                        V9MmanItem last = page.items.get(page.items.size() - 1);
+                        lastId = last != null ? last.getId() : null;
+                    }
+                    if (!page.hasMore) {
+                        noMore = true;
+                        mAdapter.loadMoreEnd(true);
+                    } else {
+                        mAdapter.loadMoreComplete();
+                    }
+                }, throwable -> {
+                    loading = false;
+                    mAdapter.loadMoreFail();
                 }));
     }
 

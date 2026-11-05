@@ -18,6 +18,29 @@ public interface DbHelper {
 
     void updateV9MmanItem(V9MmanItem v9MmanItem);
 
+    /**
+     * T05：仅更新 HLS 下载进度列（PROGRESS/SO_FAR_BYTES），按行 id 定位。
+     * 分片进度高频写必须避免整实体 update——防止用启动时的过时实体快照
+     * 覆盖下载期间用户改过的字段（收藏/来源等）。
+     */
+    void updateHlsProgressColumns(long rowId, int progress, long soFarBytes);
+
+    // ==================== T08：游标分页（方案 §5-T08） ====================
+    // 说明：既有 offset/全量接口先保留兼容（历史 page/pageSize、收藏/完成全量），
+    // 界面迁移到分页后再移除。limit 上限 100（方案约定默认 50 最大 100）。
+
+    /**
+     * 历史分页：(VIEW_HISTORY_DATE DESC, _id DESC) 排序，cursor 用最后一行 (date,id)。
+     * 首页传 lastDateMs=null。谓词：VIEW_HISTORY_DATE IS NOT NULL AND (date < ? OR (date = ? AND _id < ?))
+     */
+    Page<V9MmanItem> loadHistoryAfter(Long lastDateMs, Long lastId, int limit);
+
+    /** 本地收藏分页：_id DESC，cursor 用最后一行 id。首页传 lastId=null。 */
+    Page<V9MmanItem> loadLocalFavoritesBefore(Long lastId, int limit);
+
+    /** 完成下载分页：(FINISHED_DOWNLOAD_DATE DESC, _id DESC)，status=completed AND downloadId!=0 */
+    Page<V9MmanItem> loadFinishedAfter(Long lastDateMs, Long lastId, int limit);
+
     List<V9MmanItem> loadDownloadingData();
 
     List<V9MmanItem> loadFinishedData();

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "runId": "harness_recoscroll20_20261106",
+  "timestamp": "2026-11-06T01:51:41+0800",
+  "scenario": "reco_scroll",
+  "iterations": 20,
+  "package": "com.m3man.perf",
+  "apk": {
+    "path": "G:\\game\\nw\\3mman\\app\\build\\outputs\\apk\\benchmark\\3mman_v1.0.128.apk",
+    "sha256": "ee0637478ca6d770c558845bebd8a34341e0eadb0b8e71d6d1f6fed79eead301"
+  },
+  "source": {
+    "commit": "d1453dc7989852724da7f4014d8089cb1a7a2dba",
+    "workspaceChangedFiles": 83
+  },
+  "device": {
+    "model": "PGEM10",
+    "brand": "OPPO",
+    "apiLevel": "35",
+    "fingerprint": "OPPO/wukong/wukong:15/V417IR/1171:user/release-keys",
+    "ramTotalKb": null,
+    "refreshRate": null,
+    "abi": "x86_64"
+  },
+  "version": {
+    "versionName": "1.0.128-perf",
+    "versionCode": 161
+  },
+  "buildMode": "benchmark(release-derived,R8)",
+  "networkModel": "as-is(记录用，未注入限速)"
+}
