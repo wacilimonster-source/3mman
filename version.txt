@@ -1,7 +1,7 @@
 {
-  "versionCode": 164,
-  "versionName": "1.0.131",
-  "updateMessage": "1.0.131 更新内容：\n1）441447 源新增底部页码栏，默认按页展示，支持点页码跳页，上拉加载更多同步页码；\n2）修复 441447 与主站切换时内容叠加遮挡、播放页下方整屏空白、源站兜底链接未跟随新域名等问题；\n3）修复下载完成记录被网络数据覆盖后文件路径丢失、删除下载后无法再次下载、大文件归档卡主线程、下载服务通知残留等问题；\n4）修复推荐预取取消后永久转圈、推荐筛选重置会关闭自动连播、收藏/作者/评论分页并发错乱、播放页后台自动起播等问题；\n5）修复部分崩溃与稳定性问题：detached 实体收藏崩溃、验证码空响应 NPE、下载 ID 重复导致进度丢失、远程公告异常导致启动崩溃等；\n6）发布日志脱敏，错误日志不再输出完整签名直链。\n注意：91porny 与 441447 源功能需可访问外网的网络环境；仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.131.apk",
-  "sha256": "23f5254a149777cb4da54b7f2be682e84f2f0bf3d93d62ba5d5d5a6503839a00"
+  "versionCode": 165,
+  "versionName": "1.0.132",
+  "updateMessage": "1.0.132 更新内容：\n1）修复搜索/作者收藏后进入作者作品页一直显示“暂无数据”：作者页改为同步替换列表，避免异步 Diff 未落地时空态盖住结果；\n2）修复 91porny 作者名含下划线/连字符（如 test_mask、steven_ntk）被误判为 9mman 作者，导致作者作品 404/空白；\n3）其余沿用 1.0.131 的全量排查修复：441447 分页/来源遮挡、下载路径与通知、推荐预取与分页并发、后台起播、日志脱敏等。\n注意：91porny 与 441447 源功能需可访问外网的网络环境；仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.132.apk",
+  "sha256": "30c07461827f808881ac3ed600e5c1eda55d14cb560536f788f2c5efd0471785"
 }

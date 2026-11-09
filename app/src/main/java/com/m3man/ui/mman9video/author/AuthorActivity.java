@@ -160,19 +160,21 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
      */
     private boolean isPorny() {
         boolean bySource = AuthorFavorite.SOURCE_PORNY.equals(source);
-        if (TextUtils.isEmpty(uid)) {
-            return bySource;
+        // M166：source 是收藏时写入的权威来源，优先于 UID 形态。
+        // 91porny 作者名真实存在 test_mask / steven_ntk 这类含下划线的名字，
+        // 旧逻辑会因形状防御误判为 9mman，请求 /uvideos.php 导致作者作品 404/空白。
+        if (bySource) {
+            return true;
         }
-        // 大神键（"dashen/<名字>"）明确走 porny 侧（数据层按前缀路由到大神端点），
-        // 名字解码后可能含 -/_ 或较长，不能被下方形态防御误判成 9mman
+        if (TextUtils.isEmpty(uid)) {
+            return false;
+        }
+        // 仅在来源不是 porny 时，才用 UID 形态兜底保护 9mman 加密 UID。
         if (Parse91PornyVideo.isDashenAuthorKey(uid)) {
             return true;
         }
-        boolean looksLikeMmanUid = uid.contains("_") || uid.contains("-") || uid.length() > 32;
-        if (looksLikeMmanUid) {
-            return false;
-        }
-        return bySource;
+        // 来源不是 porny：显式 mman9 / 9mman UID 形态 / 未知来源一律走 9mman。
+        return false;
     }
 
     private void init() {
@@ -259,8 +261,11 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
 
     @Override
     public void setData(List<V9MmanItem> data) {
-        AdapterDiffUtil.apply(mV91MmanAdapter, data, AdapterDiffUtil.v9MmanItem());
-        recyclerView.smoothScrollToPosition(0);
+        // M166：这里必须同步替换。AsyncAdapterDiffer 的 diff 在后台线程完成，
+        // 而紧接着 showContent() 会按当前 adapter 数据量决定是否显示“暂无数据”空态，
+        // 异步未落地时会把空态盖在刚返回的作者作品上（收藏作者点进去一直空白）。
+        mV91MmanAdapter.setNewData(data);
+        recyclerView.scrollToPosition(0);
         swipeLayout.setEnabled(true);
         swipeLayout.setRefreshing(false);
         healingUid = false;

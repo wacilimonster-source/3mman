@@ -249,13 +249,9 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
             healingUid = false;
         }
         String ownerId = v9MmanItem.getVideoResult().getOwnerId();
-        // M66b：ownerId 形态防御——9mman 的加密 UID（含 _/- 或超长）绝不能走 porny /author/，
-        // 否则站点 404（作者其他作品加载失败）。
-        // 大神键（"dashen/<name>"，URL 解码后中文/长名也安全）明确走 porny 侧（数据层再按前缀路由）。
-        boolean uidLooksLikeMman = ownerId != null
-                && !Parse91PornyVideo.isDashenAuthorKey(ownerId)
-                && (ownerId.contains("_") || ownerId.contains("-") || ownerId.length() > 32);
-        if (isPornySource() && !uidLooksLikeMman) {
+        // M166：来源标记是权威判定。91porny 作者名真实存在 test_mask / steven_ntk
+        // 这类含下划线/连字符的名字；旧逻辑按 UID 形态强制改走 9mman，导致作者作品空白。
+        if (isPornySource()) {
             // 91porny 作者：ownerId 即作者名，走 /author/{name}
             presenter.pornyAuthorVideos(ownerId, pullToRefresh);
         } else {
@@ -315,7 +311,8 @@ public class AuthorFragment extends MvpFragment<AuthorView, AuthorPresenter> imp
 
     @Override
     public void setData(List<V9MmanItem> data) {
-        AdapterDiffUtil.apply(mV91MmanAdapter, data, AdapterDiffUtil.v9MmanItem());
+        // M166：同步替换，避免异步 diff 未落地时 showContent() 先按 0 条显示空态。
+        mV91MmanAdapter.setNewData(data);
         recyclerView.smoothScrollToPosition(0);
         swipeLayout.setRefreshing(false);
         healingUid = false;
