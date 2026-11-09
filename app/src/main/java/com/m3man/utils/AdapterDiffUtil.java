@@ -37,8 +37,15 @@ public final class AdapterDiffUtil {
                                  @Nullable List<T> newData,
                                  DiffUtil.ItemCallback<T> itemCallback) {
         if (com.m3man.perf.PerfFlags.asyncDiff) {
-            DIFFERS.put(adapter, new AsyncAdapterDiffer(adapter));
-            ((AsyncAdapterDiffer<T>) DIFFERS.get(adapter)).submit(newData, itemCallback);
+            // M165：同一 adapter 复用同一个 differ。旧实现每次 apply 都 new 一个，
+            // 在途的旧 differ 不会被作废，可能在新数据之后派发旧快照；
+            // 同时 AsyncAdapterDiffer 已改为弱引用 adapter，避免 WeakHashMap 值强引用 key 泄漏。
+            AsyncAdapterDiffer differ = DIFFERS.get(adapter);
+            if (differ == null) {
+                differ = new AsyncAdapterDiffer(adapter);
+                DIFFERS.put(adapter, differ);
+            }
+            ((AsyncAdapterDiffer<T>) differ).submit(newData, itemCallback);
         } else {
             legacyApply(adapter, newData, itemCallback);
         }

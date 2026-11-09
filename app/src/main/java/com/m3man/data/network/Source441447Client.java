@@ -40,6 +40,8 @@ public class Source441447Client {
     public static final String SOURCE = "441447";
     public static final String KEY_PREFIX = "441447/";
     private static final String BASE = "https://www.442440.xyz/";
+    /** M165：运行期迁移后的当前入口，供静态兜底链接 contentPageUrl 使用。 */
+    private static volatile String currentBase = BASE;
     private static final String MODE = "cbc-hmac-v1";
     private static final String ALGORITHM = "AES-CBC-HMAC-SHA256";
     private static final String USER_AGENT = "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/130.0 Mobile Safari/537.36";
@@ -64,6 +66,9 @@ public class Source441447Client {
         builder.networkInterceptors().clear();
         http = builder.build();
         this.origin = origin;
+        if (origin != null) {
+            currentBase = origin.toString();
+        }
     }
 
     public static boolean isSource(V9MmanItem item) {
@@ -71,11 +76,11 @@ public class Source441447Client {
                 || (item.getViewKey() != null && item.getViewKey().startsWith(KEY_PREFIX)));
     }
 
-    /** 源站网页详情地址，供原生播放失败时兜底打开。 */
+    /** 源站网页详情地址，供原生播放失败时兜底打开（跟随运行期迁移后的入口）。 */
     public static String contentPageUrl(String viewKey) {
         String id = viewKey != null && viewKey.startsWith(KEY_PREFIX)
                 ? viewKey.substring(KEY_PREFIX.length()) : "";
-        return BASE + "content/" + id;
+        return currentBase + "content/" + id;
     }
 
     public static String errorMessage(Throwable error) {
@@ -238,6 +243,7 @@ public class Source441447Client {
                     // 站点换域名：保留原接口路径，只把请求改挂到新域名。
                     origin = new HttpUrl.Builder().scheme(target.scheme())
                             .host(target.host()).port(target.port()).build();
+                    currentBase = origin.toString();
                     current = current.newBuilder().url(current.url().newBuilder()
                             .scheme(target.scheme()).host(target.host()).port(target.port()).build()).build();
                     continue;

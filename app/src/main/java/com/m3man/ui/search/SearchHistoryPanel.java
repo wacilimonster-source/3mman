@@ -126,11 +126,11 @@ public class SearchHistoryPanel {
             container.bringToFront();
         }
         panelSubscriptions.clear();
-        io.reactivex.disposables.Disposable d = io.reactivex.Observable.just(1)
+        io.reactivex.disposables.Disposable d = io.reactivex.Observable
+                .fromCallable(() -> dm.getSearchHistory(TYPE, LIMIT))
                 .subscribeOn(io.reactivex.schedulers.Schedulers.io())
                 .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
-                .subscribe(o -> {
-                    List<String> list = dm.getSearchHistory(TYPE, LIMIT);
+                .subscribe(list -> {
                     if (list == null || list.isEmpty()) {
                         container.setVisibility(View.GONE);
                         return;
@@ -162,10 +162,8 @@ public class SearchHistoryPanel {
         }
         final String q = query.trim().toLowerCase(java.util.Locale.getDefault());
         panelSubscriptions.clear();
-        io.reactivex.disposables.Disposable d = io.reactivex.Observable.just(1)
-                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
-                .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
-                .subscribe(o -> {
+        io.reactivex.disposables.Disposable d = io.reactivex.Observable
+                .fromCallable(() -> {
                     List<String> list = dm.getSearchHistory(TYPE, LIMIT);
                     List<String> matched = new ArrayList<>();
                     if (list != null) {
@@ -176,6 +174,11 @@ public class SearchHistoryPanel {
                             }
                         }
                     }
+                    return matched;
+                })
+                .subscribeOn(io.reactivex.schedulers.Schedulers.io())
+                .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
+                .subscribe(matched -> {
                     if (container == null) {
                         return;
                     }
@@ -231,14 +234,15 @@ public class SearchHistoryPanel {
                 .setPositiveButton(R.string.clean, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        // M73：删除切 IO 线程，完成后回主线程刷新面板
-                        io.reactivex.Observable.just(1)
+                        // M73/M165：删除切 IO 线程，完成后回主线程刷新面板
+                        io.reactivex.Observable
+                                .fromCallable(() -> {
+                                    dm.deleteSearchHistory(keyword, TYPE);
+                                    return Boolean.TRUE;
+                                })
                                 .subscribeOn(io.reactivex.schedulers.Schedulers.io())
                                 .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
-                                .subscribe(o -> {
-                                    dm.deleteSearchHistory(keyword, TYPE);
-                                    show();
-                                });
+                                .subscribe(done -> show());
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)

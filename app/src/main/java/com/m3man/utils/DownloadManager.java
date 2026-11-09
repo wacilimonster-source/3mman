@@ -310,9 +310,17 @@ public class DownloadManager {
         v9MmanItem.setStatus(task.getStatus());
         dataManager.updateV9MmanItem(v9MmanItem);
         if (task.getStatus() == FileDownloadStatus.completed) {
-            // V13：下载完成后归档进 MediaStore 公共 Movies/3mman，实现相册/文件管理器可见且零副本
-            archiveAndPersist(v9MmanItem, task.getPath());
-            complete(task);
+            // V13：下载完成后归档进 MediaStore 公共 Movies/3mman，实现相册/文件管理器可见且零副本。
+            // M165：归档是整文件逐字节复制，FileDownloader 回调在主线程，必须移到后台，
+            // 否则大文件完成时直接卡死 UI/ANR。归档完成后再回主线程通知 UI。
+            final V9MmanItem completedItem = v9MmanItem;
+            final BaseDownloadTask completedTask = task;
+            com.m3man.perf.ExecutorRegistry.get(com.m3man.perf.ExecutorRegistry.Pool.WARM)
+                    .execute(() -> {
+                        archiveAndPersist(completedItem, completedTask.getPath());
+                        new android.os.Handler(android.os.Looper.getMainLooper())
+                                .post(() -> complete(completedTask));
+                    });
         } else {
             update(task);
         }

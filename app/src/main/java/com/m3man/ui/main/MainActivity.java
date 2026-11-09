@@ -138,7 +138,11 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
      */
     private void checkNeedToShowUpdateOrNoticeDialog() {
         if (presenter.getNoticeVersionCode() == Notice.ABANDONED) {
-            throw new IllegalStateException("The project has been abandoned.");
+            // M165：保留“停止维护”开关，但不再抛未捕获异常造成每次启动崩溃；
+            // 给出明确提示后正常退出，避免远程文案写错就把已安装应用变成崩溃循环。
+            showMessage("本项目已停止维护，请前往发布页获取新版本", TastyToast.INFO);
+            finish();
+            return;
         }
         int versionCode = ApkVersionUtils.getVersionCode(this);
         if (versionCode == 0) {
@@ -431,6 +435,11 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
     @Override
     public void onBackPressed() {
         if (mCurrentFragment instanceof BaseMainFragment && ((BaseMainFragment) mCurrentFragment).onBackPressed()) {
+            return;
+        }
+        // M165：推荐页横屏全屏时先退出全屏，而不是直接切回视频 Tab。
+        if (mCurrentFragment instanceof RecommendFeedFragment
+                && ((RecommendFeedFragment) mCurrentFragment).handleBackPressed()) {
             return;
         }
         // M112：非首页 Tab 时，返回键先回到「视频」首页，而不是直接进入「再按一次退出」流程——

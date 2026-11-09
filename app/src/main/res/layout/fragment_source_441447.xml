@@ -47,25 +47,44 @@
             android:background="?attr/selectableItemBackground" />
     </LinearLayout>
 
-    <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
-        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-            android:id="@+id/source_refresh"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/source_list"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+                android:id="@+id/source_refresh"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:clipToPadding="false" />
-        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
-        <TextView
-            android:id="@+id/source_status"
+                android:layout_height="match_parent">
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/source_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false" />
+            </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+            <TextView
+                android:id="@+id/source_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:padding="24dp"
+                android:textColor="@color/text_secondary"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <!-- 底部页码栏：与主站分类列表一致，默认按页展示，点击页码直接跳页 -->
+        <include
+            android:id="@+id/fl_skip_page"
+            layout="@layout/layout_pron9_video_skip_page"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:gravity="center"
-            android:padding="24dp"
-            android:textColor="@color/text_secondary"
-            android:visibility="gone" />
-    </FrameLayout>
+            android:layout_height="wrap_content" />
+    </LinearLayout>
 </LinearLayout>

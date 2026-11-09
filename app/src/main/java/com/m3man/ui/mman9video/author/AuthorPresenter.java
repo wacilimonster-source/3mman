@@ -43,6 +43,9 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
     // M-03: 分离两个数据源的分页状态，避免切换时残留
     private int pageMman = 1;
     private int pagePorny = 1;
+    /** 两个数据源各自的请求代际：并发刷新/加载更多时只认最后一次。 */
+    private long mmanRequestGeneration;
+    private long pornyRequestGeneration;
     private int pullCount = 0;
     private Integer totalPageMman;
     private Integer totalPagePorny;
@@ -64,14 +67,17 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
         if (pullToRefresh) {
             pagePorny = 1;
         }
-        dataManager.loadPornyAuthorVideos(authorId, pagePorny)
+        // M165：捕获页码 + 代际，避免刷新/加载更多并发时共享 pagePorny 被改写。
+        final int requestedPage = pagePorny;
+        final long generation = ++pornyRequestGeneration;
+        dataManager.loadPornyAuthorVideos(authorId, requestedPage)
                 .map(new Function<BaseResult<List<V9MmanItem>>, List<V9MmanItem>>() {
                     @Override
                     public List<V9MmanItem> apply(BaseResult<List<V9MmanItem>> baseResult) throws Exception {
                         if (baseResult.getCode() == BaseResult.ERROR_CODE) {
                             throw new MessageException(baseResult.getMessage());
                         }
-                        if (pagePorny == 1) {
+                        if (requestedPage == 1) {
                             // M100：totalPage 判空兜底——接口未返回或非法时按 1 处理，防后续比较拆箱 NPE
                             Integer tp = baseResult.getTotalPage();
                             totalPagePorny = (tp == null || tp < 1) ? 1 : tp;
@@ -90,7 +96,7 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
                         ifViewAttached(new ViewAction<AuthorView>() {
                             @Override
                             public void run(@NonNull AuthorView view) {
-                                if (pagePorny == 1 && !pullToRefresh) {
+                                if (requestedPage == 1 && !pullToRefresh) {
                                     view.showLoading(pullToRefresh);
                                 }
                             }
@@ -99,15 +105,19 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
 
                     @Override
                     public void onSuccess(final List<V9MmanItem> v9MmanItems) {
+                        if (generation != pornyRequestGeneration) {
+                            return;
+                        }
                         ifViewAttached(new ViewAction<AuthorView>() {
                             @Override
                             public void run(@NonNull AuthorView view) {
                                 if (v9MmanItems == null || v9MmanItems.isEmpty()) {
+                                    pagePorny = requestedPage;
                                     view.noMoreData();
                                     view.showContent();
                                     return;
                                 }
-                                if (pagePorny == 1) {
+                                if (requestedPage == 1) {
                                     view.setData(v9MmanItems);
                                     view.showContent();
                                 } else {
@@ -116,10 +126,11 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
                                 }
                                 //已经最后一页了
                                 // M100：比较前判空兜底，防止 totalPage 为 null 时自动拆箱 NPE
-                                if (totalPagePorny == null || pagePorny >= totalPagePorny) {
+                                if (totalPagePorny == null || requestedPage >= totalPagePorny) {
                                     view.noMoreData();
+                                    pagePorny = requestedPage;
                                 } else {
-                                    pagePorny++;
+                                    pagePorny = requestedPage + 1;
                                 }
                                 view.showContent();
                             }
@@ -128,10 +139,13 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
 
                     @Override
                     public void onError(final String msg, int code) {
+                        if (generation != pornyRequestGeneration) {
+                            return;
+                        }
                         ifViewAttached(new ViewAction<AuthorView>() {
                             @Override
                             public void run(@NonNull AuthorView view) {
-                                if (pagePorny == 1) {
+                                if (requestedPage == 1) {
                                     view.showError(msg);
                                 } else {
                                     view.loadMoreFailed();
@@ -151,14 +165,17 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
             // 导致后续加载更多全部强制绕过缓存
             cleanCache = true;
         }
-        dataManager.loadMman9authorVideos(uid, type, pageMman, cleanCache)
+        // M165：捕获页码 + 代际，避免刷新/加载更多并发时共享 pageMman 被改写。
+        final int requestedPage = pageMman;
+        final long generation = ++mmanRequestGeneration;
+        dataManager.loadMman9authorVideos(uid, type, requestedPage, cleanCache)
                 .map(new Function<BaseResult<List<V9MmanItem>>, List<V9MmanItem>>() {
                     @Override
                     public List<V9MmanItem> apply(BaseResult<List<V9MmanItem>> baseResult) throws Exception {
                         if (baseResult.getCode() == BaseResult.ERROR_CODE) {
                             throw new MessageException(baseResult.getMessage());
                         }
-                        if (pageMman == 1) {
+                        if (requestedPage == 1) {
                             // M100：totalPage 判空兜底——接口未返回或非法时按 1 处理，防后续比较拆箱 NPE
                             Integer tp = baseResult.getTotalPage();
                             totalPageMman = (tp == null || tp < 1) ? 1 : tp;
@@ -177,7 +194,7 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
                         ifViewAttached(new ViewAction<AuthorView>() {
                             @Override
                             public void run(@NonNull AuthorView view) {
-                                if (pageMman == 1 && !pullToRefresh) {
+                                if (requestedPage == 1 && !pullToRefresh) {
                                     view.showLoading(pullToRefresh);
                                 }
                             }
@@ -186,10 +203,13 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
 
                     @Override
                     public void onSuccess(final List<V9MmanItem> v9MmanItems) {
+                        if (generation != mmanRequestGeneration) {
+                            return;
+                        }
                         ifViewAttached(new ViewAction<AuthorView>() {
                             @Override
                             public void run(@NonNull AuthorView view) {
-                                if (pageMman == 1) {
+                                if (requestedPage == 1) {
                                     view.setData(v9MmanItems);
                                     view.showContent();
                                 } else {
@@ -198,10 +218,11 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
                                 }
                                 //已经最后一页了
                                 // M100：比较前判空兜底，防止 totalPage 为 null 时自动拆箱 NPE
-                                if (totalPageMman == null || pageMman >= totalPageMman) {
+                                if (totalPageMman == null || requestedPage >= totalPageMman) {
                                     view.noMoreData();
+                                    pageMman = requestedPage;
                                 } else {
-                                    pageMman++;
+                                    pageMman = requestedPage + 1;
                                 }
                                 view.showContent();
                             }
@@ -210,11 +231,14 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
 
                     @Override
                     public void onError(final String msg, int code) {
+                        if (generation != mmanRequestGeneration) {
+                            return;
+                        }
                         //首次加载失败，显示重试页
                         ifViewAttached(new ViewAction<AuthorView>() {
                             @Override
                             public void run(@NonNull AuthorView view) {
-                                if (pageMman == 1) {
+                                if (requestedPage == 1) {
                                     view.showError(msg);
                                 } else {
                                     view.loadMoreFailed();

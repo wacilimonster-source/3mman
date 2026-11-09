@@ -325,6 +325,10 @@ public class RecoRepository {
             authorPage.clear();
             consecutiveFailures = 0;
         }
+        // M165：“换一批”/重置筛选后，之前失效的作者不应在整个进程内都被排除。
+        synchronized (skippedAuthors) {
+            skippedAuthors.clear();
+        }
     }
 
     /**

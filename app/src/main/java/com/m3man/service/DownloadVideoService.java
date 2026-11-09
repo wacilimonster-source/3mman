@@ -3,11 +3,14 @@ package com.m3man.service;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import androidx.core.app.NotificationCompat;
 import android.text.format.Formatter;
 
 import com.liulishuo.filedownloader.BaseDownloadTask;
+import com.liulishuo.filedownloader.FileDownloader;
 import com.liulishuo.filedownloader.model.FileDownloadStatus;
 import com.m3man.R;
 import com.m3man.constants.Constants;
@@ -44,6 +47,9 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
             new androidx.collection.SimpleArrayMap<>();
     private final androidx.collection.SimpleArrayMap<Integer, Integer> lastTickStatus =
             new androidx.collection.SimpleArrayMap<>();
+
+    /** M165：孤儿启动检查（HLS/无真实 FileDownloader 任务时收起前台通知）。 */
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
     public DownloadVideoService() {
 
@@ -108,7 +114,33 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
             AppLog.w("Download", "DownloadVideoService startForeground 失败，降级为后台服务 "
                     + AppLog.cause(t));
         }
+        // M165：HLS 下载走 HlsDownloadService，但部分入口仍会顺手启动本服务；
+        // 若 3 秒内没有任何真实 FileDownloader 任务，收起通知并停止，避免永久“正在准备下载”。
+        handler.postDelayed(() -> {
+            if (!hasActiveFileDownloaderTask()) {
+                stopForeground(true);
+                stopSelf();
+            }
+        }, 3000L);
         return START_NOT_STICKY;
+    }
+
+    /** 是否存在真正的 FileDownloader 任务（HLS 的伪 downloadId 不算）。 */
+    private boolean hasActiveFileDownloaderTask() {
+        try {
+            List<V9MmanItem> downloading = dataManager.loadDownloadingData();
+            if (downloading != null) {
+                for (V9MmanItem item : downloading) {
+                    int id = item.getDownloadId();
+                    if (id != 0 && FileDownloader.getImpl().getStatusIgnoreCompleted(id)
+                            != FileDownloadStatus.INVALID_STATUS) {
+                        return true;
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return false;
     }
 
     private void startNotification(String videoName, int progress, String fileSize, int speed) {
@@ -148,6 +180,7 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
     @Override
     public void onDestroy() {
         DownloadManager.getImpl().removeUpdater(this);
+        handler.removeCallbacksAndMessages(null);
         // M97：清理节流记录，避免 map 随任务数累积
         lastTickProgress.clear();
         lastTickStatus.clear();
@@ -157,17 +190,17 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
 
     @Override
     public void complete(BaseDownloadTask task) {
-        updateNotification(task, task.getSmallFileSoFarBytes(), task.getSmallFileTotalBytes());
+        updateNotification(task, task.getLargeFileSoFarBytes(), task.getLargeFileTotalBytes());
     }
 
     @Override
     public void update(BaseDownloadTask task) {
-        updateNotification(task, task.getSmallFileSoFarBytes(), task.getSmallFileTotalBytes());
+        updateNotification(task, task.getLargeFileSoFarBytes(), task.getLargeFileTotalBytes());
     }
 
-    private void updateNotification(BaseDownloadTask task, int soFarBytes, int totalBytes) {
+    private void updateNotification(BaseDownloadTask task, long soFarBytes, long totalBytes) {
         //totalBytes 在文件大小未知时为0，直接相除会得到NaN甚至异常，这里做保护
-        int progress = totalBytes > 0 ? (int) (((float) soFarBytes / totalBytes) * 100) : 0;
+        int progress = totalBytes > 0 ? (int) (((double) soFarBytes / totalBytes) * 100) : 0;
         // M97：节流——进度未跨 ≥5% 步进且状态未跃迁时直接返回，不查库、不刷通知。
         // 进度回退（重试/续传重置）也放行，保证 UI 不会卡在高位百分比
         Integer lastPct = lastTickProgress.get(task.getId());
@@ -210,6 +243,16 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
                         stopSelf();
                     }
                 }
+            } else if (task.getStatus() == FileDownloadStatus.paused
+                    || task.getStatus() == FileDownloadStatus.error) {
+                // M165：暂停/失败后如果没有其它真实下载任务，收起前台通知；
+                // 否则“正在下载 xx%”会永久残留。恢复下载时会重新 startService。
+                if (!hasActiveFileDownloaderTask()) {
+                    stopForeground(true);
+                    stopSelf();
+                    return;
+                }
+                startNotification(v9MmanItem.getTitle(), progress, fileSize, task.getSpeed());
             } else {
                 startNotification(v9MmanItem.getTitle(), progress, fileSize, task.getSpeed());
             }

@@ -164,7 +164,8 @@ public final class VideoCardActions {
                 || target.getStatus() == FileDownloadStatus.progress)) {
             return new Result(false, "已在下载中 · 查看");
         }
-        if (target.getStatus() == FileDownloadStatus.completed) {
+        if (target.getDownloadId() != 0
+                && target.getStatus() == FileDownloadStatus.completed) {
             return new Result(false, "已经下载过了，请查看下载目录");
         }
 
@@ -232,6 +233,13 @@ public final class VideoCardActions {
         try {
             context.startForegroundService(serviceIntent);
         } catch (Exception e) {
+            // M165：服务起不来时回滚“下载中”记录，否则我的下载会残留 0% 幽灵任务。
+            target.setDownloadId(0);
+            target.setStatus(FileDownloadStatus.INVALID_STATUS);
+            target.setProgress(0);
+            dataManager.saveV9MmanItem(target);
+            progressIntent.putExtra(HlsDownloadService.EXTRA_RUNNING, false);
+            LocalBroadcastManager.getInstance(context).sendBroadcast(progressIntent);
             throw new IllegalStateException("无法启动下载服务，请稍后重试");
         }
         return new Result(true, "已加入下载队列 · 查看");

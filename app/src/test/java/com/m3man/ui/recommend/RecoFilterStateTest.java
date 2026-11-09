@@ -30,6 +30,19 @@ public class RecoFilterStateTest {
     }
 
     @Test
+    public void resetDraft_keepsAutoplayPreference() {
+        RecoFilterState applied = new RecoFilterState(
+                PlayUiPrefs.FILTER_PORTRAIT, 5, true);
+        RecoFilterState draft = applied.withMaxDurationMinutes(10);
+
+        RecoFilterState reset = draft.resetDraft();
+
+        assertTrue(reset.orientation == PlayUiPrefs.FILTER_ALL);
+        assertTrue(reset.maxDurationMinutes == 0);
+        assertTrue(reset.autoplay);
+    }
+
+    @Test
     public void sameAs_detectsNoChangeAndAutoplayOnly() {
         RecoFilterState applied = new RecoFilterState(
                 PlayUiPrefs.FILTER_LANDSCAPE, 3, true);

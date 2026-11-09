@@ -202,7 +202,7 @@ public class AppPreferencesHelper implements PreferencesHelper {
 
     @Override
     public void setOpenHttpProxy(boolean openHttpProxy) {
-        mPrefs.edit().putBoolean(KEY_SP_OPEN_HTTP_PROXY, openHttpProxy).commit();
+        mPrefs.edit().putBoolean(KEY_SP_OPEN_HTTP_PROXY, openHttpProxy).apply();
     }
 
     @Override
@@ -316,7 +316,7 @@ public class AppPreferencesHelper implements PreferencesHelper {
 
     @Override
     public void setCustomDownloadVideoDirPath(String customDirPath) {
-        mPrefs.edit().putString(KEY_SP_CUSTOM_DOWNLOAD_VIDEO_DIR_PATH, customDirPath).commit();
+        mPrefs.edit().putString(KEY_SP_CUSTOM_DOWNLOAD_VIDEO_DIR_PATH, customDirPath).apply();
     }
 
     @Override

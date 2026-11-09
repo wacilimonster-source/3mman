@@ -95,6 +95,8 @@ public class VideoListFragment extends MvpFragment<VideoListView, VideoListPrese
 
     private int skipPage = 0;
     private int position;
+    /** M165：是否已完成首次数据定位（之后刷新/跳页回顶部）。 */
+    private boolean firstDataSet = true;
 
     private final Handler uiHandler = new Handler(Looper.getMainLooper());
     private Runnable delayedLoadingRunnable;
@@ -270,7 +272,17 @@ public class VideoListFragment extends MvpFragment<VideoListView, VideoListPrese
         Logger.t(TAG).d(category.getCategoryName() + "  加载数据成功......");
         AdapterDiffUtil.apply(mV91MmanAdapter, data, AdapterDiffUtil.v9MmanItem());
         mV91MmanAdapter.disableLoadMoreIfNotFullPage(recyclerView);
-        ((LinearLayoutManager) recyclerView.getLayoutManager()).scrollToPositionWithOffset(position, 0);
+        // M165：仅首次进入按来源列表位置定位；刷新/跳页回顶部，避免跳到旧条目位置。
+        if (firstDataSet) {
+            firstDataSet = false;
+            ((LinearLayoutManager) recyclerView.getLayoutManager()).scrollToPositionWithOffset(position, 0);
+        } else {
+            recyclerView.scrollToPosition(0);
+        }
+        // M165：空态时页码条被隐藏，重新拿到数据后必须恢复，否则永久消失。
+        if (data != null && !data.isEmpty()) {
+            skipPageLayout.setVisibility(View.VISIBLE);
+        }
     }
 
     @Override

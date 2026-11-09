@@ -21,6 +21,8 @@ public class ExampleInstrumentedTest {
         // Context of the app under test.
         Context appContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
-        assertEquals("com.u91mman", appContext.getPackageName());
+        // M165：applicationId 是 com.m3man；benchmark 变体带 .perf 后缀，
+        // 旧断言 com.u91mman 必失败。按前缀校验，兼容正式与测试变体。
+        assertTrue(appContext.getPackageName().startsWith("com.m3man"));
     }
 }

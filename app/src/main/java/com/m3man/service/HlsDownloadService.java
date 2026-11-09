@@ -590,7 +590,9 @@ public class HlsDownloadService extends Service {
         i.putExtra(EXTRA_VIEW_KEY, s.viewKey);
         LocalBroadcastManager.getInstance(this).sendBroadcast(i);
         showCompletedNotification(archivedPath != null ? new File(archivedPath) : mp4File);
-        stopForeground(true);
+        // M165：stopForeground(true) 会把刚发出的“下载完成”通知一起移除；
+        // 这里保留通知，让用户能点开成品（通知自身 setAutoCancel）。
+        stopForeground(false);
         releaseDownloader();
         stopSelf();
     }
@@ -630,7 +632,8 @@ public class HlsDownloadService extends Service {
         // 清理临时分片，避免残留
         cleanupHlsTemp();
         showErrorNotification(message);
-        stopForeground(true);
+        // M165：同上，保留错误通知让用户看到失败原因。
+        stopForeground(false);
         releaseDownloader();
         stopSelf();
     }

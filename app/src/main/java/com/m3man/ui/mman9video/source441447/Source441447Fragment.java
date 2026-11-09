@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -18,6 +19,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.tabs.TabLayout;
 import com.m3man.R;
+import com.m3man.adapter.SkipPageAdapter;
 import com.m3man.adapter.V91MmanAdapter;
 import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.V9MmanItem;
@@ -45,6 +47,8 @@ public class Source441447Fragment extends BaseFragment {
     private static final String STATE_CATEGORY = "source_category";
     private static final String STATE_SORT = "source_sort";
     private static final String PREFERENCES = "video_source_selection";
+    /** M165：服务端 total 异常时不无限生成页码，防止卡死/OOM。 */
+    private static final int MAX_PAGE_BAR_PAGES = 500;
     @Inject Source441447Client sourceClient;
     @Inject DataManager dataManager;
 
@@ -58,6 +62,10 @@ public class Source441447Fragment extends BaseFragment {
     private TextView status;
     private TextView latest;
     private TextView hot;
+    private RecyclerView skipPageRecyclerView;
+    private LinearLayout skipLoadingLayout;
+    private View skipPageLayout;
+    private SkipPageAdapter skipPageAdapter;
     private String categoryId = "";
     private String sort = "latest";
     private int page;
@@ -104,11 +112,26 @@ public class Source441447Fragment extends BaseFragment {
         recycler.addItemDecoration(new VerticalSpaceItemDecoration(
                 getResources().getDimensionPixelSize(R.dimen.video_card_spacing)));
         recycler.setAdapter(adapter);
+        skipPageLayout = view.findViewById(R.id.fl_skip_page);
+        skipPageRecyclerView = view.findViewById(R.id.recyclerView_skip_page);
+        skipLoadingLayout = view.findViewById(R.id.ll_skip_page_loading);
+        skipPageAdapter = new SkipPageAdapter(R.layout.item_skip_page);
+        skipPageRecyclerView.setLayoutManager(new LinearLayoutManager(
+                requireContext(), LinearLayoutManager.HORIZONTAL, false));
+        skipPageRecyclerView.setHasFixedSize(true);
+        skipPageRecyclerView.setAdapter(skipPageAdapter);
+        skipPageAdapter.setOnItemClickListener((ignored, itemView, position) -> {
+            Integer target = (Integer) skipPageAdapter.getItem(position);
+            if (target != null && target != page) {
+                loadPage(target, true);
+            }
+        });
+        skipPageLayout.setVisibility(View.GONE);
         adapter.setOnItemClickListener((ignored, itemView, position) -> {
             V9MmanItem item = adapter.getItem(position);
             if (item != null) goToPlayVideo(item, page, position, itemView.findViewById(R.id.iv_91mman_item_img));
         });
-        adapter.setOnLoadMoreListener(() -> loadPage(false), recycler);
+        adapter.setOnLoadMoreListener(() -> loadPage(page + 1, false), recycler);
         adapter.setOnCardActionListener(new V91MmanAdapter.OnCardActionListener() {
             @Override
             public void onFavoriteAction(V9MmanItem item) {
@@ -138,12 +161,12 @@ public class Source441447Fragment extends BaseFragment {
         });
         latest.setOnClickListener(v -> changeSort("latest"));
         hot.setOnClickListener(v -> changeSort("hot"));
-        refresh.setOnRefreshListener(() -> { loadCategories(); loadPage(true); });
-        status.setOnClickListener(v -> { if (!loading) { loadCategories(); loadPage(true); } });
+        refresh.setOnRefreshListener(() -> { loadCategories(); loadPage(1, true); });
+        status.setOnClickListener(v -> { if (!loading) { loadCategories(); loadPage(1, true); } });
         rebuildCategories(new ArrayList<>(), false);
         updateSort();
         loadCategories();
-        loadPage(true);
+        loadPage(1, true);
     }
 
     private void loadCategories() {
@@ -202,36 +225,51 @@ public class Source441447Fragment extends BaseFragment {
     private void startNewQuery() {
         adapter.setNewData(new ArrayList<>());
         recycler.scrollToPosition(0);
-        loadPage(true);
+        page = 0;
+        totalPage = 1;
+        hidePageBar();
+        loadPage(1, true);
     }
 
-    private void loadPage(boolean firstPage) {
-        if (!firstPage && (loading || page >= totalPage)) {
+    /**
+     * 加载指定页。
+     *
+     * @param requestedPage 目标页码，从 1 开始
+     * @param replace       true=整页替换（首屏/刷新/点页码跳页）；false=下拉加载更多
+     */
+    private void loadPage(int requestedPage, boolean replace) {
+        if (!replace && (loading || page >= totalPage)) {
             if (!loading) adapter.loadMoreEnd();
             return;
         }
         if (listRequest != null) listRequest.dispose();
         final int requestGeneration = ++generation;
-        final int requestedPage = firstPage ? 1 : page + 1;
+        final int targetPage = Math.max(1, requestedPage);
+        // 已有数据时整页替换视为“跳页”，底部页码栏显示加载遮罩，与主站分类列表一致。
+        final boolean pageJump = replace && !adapter.getData().isEmpty();
         final String requestedCategory = categoryId;
         final String requestedSort = sort;
         loading = true;
-        if (firstPage && adapter.getData().isEmpty()) {
+        if (replace && adapter.getData().isEmpty()) {
             status.setText("正在加载视频…");
             status.setVisibility(View.VISIBLE);
         }
+        if (pageJump && skipLoadingLayout != null) {
+            skipLoadingLayout.setVisibility(View.VISIBLE);
+        }
         adapter.setEnableLoadMore(false);
-        listRequest = Observable.fromCallable(() -> sourceClient.loadVideos(requestedCategory, requestedSort, requestedPage))
+        listRequest = Observable.fromCallable(() -> sourceClient.loadVideos(requestedCategory, requestedSort, targetPage))
                 .subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread())
                 .subscribe(result -> {
                     if (requestGeneration != generation) return;
                     loading = false;
                     refresh.setRefreshing(false);
-                    page = requestedPage;
+                    page = targetPage;
                     totalPage = result.getTotalPage() == null ? 1 : result.getTotalPage();
                     List<V9MmanItem> videos = result.getData();
-                    if (firstPage) {
+                    if (replace) {
                         adapter.setNewData(videos);
+                        recycler.scrollToPosition(0);
                     } else {
                         Set<String> seen = new HashSet<>();
                         for (V9MmanItem existing : adapter.getData()) seen.add(existing.getViewKey());
@@ -242,6 +280,8 @@ public class Source441447Fragment extends BaseFragment {
                     adapter.setEnableLoadMore(true);
                     if (page >= totalPage || videos.isEmpty()) adapter.loadMoreEnd();
                     else adapter.loadMoreComplete();
+                    if (skipLoadingLayout != null) skipLoadingLayout.setVisibility(View.GONE);
+                    updatePageBar();
                     status.setText("暂无视频");
                     status.setVisibility(adapter.getData().isEmpty() ? View.VISIBLE : View.GONE);
                 }, error -> {
@@ -249,16 +289,52 @@ public class Source441447Fragment extends BaseFragment {
                     loading = false;
                     refresh.setRefreshing(false);
                     adapter.setEnableLoadMore(true);
+                    if (skipLoadingLayout != null) skipLoadingLayout.setVisibility(View.GONE);
                     if (adapter.getData().isEmpty()) {
                         status.setText(Source441447Client.errorMessage(error) + "，点击重试");
                         status.setVisibility(View.VISIBLE);
-                    } else if (firstPage) {
+                        hidePageBar();
+                    } else if (pageJump) {
+                        // 跳页失败保留原列表与当前页高亮
+                        updatePageBar();
+                        showMessage("第 " + targetPage + " 页加载失败，请重试", TastyToast.ERROR);
+                    } else if (replace) {
                         showMessage("刷新失败，请重试", TastyToast.ERROR);
                     } else {
                         adapter.loadMoreFail();
                     }
                 });
         disposables.add(listRequest);
+    }
+
+    /** 页码栏按 totalPage 生成 1..N，并高亮当前页。 */
+    private void updatePageBar() {
+        if (skipPageLayout == null || skipPageAdapter == null || recycler == null) {
+            return;
+        }
+        if (page < 1 || totalPage < 1 || adapter.getData().isEmpty()) {
+            hidePageBar();
+            return;
+        }
+        int pageCount = Math.min(totalPage, MAX_PAGE_BAR_PAGES);
+        List<Integer> pages = new ArrayList<>();
+        for (int i = 1; i <= pageCount; i++) pages.add(i);
+        skipPageAdapter.setPageData(pages, page);
+        skipPageLayout.setVisibility(View.VISIBLE);
+        skipPageRecyclerView.postDelayed(() -> {
+            if (skipPageRecyclerView == null || skipPageAdapter == null) return;
+            int target = Math.max(0, Math.min(skipPageAdapter.getItemCount() - 1, page - 1));
+            skipPageRecyclerView.smoothScrollToPosition(target);
+        }, 200);
+    }
+
+    private void hidePageBar() {
+        if (skipPageLayout != null) {
+            skipPageLayout.setVisibility(View.GONE);
+        }
+        if (skipLoadingLayout != null) {
+            skipLoadingLayout.setVisibility(View.GONE);
+        }
     }
 
     @Override
@@ -287,6 +363,10 @@ public class Source441447Fragment extends BaseFragment {
         status = null;
         latest = null;
         hot = null;
+        skipPageRecyclerView = null;
+        skipLoadingLayout = null;
+        skipPageLayout = null;
+        skipPageAdapter = null;
         super.onDestroyView();
     }
 }

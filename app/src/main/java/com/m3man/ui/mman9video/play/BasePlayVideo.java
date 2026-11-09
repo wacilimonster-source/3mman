@@ -117,6 +117,12 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
 
     private LoadViewHelper helper;
 
+    /**
+     * LoadViewHelper 会把 viewPagerPlay 替换成一层同 LayoutParams 的包装 FrameLayout。
+     * 隐藏内容区时必须连包装层一起隐藏，否则只藏 ViewPager 会留下整屏空白。
+     */
+    private View pagerHostView;
+
     protected V9MmanItem v9MmanItem;
 
     /** 非空时直接播放下载好的本地文件，不再解析远程地址。 */
@@ -182,6 +188,12 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         if (Source441447Client.isSource(v9MmanItem)) {
             tabPlay.setVisibility(View.GONE);
             viewPagerPlay.setVisibility(View.GONE);
+            // 441447 没有评论/作者/分类页，内容区整体不展示。
+            // 注意 initLoadHelper() 已经把 ViewPager 包进一层同尺寸 FrameLayout，
+            // 只隐藏 ViewPager 会留下整屏空白（先前播放页下方大片空白的根因）。
+            if (pagerHostView != null) {
+                pagerHostView.setVisibility(View.GONE);
+            }
             findViewById(R.id.tv_play_video_author_).setVisibility(View.GONE);
             tvPlayVideoAuthor.setVisibility(View.GONE);
             tvFavoriteAuthor.setVisibility(View.GONE);
@@ -465,13 +477,20 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
      */
     @OnClick(R.id.tv_favorite_author)
     public void onFavoriteAuthorClick() {
-        if (v9MmanItem == null || v9MmanItem.getVideoResult() == null
-                || TextUtils.isEmpty(v9MmanItem.getVideoResult().getOwnerId())) {
+        // M165：Intent 传入的实体可能已 detached，getVideoResult() 会抛 DaoException；
+        // 与 initData/setToolBarLayoutInfo 的兜底保持一致，绝不让收藏按钮拖垮播放页。
+        VideoResult authorResult = null;
+        try {
+            authorResult = v9MmanItem == null ? null : v9MmanItem.getVideoResult();
+        } catch (Exception e) {
+            AppLog.w(TAG, "作者收藏：读取 VideoResult 失败 " + AppLog.cause(e));
+        }
+        if (authorResult == null || TextUtils.isEmpty(authorResult.getOwnerId())) {
             showMessage(getString(R.string.play_author_not_ready), TastyToast.DEFAULT);
             return;
         }
-        final String authorKey = v9MmanItem.getVideoResult().getOwnerId();
-        String authorName = v9MmanItem.getVideoResult().getOwnerName();
+        final String authorKey = authorResult.getOwnerId();
+        String authorName = authorResult.getOwnerName();
         if (TextUtils.isEmpty(authorName) || authorName.trim().matches("\\d+")) {
             authorName = v9MmanItem.getAuthorText();
         }
@@ -532,6 +551,10 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
 
     private void initLoadHelper() {
         helper = new LoadViewHelper(viewPagerPlay);
+        // 构造后 viewPagerPlay 的父级已被替换为 LoadViewHelper 的包装层，记下来供按来源整体显隐。
+        if (viewPagerPlay.getParent() instanceof View) {
+            pagerHostView = (View) viewPagerPlay.getParent();
+        }
         helper.setListener(() -> presenter.loadVideoUrl(v9MmanItem));
     }
 
@@ -816,7 +839,16 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
                     }));
             return;
         }
-        VideoResult videoResult = v9MmanItem.getVideoResult();
+        VideoResult videoResult = null;
+        try {
+            videoResult = v9MmanItem == null ? null : v9MmanItem.getVideoResult();
+        } catch (Exception e) {
+            AppLog.w(TAG, "收藏：读取 VideoResult 失败 " + AppLog.cause(e));
+        }
+        if (videoResult == null) {
+            showMessage(getString(R.string.play_not_parsed_cannot_favorite), TastyToast.INFO);
+            return;
+        }
         if (!presenter.isUserLogin()) {
             goToLogin(KeysActivityRequestResultCode.LOGIN_ACTION_FOR_GET_UID);
             // M62：提示语义修正——"请先登录"不该用成功样式

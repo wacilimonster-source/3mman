@@ -100,11 +100,13 @@ public class CommonHeaderInterceptor implements Interceptor {
             AppLog.i(TAG, diagEnd);
             Log.i(TAG, diagEnd);
         }
-        // release 下保留错误级别日志能力：失败请求诊断不门控
+        // release 下保留错误级别日志能力：失败请求诊断不门控；但不打印 query 中的签名/token。
         if (code >= 400) {
             String finalUrl = response.request().url().toString();
-            String diagError = "[DIAG-ERR] 失败请求: " + request.method() + " " + reqUrl
-                    + "  HTTP=" + code + "  final=" + finalUrl;
+            String reqForLog = BuildConfig.DEBUG ? reqUrl : safeUrl(reqUrl);
+            String finalForLog = BuildConfig.DEBUG ? finalUrl : safeUrl(finalUrl);
+            String diagError = "[DIAG-ERR] 失败请求: " + request.method() + " " + reqForLog
+                    + "  HTTP=" + code + "  final=" + finalForLog;
             Logger.t(TAG).e(diagError);
             AppLog.e(TAG, diagError);
             Log.e(TAG, diagError);
@@ -135,5 +137,21 @@ public class CommonHeaderInterceptor implements Interceptor {
         }
 
         return response;
+    }
+
+    /** M165：release 诊断日志脱敏——只保留 scheme://host/path，去掉 query/fragment。 */
+    private static String safeUrl(String url) {
+        if (url == null) {
+            return "null";
+        }
+        try {
+            HttpUrl parsed = HttpUrl.parse(url);
+            if (parsed != null) {
+                return parsed.newBuilder().query(null).fragment(null).build().toString();
+            }
+        } catch (Exception ignored) {
+        }
+        int q = url.indexOf('?');
+        return q >= 0 ? url.substring(0, q) + "?..." : url;
     }
 }

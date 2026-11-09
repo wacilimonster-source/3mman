@@ -132,10 +132,16 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
      * M61：检查文件是否已下载（兼容回退目录），已下载则通知 listener 并返回 true
      */
     private boolean isAlreadyDownloaded(V9MmanItem item, DownloadListener listener) {
+        // M165：Android 10+ 成品归档到 MediaStore 后，私有下载路径已不存在，
+        // 只看 getDownLoadPath() 会把已下载视频判定为未下载并重复下载一份。
+        String archived = item.getLocalFilePath();
+        boolean archivedExists = !TextUtils.isEmpty(archived)
+                && (archived.startsWith("content://") || new File(archived).exists());
         File toFile = SDCardUtils.resolveExistingDownloadFile(context,
                 item.getDownLoadPath(getCustomDownloadVideoDirPath()));
-        if (toFile != null && toFile.exists() && toFile.length() > 0) {
-            AppLog.w("Download", "文件已存在，跳过下载 path=" + toFile.getAbsolutePath());
+        if (archivedExists || (toFile != null && toFile.exists() && toFile.length() > 0)) {
+            AppLog.w("Download", "文件已存在，跳过下载 path="
+                    + (archivedExists ? archived : (toFile == null ? "" : toFile.getAbsolutePath())));
             if (listener != null) {
                 listener.onError("已经下载过了，请查看下载目录");
             } else {
@@ -890,8 +896,19 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
      * @param v9MmanItem v
      */
     private void deleteWithoutFile(V9MmanItem v9MmanItem) {
-        v9MmanItem.setDownloadId(0);
+        resetDownloadState(v9MmanItem);
         dataManager.updateV9MmanItem(v9MmanItem);
+    }
+
+    /** 删除后必须把下载状态一起复位，否则卡片“下载”会一直判定“已经下载过了”。 */
+    private void resetDownloadState(V9MmanItem item) {
+        item.setDownloadId(0);
+        item.setStatus(FileDownloadStatus.INVALID_STATUS);
+        item.setProgress(0);
+        item.setSoFarBytes(0);
+        item.setTotalFarBytes(0);
+        item.setSpeed(0);
+        item.setLocalFilePath(null);
     }
 
     /**
@@ -916,7 +933,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
             deleted = file != null && file.exists() && file.delete();
         }
         if (deleted) {
-            v9MmanItem.setDownloadId(0);
+            resetDownloadState(v9MmanItem);
             dataManager.updateV9MmanItem(v9MmanItem);
         } else {
             ifViewAttached(new ViewAction<DownloadView>() {

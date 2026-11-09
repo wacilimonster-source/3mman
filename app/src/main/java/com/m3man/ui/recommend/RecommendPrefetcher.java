@@ -675,11 +675,22 @@ public class RecommendPrefetcher {
     /** 退出页面/隐藏时取消全部后台预取（前台与下载等待不受影响） */
     public void cancelBackground() {
         windowKeys.clear();
-        for (Map.Entry<String, io.reactivex.disposables.Disposable> e
-                : backgroundParses.entrySet()) {
-            io.reactivex.disposables.Disposable d = e.getValue();
+        // 快照遍历：取消时必须同步清 inFlight，否则后续 parse()/resolveNow 会因
+        // “已在解析中”直接返回，回调永远不触发（表现为永久转圈，重试也无效）。
+        for (String key : new ArrayList<>(backgroundParses.keySet())) {
+            boolean hasWaiter;
+            synchronized (waiting) {
+                hasWaiter = waiting.containsKey(key);
+            }
+            if (hasWaiter) {
+                continue; // 前台起播/下载仍在等结果，不能取消
+            }
+            io.reactivex.disposables.Disposable d = backgroundParses.remove(key);
             if (d != null && !d.isDisposed()) {
                 d.dispose();
+            }
+            synchronized (inFlight) {
+                inFlight.remove(key);
             }
         }
         backgroundParses.clear();

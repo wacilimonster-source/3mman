@@ -86,6 +86,9 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
     private boolean isBackground = false;
     private static final String SOURCE_FRAGMENT_TAG = "source_441447";
     private static final String SOURCE_PREFS = "video_source_selection";
+    /** 来源切换控件与根视图：onResume / 初始状态用它们兜底同步来源显隐。 */
+    private Spinner sourceSelector;
+    private View sourceRootView;
 
     @Inject
     BaseMainPresenter baseMainPresenter;
@@ -161,36 +164,78 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
     }
 
     private void setupSourceSelector(View view) {
+        sourceRootView = view;
         Spinner selector = view.findViewById(R.id.video_source_selector);
+        sourceSelector = selector;
         ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_spinner_item, new String[]{"主站", "441447"});
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         selector.setAdapter(adapter);
         android.content.SharedPreferences preferences = requireContext()
                 .getSharedPreferences(SOURCE_PREFS, Context.MODE_PRIVATE);
-        selector.setSelection(preferences.getBoolean("show_441447", false) ? 1 : 0);
+        boolean showSource = preferences.getBoolean("show_441447", false);
+        selector.setSelection(showSource ? 1 : 0);
+        // Spinner 的首次选中回调不保证会触发（setSelection 早于监听注册），
+        // 这里显式应用一次，保证可见状态与选中项一致。
+        applySourceVisibility(showSource);
         selector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View selected, int position, long id) {
-                if (!isAdded() || getView() != view) return;
+                if (!isAdded()) return;
                 boolean showSource = position == 1;
                 preferences.edit().putBoolean("show_441447", showSource).apply();
-                if (showSource && popupWindow != null && popupWindow.isShowing()) dismissPopupWindow();
-                view.findViewById(R.id.main_category_bar).setVisibility(showSource ? View.GONE : View.VISIBLE);
-                view.findViewById(R.id.main_category_divider).setVisibility(showSource ? View.GONE : View.VISIBLE);
-                viewPager.setVisibility(showSource ? View.GONE : View.VISIBLE);
-                View container = view.findViewById(R.id.source_441447_container);
-                container.setVisibility(showSource ? View.VISIBLE : View.GONE);
-                if (showSource && getChildFragmentManager().findFragmentByTag(SOURCE_FRAGMENT_TAG) == null) {
-                    getChildFragmentManager().beginTransaction()
-                            .add(R.id.source_441447_container, new Source441447Fragment(), SOURCE_FRAGMENT_TAG)
-                            .commitNowAllowingStateLoss();
-                }
+                applySourceVisibility(showSource);
             }
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) { }
         });
+    }
+
+    /**
+     * 按来源统一控制主站内容 / 441447 内容的显隐。
+     * <p>
+     * 两者放在同一个 FrameLayout 容器里且同一时刻只允许一个可见；
+     * 切换时先隐藏对方再显示自己，避免任何回调遗漏时两层内容同时绘制造成遮挡。
+     */
+    private void applySourceVisibility(boolean showSource) {
+        View root = getView() != null ? getView() : sourceRootView;
+        if (root == null) {
+            return;
+        }
+        if (showSource && popupWindow != null && popupWindow.isShowing()) {
+            dismissPopupWindow();
+        }
+        View categoryBar = root.findViewById(R.id.main_category_bar);
+        View categoryDivider = root.findViewById(R.id.main_category_divider);
+        ViewPager pager = root.findViewById(R.id.viewPager);
+        View container = root.findViewById(R.id.source_441447_container);
+        if (showSource) {
+            if (pager != null) pager.setVisibility(View.GONE);
+            if (categoryBar != null) categoryBar.setVisibility(View.GONE);
+            if (categoryDivider != null) categoryDivider.setVisibility(View.GONE);
+            if (container != null) {
+                container.setVisibility(View.VISIBLE);
+                container.bringToFront();
+            }
+            ensureSourceFragmentAdded();
+        } else {
+            if (container != null) container.setVisibility(View.GONE);
+            if (categoryBar != null) categoryBar.setVisibility(View.VISIBLE);
+            if (categoryDivider != null) categoryDivider.setVisibility(View.VISIBLE);
+            if (pager != null) {
+                pager.setVisibility(View.VISIBLE);
+                pager.bringToFront();
+            }
+        }
+    }
+
+    private void ensureSourceFragmentAdded() {
+        if (getChildFragmentManager().findFragmentByTag(SOURCE_FRAGMENT_TAG) == null) {
+            getChildFragmentManager().beginTransaction()
+                    .add(R.id.source_441447_container, new Source441447Fragment(), SOURCE_FRAGMENT_TAG)
+                    .commitNowAllowingStateLoss();
+        }
     }
 
     public boolean isNeedDestroy() {
@@ -201,6 +246,11 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
     public void onResume() {
         super.onResume();
         isBackground = false;
+        // 视图重建、进程恢复或从播放页返回后，按 Spinner 当前选中项兜底同步一次，
+        // 防止来源容器与主站内容出现上下叠放。
+        if (sourceSelector != null) {
+            applySourceVisibility(sourceSelector.getSelectedItemPosition() == 1);
+        }
     }
 
     @Override
@@ -220,6 +270,8 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        sourceSelector = null;
+        sourceRootView = null;
         unbinder.unbind();
     }
 

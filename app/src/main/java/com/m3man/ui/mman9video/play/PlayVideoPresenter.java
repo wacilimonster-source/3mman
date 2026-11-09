@@ -247,14 +247,20 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
         }
         try {
             java.net.URI uri = java.net.URI.create(url);
-            String host = uri.getHost();
-            String tail = url;
-            if (tail.length() > 120) {
-                tail = tail.substring(0, 120) + "...";
+            StringBuilder sb = new StringBuilder();
+            if (uri.getScheme() != null) sb.append(uri.getScheme()).append("://");
+            if (uri.getHost() != null) sb.append(uri.getHost());
+            if (uri.getPath() != null) sb.append(uri.getPath());
+            // M165：日志不再包含 query/fragment（签名、token、viewkey 等敏感参数）。
+            String safe = sb.length() == 0 ? "***" : sb.toString();
+            if (safe.length() > 120) {
+                safe = safe.substring(0, 120) + "...";
             }
-            return (host == null ? url : host) + " | " + tail;
+            return safe;
         } catch (Exception e) {
-            return url.length() > 120 ? url.substring(0, 120) + "..." : url;
+            int q = url.indexOf('?');
+            String safe = q >= 0 ? url.substring(0, q) : url;
+            return safe.length() > 120 ? safe.substring(0, 120) + "..." : safe;
         }
     }
 

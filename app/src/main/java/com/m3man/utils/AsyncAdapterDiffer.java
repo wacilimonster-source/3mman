@@ -42,7 +42,8 @@ public final class AsyncAdapterDiffer<T> {
     /** 追加期间刷新保护的最大重捕获轮数，超过退回 setNewData */
     private static final int MAX_REDIFF_ROUNDS = 3;
 
-    private final BaseQuickAdapter<T, ?> adapter;
+    /** 弱引用 adapter：AdapterDiffUtil 的 WeakHashMap 若被 value 强引用 key 会永久泄漏。 */
+    private final java.lang.ref.WeakReference<BaseQuickAdapter<T, ?>> adapterRef;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final ExecutorService diffPool;
 
@@ -61,7 +62,7 @@ public final class AsyncAdapterDiffer<T> {
 
     /** 测试注入用。 */
     AsyncAdapterDiffer(BaseQuickAdapter<T, ?> adapter, ExecutorService diffPool) {
-        this.adapter = adapter;
+        this.adapterRef = new java.lang.ref.WeakReference<>(adapter);
         this.diffPool = diffPool;
     }
 
@@ -93,8 +94,16 @@ public final class AsyncAdapterDiffer<T> {
         pendingTarget = null;
         pendingCallback = null;
         submitGeneration++; // 使在途计算作废（其结果基于旧快照，派发会撞上追加后的列表）
+        BaseQuickAdapter<T, ?> adapter = adapter();
+        if (adapter == null) {
+            return;
+        }
         adapter.getData().addAll(items);
         adapter.notifyDataSetChanged();
+    }
+
+    private BaseQuickAdapter<T, ?> adapter() {
+        return adapterRef.get();
     }
 
     /** 销毁时调用；在途结果丢弃，不再触碰 adapter。 */
@@ -107,6 +116,11 @@ public final class AsyncAdapterDiffer<T> {
 
     private void pump() {
         if (disposed || pendingTarget == null) {
+            return;
+        }
+        BaseQuickAdapter<T, ?> adapter = adapter();
+        if (adapter == null) {
+            disposed = true;
             return;
         }
         computing = true;
@@ -152,6 +166,11 @@ public final class AsyncAdapterDiffer<T> {
                             List<T> newSnap, DiffUtil.ItemCallback<T> cb,
                             DiffUtil.DiffResult result, String outcome) {
         computing = false;
+        BaseQuickAdapter<T, ?> adapter = adapter();
+        if (adapter == null) {
+            disposed = true;
+            return;
+        }
         if (disposed || gen != submitGeneration) {
             pump(); // 过期结果丢弃；若有新目标继续
             return;
@@ -187,7 +206,10 @@ public final class AsyncAdapterDiffer<T> {
     }
 
     private void applySetNewData(List<T> target) {
-        adapter.setNewData(target);
+        BaseQuickAdapter<T, ?> adapter = adapter();
+        if (adapter != null) {
+            adapter.setNewData(target);
+        }
     }
 
     private static void checkMain() {

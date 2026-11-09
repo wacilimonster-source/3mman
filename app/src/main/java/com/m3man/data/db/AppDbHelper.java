@@ -335,6 +335,12 @@ public class AppDbHelper implements DbHelper {
             target.setProgress(old.getProgress());
             target.setSoFarBytes(old.getSoFarBytes());
             target.setTotalFarBytes(old.getTotalFarBytes());
+            target.setSpeed(old.getSpeed());
+        }
+        // 归档到 MediaStore 后私有副本已删除，localFilePath 是唯一可播放路径；
+        // 网络对象重存时必须继承，否则已完成下载会变成“文件丢失”。
+        if (TextUtils.isEmpty(target.getLocalFilePath())) {
+            target.setLocalFilePath(old.getLocalFilePath());
         }
         if (target.getAddDownloadDate() == null) {
             target.setAddDownloadDate(old.getAddDownloadDate());
@@ -411,10 +417,14 @@ public class AppDbHelper implements DbHelper {
     public V9MmanItem findV9MmanItemByDownloadId(int downloadId) {
         V9MmanItemDao dao = daoSession().getV9MmanItemDao();
         try {
-            return dao.queryBuilder().where(V9MmanItemDao.Properties.DownloadId.eq(downloadId)).build().unique();
+            // M165：downloadId 可能重复（HLS 伪 id/预测 id），unique() 会抛异常并返回 null，
+            // 导致进度回调一直“找不到数据库记录”。取第一条即可。
+            List<V9MmanItem> list = dao.queryBuilder()
+                    .where(V9MmanItemDao.Properties.DownloadId.eq(downloadId))
+                    .build().list();
+            return (list == null || list.isEmpty()) ? null : list.get(0);
         } catch (Exception e) {
-            // 暂时先不处理这问题了，理论上一个不会发生，因为时根据url生成
-            // M99：修正写反的日志方向——仅 DEBUG 打印堆栈，RELEASE 静默；清理空 if 块
+            // M99：修正写反的日志方向——仅 DEBUG 打印堆栈，RELEASE 静默
             if (BuildConfig.DEBUG) {
                 e.printStackTrace();
             }

@@ -41,6 +41,10 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
     private ExoVideoView videoPlayer;
     private ExoVideoControlsMobile videoControlsMobile;
     private boolean isPauseByActivityEvent = false;
+    /** M165：当前视频是否已 prepare（用于 onResume 决定是否恢复看门狗）。 */
+    private boolean prepared = false;
+    /** M165：页面是否在前台，避免 prepare 完成后在后台自动起播。 */
+    private boolean activityResumed = false;
     /** M70：当前播放 URL（用于错误日志定位是哪个请求失败） */
     private String currentPlayUrl = "";
     /** M70：缓冲 0% 只打一次日志的节流标记 */
@@ -300,6 +304,7 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
         // M70：记录本次播放 URL + 起播日志，配合错误/缓冲埋点定位转圈问题
         currentPlayUrl = videoUrl;
         bufferZeroLogged = false;
+        prepared = false;
         // M96：自愈机会由 lastHealUrl 与新 URL 的差异自然判定，这里不再无条件重置；
         // 仅启动准备看门狗。
         startWatchdog();
@@ -309,15 +314,27 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
     @Override
     public void onPrepared() {
         cancelWatchdog();
+        prepared = true;
+        // M165：缓冲期间用户按 Home/切后台，prepare 完成后不能直接起播（否则后台突然出声）；
+        // 记下待续播标记，等 onResume 再真正开始。
+        if (isPauseByActivityEvent || !activityResumed) {
+            isPauseByActivityEvent = true;
+            return;
+        }
         videoPlayer.start();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        activityResumed = true;
         if (!videoPlayer.isPlaying() && isPauseByActivityEvent) {
             isPauseByActivityEvent = false;
             videoPlayer.start();
+        }
+        // 暂停期间看门狗被取消；仍未准备好的话恢复计时，避免后台回来一直转圈。
+        if (!prepared) {
+            startWatchdog();
         }
     }
 
@@ -325,6 +342,8 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
     protected void onPause() {
         // M96：仅当确实处于播放中才视为「由页面事件暂停」；
         // 用户手动暂停后切后台再回来，不再被 onResume 强制续播。
+        activityResumed = false;
+        cancelWatchdog();
         boolean wasPlaying = false;
         try {
             wasPlaying = videoPlayer.isPlaying();
@@ -332,10 +351,9 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
         }
         if (wasPlaying) {
             videoPlayer.pause();
-            isPauseByActivityEvent = true;
-        } else {
-            isPauseByActivityEvent = false;
         }
+        // M165：只要页面离开就允许 onPrepared 不自动起播；是否续播由 isPauseByActivityEvent 决定。
+        isPauseByActivityEvent = isPauseByActivityEvent || wasPlaying;
         super.onPause();
     }
 

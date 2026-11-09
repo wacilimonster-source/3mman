@@ -28,6 +28,8 @@ public class CommentPresenter extends MvpBasePresenter<CommentView> implements I
     private LifecycleProvider<Lifecycle.Event> provider;
 
     private int start = 1;
+    /** M165：评论分页请求代际，刷新/加载更多并发时只认最后一次。 */
+    private long requestGeneration;
     private DataManager dataManager;
 
     @Inject
@@ -42,7 +44,10 @@ public class CommentPresenter extends MvpBasePresenter<CommentView> implements I
         if (pullToRefresh) {
             start = 1;
         }
-        dataManager.loadMman9VideoComments(videoId, start, viewKey)
+        // M165：捕获本次页码并加代际校验，避免刷新与加载更多并发时页码错乱。
+        final int requestedStart = start;
+        final long generation = ++requestGeneration;
+        dataManager.loadMman9VideoComments(videoId, requestedStart, viewKey)
                 .retryWhen(new RetryWhenProcess(RetryWhenProcess.PROCESS_TIME))
                 .compose(RxSchedulersHelper.<List<VideoComment>>ioMainThread())
                 .compose(provider.<List<VideoComment>>bindUntilEvent(Lifecycle.Event.ON_STOP))
@@ -52,7 +57,7 @@ public class CommentPresenter extends MvpBasePresenter<CommentView> implements I
                         ifViewAttached(new ViewAction<CommentView>() {
                             @Override
                             public void run(@NonNull CommentView view) {
-                                if (start == 1 && pullToRefresh) {
+                                if (requestedStart == 1 && pullToRefresh) {
                                     view.showLoading(pullToRefresh);
                                 }
                             }
@@ -61,20 +66,23 @@ public class CommentPresenter extends MvpBasePresenter<CommentView> implements I
 
                     @Override
                     public void onSuccess(final List<VideoComment> videoCommentList) {
+                        if (generation != requestGeneration) {
+                            return;
+                        }
                         ifViewAttached(new ViewAction<CommentView>() {
                             @Override
                             public void run(@NonNull CommentView view) {
-                                if (start == 1) {
+                                if (requestedStart == 1) {
                                     view.setVideoCommentData(videoCommentList, pullToRefresh);
                                 } else {
                                     view.setMoreVideoCommentData(videoCommentList);
                                 }
-                                if (videoCommentList.size() == 0 && start == 1) {
+                                if (videoCommentList.size() == 0 && requestedStart == 1) {
                                     view.noMoreVideoCommentData("暂无评论");
-                                } else if (videoCommentList.size() == 0 && start > 1) {
+                                } else if (videoCommentList.size() == 0 && requestedStart > 1) {
                                     view.noMoreVideoCommentData("没有更多评论了");
                                 }
-                                start++;
+                                start = requestedStart + 1;
                                 view.showContent();
                             }
                         });
@@ -82,12 +90,15 @@ public class CommentPresenter extends MvpBasePresenter<CommentView> implements I
 
                     @Override
                     public void onError(final String msg, int code) {
+                        if (generation != requestGeneration) {
+                            return;
+                        }
                         ifViewAttached(new ViewAction<CommentView>() {
                             @Override
                             public void run(@NonNull CommentView view) {
                                 // M97：错误时也要退出加载态，否则页面停留在 loading
                                 view.showContent();
-                                if (start == 1) {
+                                if (requestedStart == 1) {
                                     view.loadVideoCommentError(msg);
                                 } else {
                                     view.loadMoreVideoCommentError(msg);
@@ -98,13 +109,16 @@ public class CommentPresenter extends MvpBasePresenter<CommentView> implements I
 
                     @Override
                     public void onCancel(boolean isCancel) {
+                        if (generation != requestGeneration) {
+                            return;
+                        }
                         ifViewAttached(new ViewAction<CommentView>() {
                             @Override
                             public void run(@NonNull CommentView view) {
                                 Logger.t(TAG).d("------getVideoComments  onCancel----------------------------");
                                 // M97：取消请求同样要恢复内容态，避免下拉刷新圈不消失
                                 view.showContent();
-                                if (start == 1) {
+                                if (requestedStart == 1) {
                                     view.loadVideoCommentError("取消请求");
                                 } else {
                                     view.loadMoreVideoCommentError("取消请求");

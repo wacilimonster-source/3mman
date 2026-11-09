@@ -35,4 +35,10 @@ public class SkipPageAdapter extends BaseQuickAdapter<Integer, BaseViewHolder> {
         this.currentPage = currentPage;
         notifyDataSetChanged();
     }
+
+    /** 一次性更新页码列表与当前页，避免两次 notify 造成闪烁。 */
+    public void setPageData(java.util.List<Integer> data, int currentPage) {
+        this.currentPage = currentPage;
+        setNewData(data);
+    }
 }

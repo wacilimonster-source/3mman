@@ -54,6 +54,15 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
     @Override
     public void loadVideoListData(final boolean pullToRefresh, boolean cleanCache, String category, int skipPage) {
         String viewType = "basic";
+        // M73：请求在途守卫——刷新/加载更多/跳页并发时响应乱序会错插数据、页码错乱
+        // M165：先守卫再改 page。旧实现先改 page 再 return，被丢弃的刷新会把在途
+        // 加载更多的响应误当成第 1 页处理。
+        if (isLoading) {
+            // M97：下拉刷新分支被丢弃时必须收起刷新指示，否则 SwipeRefreshLayout 永远转圈
+            // （VideoListView 继承 BaseView 有 showContent；VideoListFragment 实现内含 setRefreshing(false)）
+            ifViewAttached(view -> view.showContent());
+            return;
+        }
         //如果刷新则重置页数
         if (pullToRefresh) {
             page = 1;
@@ -61,13 +70,6 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
         }
         if (skipPage > 0) {
             page = skipPage;
-        }
-        // M73：请求在途守卫——刷新/加载更多/跳页并发时响应乱序会错插数据、页码错乱
-        if (isLoading) {
-            // M97：下拉刷新分支被丢弃时必须收起刷新指示，否则 SwipeRefreshLayout 永远转圈
-            // （VideoListView 继承 BaseView 有 showContent；VideoListFragment 实现内含 setRefreshing(false)）
-            ifViewAttached(view -> view.showContent());
-            return;
         }
         isLoading = true;
         final long generation = ++requestGeneration;
@@ -158,9 +160,9 @@ public class VideoListPresenter extends MvpBasePresenter<VideoListView> implemen
                             if (page == 1 || skipPage > 0) {
                                 view.setData(v9MmanItems);
                                 view.showContent();
-                                if (page == 1) {
-                                    view.setPageData(getPageList());
-                                }
+                                // M165：从第 2+ 页进入播放页时 page != 1，旧实现不灌页码，
+                                // 播放页的“分类视频”页签会显示空页码条。
+                                view.setPageData(getPageList());
                                 view.updateCurrentPage(page);
                             } else {
                                 view.loadMoreDataComplete();

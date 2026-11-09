@@ -37,9 +37,10 @@ final class RecoFilterState {
         return new RecoFilterState(orientation, maxDurationMinutes, value);
     }
 
-    /** 「重置草稿」：全部方向 / 时长不限 / 循环当前，但不提交。 */
+    /** 「重置草稿」：全部方向 / 时长不限 / 保留当前循环开关，但不提交。 */
     RecoFilterState resetDraft() {
-        return defaults();
+        // 循环开关是独立播放偏好，不属于“方向/时长”筛选；重置不应把默认开启的连播关掉。
+        return new RecoFilterState(PlayUiPrefs.FILTER_ALL, 0, autoplay);
     }
 
     boolean sameStructure(RecoFilterState other) {

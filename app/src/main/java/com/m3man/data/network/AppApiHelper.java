@@ -290,21 +290,28 @@ public class AppApiHelper implements ApiHelper {
         // 测试失败（异常或返回 false）时毒化映射残留整个会话，后续所有 porny 请求连锁失败。
         final HttpUrl oldDomain = RetrofitUrlManager.getInstance().fetchDomain(Api.PORNY_DOMAIN_NAME);
         final AtomicBoolean testSuccess = new AtomicBoolean(false);
-        return pornyServiceApi.search("test", 1, "", "", "", HeaderUtils.getPornyHeader(addressHelper))
-                .map(s -> Parse91PornyVideo.parseSearchVideos(s).getData().size() > 0)
-                .doOnNext(testSuccess::set)
-                //参照同文件 testProxy 的 doFinally 模式：无论成功/失败/取消都收口；
-                //测试成功才保留新值，失败恢复旧值（无旧映射则移除该条目）
-                .doFinally(() -> {
-                    if (testSuccess.get()) {
-                        return;
-                    }
-                    if (oldDomain != null) {
-                        RetrofitUrlManager.getInstance().putDomain(Api.PORNY_DOMAIN_NAME, oldDomain.toString());
-                    } else {
-                        RetrofitUrlManager.getInstance().removeDomain(Api.PORNY_DOMAIN_NAME);
-                    }
-                });
+        // M165：先切到用户输入的地址再测。旧实现完全忽略 url，测的是当前映射域名，
+        // 会把不可用新地址测成“成功”，也会让可用新地址在旧域名失效时永远测不过。
+        return Observable.defer(() -> {
+            if (!TextUtils.isEmpty(url)) {
+                RetrofitUrlManager.getInstance().putDomain(Api.PORNY_DOMAIN_NAME, url);
+            }
+            return pornyServiceApi.search("test", 1, "", "", "", HeaderUtils.getPornyHeader(addressHelper))
+                    .map(s -> Parse91PornyVideo.parseSearchVideos(s).getData().size() > 0)
+                    .doOnNext(testSuccess::set)
+                    //参照同文件 testProxy 的 doFinally 模式：无论成功/失败/取消都收口；
+                    //测试成功才保留新值，失败恢复旧值（无旧映射则移除该条目）
+                    .doFinally(() -> {
+                        if (testSuccess.get()) {
+                            return;
+                        }
+                        if (oldDomain != null) {
+                            RetrofitUrlManager.getInstance().putDomain(Api.PORNY_DOMAIN_NAME, oldDomain.toString());
+                        } else {
+                            RetrofitUrlManager.getInstance().removeDomain(Api.PORNY_DOMAIN_NAME);
+                        }
+                    });
+        });
     }
 
     @Override
@@ -394,7 +401,13 @@ public class AppApiHelper implements ApiHelper {
         // M62：ResponseBody 用完必须关闭，否则每次拉验证码泄漏一条连接
         return v9MmanServiceApi.captcha().map(responseBody -> {
             try {
-                return BitmapFactory.decodeStream(responseBody.byteStream());
+                Bitmap bitmap = BitmapFactory.decodeStream(responseBody.byteStream());
+                // M165：非图片响应时 decodeStream 返回 null，RxJava 2 的 map 不允许 null，
+                // 直接抛业务异常，避免上层看到“未知错误：NullPointerException”。
+                if (bitmap == null) {
+                    throw new IllegalStateException("验证码加载失败，请重试");
+                }
+                return bitmap;
             } finally {
                 try {
                     responseBody.close();

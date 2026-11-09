@@ -44,6 +44,8 @@ public class FavoritePresenter extends MvpBasePresenter<FavoriteView> implements
 
     private Integer totalPage = 1;
     private int page = 1;
+    /** 远端收藏分页请求代际：并发刷新/加载更多时只认最后一次请求。 */
+    private long remoteRequestGeneration;
     private LifecycleProvider<Lifecycle.Event> provider;
     /**
      * 本次强制刷新过那下面的请求也一起刷新
@@ -146,11 +148,15 @@ public class FavoritePresenter extends MvpBasePresenter<FavoriteView> implements
             });
             return;
         }
-        dataManager.loadMman9MyFavoriteVideos(condition, page, cleanCache)
+        // M165：捕获本次请求页码并加代际校验，避免刷新/加载更多并发时共享 page
+        // 被后一次请求改写，旧响应被误当成第 1 页或重复追加。
+        final int requestedPage = page;
+        final long generation = ++remoteRequestGeneration;
+        dataManager.loadMman9MyFavoriteVideos(condition, requestedPage, cleanCache)
                 .map(new Function<BaseResult<List<V9MmanItem>>, List<V9MmanItem>>() {
                     @Override
                     public List<V9MmanItem> apply(BaseResult<List<V9MmanItem>> baseResult) throws Exception {
-                        if (page == 1) {
+                        if (requestedPage == 1) {
                             // M97：totalPage 判空兜底（与 VideoListPresenter 同款写法）——
                             // 服务端缺字段/返回 0 时保持 1，避免 page>=totalPage 误判“没有更多”
                             Integer tp = baseResult.getTotalPage();
@@ -171,7 +177,7 @@ public class FavoritePresenter extends MvpBasePresenter<FavoriteView> implements
                         ifViewAttached(new ViewAction<FavoriteView>() {
                             @Override
                             public void run(@NonNull FavoriteView view) {
-                                if (page == 1 && !pullToRefresh) {
+                                if (requestedPage == 1 && !pullToRefresh) {
                                     view.showLoading(pullToRefresh);
                                 }
                             }
@@ -180,10 +186,13 @@ public class FavoritePresenter extends MvpBasePresenter<FavoriteView> implements
 
                     @Override
                     public void onSuccess(final List<V9MmanItem> v9MmanItems) {
+                        if (generation != remoteRequestGeneration) {
+                            return;
+                        }
                         ifViewAttached(new ViewAction<FavoriteView>() {
                             @Override
                             public void run(@NonNull FavoriteView view) {
-                                if (page == 1) {
+                                if (requestedPage == 1) {
                                     view.setFavoriteData(v9MmanItems);
                                     view.showContent();
                                 } else {
@@ -191,10 +200,11 @@ public class FavoritePresenter extends MvpBasePresenter<FavoriteView> implements
                                     view.setMoreData(v9MmanItems);
                                 }
                                 //已经最后一页了
-                                if (page >= totalPage) {
+                                if (requestedPage >= totalPage) {
                                     view.noMoreData();
+                                    page = requestedPage;
                                 } else {
-                                    page++;
+                                    page = requestedPage + 1;
                                 }
                             }
                         });
@@ -202,11 +212,14 @@ public class FavoritePresenter extends MvpBasePresenter<FavoriteView> implements
 
                     @Override
                     public void onError(final String msg, int code) {
+                        if (generation != remoteRequestGeneration) {
+                            return;
+                        }
                         //首次加载失败，显示重试页
                         ifViewAttached(new ViewAction<FavoriteView>() {
                             @Override
                             public void run(@NonNull FavoriteView view) {
-                                if (page == 1) {
+                                if (requestedPage == 1) {
                                     view.showError(msg);
                                 } else {
                                     view.loadMoreFailed();
