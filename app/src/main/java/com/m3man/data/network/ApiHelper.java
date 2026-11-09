@@ -48,14 +48,6 @@ public interface ApiHelper {
 
     Observable<BaseResult<List<V9MmanItem>>> loadPornyAuthorVideos(String authorId, int page);
 
-    Observable<BaseResult<List<V9MmanItem>>> loadPornyTadpoleVideos(String sort, int page);
-
-    Observable<BaseResult<List<V9MmanItem>>> loadPornyPremiumVideos(int page);
-
-    Observable<BaseResult<List<V9MmanItem>>> loadPornyDashenVideos(String dashenName, int page);
-
-    Observable<String> loadPornyHomepage();
-
     Observable<Boolean> testPornyAddress(String url);
 
     Observable<String> favoriteMman9Video(String uId, String videoId, String ownnerId);

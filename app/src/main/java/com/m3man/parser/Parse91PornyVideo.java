@@ -13,22 +13,19 @@ import org.jsoup.select.Elements;
 
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 91porny 解析（搜索 / 蝌蚪长视频 / 精品·大神共用，列表结构同为 .video-elem）
+ * 91porny 搜索解析（列表结构为 .video-elem）
  *
  * 列表结果结构（已真实验证）：
  *   <div class="video-elem">
  *     <a class="display d-block" href="/video/view/<24位hex>"> ... <div class="img" style="background-image:url(...)"> <small class="layer">时长</small> </a>
  *     <a class="title ..." href="/video/view/<24位hex>">标题</a>
  *   </div>
- * 分页：Bootstrap <a class="page-link" href="...&page=N">；
- *       蝌蚪区分页为路径式 /videos/{sort}/{N}（无 page= 参数），computeTotalPage 兼容两种。
+ * 分页：Bootstrap <a class="page-link" href="...&page=N">。
  *
  * viewKey 契约（播放路由依据，见 AppApiHelper.loadPornyVideoUrl）：
  *   主源视频 /video/view/<hex>   → 裸 hex（历史契约，不带前缀）
@@ -43,8 +40,6 @@ public class Parse91PornyVideo {
     private static final String TAG = Parse91PornyVideo.class.getSimpleName();
     public static final String SOURCE = "91porny";
     private static final Pattern PAGE_NUM = Pattern.compile("page=(\\d+)");
-    /** 蝌蚪区分页：路径式 /videos/{latest-updates|top-rated|most-popular}/{N} */
-    private static final Pattern PAGE_PATH_NUM = Pattern.compile("/(?:latest-updates|top-rated|most-popular)/(\\d+)/?$");
     private static final Pattern BG_URL = Pattern.compile("url\\(\\s*['\"]?([^'\")]+)['\"]?\\s*\\)");
     /** 匹配 mp4 / m3u8 等直链 */
     private static final Pattern MP4_URL = Pattern.compile("https?://[^\\s\"'<>]+\\.(?:mp4|m3u8)(?:\\?[^\\s\"'<>]*)?", Pattern.CASE_INSENSITIVE);
@@ -478,39 +473,6 @@ public class Parse91PornyVideo {
         return key != null && key.startsWith("dashen/");
     }
 
-    /**
-     * P1：从首页 HTML 提取"大神"模块作者名（/dashen/<name> 链接，去重保序，URL 解码）。
-     * 大神区无索引页（/dashen 404），首页模块（实测 9 位）是唯一种子来源，
-     * 运行中再从精品条目/播放页的 /dashen/ 链接增量补充。
-     */
-    public static java.util.List<String> parseDashenNames(String html) {
-        java.util.List<String> names = new ArrayList<>();
-        if (TextUtils.isEmpty(html)) {
-            return names;
-        }
-        Matcher m = Pattern.compile("href=\"/dashen/([^\"]+)\"").matcher(html);
-        Set<String> seen = new HashSet<>();
-        while (m.find()) {
-            String raw = m.group(1);
-            int q = raw.indexOf('?');
-            if (q >= 0) {
-                raw = raw.substring(0, q);
-            }
-            while (raw.endsWith("/")) {
-                raw = raw.substring(0, raw.length() - 1);
-            }
-            if (TextUtils.isEmpty(raw) || !seen.add(raw)) {
-                continue;
-            }
-            try {
-                names.add(java.net.URLDecoder.decode(raw, "UTF-8"));
-            } catch (Exception e) {
-                names.add(raw);
-            }
-        }
-        return names;
-    }
-
     private static String extractBackgroundUrl(String style) {
         if (TextUtils.isEmpty(style)) {
             return "";
@@ -526,17 +488,6 @@ public class Parse91PornyVideo {
             String href = a.attr("href");
             Matcher m = PAGE_NUM.matcher(href);
             while (m.find()) {
-                try {
-                    int n = Integer.parseInt(m.group(1));
-                    if (n > maxPage) {
-                        maxPage = n;
-                    }
-                } catch (NumberFormatException ignored) {
-                }
-            }
-            // 蝌蚪区分页为路径式 /videos/{sort}/{N}，无 page= 参数
-            m = PAGE_PATH_NUM.matcher(href);
-            if (m.find()) {
                 try {
                     int n = Integer.parseInt(m.group(1));
                     if (n > maxPage) {

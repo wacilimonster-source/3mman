@@ -16,6 +16,7 @@ import com.devbrackets.android.exomedia.listener.OnBufferUpdateListener;
 import com.flymegoc.exolibrary.widget.ExoVideoControlsMobile;
 import com.flymegoc.exolibrary.widget.ExoVideoView;
 import com.m3man.R;
+import com.m3man.data.network.Source441447Client;
 import com.m3man.utils.AppLog;
 import com.m3man.utils.GlideApp;
 
@@ -56,6 +57,7 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
      *  若解析器仍返回旧地址则不再重试，杜绝「失败→重新解析→失败」死循环。
      *  用户手动下拉刷新/重进页面会带来新 URL，自动获得新的自愈机会。 */
     private String lastHealUrl;
+    private boolean source441447ReparseAttempted;
 
     private final Runnable prepareTimeoutTask = new Runnable() {
         @Override
@@ -154,6 +156,10 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
     private void attemptReparseOnce(final String reason) {
         if (v9MmanItem == null || playVideoPresenter == null) {
             return;
+        }
+        if (Source441447Client.isSource(v9MmanItem)) {
+            if (source441447ReparseAttempted) return;
+            source441447ReparseAttempted = true;
         }
         // M96：同一 URL 只自愈一次，避免持续失败时无限「错误→重新解析」
         if (TextUtils.isEmpty(currentPlayUrl) || currentPlayUrl.equals(lastHealUrl)) {

@@ -16,7 +16,7 @@
         android:layout_height="wrap_content"
         android:background="@color/bg_surface"
         android:gravity="center_vertical"
-        android:minHeight="@dimen/toolbar_min_height"
+        android:minHeight="@dimen/touch_min"
         android:orientation="horizontal"
         android:paddingLeft="@dimen/page_horizontal_padding"
         android:paddingRight="@dimen/space_1">
@@ -48,19 +48,24 @@
 
         <TextView
             android:id="@+id/tv_home_adult_caption"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:layout_marginStart="@dimen/space_2"
             android:layout_marginLeft="@dimen/space_2"
+            android:ellipsize="end"
+            android:maxLines="1"
             android:letterSpacing="0.12"
             android:text="@string/home_adult_caption"
             android:textColor="@color/text_tertiary"
             android:textSize="8sp" />
 
-        <Space
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
+        <Spinner
+            android:id="@+id/video_source_selector"
+            android:layout_width="92dp"
+            android:layout_height="@dimen/touch_min"
+            android:contentDescription="视频源"
+            android:spinnerMode="dropdown" />
 
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/iv_home_download"
@@ -79,6 +84,7 @@
         android:background="@color/divider" />
 
     <RelativeLayout
+        android:id="@+id/main_category_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/bg_surface">
@@ -112,6 +118,7 @@
     </RelativeLayout>
 
     <View
+        android:id="@+id/main_category_divider"
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:background="@color/divider" />
@@ -120,5 +127,11 @@
         android:id="@+id/viewPager"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
+
+    <FrameLayout
+        android:id="@+id/source_441447_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
 
 </LinearLayout>

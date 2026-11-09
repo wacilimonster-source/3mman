@@ -115,15 +115,10 @@ public interface PreferencesHelper {
 
     String getPornySearchViews();
 
-    /** 搜索结果只看时长 ≥10 分钟（蝌蚪长视频接入后启用的筛选开关） */
+    /** 搜索结果只看时长 ≥10 分钟的筛选开关 */
     void setPornySearchDuration10(boolean enabled);
 
     boolean isPornySearchDuration10();
-
-    /** 大神作者名本地库（首页模块种子 + 运行中 /dashen/ 链接积累），JSON 数组字符串 */
-    void setPornyDashenNames(java.util.List<String> names);
-
-    java.util.List<String> getPornyDashenNames();
 
     /** 推荐流时长上限（分钟）。0 = 不限；1/2/3/5/10 分别对应 ≤ 1/2/3/5/10 分钟的视频。 */
     void setRecoMaxDurationMinutes(int minutes);

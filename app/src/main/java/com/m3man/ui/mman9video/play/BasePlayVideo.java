@@ -1,6 +1,7 @@
 package com.m3man.ui.mman9video.play;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import androidx.annotation.NonNull;
@@ -37,6 +38,7 @@ import com.m3man.data.db.entity.AuthorFavorite;
 import com.m3man.data.db.entity.Category;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.db.entity.VideoResult;
+import com.m3man.data.network.Source441447Client;
 import com.m3man.parser.Parse91PornyVideo;
 import com.m3man.service.DownloadVideoService;
 import com.m3man.service.HlsDownloadService;
@@ -45,6 +47,7 @@ import com.m3man.ui.mman9video.author.AuthorFragment;
 import com.m3man.ui.mman9video.comment.CommentFragment;
 import com.m3man.ui.mman9video.user.UserLoginActivity;
 import com.m3man.ui.mman9video.videolist.VideoListFragment;
+import com.m3man.ui.mman9video.videolist.VideoCardActions;
 import com.m3man.utils.AppLog;
 import com.m3man.utils.DialogUtils;
 import com.m3man.utils.LoadHelperUtils;
@@ -176,6 +179,14 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
      * 底部切换标签tab
      */
     private void initTab() {
+        if (Source441447Client.isSource(v9MmanItem)) {
+            tabPlay.setVisibility(View.GONE);
+            viewPagerPlay.setVisibility(View.GONE);
+            findViewById(R.id.tv_play_video_author_).setVisibility(View.GONE);
+            tvPlayVideoAuthor.setVisibility(View.GONE);
+            tvFavoriteAuthor.setVisibility(View.GONE);
+            return;
+        }
         boolean isPornySource = PlayVideoPresenter.isPornySource(v9MmanItem);
         if (isPornySource) {
             // 91porny 有作者体系（/author/xxx），但没有评论体系。
@@ -288,6 +299,11 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         }
         boolean isPornySource = PlayVideoPresenter.isPornySource(v9MmanItem);
         V9MmanItem tmp = presenter.findV9MmanItemByViewKey(v9MmanItem.getViewKey());
+        if (Source441447Client.isSource(v9MmanItem)) {
+            if (tmp != null) v9MmanItem = tmp;
+            presenter.loadVideoUrl(v9MmanItem);
+            return;
+        }
         // M73：DB 命中的 9mman 直链带时效签名（secure=...,unix秒），历史记录可能已过期。
         // 过期直链交给 videocache 本地代理建流失败 → 播放器连不上 127.0.0.1 无限转圈
         // （v1.0.70 已修推荐流入口，这里是收藏/历史/作者页等入口的残留路径）。
@@ -525,6 +541,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     }
 
     private void initBottomMenu() {
+        if (Source441447Client.isSource(v9MmanItem)) floatingToolbar.setMenu(R.menu.play_source_441447);
         floatingToolbar.attachFab(fab);
         floatingToolbar.setClickListener(new FloatingToolbar.ItemClickListener() {
             @Override
@@ -596,8 +613,36 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     }
 
     @Override
+    public void play441447Video(V9MmanItem item, String url) {
+        v9MmanItem = item;
+        videoPlayerContainer.setVisibility(View.VISIBLE);
+        setToolBarLayoutInfo(item);
+        tvPlayVideoInfo.setText("441447");
+        playVideo(item.getTitle(), url, "", item.getImgUrl());
+        dismissDialog();
+    }
+
+    @Override
     public void errorParseVideoUrl(String errorMessage) {
         dismissDialog();
+        if (Source441447Client.isSource(v9MmanItem)) {
+            String key = v9MmanItem.getViewKey();
+            AlertDialog.Builder builder = new AlertDialog.Builder(this).setMessage(errorMessage)
+                    .setPositiveButton("重试", (dialog, which) -> presenter.loadVideoUrl(v9MmanItem))
+                    .setNegativeButton("取消", null);
+            if (key != null && key.startsWith(Source441447Client.KEY_PREFIX)) {
+                String id = key.substring(Source441447Client.KEY_PREFIX.length());
+                if (id.matches("[0-9]+")) {
+                    builder.setNeutralButton("在源站打开", (dialog, which) -> {
+                        Intent intent = new Intent(Intent.ACTION_VIEW,
+                                Uri.parse(Source441447Client.contentPageUrl(key)));
+                        if (intent.resolveActivity(getPackageManager()) != null) startActivity(intent);
+                    });
+                }
+            }
+            builder.show();
+            return;
+        }
         helper.showError();
         AppLog.e("BasePlayVideo", "播放页解析失败: " + errorMessage);
         LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, "解析视频地址失败了，点击重试");
@@ -648,6 +693,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.play_video, menu);
+        if (Source441447Client.isSource(v9MmanItem)) menu.findItem(R.id.menu_play_download).setVisible(false);
         return true;
     }
 
@@ -670,6 +716,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     }
 
     private void startDownloadVideo() {
+        if (Source441447Client.isSource(v9MmanItem)) return;
         // 91porny 为 m3u8 HLS，走专用下载器（下载分片并转 mp4）
         if (v9MmanItem != null && PlayVideoPresenter.isPornySource(v9MmanItem)) {
             downloadPornyVideo();
@@ -736,6 +783,13 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     }
 
     private void favoriteVideo() {
+        if (Source441447Client.isSource(v9MmanItem)) {
+            VideoCardActions.toggleFavorite(MyApplication.getInstance().getDataManager(), v9MmanItem,
+                    (message, success, openDownloads) -> {
+                        if (!isFinishing()) showMessage(message, success ? TastyToast.SUCCESS : TastyToast.ERROR);
+                    });
+            return;
+        }
         if (favoriteInFlight) {
             return;
         }

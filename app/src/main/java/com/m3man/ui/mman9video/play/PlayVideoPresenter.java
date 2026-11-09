@@ -9,6 +9,7 @@ import com.orhanobut.logger.Logger;
 import com.sdsmdg.tastytoast.TastyToast;
 import com.trello.rxlifecycle2.LifecycleProvider;
 import com.m3man.data.DataManager;
+import com.m3man.data.network.Source441447Client;
 import com.m3man.data.db.entity.AuthorFavorite;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.db.entity.VideoResult;
@@ -52,19 +53,38 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
     private LifecycleProvider<Lifecycle.Event> provider;
 
     private DataManager dataManager;
+    private final Source441447Client source441447Client;
 
 //    private final WebView webView;
 
     @Inject
-    public PlayVideoPresenter(FavoritePresenter favoritePresenter, DownloadPresenter downloadPresenter, LifecycleProvider<Lifecycle.Event> provider, DataManager dataManager) {
+    public PlayVideoPresenter(FavoritePresenter favoritePresenter, DownloadPresenter downloadPresenter, LifecycleProvider<Lifecycle.Event> provider, DataManager dataManager, Source441447Client source441447Client) {
         this.favoritePresenter = favoritePresenter;
         this.downloadPresenter = downloadPresenter;
         this.provider = provider;
         this.dataManager = dataManager;
+        this.source441447Client = source441447Client;
     }
 
     @Override
     public void loadVideoUrl(final V9MmanItem v9MmanItem) {
+        if (Source441447Client.isSource(v9MmanItem)) {
+            Observable.fromCallable(() -> {
+                String url = source441447Client.loadPlayUrl(v9MmanItem.getViewKey());
+                v9MmanItem.setViewHistoryDate(new Date());
+                try {
+                    dataManager.saveV9MmanItem(v9MmanItem);
+                } catch (Exception error) {
+                    AppLog.w(TAG, "441447 播放历史保存失败 " + AppLog.cause(error));
+                }
+                return url;
+            }).subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread())
+                    .compose(provider.bindUntilEvent(Lifecycle.Event.ON_DESTROY))
+                    .doOnSubscribe(disposable -> ifViewAttached(PlayVideoView::showParsingDialog))
+                    .subscribe(url -> ifViewAttached(view -> view.play441447Video(v9MmanItem, url)),
+                            error -> ifViewAttached(view -> view.errorParseVideoUrl(Source441447Client.errorMessage(error))));
+            return;
+        }
         final String rawViewKey = v9MmanItem.getViewKey();
         // M62：loadMman9VideoUrl 契约要求 "viewkey=xxx" 完整形态（其入口已做归一化兜底），
         // 此处必须直传原始值；v1.0.60 在此剥前缀导致新视频解析必败（回归）。

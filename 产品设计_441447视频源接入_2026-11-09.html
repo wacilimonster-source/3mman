@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3mman · 441447 视频源接入产品设计</title>
+  <style>
+    :root{
+      --brand:#7b1fa2;--brand2:#c2185b;--grad:linear-gradient(135deg,#7b1fa2,#c2185b);
+      --bg:#f6f5f8;--card:#fff;--line:#e5e1ea;--line2:#efecf3;
+      --tx:#1c1826;--tx2:#5f5a6b;--tx3:#918b9d;--ok:#1f8058;--okbg:#eaf6f0;
+      --warn:#9b6500;--warnbg:#fff5dd;--bad:#a23a38;--badbg:#fdf0ee;
+      --code:#f2eef7;--shadow:0 8px 26px rgba(39,25,54,.07);--mono:ui-monospace,Consolas,monospace
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+    .wrap{max-width:1120px;margin:0 auto;padding:34px 24px 80px}
+    .hero{background:linear-gradient(120deg,#fff 0%,#f8f1fb 62%,#fff4f6 100%);border:1px solid var(--line);border-radius:20px;padding:28px 30px;box-shadow:var(--shadow)}
+    .eyebrow{color:var(--brand);font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+    h1{font-size:30px;line-height:1.25;margin:8px 0 10px;letter-spacing:-.02em}
+    .lead{max-width:850px;color:var(--tx2);font-size:15px;margin:0}
+    .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+    .meta span{border:1px solid var(--line);border-radius:999px;padding:4px 10px;background:#fff;color:var(--tx2);font-size:12px}
+    .meta .status{background:var(--okbg);color:var(--ok);border-color:transparent;font-weight:700}
+    .toc{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 0}
+    .toc a{background:#fff;color:var(--brand);border:1px solid var(--line);border-radius:999px;padding:5px 12px;text-decoration:none;font-size:12px}
+    .toc a:hover{border-color:var(--brand)}
+    section{margin-top:42px;scroll-margin-top:20px}
+    h2{font-size:19px;margin:0 0 13px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+    h2 small{color:var(--tx3);font-weight:400;font-size:12px;margin-left:6px}
+    h3{font-size:14px;margin:20px 0 7px}
+    p{margin:7px 0;color:var(--tx2)}
+    ul,ol{margin:7px 0;padding-left:22px;color:var(--tx2)}
+    li{margin:5px 0}
+    strong{color:var(--tx)}
+    code{font-family:var(--mono);background:var(--code);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:11px;color:#563a70;overflow-wrap:anywhere}
+    a{color:#6c3290}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 16px;box-shadow:0 2px 8px rgba(39,25,54,.025)}
+    .card h3{margin:0 0 6px}
+    .card p{margin:0;font-size:13px}
+    .decision{border-left:3px solid var(--brand);background:#fff;padding:13px 15px;border-radius:0 10px 10px 0;margin:10px 0;color:var(--tx2)}
+    .note{padding:12px 14px;border-radius:10px;background:#f0ebf7;border:1px solid #e3d7ef;color:#58486a;font-size:13px;margin:12px 0}
+    .warn{padding:12px 14px;border-radius:10px;background:var(--warnbg);border:1px solid #f0dfb6;color:#775000;font-size:13px;margin:12px 0}
+    .bad{padding:12px 14px;border-radius:10px;background:var(--badbg);border:1px solid #efd6d4;color:#7e3835;font-size:13px;margin:12px 0}
+    .good{padding:12px 14px;border-radius:10px;background:var(--okbg);border:1px solid #d8ecdf;color:#286a4c;font-size:13px;margin:12px 0}
+    table{border-collapse:collapse;width:100%;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:12.5px;margin:10px 0}
+    th,td{padding:9px 11px;border-bottom:1px solid var(--line2);text-align:left;vertical-align:top}
+    th{background:#faf9fb;color:var(--tx3);font-weight:700;white-space:nowrap}
+    tr:last-child td{border-bottom:0}
+    .flow{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:12px 0}
+    .flow span{background:#fff;border:1px solid var(--line);padding:7px 10px;border-radius:8px;color:var(--tx2);font-size:12px}
+    .flow b{color:var(--brand);font-size:17px}
+    .prototype{display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:22px;align-items:start}
+    .phone{background:#17131c;border-radius:28px;padding:10px;box-shadow:0 18px 42px rgba(25,17,35,.2);max-width:360px;width:100%;margin:auto}
+    .screen{height:680px;overflow:hidden;border-radius:20px;background:#f7f6f9;display:flex;flex-direction:column;position:relative}
+    .statusbar{height:22px;padding:4px 15px 0;background:#fff;color:#746d7b;font-size:10px;display:flex;justify-content:space-between}
+    .apphead{display:flex;align-items:center;gap:7px;height:48px;flex-shrink:0;background:#fff;padding:0 13px;border-bottom:1px solid #eeeaf1}
+    .apphead .brand{font-weight:800;font-size:16px;letter-spacing:-.05em}
+    .adult{font-size:9px;font-weight:800;color:#fff;background:#ac355d;padding:1px 4px;border-radius:4px}
+    .headspacer{flex:1}
+    .iconbtn{border:0;background:transparent;color:#615a68;font-size:17px;line-height:1;padding:3px 5px;cursor:pointer}
+    .source-select{max-width:100px;min-height:30px;border:1px solid #e2d5eb;background:#f7f0fb;color:#762a98;border-radius:8px;padding:4px 7px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer}
+    [hidden]{display:none!important}
+    .catrow{display:flex;gap:6px;overflow:auto;white-space:nowrap;padding:9px 12px;background:#fff;border-bottom:1px solid #eeeaf1;scrollbar-width:none}
+    .catrow::-webkit-scrollbar{display:none}
+    .catbtn{border:0;background:transparent;color:#777080;padding:5px 9px;border-radius:999px;font-size:10px;cursor:pointer;white-space:nowrap}
+    .catbtn.active{background:#742b91;color:#fff;font-weight:700}
+    .sortrow{display:flex;align-items:center;gap:6px;padding:9px 12px 7px}
+    .sortbtn{border:1px solid #e5e0e9;background:#fff;color:#716a78;border-radius:999px;padding:4px 10px;font-size:10px;cursor:pointer}
+    .sortbtn.active{background:#f4eafa;border-color:#d8bce7;color:#762a98;font-weight:700}
+    .listbody{overflow:auto;padding:4px 11px 14px;flex:1}
+    .vcard{background:#fff;border:1px solid #ece8ef;border-radius:10px;overflow:hidden;margin-bottom:10px;cursor:pointer;box-shadow:0 2px 6px rgba(40,30,50,.035)}
+    .thumb{height:145px;position:relative;background:linear-gradient(140deg,#392746,#a46b87 52%,#272236);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.6);font-size:12px;letter-spacing:.08em}
+    .thumb:after{content:"▶";position:absolute;display:grid;place-items:center;width:34px;height:34px;background:rgba(0,0,0,.38);border:1px solid rgba(255,255,255,.45);border-radius:50%;color:#fff;padding-left:2px}
+    .duration{position:absolute;right:7px;bottom:7px;background:#111c;color:#fff;font-size:9px;padding:2px 5px;border-radius:4px;z-index:1}
+    .vinfo{padding:8px 9px 9px}
+    .vtitle{font-size:11px;line-height:1.45;color:#312b38;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:31px}
+    .vmeta{display:flex;justify-content:space-between;align-items:center;margin-top:5px;font-size:9px;color:#9992a1}
+    .sourcebadge{background:#f4eafa;color:#762a98;border-radius:4px;padding:1px 5px;font-weight:700}
+    .bottomnav{height:48px;display:flex;justify-content:space-around;align-items:center;background:#fff;border-top:1px solid #e9e5ed;color:#9992a1;font-size:9px}
+    .bottomnav .selected{color:#742b91;font-weight:700}
+    .playerscreen{height:100%;display:none;flex-direction:column;background:#f7f6f9}
+    .playhead{height:44px;display:flex;align-items:center;gap:10px;padding:0 13px;background:#fff;border-bottom:1px solid #eeeaf1;font-size:12px;font-weight:700}
+    .playstage{height:208px;background:#15121a;color:#e8e1ec;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18px}
+    .playstage .playicon{font-size:34px;color:#d2b4e2}
+    .playstage small{font-size:10px;color:#aaa2b1;margin-top:8px}
+    .playcontent{padding:13px;overflow:auto}
+    .playtitle{font-size:13px;font-weight:700;line-height:1.5}
+    .playmeta{font-size:10px;color:#8e8795;margin:5px 0 12px}
+    .playchips{display:flex;gap:6px;flex-wrap:wrap;margin:9px 0 14px}
+    .playchips span{font-size:10px;border:1px solid #e6e1e9;background:#fff;padding:4px 8px;border-radius:999px;color:#706977}
+    .playactions{display:flex;gap:8px}
+    .playactions button{border:1px solid #e1d9e7;background:#fff;border-radius:8px;padding:7px 10px;color:#6a337e;font-size:10px;cursor:pointer}
+    .proto-copy{position:sticky;top:18px}
+    .proto-copy .card{margin-bottom:10px}
+    .mini{font-size:11px;color:var(--tx3)}
+    .tag{display:inline-block;border-radius:5px;padding:2px 7px;font-size:10px;font-weight:700;margin-right:5px}
+    .p0{background:var(--badbg);color:var(--bad)}.p1{background:var(--warnbg);color:var(--warn)}.p2{background:#edf3fc;color:#3e659c}
+    .checklist{list-style:none;padding:0}
+    .checklist li{position:relative;padding-left:22px}
+    .checklist li:before{content:"✓";position:absolute;left:0;top:0;color:var(--ok);font-weight:800}
+    .footer{border-top:1px solid var(--line);margin-top:44px;padding-top:16px;color:var(--tx3);font-size:11px}
+    @media(max-width:760px){.wrap{padding:18px 13px 54px}.hero{padding:21px 18px}h1{font-size:24px}.grid{grid-template-columns:1fr}.prototype{grid-template-columns:1fr}.proto-copy{position:static}.screen{height:650px}table{display:block;overflow-x:auto}}
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <header class="hero">
+    <div class="eyebrow">PRODUCT DESIGN · FIRST REVIEW</div>
+    <h1>441447 视频源接入</h1>
+    <p class="lead">在现有「视频」页内加入独立站点来源，让用户浏览 441447 的视频分类与列表，并尽量复用应用现有卡片、收藏和原生播放体验。</p>
+    <div class="meta"><span class="status">产品设计稿</span><span>版本 0.2</span><span>日期 2026-11-09</span><span>工作区：G:\game\nw\3mman</span></div>
+    <nav class="toc">
+      <a href="#decision">方案结论</a><a href="#research">站点观察</a><a href="#ia">信息架构</a><a href="#prototype">交互原型</a><a href="#spec">页面规格</a><a href="#api">数据与播放</a><a href="#risk">异常与风险</a><a href="#roadmap">阶段与验收</a>
+    </nav>
+  </header>
+
+  <section id="decision">
+    <h2>1. 方案结论 <small>建议按此方向进入技术验证</small></h2>
+    <div class="grid">
+      <article class="card"><h3>入口放在顶部品牌栏</h3><p>品牌栏右侧使用紧凑的来源下拉框，显示当前选中的<strong>主站 / 441447</strong>，与下载入口同排。</p></article>
+      <article class="card"><h3>来源与分类分层</h3><p>切到 441447 后，分类行读取站点分类；列表、排序、缓存和滚动位置按来源隔离，不把外站分类写进主站分类表。</p></article>
+      <article class="card"><h3>先打通可播放链路</h3><p>MVP 包含分类、列表、刷新、分页、原生播放和本地收藏。下载与跨源搜索等功能等播放 URL、权限和稳定性确认后再排。</p></article>
+    </div>
+    <div class="decision"><strong>与上次移除频道的关系：</strong>这里设计的是全新的 441447 来源入口。之前删除的「长视频」「精品·大神」频道不恢复，也不把 441447 伪装成 91porny 的分类。</div>
+  </section>
+
+  <section id="research">
+    <h2>2. 站点观察与设计依据</h2>
+    <p>评估页面：<a href="https://www.441447.xyz/list/video" target="_blank" rel="noreferrer">https://www.441447.xyz/list/video</a>（2026-11-09）。页面标题为「最新视频 · 18yiren.tv」，主导航包含视频、小说、图库、社区等；本次只以视频列表为接入范围。</p>
+    <table>
+      <thead><tr><th>观察项</th><th>可确认信息</th><th>产品含义</th></tr></thead>
+      <tbody>
+        <tr><td>来源品牌</td><td>用户提供域名为 441447.xyz，页面标题品牌显示 18yiren.tv。</td><td>应用内主显示名建议用「441447」，副标题/来源说明显示「18yiren.tv」；上线前确认品牌与域名关系。</td></tr>
+        <tr><td>列表结构</td><td>站点有视频列表、分类导航和视频卡片；列表由 Next.js 前端异步加载。</td><td>应用分类从站点实时读取，不能把当前分类名称写死在 APK。</td></tr>
+        <tr><td>列表参数</td><td>前端脚本读取 <code>contentType=video</code>、<code>page</code>、<code>pageSize</code>、<code>sort</code>、可选 <code>categoryId</code>；默认页大小 20，已看到 <code>latest</code> 与 <code>hot</code> 排序值。</td><td>首版提供「最新 / 热门」；总数分页优先用接口返回值计算，列表使用 20 条一页。</td></tr>
+        <tr><td>详情与播放</td><td>前端脚本读取内容详情，并向 <code>/api/front/videos/{id}/play-url</code> 发送清晰度和线路参数。</td><td>每次播放时重新解析临时地址；具体清晰度、响应结构、请求头和媒体类型仍需开发验证。</td></tr>
+        <tr><td>访问条件</td><td>未带页面会话直接请求分类/列表 API 返回 403；页面脚本先获取 <code>/api/front/client-session</code>。</td><td>不能把接口当作匿名直连；先验证合法会话流程、频率限制与应用网络栈兼容性。不得绕过站点的登录、年龄验证或安全限制。</td></tr>
+      </tbody>
+    </table>
+    <div class="warn"><strong>资料边界：</strong>本稿只核对了公开列表页 HTML 与页面脚本，没有提交年龄验证、登录、播放请求或下载请求。因此分类字段、播放响应、线路/清晰度选项和直链有效期都标记为待技术验证。</div>
+  </section>
+
+  <section id="goals">
+    <h2>3. 目标与范围</h2>
+    <div class="grid">
+      <article class="card"><h3>目标</h3><ul><li>用户能从视频页切换到 441447。</li><li>能浏览来源分类，查看最新/热门视频并翻页。</li><li>点击列表项后尽量进入现有原生播放页。</li><li>收藏、来源标记和播放历史能与现有内容区分。</li></ul></article>
+      <article class="card"><h3>MVP 不做</h3><ul><li>不接入小说、图库、社区、AI、上传、评论和账户体系。</li><li>不将 441447 内容混入主站分类或推荐流。</li><li>不在播放 URL 尚未验证时开放下载。</li><li>不绕过站点登录、年龄验证、验证码、反滥用或版权限制。</li></ul></article>
+      <article class="card"><h3>推荐默认</h3><ul><li>首次进入仍默认主站，避免改变老用户入口。</li><li>用户手动选择来源后，记住其上次来源及分类。</li><li>来源切换保留两侧各自的分类、排序、滚动位置。</li></ul></article>
+    </div>
+    <h3>核心用户路径</h3>
+    <div class="flow"><span>视频</span><b>›</b><span>来源：441447</span><b>›</b><span>全部 / 站点分类</span><b>›</b><span>最新 / 热门</span><b>›</b><span>选择视频</span><b>›</b><span>原生播放</span></div>
+  </section>
+
+  <section id="ia">
+    <h2>4. 信息架构与导航</h2>
+    <table>
+      <thead><tr><th>层级</th><th>内容</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>底部导航</td><td>视频 / 推荐 / 搜索 / 我的</td><td>保持现状；搜索 Tab 继续承担现有 91porny 搜索入口。</td></tr>
+        <tr><td>顶部来源选择</td><td>主站 / 441447</td><td>紧凑下拉框置于品牌栏右侧、下载入口左侧，当前来源直接显示在控件内。</td></tr>
+        <tr><td>分类行</td><td>主站：现有数据库分类；441447：服务端分类 + 全部</td><td>分类属于当前来源上下文。首次加载失败时显示「全部」并提供重试，不阻塞来源页。</td></tr>
+        <tr><td>441447 列表工具行</td><td>最新 / 热门</td><td>仅在选中 441447 时展示。切分类或排序回到第 1 页，主站通过自身分类导航浏览。</td></tr>
+        <tr><td>详情播放</td><td>共享视频播放页</td><td>沿用应用现有播放交互和返回栈；详情数据标明来源 441447。</td></tr>
+      </tbody>
+    </table>
+    <div class="note">来源下拉框合并到现有品牌栏，整栏高度控制在约 48dp。分类行紧随品牌栏。选中 441447 后展示该源专属的「最新 / 热门」工具行。</div>
+  </section>
+
+  <section id="prototype">
+    <h2>5. 可点击界面示意 <small>分类名和视频内容为占位，不代表站点真实条目</small></h2>
+    <div class="prototype">
+      <div class="phone" aria-label="441447 来源切换与播放交互示意">
+        <div class="screen">
+          <div id="listScreen" style="display:flex;flex-direction:column;height:100%">
+            <div class="statusbar"><span>9:41</span><span>●●●　▰</span></div>
+            <div class="apphead"><span class="brand">3mman</span><span class="adult">18+</span><span class="headspacer"></span><select class="source-select" id="sourceSelect" aria-label="选择视频源"><option value="main">主站</option><option value="441447">441447</option></select><button class="iconbtn" aria-label="下载管理">⇩</button></div>
+            <div class="catrow" id="categoryRow"></div>
+            <div class="sortrow" id="sourceTools" hidden><button class="sortbtn active" data-sort="latest">最新</button><button class="sortbtn" data-sort="hot">热门</button></div>
+            <div class="listbody">
+              <article class="vcard" data-open-player><div class="thumb">封面示意<span class="duration">12:30</span></div><div class="vinfo"><div class="vtitle">示例视频标题（列表标题由来源提供）</div><div class="vmeta"><span>播放量 / 日期</span><span class="sourcebadge" id="cardSource">主站</span></div></div></article>
+              <article class="vcard" data-open-player><div class="thumb" style="background:linear-gradient(140deg,#27344a,#756a9e 55%,#322741)">封面示意<span class="duration">08:16</span></div><div class="vinfo"><div class="vtitle">第二条示例标题（两行截断）</div><div class="vmeta"><span>播放量 / 日期</span><span class="sourcebadge" id="cardSource2">主站</span></div></div></article>
+              <article class="vcard" data-open-player><div class="thumb" style="background:linear-gradient(140deg,#493226,#a9755e 55%,#30233a)">封面示意<span class="duration">21:04</span></div><div class="vinfo"><div class="vtitle">第三条示例标题（封面比例保持一致）</div><div class="vmeta"><span>播放量 / 日期</span><span class="sourcebadge" id="cardSource3">主站</span></div></div></article>
+            </div>
+            <div class="bottomnav"><span class="selected">▣ 视频</span><span>▶ 推荐</span><span>⌕ 搜索</span><span>☰ 我的</span></div>
+          </div>
+          <div class="playerscreen" id="playerScreen">
+            <div class="statusbar"><span>9:41</span><span>●●●　▰</span></div>
+            <div class="playhead"><button class="iconbtn" id="backToList" aria-label="返回列表">‹</button><span>视频播放</span><span class="headspacer"></span><span class="sourcebadge" id="playerSourceBadge">主站</span></div>
+            <div class="playstage"><div class="playicon">▶</div><div>播放器区域</div><small>真实播放前需取得站点授权的临时播放地址</small></div>
+            <div class="playcontent"><div class="playtitle">示例视频标题（原站标题）</div><div class="playmeta">来源：441447　·　时长与播放量按接口字段展示</div><div class="playchips"><span>清晰度：按接口返回</span><span>线路：按接口返回</span></div><div class="playactions"><button id="favoriteDemo">☆ 收藏</button><button id="sourceDemo">在源站打开</button></div><p class="mini" style="margin-top:12px">如果原生播放地址不可用，展示可重试错误，并提供源站页面兜底。</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="proto-copy">
+        <article class="card"><h3>操作方式</h3><p>使用顶部下拉框切换来源。选中 441447 后可以切换「最新 / 热门」。点击卡片打开播放示意，点左上角返回列表。</p></article>
+        <article class="card"><h3>真实接入时的动态内容</h3><p>441447 的分类名称由类别接口提供。此示意中的「全部」以外分类、标题、封面、时长和播放量均为通用占位。</p></article>
+        <article class="card"><h3>界面规则</h3><ul><li>来源选择与品牌、下载入口共用顶部一行。</li><li>「最新 / 热门」属于 441447 专属工具行。</li><li>来源 badge 出现在卡片元信息末尾。</li><li>返回播放页后保留来源、分类、排序和列表位置。</li></ul></article>
+      </div>
+    </div>
+  </section>
+
+  <section id="spec">
+    <h2>6. 页面与交互规格</h2>
+    <table>
+      <thead><tr><th>界面/动作</th><th>规则</th><th>空态与错误态</th></tr></thead>
+      <tbody>
+        <tr><td>来源切换</td><td>顶部品牌栏右侧使用紧凑下拉框，显示当前来源。初始默认主站，手动切换后保存选择。各来源使用独立列表缓存。</td><td>如果 441447 未配置或服务暂不可用，来源仍可选中并展示来源级重试提示。</td></tr>
+        <tr><td>分类加载</td><td>拉取视频类别；首项固定「全部」。类别横向滚动；分类 ID 与显示名分开保存。</td><td>类别请求失败时保留「全部」入口并显示轻量重试，不阻塞全部视频列表。</td></tr>
+        <tr><td>441447 专属排序</td><td>「最新 / 热门」工具行仅随 441447 来源展示，默认最新。分类或排序改变时 page 重置为 1、旧请求取消、列表滚到顶部。切回主站后由主站分类导航提供浏览入口。</td><td>排序加载失败时显示可重试错误提示。</td></tr>
+        <tr><td>下拉刷新</td><td>重新请求当前来源、分类、排序的第 1 页；保留分类与排序。</td><td>刷新失败时保留旧数据并显示「刷新失败，点击重试」。</td></tr>
+        <tr><td>加载更多</td><td>按 page/pageSize 增量请求；按稳定内容 ID 去重；没有更多时停止请求。</td><td>列表为空时显示「暂无视频」；网络错误显示重试按钮，不伪装为末页。</td></tr>
+        <tr><td>视频卡片</td><td>封面、标题、时长（有值才显示）、播放量/日期（有值才显示）、来源 badge。标题最多两行。</td><td>封面缺失使用统一占位；缺字段不影响打开详情。</td></tr>
+        <tr><td>播放</td><td>点击即进入共享播放页。进入前请求最新播放地址；播放页保留标题、来源和源站打开入口。</td><td>地址过期重新解析一次；线路失败可重试或切换接口返回的可用线路；无原生地址时提供源站网页兜底。</td></tr>
+        <tr><td>收藏</td><td>复用应用本地收藏与卡片动作；收藏键必须含 sourceId，避免与主站或 91porny 的 ID 碰撞。</td><td>收藏详情字段缺失时仍允许按 sourceId + contentId 收藏。</td></tr>
+        <tr><td>下载</td><td>MVP 默认不显示下载动作。确认得到稳定直链、请求头、Range/HLS 支持和来源授权后再启用。</td><td>未支持时不显示失效入口；如后续启用，下载失败要明确标出来源错误和可重试状态。</td></tr>
+        <tr><td>搜索</td><td>二期在 441447 列表增加站内搜索入口，查询范围限定为当前来源；现有底部「搜索」页保持 91porny 行为。</td><td>无结果时展示站点无结果态及更换关键词提示。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="api">
+    <h2>7. 数据与播放设计</h2>
+    <h3>已观察到的站点请求形态</h3>
+    <table>
+      <thead><tr><th>用途</th><th>请求形态</th><th>产品/客户端处理</th></tr></thead>
+      <tbody>
+        <tr><td>会话启动</td><td><code>GET /api/front/client-session</code></td><td>先在技术 Spike 中核实必要请求头、cookie、响应校验及可用期限；仅实现站点允许的正常客户端流程。</td></tr>
+        <tr><td>视频分类</td><td><code>GET /api/front/categories?contentType=video</code></td><td>缓存短时类别数据；显示名直接使用站点返回，未知字段忽略。</td></tr>
+        <tr><td>视频列表</td><td><code>GET /api/front/contents?contentType=video&amp;page={n}&amp;pageSize=20&amp;sort={latest|hot}&amp;categoryId={id}</code></td><td>响应按 <code>items/total</code> 归一化；请求页码与页大小由客户端分页状态管理。</td></tr>
+        <tr><td>站内搜索（二期）</td><td><code>GET /api/front/search?keyword={q}&amp;contentType=video&amp;categoryId={id}&amp;sort={sort}&amp;page={n}&amp;pageSize=20</code></td><td>搜索状态与列表状态分离；不混入现有 91porny 搜索结果。</td></tr>
+        <tr><td>内容详情</td><td><code>GET /api/front/contents/{id}?includeChapterContent=false</code></td><td>仅取播放所需字段；不请求小说章节或其他内容类型。</td></tr>
+        <tr><td>播放地址</td><td><code>POST /api/front/videos/{id}/play-url</code>，请求体含 <code>resolution</code>、<code>line</code>（前端默认值为 <code>sd</code>/<code>normal</code>）。</td><td>每次开始播放/用户点重试时请求；不持久化临时 URL。真实字段、可用清晰度、线路和媒体格式需以成功响应为准。</td></tr>
+      </tbody>
+    </table>
+    <h3>应用侧数据归一化建议</h3>
+    <ul>
+      <li>新增独立 source ID：<code>441447</code>；列表项持久化来源为 <code>sourceName=441447</code>，view key 使用 <code>441447/{contentId}</code>，不可仅用站点数字 ID。</li>
+      <li>新增独立 API/Parser/Repository 边界。不要复用或扩展 <code>PornyServiceApi</code> 的 91porny 端点，也不要在主站分类解析器里加入 441447 分支。</li>
+      <li>应用列表模型只承载共用展示字段：稳定 ID、标题、封面 URL、时长、播放量、发布日期、来源、作者（若有）、播放上下文。保留原始 JSON 字段供诊断，不把未知字段映射为主站专有语义。</li>
+      <li>播放解析结果包括媒体 URL、媒体类型、必要请求头、有效期及接口返回的线路/清晰度集合；ExoPlayer 支持的 HLS/MP4 走原生播放器，其他类型显示源站兜底。</li>
+      <li>类别缓存、列表缓存、播放地址缓存各自隔离；来源切换不清空另一个来源的分页状态。日志避免输出完整临时播放 URL、cookie 或敏感会话值。</li>
+    </ul>
+  </section>
+
+  <section id="risk">
+    <h2>8. 异常处理、内容与接入风险</h2>
+    <table>
+      <thead><tr><th>场景</th><th>用户可见处理</th><th>处理原则</th></tr></thead>
+      <tbody>
+        <tr><td>403 / 会话无效</td><td>「来源暂时无法访问，请稍后重试」；提供重试和源站打开入口。</td><td>不循环重试、不绕过年龄验证/验证码/登录和反滥用策略。403 作为配置/权限问题记录。</td></tr>
+        <tr><td>429 / 限流</td><td>提示稍后重试，保留现有列表。</td><td>遵循 Retry-After（如有）；页面滚动不预取多页、不并发刷接口。</td></tr>
+        <tr><td>5xx / 网络断开</td><td>错误页或列表内重试；老数据仍可浏览。</td><td>最多做有限退避重试；取消页面已离开的请求。</td></tr>
+        <tr><td>播放地址过期</td><td>提示重新连接，后台刷新地址一次；仍失败时展示线路或源站页面选项。</td><td>不把一次性的 CDN URL 写入收藏/历史数据库。</td></tr>
+        <tr><td>原生播放器不兼容</td><td>显示「此条目暂不支持原生播放」，提供源站网页兜底。</td><td>不可静默进入黑屏；记录媒体类型和失败阶段，不记敏感 URL。</td></tr>
+        <tr><td>来源关闭/域名变更</td><td>来源入口展示可恢复错误态，主站视频功能不受影响。</td><td>来源配置独立、可远程禁用；不要把 441447 域名写入主站 API 常量。</td></tr>
+      </tbody>
+    </table>
+    <div class="bad"><strong>上线阻断项：</strong>若该站点要求绕过验证码、年龄验证、付费墙或其他访问限制才能抓取列表/播放，则停止原生接入，改为提供清晰的源站访问入口；不设计绕过机制。</div>
+    <div class="note"><strong>18+ 内容提示：</strong>沿用应用现有 18+ 身份标识与用户内容偏好；来源名称、卡片和错误文案保持中性，不新增成人内容的显式描述。默认关闭自动播放与跨源连播。</div>
+  </section>
+
+  <section id="roadmap">
+    <h2>9. 阶段、验收与待决策</h2>
+    <table>
+      <thead><tr><th>阶段</th><th>内容</th><th>退出条件</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tag p0">P0</span> 技术 Spike</td><td>验证站点是否允许常规客户端访问；确认会话流程、分类与列表字段、最新/热门参数、详情字段、播放 URL、媒体格式、Referer/headers、URL 有效期、限流与使用规则。</td><td>列表可稳定读取；至少一条公开视频能在应用网络栈中取得合法播放地址并被 ExoPlayer 播放；未发现需要绕过访问限制的依赖。</td></tr>
+        <tr><td><span class="tag p0">P0</span> 产品 MVP</td><td>顶部来源下拉框、动态分类、441447 专属最新/热门列表、刷新/加载更多、共享播放页、来源 badge、本地收藏、来源级错误状态。</td><td>满足下列验收标准。</td></tr>
+        <tr><td><span class="tag p1">P1</span> 完整度</td><td>441447 站内搜索、分类管理、清晰度/线路切换（仅当接口给出选项）、播放历史来源显示、用户可关闭来源。</td><td>各选项由真实接口支持，空值/失效状态可解释。</td></tr>
+        <tr><td><span class="tag p2">P2</span> 评估后</td><td>下载、推荐混排、跨源搜索。</td><td>直链稳定性、Range/HLS 支持、授权和重复内容处理均通过审查后再立项。</td></tr>
+      </tbody>
+    </table>
+    <h3>MVP 验收标准</h3>
+    <ul class="checklist">
+      <li>首次进入视频页打开主站，来源切换与品牌、下载入口共用 48dp 顶栏。</li>
+      <li>441447 分类来自接口；分类请求失败不影响「全部」列表的重试入口。</li>
+      <li>「最新 / 热门」工具行仅在 441447 来源下显示，切回主站时连同整行占位一起收起。</li>
+      <li>441447 最新/热门切换、分类切换、刷新、加载更多均使用该源参数，分页无重复卡片。</li>
+      <li>列表字段缺失、封面无效、列表为空和 API 失败都有明确 UI，不导致崩溃或无限加载。</li>
+      <li>可播放条目一键进入原生播放；返回后回到原来源、分类、排序和原滚动位置。</li>
+      <li>播放失败会刷新地址一次并给出源站兜底；主站视频仍按原流程播放。</li>
+      <li>收藏 key 带 441447 source ID，和现有来源不会冲突；临时播放地址不落库。</li>
+      <li>接口返回 403/429 时不进行无限重试或并发预取。</li>
+    </ul>
+    <h3>建议评审时确认</h3>
+    <ol>
+      <li><strong>来源显示名：</strong>建议「441447」，副标「18yiren.tv」；避免只显示目前不一致的品牌名。</li>
+      <li><strong>搜索范围：</strong>建议先只在 441447 列表内提供站内搜索，不改底部现有搜索 Tab。</li>
+      <li><strong>下载入口：</strong>建议首版不显示，待播放地址、Range/HLS 与来源许可验证后再决定。</li>
+      <li><strong>来源归属：</strong>建议独立 source adapter 与缓存，不将站点分类写入主站 Category 表。</li>
+    </ol>
+  </section>
+
+  <footer class="footer">3mman · 441447 视频源接入 · 产品设计初稿。页面脚本和接口形态以评估日期可访问版本为准；接口契约需在技术 Spike 中重新验证。</footer>
+</main>
+<script>
+  const categorySets = {
+    main: ["主页", "最近更新", "当前最热", "最近得分", "收藏最多"],
+    "441447": ["全部", "分类 1", "分类 2", "分类 3", "更多"]
+  };
+  const categoryRow = document.getElementById("categoryRow");
+  const sourceSelect = document.getElementById("sourceSelect");
+  const sourceTools = document.getElementById("sourceTools");
+  let currentSource = "main";
+  function renderCategories(source) {
+    categoryRow.innerHTML = "";
+    categorySets[source].forEach((name, i) => {
+      const button = document.createElement("button");
+      button.className = "catbtn" + (i === 0 ? " active" : "");
+      button.textContent = name;
+      button.addEventListener("click", () => {
+        categoryRow.querySelectorAll(".catbtn").forEach(item => item.classList.remove("active"));
+        button.classList.add("active");
+      });
+      categoryRow.appendChild(button);
+    });
+  }
+  sourceSelect.addEventListener("change", () => {
+    currentSource = sourceSelect.value;
+    sourceTools.hidden = currentSource !== "441447";
+    ["cardSource", "cardSource2", "cardSource3"].forEach(id => {
+      document.getElementById(id).textContent = currentSource === "441447" ? "441447" : "主站";
+    });
+    document.getElementById("playerSourceBadge").textContent = currentSource === "441447" ? "441447" : "主站";
+    renderCategories(currentSource);
+  });
+  document.querySelectorAll(".sortbtn").forEach(button => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll(".sortbtn").forEach(item => item.classList.toggle("active", item === button));
+    });
+  });
+  document.querySelectorAll("[data-open-player]").forEach(card => card.addEventListener("click", () => {
+    document.getElementById("listScreen").style.display = "none";
+    const player = document.getElementById("playerScreen");
+    player.style.display = "flex";
+  }));
+  document.getElementById("backToList").addEventListener("click", () => {
+    document.getElementById("playerScreen").style.display = "none";
+    document.getElementById("listScreen").style.display = "flex";
+  });
+  document.getElementById("favoriteDemo").addEventListener("click", event => {
+    const button = event.currentTarget;
+    button.textContent = button.textContent.startsWith("☆") ? "★ 已收藏" : "☆ 收藏";
+  });
+  document.getElementById("sourceDemo").addEventListener("click", () => {
+    window.alert("原型示意：真实版本会打开该视频对应的 441447 源站页面。");
+  });
+  renderCategories(currentSource);
+</script>
+</body>
+</html>

@@ -279,27 +279,9 @@ public class AppApiHelper implements ApiHelper {
                 .map(Parse91PornyVideo::parseSearchVideos);
     }
 
-    @Override
-    public Observable<BaseResult<List<V9MmanItem>>> loadPornyTadpoleVideos(String sort, int page) {
-        return pornyServiceApi.tadpoleVideos(sort, page, HeaderUtils.getPornyHeader(addressHelper))
-                .map(Parse91PornyVideo::parseSearchVideos);
-    }
-
-    @Override
-    public Observable<BaseResult<List<V9MmanItem>>> loadPornyPremiumVideos(int page) {
-        return pornyServiceApi.premiumVideos(page, HeaderUtils.getPornyHeader(addressHelper))
-                .map(Parse91PornyVideo::parseSearchVideos);
-    }
-
-    @Override
-    public Observable<BaseResult<List<V9MmanItem>>> loadPornyDashenVideos(String dashenName, int page) {
+    private Observable<BaseResult<List<V9MmanItem>>> loadPornyDashenVideos(String dashenName, int page) {
         return pornyServiceApi.dashenVideos(dashenName, page, HeaderUtils.getPornyHeader(addressHelper))
                 .map(Parse91PornyVideo::parseSearchVideos);
-    }
-
-    @Override
-    public Observable<String> loadPornyHomepage() {
-        return pornyServiceApi.homepage(HeaderUtils.getPornyHeader(addressHelper));
     }
 
     @Override

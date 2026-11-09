@@ -1,6 +1,7 @@
 package com.m3man.utils;
 
 import com.m3man.data.db.entity.V9MmanItem;
+import com.m3man.data.network.Source441447Client;
 import com.m3man.parser.Parse91PornyVideo;
 
 /**
@@ -60,6 +61,9 @@ public final class VideoCardMeta {
     public static String sourceLabel(V9MmanItem item) {
         if (item == null) {
             return "";
+        }
+        if (Source441447Client.isSource(item)) {
+            return "441447";
         }
         String sourceName = item.getSourceName();
         String source = item.getSource();

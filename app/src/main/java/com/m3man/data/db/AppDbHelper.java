@@ -69,6 +69,7 @@ public class AppDbHelper implements DbHelper {
             public void run() {
                 try {
                     initCategory(Category.TYPE_91PORN, Category.CATEGORY_DEFAULT_91PORN_VALUE, Category.CATEGORY_DEFAULT_91PORN_NAME);
+                    removeRetiredPornyChannelCategories();
                     repairMisflaggedPornyRows();
                 } catch (Exception e) {
                     // M99：种子失败不再静默吞掉，至少留一条错误日志便于排查
@@ -185,6 +186,18 @@ public class AppDbHelper implements DbHelper {
             return;
         }
         daoSession().getCategoryDao().insertOrReplaceInTx(needInsert);
+    }
+
+    /** 清除旧版本已持久化的 91porny 频道分类。 */
+    private void removeRetiredPornyChannelCategories() {
+        CategoryDao categoryDao = daoSession().getCategoryDao();
+        List<Category> retired = categoryDao.queryBuilder()
+                .where(CategoryDao.Properties.CategoryType.eq(Category.TYPE_91PORN),
+                        CategoryDao.Properties.CategoryValue.in("porny_tad", "porny_prem"))
+                .build().list();
+        if (!retired.isEmpty()) {
+            categoryDao.deleteInTx(retired);
+        }
     }
 
     @Override

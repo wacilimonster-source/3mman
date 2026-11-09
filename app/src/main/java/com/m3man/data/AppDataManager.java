@@ -242,26 +242,6 @@ public class AppDataManager implements DataManager {
     }
 
     @Override
-    public Observable<BaseResult<List<V9MmanItem>>> loadPornyTadpoleVideos(String sort, int page) {
-        return mApiHelper.loadPornyTadpoleVideos(sort, page);
-    }
-
-    @Override
-    public Observable<BaseResult<List<V9MmanItem>>> loadPornyPremiumVideos(int page) {
-        return mApiHelper.loadPornyPremiumVideos(page);
-    }
-
-    @Override
-    public Observable<BaseResult<List<V9MmanItem>>> loadPornyDashenVideos(String dashenName, int page) {
-        return mApiHelper.loadPornyDashenVideos(dashenName, page);
-    }
-
-    @Override
-    public Observable<String> loadPornyHomepage() {
-        return mApiHelper.loadPornyHomepage();
-    }
-
-    @Override
     public void setPornySearchDuration10(boolean enabled) {
         mPreferencesHelper.setPornySearchDuration10(enabled);
     }
@@ -269,16 +249,6 @@ public class AppDataManager implements DataManager {
     @Override
     public boolean isPornySearchDuration10() {
         return mPreferencesHelper.isPornySearchDuration10();
-    }
-
-    @Override
-    public void setPornyDashenNames(java.util.List<String> names) {
-        mPreferencesHelper.setPornyDashenNames(names);
-    }
-
-    @Override
-    public java.util.List<String> getPornyDashenNames() {
-        return mPreferencesHelper.getPornyDashenNames();
     }
 
     @Override

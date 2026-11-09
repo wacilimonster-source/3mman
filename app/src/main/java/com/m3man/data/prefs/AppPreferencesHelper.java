@@ -47,7 +47,6 @@ public class AppPreferencesHelper implements PreferencesHelper {
     private final static String KEY_SP_PORNY_SEARCH_TIME = "key_sp_porny_search_time";
     private final static String KEY_SP_PORNY_SEARCH_VIEWS = "key_sp_porny_search_views";
     private final static String KEY_SP_PORNY_SEARCH_DUR10 = "key_sp_porny_search_dur10";
-    private final static String KEY_SP_PORNY_DASHEN_NAMES = "key_sp_porny_dashen_names";
     private final static String KEY_SP_PROXY_IP_ADDRESS = "key_sp_proxy_ip_address";
     private final static String KEY_SP_PROXY_PORT = "key_sp_proxy_port";
     private final static String KEY_SP_NEVER_ASK_FOR_WATCH_DOWNLOAD_TIP = "key_sp_never_ask_for_watch_download_tip";
@@ -415,33 +414,6 @@ public class AppPreferencesHelper implements PreferencesHelper {
     @Override
     public boolean isPornySearchDuration10() {
         return mPrefs.getBoolean(KEY_SP_PORNY_SEARCH_DUR10, false);
-    }
-
-    @Override
-    public void setPornyDashenNames(java.util.List<String> names) {
-        if (names == null || names.isEmpty()) {
-            return;
-        }
-        try {
-            com.google.gson.Gson gson = new com.google.gson.Gson();
-            mPrefs.edit().putString(KEY_SP_PORNY_DASHEN_NAMES, gson.toJson(names)).apply();
-        } catch (Exception ignored) {
-            // 序列化失败不影响主流程
-        }
-    }
-
-    @Override
-    public java.util.List<String> getPornyDashenNames() {
-        String json = mPrefs.getString(KEY_SP_PORNY_DASHEN_NAMES, "");
-        if (json == null || json.isEmpty()) {
-            return new java.util.ArrayList<>();
-        }
-        try {
-            String[] arr = new com.google.gson.Gson().fromJson(json, String[].class);
-            return arr == null ? new java.util.ArrayList<>() : new java.util.ArrayList<>(java.util.Arrays.asList(arr));
-        } catch (Exception e) {
-            return new java.util.ArrayList<>();
-        }
     }
 
     @Override

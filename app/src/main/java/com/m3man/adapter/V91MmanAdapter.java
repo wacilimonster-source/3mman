@@ -14,6 +14,7 @@ import com.chad.library.adapter.base.BaseViewHolder;
 import com.m3man.R;
 import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.V9MmanItem;
+import com.m3man.data.network.Source441447Client;
 import com.m3man.utils.GlideApp;
 import com.m3man.utils.GlideLoader;
 import com.m3man.utils.VideoCardMeta;
@@ -180,8 +181,10 @@ public class V91MmanAdapter extends BaseQuickAdapter<V9MmanItem, BaseViewHolder>
         menu.getMenu().add(0, R.id.action_card_favorite, 0,
                 mContext.getString(favorited
                         ? R.string.card_action_unfavorite : R.string.card_action_favorite));
-        menu.getMenu().add(0, R.id.action_card_download, 1,
-                mContext.getString(R.string.card_action_download));
+        if (!Source441447Client.isSource(item)) {
+            menu.getMenu().add(0, R.id.action_card_download, 1,
+                    mContext.getString(R.string.card_action_download));
+        }
         menu.setOnMenuItemClickListener(menuItem -> {
             V9MmanItem current = findByViewKey(viewKey);
             if (current == null || cardActionListener == null) {
@@ -213,14 +216,18 @@ public class V91MmanAdapter extends BaseQuickAdapter<V9MmanItem, BaseViewHolder>
     }
 
     /**
-     * 91porny 新分区条目来源角标：蝌蚪长视频（videos/）绿、精品（vod/）金。
-     * 主源 9mman 与 91porny 主源条目不显示。搜索结果混排时用于区分来源（产品设计 P5）。
+     * 91porny 搜索结果来源角标：长视频（videos/）绿、精品（vod/）金。
+     * 主源 9mman 与 91porny 主源条目不显示，用于区分混排结果来源。
      */
     private void applySourceBadge(TextView badge, String viewKey) {
         if (badge == null) {
             return;
         }
-        if (com.m3man.parser.Parse91PornyVideo.isTadpoleViewKey(viewKey)) {
+        if (viewKey != null && viewKey.startsWith(Source441447Client.KEY_PREFIX)) {
+            badge.setText("441447");
+            badge.setBackgroundColor(0xEE7B1FA2);
+            badge.setVisibility(View.VISIBLE);
+        } else if (com.m3man.parser.Parse91PornyVideo.isTadpoleViewKey(viewKey)) {
             badge.setText(R.string.porny_source_badge_tad);
             badge.setBackgroundColor(0xEE0E7C66);
             badge.setVisibility(View.VISIBLE);

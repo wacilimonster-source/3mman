@@ -10,6 +10,7 @@ import com.liulishuo.filedownloader.model.FileDownloadStatus;
 import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.db.entity.VideoResult;
+import com.m3man.data.network.Source441447Client;
 import com.m3man.parser.Parse91PornyVideo;
 import com.m3man.service.HlsDownloadService;
 import com.m3man.ui.mman9video.play.PlayVideoPresenter;
@@ -106,6 +107,10 @@ public final class VideoCardActions {
      */
     public static void download(final Context context, final DataManager dataManager,
                                 final V9MmanItem item, final Callback callback) {
+        if (Source441447Client.isSource(item)) {
+            if (callback != null) callback.onResult("该来源暂不支持下载", false, false);
+            return;
+        }
         if (context == null || dataManager == null || item == null
                 || TextUtils.isEmpty(item.getViewKey())) {
             return;

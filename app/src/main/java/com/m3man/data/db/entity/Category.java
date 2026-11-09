@@ -14,14 +14,10 @@ import java.io.Serializable;
  */
 @Entity
 public class Category implements Serializable {
-    public static final String[] CATEGORY_DEFAULT_91PORN_VALUE = {"index", "watch", "hot", "rp", "long", "md", "tf", "mf", "rf", "top", "top1", "hd", "porny_tad", "porny_prem"};
-    public static final String[] CATEGORY_DEFAULT_91PORN_NAME = {"主页", "最近更新", "当前最热", "最近得分", "10分钟以上", "本月讨论", "本月收藏", "收藏最多", "最近加精", "本月最热", "上月最热", "高清(会员)", "长视频", "精品·大神"};
+    public static final String[] CATEGORY_DEFAULT_91PORN_VALUE = {"index", "watch", "hot", "rp", "long", "md", "tf", "mf", "rf", "top", "top1", "hd"};
+    public static final String[] CATEGORY_DEFAULT_91PORN_NAME = {"主页", "最近更新", "当前最热", "最近得分", "10分钟以上", "本月讨论", "本月收藏", "收藏最多", "最近加精", "本月最热", "上月最热", "高清(会员)"};
 
     public static final int TYPE_91PORN = 1;
-    /** 蝌蚪长视频频道（91porny /videos，条目全为 ≥10 分钟长视频） */
-    public static final String VALUE_PORNY_TADPOLE = "porny_tad";
-    /** 精品·大神频道（91porny /vod + /dashen） */
-    public static final String VALUE_PORNY_PREMIUM = "porny_prem";
     private static final long serialVersionUID = 1L;
 
     @Id(autoincrement = true)

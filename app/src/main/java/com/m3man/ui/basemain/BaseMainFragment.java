@@ -25,6 +25,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.PopupWindow;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 
 import com.chad.library.adapter.base.BaseViewHolder;
 import com.orhanobut.logger.Logger;
@@ -37,6 +40,7 @@ import com.m3man.data.db.entity.Category;
 import com.m3man.eventbus.LowMemoryEvent;
 import com.m3man.ui.MvpFragment;
 import com.m3man.ui.download.DownloadActivity;
+import com.m3man.ui.mman9video.source441447.Source441447Fragment;
 import com.m3man.utils.AnimationUtils;
 import com.m3man.utils.FragmentUtils;
 
@@ -80,6 +84,8 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
     private FragmentManager fragmentManager;
     private int currentSelectPosition = 0;
     private boolean isBackground = false;
+    private static final String SOURCE_FRAGMENT_TAG = "source_441447";
+    private static final String SOURCE_PREFS = "video_source_selection";
 
     @Inject
     BaseMainPresenter baseMainPresenter;
@@ -150,6 +156,40 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
             public void onPageScrollStateChanged(int state) {
 
             }
+        });
+        setupSourceSelector(view);
+    }
+
+    private void setupSourceSelector(View view) {
+        Spinner selector = view.findViewById(R.id.video_source_selector);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_item, new String[]{"主站", "441447"});
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        selector.setAdapter(adapter);
+        android.content.SharedPreferences preferences = requireContext()
+                .getSharedPreferences(SOURCE_PREFS, Context.MODE_PRIVATE);
+        selector.setSelection(preferences.getBoolean("show_441447", false) ? 1 : 0);
+        selector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View selected, int position, long id) {
+                if (!isAdded() || getView() != view) return;
+                boolean showSource = position == 1;
+                preferences.edit().putBoolean("show_441447", showSource).apply();
+                if (showSource && popupWindow != null && popupWindow.isShowing()) dismissPopupWindow();
+                view.findViewById(R.id.main_category_bar).setVisibility(showSource ? View.GONE : View.VISIBLE);
+                view.findViewById(R.id.main_category_divider).setVisibility(showSource ? View.GONE : View.VISIBLE);
+                viewPager.setVisibility(showSource ? View.GONE : View.VISIBLE);
+                View container = view.findViewById(R.id.source_441447_container);
+                container.setVisibility(showSource ? View.VISIBLE : View.GONE);
+                if (showSource && getChildFragmentManager().findFragmentByTag(SOURCE_FRAGMENT_TAG) == null) {
+                    getChildFragmentManager().beginTransaction()
+                            .add(R.id.source_441447_container, new Source441447Fragment(), SOURCE_FRAGMENT_TAG)
+                            .commitNowAllowingStateLoss();
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) { }
         });
     }
 

@@ -117,12 +117,9 @@
     <string name="porny_sort_hot">最热</string>
     <string name="porny_filter_all">全部</string>
     <string name="porny_filter_duration10">只看时长≥10分钟</string>
-    <string name="porny_tad_sort_latest">最近更新</string>
-    <string name="porny_tad_sort_top_rated">最高评分</string>
-    <string name="porny_tad_sort_most_popular">最受欢迎</string>
     <string name="porny_source_badge_tad">蝌蚪</string>
     <string name="porny_source_badge_prem">精品</string>
-    <string name="porny_local_favorite">搜索收藏</string>
+    <string name="porny_local_favorite">本地收藏</string>
     <string name="author_favorite">作者收藏</string>
 
     <!-- 搜索页提示 -->

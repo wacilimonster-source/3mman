@@ -100,7 +100,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
     private String currentTime = "";
     /** 播放量 */
     private String currentViews = "";
-    /** 时长≥10min（蝌蚪长视频接入后启用，本地过滤） */
+    /** 搜索结果时长≥10min筛选（本地过滤） */
     private boolean duration10;
 
     @Inject

@@ -71,7 +71,7 @@
             app:textTint="@color/colorPrimary" />
     </LinearLayout>
 
-    <!-- 时长筛选：蝌蚪长视频接入后开放（此前搁置，见 91porny长视频接入可行性分析） -->
+    <!-- 搜索结果时长筛选 -->
     <CheckBox
         android:id="@+id/check_porny_filter_dur10"
         android:layout_width="match_parent"
