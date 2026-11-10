@@ -60,12 +60,36 @@
             android:textColor="@color/text_tertiary"
             android:textSize="8sp" />
 
-        <Spinner
-            android:id="@+id/video_source_selector"
-            android:layout_width="92dp"
+        <!-- 方案 D：头部只显示当前来源，点击弹出底部选择面板。
+             外层 FrameLayout 提供 48dp 触控区，内层 TextView 画 32dp 胶囊。 -->
+        <FrameLayout
+            android:id="@+id/fl_source_selector"
+            android:layout_width="wrap_content"
             android:layout_height="@dimen/touch_min"
-            android:contentDescription="视频源"
-            android:spinnerMode="dropdown" />
+            android:layout_marginStart="@dimen/space_1"
+            android:layout_marginLeft="@dimen/space_1"
+            android:clickable="true"
+            android:contentDescription="@string/home_source_selector_desc"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackgroundBorderless">
+
+            <TextView
+                android:id="@+id/tv_source_selector"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_source_selector"
+                android:drawableEnd="@drawable/ic_expand_more_24dp"
+                android:drawablePadding="2dp"
+                android:drawableTint="@color/brand"
+                android:gravity="center_vertical"
+                android:minWidth="64dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="8dp"
+                android:text="@string/home_source_main"
+                android:textColor="@color/brand"
+                android:textSize="13sp" />
+        </FrameLayout>
 
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/iv_home_download"

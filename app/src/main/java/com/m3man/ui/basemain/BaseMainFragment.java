@@ -3,12 +3,15 @@ package com.m3man.ui.basemain;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.view.Gravity;
 import android.os.Build;
 import android.os.Bundle;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.tabs.TabLayout;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
@@ -24,10 +27,10 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.PopupWindow;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.Spinner;
+import android.widget.TextView;
 
 import com.chad.library.adapter.base.BaseViewHolder;
 import com.orhanobut.logger.Logger;
@@ -86,8 +89,11 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
     private boolean isBackground = false;
     private static final String SOURCE_FRAGMENT_TAG = "source_441447";
     private static final String SOURCE_PREFS = "video_source_selection";
+    private static final String PREF_SHOW_441447 = "show_441447";
     /** 来源切换控件与根视图：onResume / 初始状态用它们兜底同步来源显隐。 */
-    private Spinner sourceSelector;
+    private View sourceSelector;
+    private TextView sourceSelectorLabel;
+    private boolean show441447;
     private View sourceRootView;
 
     @Inject
@@ -165,31 +171,100 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
 
     private void setupSourceSelector(View view) {
         sourceRootView = view;
-        Spinner selector = view.findViewById(R.id.video_source_selector);
-        sourceSelector = selector;
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(),
-                android.R.layout.simple_spinner_item, new String[]{"主站", "441447"});
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        selector.setAdapter(adapter);
+        sourceSelector = view.findViewById(R.id.fl_source_selector);
+        sourceSelectorLabel = view.findViewById(R.id.tv_source_selector);
         android.content.SharedPreferences preferences = requireContext()
                 .getSharedPreferences(SOURCE_PREFS, Context.MODE_PRIVATE);
-        boolean showSource = preferences.getBoolean("show_441447", false);
-        selector.setSelection(showSource ? 1 : 0);
-        // Spinner 的首次选中回调不保证会触发（setSelection 早于监听注册），
-        // 这里显式应用一次，保证可见状态与选中项一致。
-        applySourceVisibility(showSource);
-        selector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View selected, int position, long id) {
-                if (!isAdded()) return;
-                boolean showSource = position == 1;
-                preferences.edit().putBoolean("show_441447", showSource).apply();
-                applySourceVisibility(showSource);
-            }
+        show441447 = preferences.getBoolean(PREF_SHOW_441447, false);
+        updateSourceSelector();
+        // 首次进入显式应用一次，保证可见状态与记忆值一致。
+        applySourceVisibility(show441447);
+        sourceSelector.setOnClickListener(v -> showSourcePicker());
+    }
 
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) { }
+    /** 同步头部胶囊文案与无障碍描述，始终显示完整来源名。 */
+    private void updateSourceSelector() {
+        if (sourceSelectorLabel == null || !isAdded()) {
+            return;
+        }
+        int labelRes = show441447 ? R.string.home_source_441447 : R.string.home_source_main;
+        sourceSelectorLabel.setText(labelRes);
+        if (sourceSelector != null) {
+            sourceSelector.setContentDescription(getString(R.string.home_source_selector_desc)
+                    + "，" + getString(labelRes));
+        }
+    }
+
+    /** 方案 D：底部来源面板；名称和说明都完整展示，选择后立即切换。 */
+    private void showSourcePicker() {
+        if (!isAdded() || getContext() == null) {
+            return;
+        }
+        final BottomSheetDialog dialog = new BottomSheetDialog(requireContext(), R.style.RecoFilterSheetTheme);
+        View content = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_source_picker, null);
+        dialog.setContentView(content);
+        dialog.setCanceledOnTouchOutside(true);
+
+        final View mainRow = content.findViewById(R.id.row_source_main);
+        final View sourceRow = content.findViewById(R.id.row_source_441447);
+        final ImageView mainCheck = content.findViewById(R.id.iv_source_main_check);
+        final ImageView sourceCheck = content.findViewById(R.id.iv_source_441447_check);
+
+        final Runnable render = () -> {
+            mainRow.setSelected(!show441447);
+            sourceRow.setSelected(show441447);
+            mainCheck.setVisibility(show441447 ? View.GONE : View.VISIBLE);
+            sourceCheck.setVisibility(show441447 ? View.VISIBLE : View.GONE);
+            mainRow.setContentDescription(getString(show441447
+                            ? R.string.source_picker_option_desc
+                            : R.string.source_picker_option_selected_desc,
+                    getString(R.string.home_source_main), getString(R.string.source_picker_main_desc)));
+            sourceRow.setContentDescription(getString(show441447
+                            ? R.string.source_picker_option_selected_desc
+                            : R.string.source_picker_option_desc,
+                    getString(R.string.home_source_441447), getString(R.string.source_picker_441447_desc)));
+        };
+        render.run();
+
+        mainRow.setOnClickListener(v -> {
+            dialog.dismiss();
+            selectSource(false);
         });
+        sourceRow.setOnClickListener(v -> {
+            dialog.dismiss();
+            selectSource(true);
+        });
+        content.findViewById(R.id.iv_source_picker_close).setOnClickListener(v -> dialog.dismiss());
+
+        dialog.setOnShowListener(d -> {
+            FrameLayout sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+            if (sheet == null) {
+                return;
+            }
+            sheet.setBackgroundColor(Color.TRANSPARENT);
+            ViewGroup.LayoutParams lp = sheet.getLayoutParams();
+            lp.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+            sheet.setLayoutParams(lp);
+            BottomSheetBehavior<FrameLayout> behavior = BottomSheetBehavior.from(sheet);
+            behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+            behavior.setSkipCollapsed(true);
+            behavior.setHideable(true);
+        });
+        dialog.show();
+    }
+
+    private void selectSource(boolean showSource) {
+        if (show441447 == showSource) {
+            applySourceVisibility(showSource);
+            return;
+        }
+        show441447 = showSource;
+        if (isAdded()) {
+            requireContext().getSharedPreferences(SOURCE_PREFS, Context.MODE_PRIVATE)
+                    .edit().putBoolean(PREF_SHOW_441447, showSource).apply();
+        }
+        updateSourceSelector();
+        applySourceVisibility(showSource);
     }
 
     /**
@@ -246,10 +321,10 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
     public void onResume() {
         super.onResume();
         isBackground = false;
-        // 视图重建、进程恢复或从播放页返回后，按 Spinner 当前选中项兜底同步一次，
+        // 视图重建、进程恢复或从播放页返回后，按当前记忆的来源兜底同步一次，
         // 防止来源容器与主站内容出现上下叠放。
         if (sourceSelector != null) {
-            applySourceVisibility(sourceSelector.getSelectedItemPosition() == 1);
+            applySourceVisibility(show441447);
         }
     }
 
@@ -271,6 +346,7 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
     public void onDestroyView() {
         super.onDestroyView();
         sourceSelector = null;
+        sourceSelectorLabel = null;
         sourceRootView = null;
         unbinder.unbind();
     }

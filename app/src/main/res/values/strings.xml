@@ -503,6 +503,16 @@
     <!-- 首页 / 卡片 -->
     <string name="home_adult_caption">ADULT VIDEO</string>
     <string name="home_download_entry">我的下载</string>
+    <string name="home_source_main">主站</string>
+    <string name="home_source_441447">4源</string>
+    <string name="home_source_selector_desc">切换视频来源</string>
+    <string name="source_picker_title">选择视频来源</string>
+    <string name="source_picker_desc">切换后首页内容会立即更新</string>
+    <string name="source_picker_main_desc">91porny</string>
+    <string name="source_picker_441447_desc">441447</string>
+    <string name="source_picker_selected">已选择</string>
+    <string name="source_picker_option_desc">%1$s，%2$s</string>
+    <string name="source_picker_option_selected_desc">%1$s，%2$s，已选择</string>
     <string name="card_more_actions">更多操作</string>
     <string name="card_action_favorite">加入收藏</string>
     <string name="card_action_unfavorite">取消收藏</string>
