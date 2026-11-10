@@ -8,12 +8,17 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.content.ContextCompat;
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.chad.library.adapter.base.BaseQuickAdapter;
@@ -26,11 +31,13 @@ import com.m3man.adapter.SkipPageAdapter;
 import com.m3man.adapter.V91MmanAdapter;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.DataManager;
+import com.m3man.data.network.Source441447Client;
 import com.m3man.data.prefs.PreferencesHelper;
 import com.m3man.ui.MvpFragment;
 import com.m3man.ui.download.DownloadActivity;
 import com.m3man.ui.mman9video.videolist.VideoCardActions;
 import com.m3man.ui.search.SearchHistoryPanel;
+import com.m3man.utils.AppLog;
 import com.m3man.utils.LoadHelperUtils;
 import com.m3man.widget.VerticalSpaceItemDecoration;
 
@@ -46,6 +53,10 @@ import javax.inject.Inject;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.Unbinder;
+import io.reactivex.Observable;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.schedulers.Schedulers;
 
 /**
  * 分分钟（91porny）搜索页 —— 以 Fragment 形式内嵌在主界面「分分钟」Tab 下，
@@ -87,12 +98,34 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
     RecyclerView skipPageRecyclerView;
     @BindView(R.id.ll_skip_page_loading)
     LinearLayout skipLoadingLayout;
+    @BindView(R.id.tv_search_scope)
+    TextView tvSearchScope;
+    @BindView(R.id.tv_search_channel_main)
+    TextView tvSearchChannelMain;
+    @BindView(R.id.tv_search_channel_441447)
+    TextView tvSearchChannel441447;
+    @BindView(R.id.tv_search_result_meta)
+    TextView tvSearchResultMeta;
     Unbinder unbinder;
     private String searchId;
     private V91MmanAdapter mV91MmanAdapter;
     private LoadViewHelper helper;
     private SkipPageAdapter skipPageAdapter;
     private SearchHistoryPanel searchHistoryPanel;
+
+    /** 渠道：主站（现有 91porny/分分钟） / 441447；持久化上次选择。 */
+    private SearchPornyPresenter.Channel currentChannel = SearchPornyPresenter.Channel.MAIN;
+    /** 441447 搜索筛选。 */
+    private String sourceCategoryId = "";
+    private String sourceSort = "";
+    private List<Source441447Client.Category> sourceCategories;
+    private List<String> hotKeywords = new ArrayList<>();
+    private boolean hotKeywordsLoaded;
+    private boolean sourceCategoriesLoading;
+    private AlertDialog sourceFilterDialog;
+    private final CompositeDisposable mDisposables = new CompositeDisposable();
+    private static final String CHANNEL_PREFS = "search_channel";
+    private static final String PREF_CHANNEL = "channel";
 
     /** 排序：默认 / 最新 / 最热 */
     private String currentSort = "";
@@ -109,6 +142,8 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
     protected PreferencesHelper preferencesHelper;
     @Inject
     protected DataManager dataManager;
+    @Inject
+    protected Source441447Client source441447Client;
 
     public static SearchPornyFragment getInstance() {
         return new SearchPornyFragment();
@@ -152,6 +187,9 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        mDisposables.clear();
+        dismissDialog(sourceFilterDialog);
+        sourceFilterDialog = null;
         unbinder.unbind();
     }
 
@@ -159,6 +197,9 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         initToolBar(toolbar);
         // 恢复上次持久化的搜索筛选项，使下次搜索自动套用（无需重新打开筛选弹窗）
         restoreSearchFilters();
+        restoreChannel();
+        presenter.setChannel(currentChannel);
+        presenter.setSourceFilters(sourceCategoryId, sourceSort);
         searchView.setQueryHint("搜索视频");
         // M42：搜索框默认收起（点击放大镜才展开），避免进入页面/从详情页返回时自动弹出输入法
         searchView.setIconified(true);
@@ -297,6 +338,8 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                     return;
                 }
                 searchId = keyword;
+                // M167：热门词/历史词点击也视为一次提交，写入共用历史（历史词会更新时间）。
+                searchHistoryPanel.onKeywordSubmitted(keyword);
                 // 回填关键词到搜索框（submit=false 不重复提交），随后直接发起搜索。
                 // 注意：SearchView 处于收起（iconified）状态时 setQuery 只改内部文本，
                 // 界面上仍只显示放大镜 + hint，用户看不到"当前搜的是哪个词"。
@@ -314,7 +357,13 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                 triggerSearch(true);
             }
                 }, searchView);
-        searchHistoryPanel.show();
+        setupChannelSelector();
+        updateChannelUi();
+        if (currentChannel == SearchPornyPresenter.Channel.SOURCE_441447) {
+            loadSourceCategories();
+            loadHotKeywords();
+        }
+        showIdlePanel();
     }
 
     private void initToolBar(Toolbar toolbar) {
@@ -337,6 +386,348 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         });
     }
 
+    // ==================== M167：搜索渠道（主站 / 441447） ====================
+
+    private void restoreChannel() {
+        SharedPreferences prefs = context.getSharedPreferences(CHANNEL_PREFS, Context.MODE_PRIVATE);
+        String value = prefs.getString(PREF_CHANNEL, "main");
+        currentChannel = "441447".equals(value)
+                ? SearchPornyPresenter.Channel.SOURCE_441447
+                : SearchPornyPresenter.Channel.MAIN;
+    }
+
+    private void saveChannel(SearchPornyPresenter.Channel channel) {
+        context.getSharedPreferences(CHANNEL_PREFS, Context.MODE_PRIVATE)
+                .edit().putString(PREF_CHANNEL,
+                        channel == SearchPornyPresenter.Channel.SOURCE_441447 ? "441447" : "main")
+                .apply();
+    }
+
+    private void setupChannelSelector() {
+        tvSearchChannelMain.setOnClickListener(v -> switchChannel(SearchPornyPresenter.Channel.MAIN));
+        tvSearchChannel441447.setOnClickListener(v -> switchChannel(SearchPornyPresenter.Channel.SOURCE_441447));
+    }
+
+    private void switchChannel(SearchPornyPresenter.Channel channel) {
+        if (channel == currentChannel) {
+            return;
+        }
+        currentChannel = channel;
+        saveChannel(channel);
+        presenter.setChannel(channel);
+        presenter.setSourceFilters(sourceCategoryId, sourceSort);
+        updateChannelUi();
+        if (channel == SearchPornyPresenter.Channel.SOURCE_441447) {
+            loadSourceCategories();
+            loadHotKeywords();
+        } else if (searchHistoryPanel != null) {
+            searchHistoryPanel.hideHotKeywords();
+        }
+        // 渠道切换保留关键词：有词自动用新渠道从第 1 页重搜；无词回到历史/热词。
+        if (!TextUtils.isEmpty(searchId)) {
+            triggerSearch(true);
+        } else {
+            showIdlePanel();
+            hideSearchHint();
+            showSearchHint(R.string.search_hint_default);
+        }
+    }
+
+    private void updateChannelUi() {
+        if (tvSearchChannelMain == null || tvSearchChannel441447 == null) {
+            return;
+        }
+        boolean source = currentChannel == SearchPornyPresenter.Channel.SOURCE_441447;
+        tvSearchChannelMain.setSelected(!source);
+        tvSearchChannel441447.setSelected(source);
+        searchView.setQueryHint(source ? "搜索 441447 视频" : "搜索视频");
+        if (tvSearchScope != null) {
+            tvSearchScope.setText(source ? R.string.search_scope_441447 : R.string.search_scope_main);
+        }
+        if (!source) {
+            if (tvSearchResultMeta != null) {
+                tvSearchResultMeta.setVisibility(View.GONE);
+            }
+            if (searchHistoryPanel != null) {
+                searchHistoryPanel.hideHotKeywords();
+            }
+        } else {
+            updateResultMeta();
+        }
+    }
+
+    private void showIdlePanel() {
+        if (searchHistoryPanel == null) {
+            return;
+        }
+        boolean source = currentChannel == SearchPornyPresenter.Channel.SOURCE_441447;
+        if (source && hotKeywords != null && !hotKeywords.isEmpty()) {
+            searchHistoryPanel.showHotKeywords(hotKeywords);
+        } else {
+            searchHistoryPanel.hideHotKeywords();
+        }
+        searchHistoryPanel.show();
+    }
+
+    private void loadSourceCategories() {
+        if (sourceCategories != null || sourceCategoriesLoading || source441447Client == null) {
+            return;
+        }
+        sourceCategoriesLoading = true;
+        mDisposables.add(Observable.fromCallable(() -> source441447Client.loadCategories())
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(list -> {
+                    sourceCategories = list == null ? new ArrayList<>() : list;
+                    sourceCategoriesLoading = false;
+                }, throwable -> {
+                    sourceCategoriesLoading = false;
+                    sourceCategories = new ArrayList<>();
+                    AppLog.w(TAG, "441447 分类加载失败 " + AppLog.cause(throwable));
+                }));
+    }
+
+    private void loadHotKeywords() {
+        if (hotKeywordsLoaded || source441447Client == null) {
+            return;
+        }
+        mDisposables.add(Observable.fromCallable(() -> source441447Client.loadHotKeywords())
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(list -> {
+                    hotKeywordsLoaded = true;
+                    hotKeywords = list == null ? new ArrayList<>() : list;
+                    if (currentChannel == SearchPornyPresenter.Channel.SOURCE_441447
+                            && TextUtils.isEmpty(searchId)) {
+                        showIdlePanel();
+                    }
+                }, throwable -> AppLog.w(TAG, "441447 热词加载失败 " + AppLog.cause(throwable))));
+    }
+
+    /** 441447 分类 + 排序筛选弹窗。 */
+    private void showSourceFilterDialog() {
+        if (sourceCategories == null) {
+            if (sourceCategoriesLoading) {
+                showMessage("分类加载中，请稍后再试", TastyToast.INFO);
+                return;
+            }
+            final AlertDialog loading = new AlertDialog.Builder(context)
+                    .setMessage("正在加载分类…")
+                    .setCancelable(false)
+                    .create();
+            loading.show();
+            sourceCategoriesLoading = true;
+            mDisposables.add(Observable.fromCallable(() -> source441447Client.loadCategories())
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(list -> {
+                        sourceCategories = list == null ? new ArrayList<>() : list;
+                        sourceCategoriesLoading = false;
+                        dismissDialog(loading);
+                        showSourceFilterDialog();
+                    }, throwable -> {
+                        sourceCategories = new ArrayList<>();
+                        sourceCategoriesLoading = false;
+                        dismissDialog(loading);
+                        showSourceFilterDialog();
+                        showMessage("分类加载失败，仅显示全部", TastyToast.INFO);
+                    }));
+            return;
+        }
+
+        LinearLayout root = new LinearLayout(context);
+        root.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (getResources().getDisplayMetrics().density * 16);
+        root.setPadding(pad, pad / 2, pad, 0);
+
+        TextView catLabel = new TextView(context);
+        catLabel.setText(R.string.search_filter_category);
+        catLabel.setTextColor(ContextCompat.getColor(context, R.color.text_secondary));
+        catLabel.setTextSize(12);
+        root.addView(catLabel);
+
+        final LinearLayout categoryGroup = new LinearLayout(context);
+        categoryGroup.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams groupLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        groupLp.bottomMargin = pad / 2;
+        HorizontalScrollView categoryScroll = new HorizontalScrollView(context);
+        categoryScroll.setHorizontalScrollBarEnabled(false);
+        categoryScroll.addView(categoryGroup);
+        root.addView(categoryScroll, groupLp);
+        addFilterChip(categoryGroup, getString(R.string.search_filter_all), "",
+                TextUtils.isEmpty(sourceCategoryId));
+        if (sourceCategories != null) {
+            for (Source441447Client.Category category : sourceCategories) {
+                if (category == null || TextUtils.isEmpty(category.id)) continue;
+                addFilterChip(categoryGroup, category.name, category.id,
+                        category.id.equals(sourceCategoryId));
+            }
+        }
+        if (checkedChipTag(categoryGroup, null) == null) {
+            checkChipByTag(categoryGroup, "");
+        }
+
+        TextView sortLabel = new TextView(context);
+        sortLabel.setText(R.string.search_filter_sort);
+        sortLabel.setTextColor(ContextCompat.getColor(context, R.color.text_secondary));
+        sortLabel.setTextSize(12);
+        root.addView(sortLabel);
+
+        final LinearLayout sortGroup = new LinearLayout(context);
+        sortGroup.setOrientation(LinearLayout.HORIZONTAL);
+        HorizontalScrollView sortScroll = new HorizontalScrollView(context);
+        sortScroll.setHorizontalScrollBarEnabled(false);
+        sortScroll.addView(sortGroup);
+        root.addView(sortScroll, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        addFilterChip(sortGroup, getString(R.string.search_sort_relevance), "",
+                TextUtils.isEmpty(sourceSort));
+        addFilterChip(sortGroup, getString(R.string.search_sort_latest), "latest",
+                "latest".equals(sourceSort));
+        addFilterChip(sortGroup, getString(R.string.search_sort_hot), "hot",
+                "hot".equals(sourceSort));
+        if (checkedChipTag(sortGroup, null) == null) {
+            checkChipByTag(sortGroup, "");
+        }
+
+        ScrollView scroll = new ScrollView(context);
+        scroll.addView(root);
+
+        final AlertDialog dialog = new AlertDialog.Builder(context)
+                .setTitle(R.string.search_filter_441447_title)
+                .setView(scroll)
+                .setNegativeButton(R.string.common_cancel, null)
+                .setNeutralButton(R.string.porny_filter_reset, null)
+                .setPositiveButton(R.string.porny_filter_apply, (d, which) -> {
+                    sourceCategoryId = checkedChipTag(categoryGroup, "");
+                    sourceSort = checkedChipTag(sortGroup, "");
+                    presenter.setSourceFilters(sourceCategoryId, sourceSort);
+                    updateResultMeta();
+                    if (!TextUtils.isEmpty(searchId)) {
+                        triggerSearch(true);
+                    }
+                })
+                .create();
+        dialog.setOnShowListener(d -> {
+            dialog.getButton(android.content.DialogInterface.BUTTON_NEUTRAL)
+                    .setOnClickListener(v -> {
+                        checkChipByTag(categoryGroup, "");
+                        checkChipByTag(sortGroup, "");
+                    });
+        });
+        dialog.setOnDismissListener(d -> sourceFilterDialog = null);
+        sourceFilterDialog = dialog;
+        dialog.show();
+    }
+
+    private void addFilterChip(LinearLayout group, String label, String value, boolean checked) {
+        TextView chip = new TextView(context);
+        chip.setText(label);
+        chip.setTag(value == null ? "" : value);
+        chip.setTextSize(12.5f);
+        chip.setTextColor(ContextCompat.getColorStateList(context, R.color.search_channel_text));
+        chip.setGravity(android.view.Gravity.CENTER);
+        chip.setSingleLine(true);
+        chip.setBackgroundResource(R.drawable.bg_search_channel);
+        int padH = (int) (getResources().getDisplayMetrics().density * 14);
+        chip.setPadding(padH, 0, padH, 0);
+        chip.setSelected(checked);
+        chip.setClickable(true);
+        chip.setFocusable(true);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                (int) (36 * getResources().getDisplayMetrics().density));
+        lp.rightMargin = (int) (8 * getResources().getDisplayMetrics().density);
+        chip.setOnClickListener(v -> selectChip(group, chip));
+        group.addView(chip, lp);
+    }
+
+    private void selectChip(LinearLayout group, TextView selected) {
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (child instanceof TextView) {
+                child.setSelected(child == selected);
+            }
+        }
+    }
+
+    private String checkedChipTag(LinearLayout group, String fallback) {
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (child instanceof TextView && child.isSelected()) {
+                Object tag = child.getTag();
+                return tag == null ? fallback : tag.toString();
+            }
+        }
+        return fallback;
+    }
+
+    private void checkChipByTag(LinearLayout group, String value) {
+        String target = value == null ? "" : value;
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (!(child instanceof TextView)) continue;
+            Object tag = child.getTag();
+            String tagValue = tag == null ? "" : tag.toString();
+            if (tagValue.equals(target)) {
+                selectChip(group, (TextView) child);
+                return;
+            }
+        }
+    }
+
+    private void updateResultMeta() {
+        if (tvSearchResultMeta == null) {
+            return;
+        }
+        if (currentChannel != SearchPornyPresenter.Channel.SOURCE_441447
+                || mV91MmanAdapter == null || mV91MmanAdapter.getData().isEmpty()) {
+            tvSearchResultMeta.setVisibility(View.GONE);
+            return;
+        }
+        int total = presenter.getTotalCount();
+        StringBuilder text = new StringBuilder();
+        if (total > 0) {
+            text.append(getString(R.string.search_result_count, total));
+        }
+        if (text.length() > 0) text.append(" · ");
+        text.append(getString(R.string.search_filter_category)).append("：")
+                .append(sourceCategoryName())
+                .append(" · ")
+                .append(getString(R.string.search_filter_sort)).append("：")
+                .append(sourceSortLabel());
+        tvSearchResultMeta.setText(text.toString());
+        tvSearchResultMeta.setVisibility(View.VISIBLE);
+    }
+
+    private String sourceCategoryName() {
+        if (TextUtils.isEmpty(sourceCategoryId)) {
+            return getString(R.string.search_filter_all);
+        }
+        if (sourceCategories != null) {
+            for (Source441447Client.Category category : sourceCategories) {
+                if (category != null && sourceCategoryId.equals(category.id)) {
+                    return category.name;
+                }
+            }
+        }
+        return sourceCategoryId;
+    }
+
+    private String sourceSortLabel() {
+        if ("latest".equals(sourceSort)) return getString(R.string.search_sort_latest);
+        if ("hot".equals(sourceSort)) return getString(R.string.search_sort_hot);
+        return getString(R.string.search_sort_relevance);
+    }
+
+    private void dismissDialog(AlertDialog dialog) {
+        try {
+            if (dialog != null && dialog.isShowing()) dialog.dismiss();
+        } catch (Exception ignored) {
+        }
+    }
+
     /**
      * 从「搜索结果 / 加载中 / 失败 / 空结果」任一状态回到未搜索的初始状态：
      * 清空关键词与结果、取消在途请求、重置分页、隐藏页码栏、重新展示提示与搜索历史。
@@ -351,16 +742,36 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         searchView.clearFocus();
         hideSoftInput();
         // 3. 清空结果列表与分页栏
-        mV91MmanAdapter.setNewData(new ArrayList<V9MmanItem>());
-        mV91MmanAdapter.loadMoreComplete();
-        skipPageLayout.setVisibility(View.GONE);
-        skipLoadingLayout.setVisibility(View.GONE);
+        clearResultsForIdle();
         // 4. LoadViewHelper 收起 loading/error 层，露出列表（此时为空列表）
         helper.showContent();
-        // 5. 回到初始提示 + 搜索历史
+        // 5. 回到初始提示 + 搜索历史（441447 同时展示热词）
         showSearchHint(R.string.search_hint_default);
         hideEmptyActions();
-        searchHistoryPanel.show();
+        updateResultMeta();
+        showIdlePanel();
+    }
+
+    /** M167：清空关键词后回到历史/热词态，同时清掉旧结果、页码条与结果数摘要。 */
+    private void clearResultsForIdle() {
+        searchId = null;
+        presenter.reset();
+        if (mV91MmanAdapter != null) {
+            mV91MmanAdapter.setNewData(new ArrayList<V9MmanItem>());
+            mV91MmanAdapter.loadMoreComplete();
+        }
+        if (skipPageLayout != null) {
+            skipPageLayout.setVisibility(View.GONE);
+        }
+        if (skipLoadingLayout != null) {
+            skipLoadingLayout.setVisibility(View.GONE);
+        }
+        if (helper != null) {
+            helper.showContent();
+        }
+        if (tvSearchResultMeta != null) {
+            tvSearchResultMeta.setVisibility(View.GONE);
+        }
     }
 
     /** 收起软键盘（若当前正在显示） */
@@ -411,6 +822,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         int total = presenter.getTotalPage();
         if (total <= 0) {
             skipPageLayout.setVisibility(View.GONE);
+            updateResultMeta();
             return;
         }
         skipPageLayout.setVisibility(View.VISIBLE);
@@ -433,6 +845,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                 skipPageRecyclerView.smoothScrollToPosition(target);
             }
         }, 200);
+        updateResultMeta();
     }
 
     // ============ 搜索页 UX 辅助方法 ============
@@ -537,11 +950,16 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
             public boolean onQueryTextChange(String newText) {
                 if (TextUtils.isEmpty(newText)) {
                     hideEmptyActions();
-                    searchHistoryPanel.show();
+                    // M167：清空关键词回到历史/热词时，不能把上一次的结果数/页码条留在界面上。
+                    clearResultsForIdle();
+                    showIdlePanel();
                 } else {
-                    // M119：输入时用本地历史做关键词联想
+                    // M119：输入时用本地历史做关键词联想；M167：有输入时先收起热词
                     hideEmptyActions();
-                    searchHistoryPanel.showSuggestions(newText);
+                    if (searchHistoryPanel != null) {
+                        searchHistoryPanel.hideHotKeywords();
+                        searchHistoryPanel.showSuggestions(newText);
+                    }
                 }
                 return false;
             }
@@ -549,11 +967,17 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         searchView.setOnCloseListener(new androidx.appcompat.widget.SearchView.OnCloseListener() {
             @Override
             public boolean onClose() {
-                // M109-fix：此处绝不能调 searchHistoryPanel.show()——show() 内部曾收起搜索框，
-                // 与 SearchView 的关闭回调互相触发形成无限递归（点清空/删除键/返回页面均闪退）。
-                // onClose 返回 true 表示本次关闭由历史面板展示接管；面板展示由 show() 的 IO
-                // 回调自行完成，这里只负责把面板拉出来，不再触碰 SearchView。
-                searchHistoryPanel.showPanelOnly();
+                // M109-fix：此处不直接调 show() 的旧实现（会收起搜索框形成递归）；
+                // 当前 showPanelOnly 不触碰 SearchView，安全展示历史 + 441447 热词。
+                if (searchHistoryPanel != null) {
+                    if (currentChannel == SearchPornyPresenter.Channel.SOURCE_441447
+                            && hotKeywords != null && !hotKeywords.isEmpty()) {
+                        searchHistoryPanel.showHotKeywords(hotKeywords);
+                    } else {
+                        searchHistoryPanel.hideHotKeywords();
+                    }
+                    searchHistoryPanel.showPanelOnly();
+                }
                 return true;
             }
         });
@@ -575,11 +999,20 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
             hideSearchHint();
             hideEmptyActions();
             skipPageLayout.setVisibility(View.GONE);
+            if (searchHistoryPanel != null) {
+                searchHistoryPanel.hideHotKeywords();
+            }
         }
+        presenter.setChannel(currentChannel);
+        presenter.setSourceFilters(sourceCategoryId, sourceSort);
         presenter.searchVideos(searchId, currentSort, currentTime, currentViews, pullToRefresh);
     }
 
     private void showFilterDialog() {
+        if (currentChannel == SearchPornyPresenter.Channel.SOURCE_441447) {
+            showSourceFilterDialog();
+            return;
+        }
         // 把字符串数组转成 List，供 NiceSpinner 使用
         final List<String> sortOptions = new LinkedList<>(Arrays.asList(
                 getString(R.string.porny_sort_default),
@@ -735,16 +1168,22 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
 
     @Override
     public void setMoreData(List<V9MmanItem> v9MmanItemList) {
-        mV91MmanAdapter.addData(dedupeBySourceAndKey(applyDurationFilter(v9MmanItemList), true));
+        List<V9MmanItem> filtered = currentChannel == SearchPornyPresenter.Channel.SOURCE_441447
+                ? v9MmanItemList : applyDurationFilter(v9MmanItemList);
+        mV91MmanAdapter.addData(dedupeBySourceAndKey(filtered, true));
         updateSkipBar();
+        updateResultMeta();
     }
 
     @Override
     public void setData(List<V9MmanItem> data) {
-        mV91MmanAdapter.setNewData(dedupeBySourceAndKey(applyDurationFilter(data), false));
+        List<V9MmanItem> filtered = currentChannel == SearchPornyPresenter.Channel.SOURCE_441447
+                ? data : applyDurationFilter(data);
+        mV91MmanAdapter.setNewData(dedupeBySourceAndKey(filtered, false));
         // 新结果立即回到顶部（用 instant scroll，避免 smooth 在列表重建后被打断导致没回到顶）
         recyclerView.scrollToPosition(0);
         updateSkipBar();
+        updateResultMeta();
     }
 
     /**
@@ -788,6 +1227,9 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
     public void showLoading(boolean pullToRefresh) {
         hideSearchHint();
         hideEmptyActions();
+        if (tvSearchResultMeta != null) {
+            tvSearchResultMeta.setVisibility(View.GONE);
+        }
         helper.showLoading();
         LoadHelperUtils.setLoadingText(helper.getLoadIng(), R.id.tv_loading_text, "搜索中，请稍候...");
     }
@@ -797,8 +1239,10 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         helper.showContent();
         if (mV91MmanAdapter.getData().size() == 0) {
             // EX-04：无结果保留搜索栏与来源/关键词，提供改词、去推荐、重置筛选
+            String sourceLabel = currentChannel == SearchPornyPresenter.Channel.SOURCE_441447
+                    ? "441447" : getString(R.string.source_name_porny);
             showSearchHintText(getString(R.string.search_empty_with_keyword,
-                    getString(R.string.source_name_porny),
+                    sourceLabel,
                     TextUtils.isEmpty(searchId) ? "" : searchId));
             skipPageLayout.setVisibility(View.GONE);
             showEmptyActions(isSearchFilterActive());
@@ -815,6 +1259,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
                 searchHistoryPanel.hide();
             }
         }
+        updateResultMeta();
     }
 
     /** 空结果动作区：改词/去推荐始终可见，重置筛选仅在存在有效筛选时出现。 */
@@ -838,18 +1283,28 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
     }
 
     private boolean isSearchFilterActive() {
+        if (currentChannel == SearchPornyPresenter.Channel.SOURCE_441447) {
+            return !TextUtils.isEmpty(sourceCategoryId) || !TextUtils.isEmpty(sourceSort);
+        }
         return !TextUtils.isEmpty(currentSort) || !TextUtils.isEmpty(currentTime)
                 || !TextUtils.isEmpty(currentViews) || duration10;
     }
 
-    /** 无结果且带筛选时的一键恢复：清空排序/时间/播放量/时长筛选并重搜。 */
+    /** 无结果且带筛选时的一键恢复：清空当前渠道的筛选并重搜。 */
     private void resetSearchFilters() {
-        currentSort = "";
-        currentTime = "";
-        currentViews = "";
-        duration10 = false;
-        saveSearchFilters();
+        if (currentChannel == SearchPornyPresenter.Channel.SOURCE_441447) {
+            sourceCategoryId = "";
+            sourceSort = "";
+            presenter.setSourceFilters("", "");
+        } else {
+            currentSort = "";
+            currentTime = "";
+            currentViews = "";
+            duration10 = false;
+            saveSearchFilters();
+        }
         hideEmptyActions();
+        updateResultMeta();
         if (!TextUtils.isEmpty(searchId)) {
             triggerSearch(true);
         }

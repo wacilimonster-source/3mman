@@ -46,6 +46,8 @@ public class Source441447Client {
     private static final String ALGORITHM = "AES-CBC-HMAC-SHA256";
     private static final String USER_AGENT = "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/130.0 Mobile Safari/537.36";
     private static final int PAGE_SIZE = 20;
+    /** 页码栏最大页数：异常 total 时不无限生成。 */
+    private static final int MAX_PAGES = 500;
     private final OkHttpClient http;
     /** 入口域名发生迁移时原地更新，后续请求直接走新域名。 */
     private volatile HttpUrl origin;
@@ -122,7 +124,44 @@ public class Source441447Client {
         if (categoryId != null && !categoryId.isEmpty()) builder.addQueryParameter("categoryId", categoryId);
         JsonElement data = signedGet(builder.build());
         if (!data.isJsonObject()) throw new IOException("视频列表格式异常");
-        JsonObject object = data.getAsJsonObject();
+        return parseVideoList(data.getAsJsonObject());
+    }
+
+    /**
+     * 441447 搜索：/api/front/search?keyword=...&contentType=video。
+     * 固定 contentType=video，避免图集/小说混入；recordSearch=false 不写站点侧搜索记录。
+     */
+    public BaseResult<List<V9MmanItem>> searchVideos(String keyword, int page,
+                                                     String categoryId, String sort) throws Exception {
+        HttpUrl.Builder builder = baseUrl().newBuilder().addPathSegments("api/front/search")
+                .addQueryParameter("keyword", keyword == null ? "" : keyword.trim())
+                .addQueryParameter("contentType", "video")
+                .addQueryParameter("page", String.valueOf(Math.max(1, page)))
+                .addQueryParameter("pageSize", String.valueOf(PAGE_SIZE))
+                .addQueryParameter("recordSearch", "false");
+        if (categoryId != null && !categoryId.isEmpty()) builder.addQueryParameter("categoryId", categoryId);
+        if (sort != null && !sort.isEmpty()) builder.addQueryParameter("sort", sort);
+        JsonElement data = signedGet(builder.build());
+        if (!data.isJsonObject()) throw new IOException("搜索结果格式异常");
+        return parseVideoList(data.getAsJsonObject());
+    }
+
+    /** 441447 热门搜索词；失败/格式异常时返回空列表，由 UI 静默隐藏。 */
+    public List<String> loadHotKeywords() throws Exception {
+        HttpUrl url = baseUrl().newBuilder().addPathSegments("api/front/search/hot").build();
+        JsonElement data = signedGet(url);
+        if (!data.isJsonArray()) throw new IOException("热门搜索格式异常");
+        List<String> keywords = new ArrayList<>();
+        for (JsonElement element : data.getAsJsonArray()) {
+            if (element != null && element.isJsonPrimitive()) {
+                String value = element.getAsString();
+                if (value != null && !value.trim().isEmpty()) keywords.add(value.trim());
+            }
+        }
+        return keywords;
+    }
+
+    private BaseResult<List<V9MmanItem>> parseVideoList(JsonObject object) throws IOException {
         JsonElement itemsElement = object.get("items");
         if (itemsElement == null || !itemsElement.isJsonArray()) throw new IOException("视频列表格式异常");
         JsonArray items = itemsElement.getAsJsonArray();
@@ -151,7 +190,10 @@ public class Source441447Client {
         long total = number(object, "total");
         BaseResult<List<V9MmanItem>> result = new BaseResult<>();
         result.setData(videos);
-        result.setTotalPage((int) Math.max(1, Math.min(Integer.MAX_VALUE, (total + PAGE_SIZE - 1) / PAGE_SIZE)));
+        result.setTotal(total > 0 ? (int) Math.min(Integer.MAX_VALUE, total) : 0);
+        // 页码栏上限 500，防止异常 total 生成海量页码。
+        long totalPages = (total + PAGE_SIZE - 1) / PAGE_SIZE;
+        result.setTotalPage((int) Math.max(1, Math.min(MAX_PAGES, totalPages)));
         return result;
     }
 

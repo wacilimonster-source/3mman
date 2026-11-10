@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>441447 搜索交互原型</title>
+<style>
+  :root{
+    --brand:#6b1b9a; --brand-2:#8e2bb8; --accent:#e91e63;
+    --bg:#f4f4f8; --surface:#ffffff; --surface-2:#f7f7fb;
+    --text:#1c1c1e; --muted:#8b8b93; --line:#ececf1;
+    --chip:#f0edf5; --chip-text:#5d3d73;
+    --shadow:0 8px 28px rgba(28,20,40,.12);
+    --radius:14px;
+  }
+  body.dark{
+    --bg:#111114; --surface:#1b1b20; --surface-2:#232329;
+    --text:#f2f2f5; --muted:#9b9ba4; --line:#303038;
+    --chip:#2b2233; --chip-text:#d7c1e8;
+    --shadow:0 8px 28px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",
+      "PingFang SC","Microsoft YaHei",sans-serif;
+    background:linear-gradient(135deg,#24152f,#3c1e52 45%,#1a1222);
+    color:var(--text); display:flex; gap:36px; padding:36px; align-items:flex-start;
+    justify-content:center; flex-wrap:wrap;
+  }
+  .phone{
+    width:390px; height:844px; background:var(--bg); border-radius:34px; overflow:hidden;
+    position:relative; box-shadow:0 30px 80px rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.12);
+    display:flex; flex-direction:column;
+  }
+  .statusbar{
+    height:34px; background:var(--brand); color:#fff; display:flex; align-items:center;
+    justify-content:space-between; padding:0 18px; font-size:12px; flex:0 0 auto;
+  }
+  .toolbar{
+    background:var(--brand); padding:8px 12px 12px; display:flex; gap:10px; align-items:center;
+    flex:0 0 auto;
+  }
+  .searchbox{
+    flex:1; height:44px; background:#fff; border-radius:22px; display:flex; align-items:center;
+    padding:0 14px; gap:8px; box-shadow:0 2px 8px rgba(0,0,0,.12);
+  }
+  .searchbox svg{flex:0 0 auto; opacity:.55}
+  .searchbox input{
+    border:0; outline:0; flex:1; font-size:15px; color:#222; background:transparent; min-width:0;
+  }
+  .searchbox .clear{
+    border:0; background:#ddd; color:#555; width:20px; height:20px; border-radius:50%;
+    line-height:18px; font-size:13px; cursor:pointer; display:none;
+  }
+  .searchbox.has-value .clear{display:block}
+  .tool-btn{
+    width:36px; height:36px; border:0; border-radius:50%; background:rgba(255,255,255,.16);
+    color:#fff; font-size:17px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .tool-btn:active{background:rgba(255,255,255,.28)}
+  .channel-row{
+    background:var(--surface); padding:10px 14px 8px; display:flex; align-items:center; gap:8px;
+    border-bottom:1px solid var(--line); flex:0 0 auto;
+  }
+  .channel{
+    border:1px solid transparent; background:var(--chip); color:var(--chip-text);
+    height:34px; padding:0 18px; border-radius:17px; font-size:13px; font-weight:600;
+    cursor:pointer; transition:all .15s ease;
+  }
+  .channel.active{background:var(--brand); color:#fff; box-shadow:0 4px 12px rgba(107,27,154,.28)}
+  .remember{
+    margin-left:auto; font-size:10px; color:var(--muted); white-space:nowrap;
+  }
+  .hint{
+    background:var(--surface); padding:0 14px 10px; font-size:11.5px; color:var(--muted);
+    flex:0 0 auto;
+  }
+  .hint b{color:var(--brand-2); font-weight:600}
+  .content{
+    flex:1; overflow-y:auto; background:var(--bg); padding:10px 12px 12px;
+    scrollbar-width:thin;
+  }
+  body.dark .content{background:var(--bg)}
+  .section-title{
+    display:flex; align-items:center; justify-content:space-between; margin:8px 2px 8px;
+    font-size:12px; color:var(--muted);
+  }
+  .section-title button{
+    border:0; background:transparent; color:var(--muted); font-size:11px; cursor:pointer;
+  }
+  .chips{display:flex; flex-wrap:wrap; gap:8px}
+  .chip{
+    border:0; background:var(--chip); color:var(--chip-text); height:32px; padding:0 14px;
+    border-radius:16px; font-size:12.5px; cursor:pointer; white-space:nowrap;
+  }
+  .chip:active{filter:brightness(.95)}
+  .hot .chip{background:var(--surface); border:1px solid var(--line); color:var(--text)}
+  .empty-history{font-size:12px; color:var(--muted); padding:4px 2px 8px}
+  .result-head{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:2px 2px 10px; font-size:12px; color:var(--muted);
+  }
+  .result-head .filters{display:flex; gap:10px; align-items:center}
+  .result-head .filter-link{
+    border:0; background:transparent; color:var(--brand-2); font-size:12px; font-weight:600;
+    cursor:pointer; padding:0;
+  }
+  .result-head .filter-link.active{color:var(--accent)}
+  .cards{display:flex; flex-direction:column; gap:14px}
+  .card{
+    background:var(--surface); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow);
+  }
+  .cover{
+    height:188px; position:relative; display:flex; align-items:center; justify-content:center;
+    color:rgba(255,255,255,.9); font-size:12px; letter-spacing:.12em; user-select:none;
+  }
+  .cover .dur{
+    position:absolute; right:8px; bottom:8px; background:rgba(0,0,0,.62); color:#fff;
+    font-size:10px; padding:2px 6px; border-radius:4px;
+  }
+  .cover .badge{
+    position:absolute; left:8px; top:8px; background:rgba(107,27,154,.92); color:#fff;
+    font-size:9px; padding:2px 6px; border-radius:4px; letter-spacing:.02em;
+  }
+  .card-body{padding:10px 12px 12px}
+  .card-title{font-size:14px; line-height:1.45; font-weight:600; display:-webkit-box;
+    -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+  .card-meta{font-size:10.5px; color:var(--muted); margin-top:6px; display:flex; gap:8px}
+  .pager{
+    display:flex; gap:0; overflow-x:auto; background:var(--surface); border-top:1px solid var(--line);
+    flex:0 0 auto;
+  }
+  .pager button{
+    flex:0 0 58px; height:40px; border:0; background:var(--surface); color:var(--text);
+    font-size:13px; cursor:pointer; border-right:1px solid var(--line);
+  }
+  .pager button.active{background:var(--brand); color:#fff; font-weight:700}
+  .bottomnav{
+    height:66px; background:var(--surface); border-top:1px solid var(--line); display:flex;
+    flex:0 0 auto;
+  }
+  .nav-item{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:2px; font-size:10px; color:var(--muted);
+  }
+  .nav-item .ico{font-size:17px}
+  .nav-item.active{color:var(--brand)}
+  .nav-item.active .ico{filter:drop-shadow(0 2px 4px rgba(107,27,154,.35))}
+  .loading-wrap,.empty-wrap,.error-wrap{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:54px 22px; text-align:center; gap:14px; color:var(--muted); font-size:13px;
+  }
+  .spinner{
+    width:34px; height:34px; border-radius:50%; border:3px solid var(--line);
+    border-top-color:var(--brand); animation:spin .9s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .skeleton{
+    background:var(--surface); border-radius:var(--radius); height:238px; position:relative;
+    overflow:hidden; margin-bottom:14px;
+  }
+  .skeleton::after{
+    content:""; position:absolute; inset:0; transform:translateX(-100%);
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);
+    animation:shimmer 1.3s infinite;
+  }
+  body.dark .skeleton::after{background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent)}
+  @keyframes shimmer{100%{transform:translateX(100%)}}
+  .btn-primary{
+    border:0; background:var(--brand); color:#fff; height:40px; padding:0 22px; border-radius:20px;
+    font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .sheet-mask{
+    position:absolute; inset:0; background:rgba(0,0,0,.45); display:none; align-items:flex-end;
+    z-index:20;
+  }
+  .sheet-mask.show{display:flex}
+  .sheet{
+    width:100%; background:var(--surface); border-radius:22px 22px 0 0; padding:16px 16px 20px;
+    max-height:82%; overflow-y:auto;
+  }
+  .sheet-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px}
+  .sheet-head h3{margin:0; font-size:15px}
+  .sheet-head button{border:0; background:transparent; color:var(--muted); font-size:18px; cursor:pointer}
+  .filter-group{margin-bottom:16px}
+  .filter-label{font-size:12px; color:var(--muted); margin-bottom:8px}
+  .filter-chips{display:flex; flex-wrap:wrap; gap:8px}
+  .filter-chip{
+    border:1px solid var(--line); background:var(--surface); color:var(--text); height:32px;
+    padding:0 14px; border-radius:16px; font-size:12.5px; cursor:pointer;
+  }
+  .filter-chip.selected{background:var(--brand); border-color:var(--brand); color:#fff}
+  .sheet-actions{display:flex; gap:10px; margin-top:6px}
+  .sheet-actions .reset{
+    flex:1; height:42px; border-radius:21px; border:1px solid var(--line);
+    background:var(--surface); color:var(--text); font-size:13px; cursor:pointer;
+  }
+  .sheet-actions .apply{
+    flex:2; height:42px; border-radius:21px; border:0; background:var(--brand); color:#fff;
+    font-size:13px; font-weight:700; cursor:pointer;
+  }
+  .toast{
+    position:absolute; left:50%; bottom:88px; transform:translateX(-50%); background:rgba(0,0,0,.8);
+    color:#fff; font-size:11.5px; padding:8px 14px; border-radius:16px; opacity:0;
+    pointer-events:none; transition:opacity .2s; z-index:30; white-space:nowrap;
+  }
+  .toast.show{opacity:1}
+  .side{
+    width:320px; color:#e9e1f1; font-size:13px; line-height:1.7; padding-top:12px;
+  }
+  .side h1{font-size:20px; margin:0 0 6px; color:#fff}
+  .side p{color:#c9b9d8; margin:0 0 18px; font-size:12.5px}
+  .panel{
+    background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); border-radius:16px;
+    padding:14px; margin-bottom:14px;
+  }
+  .panel h2{font-size:12px; margin:0 0 10px; color:#d9c8e8; letter-spacing:.08em; text-transform:uppercase}
+  .panel .row{display:flex; gap:8px; flex-wrap:wrap}
+  .panel button{
+    border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.08); color:#f3ecf8;
+    border-radius:10px; padding:8px 12px; font-size:12px; cursor:pointer;
+  }
+  .panel button:hover{background:rgba(255,255,255,.16)}
+  .panel .note{font-size:11.5px; color:#b9a9c9; line-height:1.65}
+  .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; color:#fff; background:rgba(255,255,255,.12); padding:1px 6px; border-radius:4px}
+  @media (max-width:820px){body{padding:18px; gap:18px}.side{width:390px}}
+</style>
+</head>
+<body>
+  <div class="phone" id="phone">
+    <div class="statusbar"><span>9:41</span><span>▮▮▮ 5G ▮</span></div>
+
+    <div class="toolbar">
+      <div class="searchbox" id="searchbox">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path>
+        </svg>
+        <input id="searchInput" type="search" placeholder="搜索视频…" autocomplete="off" />
+        <button class="clear" id="clearBtn" aria-label="清空">×</button>
+      </div>
+      <button class="tool-btn" id="filterBtn" title="筛选" aria-label="筛选">☰</button>
+      <button class="tool-btn" id="refreshBtn" title="刷新" aria-label="刷新">↻</button>
+    </div>
+
+    <div class="channel-row">
+      <button class="channel active" data-channel="main">主站</button>
+      <button class="channel" data-channel="441447">441447</button>
+      <span class="remember">记住上次选择</span>
+    </div>
+    <div class="hint" id="hint"></div>
+
+    <div class="content" id="content"></div>
+    <div class="pager" id="pager"></div>
+
+    <div class="bottomnav">
+      <div class="nav-item"><span class="ico">▣</span><span>视频</span></div>
+      <div class="nav-item"><span class="ico">◉</span><span>推荐</span></div>
+      <div class="nav-item active"><span class="ico">⌕</span><span>搜索</span></div>
+      <div class="nav-item"><span class="ico">☰</span><span>我的</span></div>
+    </div>
+
+    <div class="sheet-mask" id="sheetMask">
+      <div class="sheet">
+        <div class="sheet-head">
+          <h3>441447 筛选</h3>
+          <button id="sheetClose" aria-label="关闭">×</button>
+        </div>
+        <div class="filter-group">
+          <div class="filter-label">分类</div>
+          <div class="filter-chips" id="categoryChips"></div>
+        </div>
+        <div class="filter-group">
+          <div class="filter-label">排序</div>
+          <div class="filter-chips" id="sortChips"></div>
+        </div>
+        <div class="sheet-actions">
+          <button class="reset" id="filterReset">重置</button>
+          <button class="apply" id="filterApply">应用</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <div class="side">
+    <h1>441447 搜索 · 交互原型</h1>
+    <p>复用底部「搜索」入口；搜索页切换渠道，默认主站并记住上次选择。示意数据，非真实内容。</p>
+
+    <div class="panel">
+      <h2>状态预览</h2>
+      <div class="row">
+        <button data-force="results">结果</button>
+        <button data-force="empty">空结果</button>
+        <button data-force="error">失败</button>
+        <button data-force="loading">加载中</button>
+      </div>
+      <p class="note" style="margin-top:10px">输入 <span class="kbd">大奶</span> 后回车；输入 <span class="kbd">empty</span> 看空态，输入 <span class="kbd">error</span> 看错误态。</p>
+    </div>
+
+    <div class="panel">
+      <h2>交互说明</h2>
+      <p class="note">
+        • 渠道 chips：主站 / 441447；首次默认主站，切换后写入本地记忆。<br>
+        • 441447 支持分类 + 排序（相关 / 最新 / 最热）；筛选按钮打开底部弹窗。<br>
+        • 主站保持现有筛选、历史、分页行为。<br>
+        • 搜索历史主站 / 441447 共用一份。<br>
+        • 热门搜索仅 441447 展示。<br>
+        • 结果数、页码、筛选摘要随状态变化。
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2>显示</h2>
+      <div class="row">
+        <button id="themeBtn">切换深色</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const HOT = ["乱伦","内射","熟女","肛交","勾引","自慰","老头","热带鱼","户外","户外露出","露出","秀人"];
+const HISTORY = ["大奶","自拍","户外","test"];
+const CATEGORIES = ["全部","中文字幕","自拍","动漫","亚洲无码","国产","户外","探花"];
+const SORTS = [{key:"relevance",label:"相关"},{key:"latest",label:"最新"},{key:"hot",label:"最热"}];
+
+const COVERS = [
+  "linear-gradient(135deg,#2d1b3d,#8e2bb8 55%,#3a1b46)",
+  "linear-gradient(135deg,#1d2a3d,#3d6fa8 55%,#1b2635)",
+  "linear-gradient(135deg,#3d2a1b,#a86f3d 55%,#2a1d14)",
+  "linear-gradient(135deg,#1d3d2a,#3da86f 55%,#142a1d)",
+  "linear-gradient(135deg,#3d1d2a,#a83d6f 55%,#2a141d)"
+];
+
+const state = {
+  channel: localStorage.getItem("search_channel") || "main",
+  query: "",
+  view: "idle",
+  category: "全部",
+  sort: "relevance",
+  page: 1,
+  force: ""
+};
+
+const $ = (s) => document.querySelector(s);
+const content = $("#content");
+const pager = $("#pager");
+const hint = $("#hint");
+const input = $("#searchInput");
+const searchbox = $("#searchbox");
+
+function countFor(channel, category) {
+  if (channel === "main") return 128;
+  const map = {"全部":3358,"中文字幕":720,"自拍":512,"动漫":180,"亚洲无码":980,"国产":640,"户外":210,"探花":96};
+  return map[category] || 3358;
+}
+
+function totalPages(count) { return Math.max(1, Math.min(500, Math.ceil(count / 20))); }
+
+function sampleCards(channel) {
+  const kw = state.query || "大奶";
+  const base = channel === "main" ? "主站" : "441447";
+  const titles = channel === "main" ? [
+    `【示例】主站搜索结果 · ${kw} · 1`,
+    `【示例】主站搜索结果 · ${kw} · 2`,
+    `【示例】主站搜索结果 · ${kw} · 3`
+  ] : [
+    `【示例】${kw} 关键词结果 · 大奶御姐示例标题 1`,
+    `【示例】${kw} 关键词结果 · 户外露出示例标题 2`,
+    `【示例】${kw} 关键词结果 · 自拍示例标题 3`
+  ];
+  return titles.map((t,i)=>({
+    title:t,
+    dur:["12:30","08:16","21:04"][i],
+    views:["2261","1343","2081"][i],
+    cover:COVERS[i % COVERS.length],
+    badge:base
+  }));
+}
+
+function renderChrome(){
+  document.querySelectorAll(".channel").forEach(b=>{
+    b.classList.toggle("active", b.dataset.channel === state.channel);
+  });
+  const isSource = state.channel === "441447";
+  hint.innerHTML = isSource
+    ? `在 <b>441447</b> 内搜索 · 支持分类与排序 · 结果自动按页展示`
+    : `在 <b>主站</b> 内搜索 · 现有 91porny / 分分钟通道 · 筛选行为保持不变`;
+  searchbox.classList.toggle("has-value", !!input.value);
+}
+
+function renderIdle(){
+  const isSource = state.channel === "441447";
+  content.innerHTML = `
+    <div class="section-title"><span>搜索历史</span><button id="clearHistory">清空</button></div>
+    <div class="chips">${HISTORY.map(h=>`<button class="chip" data-keyword="${h}">${h}</button>`).join("")}</div>
+    ${isSource ? `
+      <div class="section-title" style="margin-top:18px"><span>热门搜索</span><span>441447</span></div>
+      <div class="chips hot">${HOT.slice(0,10).map(h=>`<button class="chip" data-keyword="${h}">${h}</button>`).join("")}</div>
+    ` : `<div class="empty-history" style="margin-top:14px">主站通道不展示 441447 热词</div>`}
+  `;
+  pager.style.display = "none";
+}
+
+function renderLoading(){
+  content.innerHTML = `
+    <div class="loading-wrap"><div class="spinner"></div><div>正在搜索…</div></div>
+    <div class="skeleton"></div><div class="skeleton"></div>
+  `;
+  pager.style.display = "none";
+}
+
+function renderResults(){
+  const count = countFor(state.channel, state.category);
+  const cards = sampleCards(state.channel);
+  const isSource = state.channel === "441447";
+  const filterText = isSource
+    ? `分类：${state.category} · 排序：${SORTS.find(s=>s.key===state.sort)?.label || "相关"}`
+    : "主站筛选";
+  content.innerHTML = `
+    <div class="result-head">
+      <span>共 <b style="color:var(--text)">${count}</b> 个结果</span>
+      <span class="filters">
+        ${isSource ? `<button class="filter-link ${state.category!=="全部"||state.sort!=="relevance"?"active":""}" id="openFilter">${filterText}</button>` : `<span>${filterText}</span>`}
+      </span>
+    </div>
+    <div class="cards">
+      ${cards.map(c=>`
+        <div class="card">
+          <div class="cover" style="background:${c.cover}">
+            <span>${c.badge} · 示例封面</span>
+            <span class="badge">${c.badge}</span>
+            <span class="dur">${c.dur}</span>
+          </div>
+          <div class="card-body">
+            <div class="card-title">${c.title}</div>
+            <div class="card-meta"><span>${c.views} 次播放</span><span>·</span><span>${isSource?"441447":"主站"}</span></div>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+  renderPager(count);
+}
+
+function renderPager(count){
+  const total = totalPages(count);
+  const pages = [];
+  for (let i=1;i<=Math.min(total,60);i++) pages.push(i);
+  pager.style.display = "flex";
+  pager.innerHTML = pages.map(p=>`<button class="${p===state.page?"active":""}" data-page="${p}">${p}</button>`).join("");
+  pager.scrollLeft = 0;
+}
+
+function renderEmpty(){
+  const isSource = state.channel === "441447";
+  content.innerHTML = `
+    <div class="empty-wrap">
+      <div style="font-size:34px">⌕</div>
+      <div>没有找到相关视频</div>
+      <div style="font-size:12px;color:var(--muted)">换个关键词，或试试下面的热门搜索</div>
+      ${isSource ? `<div class="chips hot" style="justify-content:center">${HOT.slice(0,6).map(h=>`<button class="chip" data-keyword="${h}">${h}</button>`).join("")}</div>` : ""}
+      <button class="btn-primary" data-keyword="${state.query}">重新搜索</button>
+    </div>
+  `;
+  pager.style.display = "none";
+}
+
+function renderError(){
+  content.innerHTML = `
+    <div class="error-wrap">
+      <div style="font-size:34px">!</div>
+      <div>${state.channel === "441447" ? "441447 搜索失败，请重试" : "主站搜索失败，请重试"}</div>
+      <button class="btn-primary" id="retryBtn">重试</button>
+    </div>
+  `;
+  pager.style.display = "none";
+}
+
+function render(){
+  renderChrome();
+  if (state.view === "idle") renderIdle();
+  else if (state.view === "loading") renderLoading();
+  else if (state.view === "results") renderResults();
+  else if (state.view === "empty") renderEmpty();
+  else if (state.view === "error") renderError();
+  bindContentEvents();
+}
+
+function bindContentEvents(){
+  content.querySelectorAll("[data-keyword]").forEach(el=>{
+    el.addEventListener("click", ()=>{
+      input.value = el.dataset.keyword;
+      state.query = input.value;
+      runSearch();
+    });
+  });
+  const clearHistory = $("#clearHistory");
+  if (clearHistory) clearHistory.addEventListener("click", ()=>toast("原型中历史清空仅示意"));
+  const openFilter = $("#openFilter");
+  if (openFilter) openFilter.addEventListener("click", openSheet);
+  const retry = $("#retryBtn");
+  if (retry) retry.addEventListener("click", ()=>{ state.force=""; runSearch(); });
+}
+
+function runSearch(){
+  state.query = input.value.trim();
+  state.page = 1;
+  if (!state.query) { state.view = "idle"; render(); return; }
+  if (state.query.toLowerCase() === "empty" || state.force === "empty") {
+    state.view = "empty"; render(); return;
+  }
+  if (state.query.toLowerCase() === "error" || state.force === "error") {
+    state.view = "error"; render(); return;
+  }
+  state.view = "loading"; render();
+  setTimeout(()=>{
+    if (state.force === "empty") { state.view="empty"; render(); return; }
+    if (state.force === "error") { state.view="error"; render(); return; }
+    state.view = "results"; render();
+  }, 520);
+}
+
+function switchChannel(ch){
+  if (ch === state.channel) return;
+  state.channel = ch;
+  localStorage.setItem("search_channel", ch);
+  state.category = "全部";
+  state.sort = "relevance";
+  state.page = 1;
+  if (state.query) runSearch();
+  else { state.view = "idle"; render(); }
+  toast(ch === "441447" ? "已切到 441447，已记住选择" : "已切到主站，已记住选择");
+}
+
+function openSheet(){
+  if (state.channel !== "441447") { toast("主站沿用现有筛选弹窗"); return; }
+  renderFilterSheet();
+  $("#sheetMask").classList.add("show");
+}
+
+function renderFilterSheet(){
+  $("#categoryChips").innerHTML = CATEGORIES.map(c=>
+    `<button class="filter-chip ${c===state.category?"selected":""}" data-cat="${c}">${c}</button>`
+  ).join("");
+  $("#sortChips").innerHTML = SORTS.map(s=>
+    `<button class="filter-chip ${s.key===state.sort?"selected":""}" data-sort="${s.key}">${s.label}</button>`
+  ).join("");
+  document.querySelectorAll("#categoryChips [data-cat]").forEach(b=>{
+    b.addEventListener("click", ()=>{ state.category=b.dataset.cat; renderFilterSheet(); });
+  });
+  document.querySelectorAll("#sortChips [data-sort]").forEach(b=>{
+    b.addEventListener("click", ()=>{ state.sort=b.dataset.sort; renderFilterSheet(); });
+  });
+}
+
+function closeSheet(){ $("#sheetMask").classList.remove("show"); }
+
+function toast(msg){
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(()=>t.classList.remove("show"), 1600);
+}
+
+// Events
+document.querySelectorAll(".channel").forEach(b=>{
+  b.addEventListener("click", ()=>switchChannel(b.dataset.channel));
+});
+input.addEventListener("input", ()=>searchbox.classList.toggle("has-value", !!input.value));
+input.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); runSearch(); }});
+$("#clearBtn").addEventListener("click", ()=>{
+  input.value=""; state.query=""; state.view="idle"; state.force=""; render(); input.focus();
+});
+$("#filterBtn").addEventListener("click", openSheet);
+$("#refreshBtn").addEventListener("click", ()=>{ if(state.query) runSearch(); else toast("请输入关键词"); });
+$("#sheetClose").addEventListener("click", closeSheet);
+$("#sheetMask").addEventListener("click", (e)=>{ if(e.target.id==="sheetMask") closeSheet(); });
+$("#filterReset").addEventListener("click", ()=>{ state.category="全部"; state.sort="relevance"; renderFilterSheet(); });
+$("#filterApply").addEventListener("click", ()=>{
+  closeSheet();
+  if (state.query) runSearch(); else { state.view="idle"; render(); }
+  toast("筛选已应用");
+});
+pager.addEventListener("click", (e)=>{
+  const b = e.target.closest("[data-page]");
+  if (!b) return;
+  state.page = Number(b.dataset.page);
+  renderResults();
+  content.scrollTop = 0;
+});
+document.querySelectorAll("[data-force]").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    state.force = b.dataset.force === "results" ? "" : b.dataset.force;
+    if (!state.query) { input.value = "大奶"; state.query = "大奶"; }
+    if (state.force === "loading") { state.view="loading"; render(); }
+    else runSearch();
+  });
+});
+$("#themeBtn").addEventListener("click", ()=>document.body.classList.toggle("dark"));
+
+// init
+if (state.channel !== "main" && state.channel !== "441447") state.channel = "main";
+render();
+</script>
+</body>
+</html>

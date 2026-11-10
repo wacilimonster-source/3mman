@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_base"
@@ -21,7 +22,67 @@
             android:layout_height="match_parent" />
     </androidx.appcompat.widget.Toolbar>
 
-    <!-- EX-04：先说明“在哪找”，再展示结果；当前仅分分钟一个来源，不做跨源聚合。 -->
+    <!-- M167：搜索渠道选择：主站（现有 91porny/分分钟）与 441447；默认主站并记住上次选择 -->
+    <LinearLayout
+        android:id="@+id/ll_search_channels"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/bg_surface"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingLeft="@dimen/space_3"
+        android:paddingTop="@dimen/space_2"
+        android:paddingRight="@dimen/space_3"
+        android:paddingBottom="@dimen/space_2">
+
+        <TextView
+            android:id="@+id/tv_search_channel_main"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:background="@drawable/bg_search_channel"
+            android:clickable="true"
+            android:contentDescription="@string/search_channel_main"
+            android:focusable="true"
+            android:gravity="center"
+            android:minWidth="72dp"
+            android:paddingLeft="18dp"
+            android:paddingRight="18dp"
+            android:text="@string/search_channel_main"
+            android:textColor="@color/search_channel_text"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_search_channel_441447"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginStart="@dimen/space_2"
+            android:layout_marginLeft="@dimen/space_2"
+            android:background="@drawable/bg_search_channel"
+            android:clickable="true"
+            android:contentDescription="@string/search_channel_441447"
+            android:focusable="true"
+            android:gravity="center"
+            android:minWidth="72dp"
+            android:paddingLeft="18dp"
+            android:paddingRight="18dp"
+            android:text="@string/search_channel_441447"
+            android:textColor="@color/search_channel_text"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_search_channel_remember"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="end"
+            android:text="@string/search_channel_remember"
+            android:textAppearance="@style/TextAppearance.App.Caption"
+            android:textColor="@color/text_tertiary" />
+    </LinearLayout>
+
+    <!-- EX-04：先说明"在哪找"，再展示结果；当前仅分分钟一个来源，不做跨源聚合。 -->
     <TextView
         android:id="@+id/tv_search_scope"
         android:layout_width="match_parent"
@@ -31,9 +92,25 @@
         android:paddingTop="@dimen/space_1"
         android:paddingRight="@dimen/page_horizontal_padding"
         android:paddingBottom="@dimen/space_1"
-        android:text="@string/search_scope_note"
+        android:text="@string/search_scope_main"
         android:textAppearance="@style/TextAppearance.App.Caption"
         android:textColor="@color/text_tertiary" />
+
+    <!-- M167：441447 结果数 + 当前分类/排序摘要；主站隐藏 -->
+    <TextView
+        android:id="@+id/tv_search_result_meta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/bg_base"
+        android:paddingLeft="@dimen/page_horizontal_padding"
+        android:paddingTop="@dimen/space_2"
+        android:paddingRight="@dimen/page_horizontal_padding"
+        android:paddingBottom="@dimen/space_1"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
+        android:visibility="gone"
+        tools:text="共 3358 个结果 · 分类：全部 · 排序：相关" />
+
 
     <!-- 内容区：列表 + 状态提示（未搜索 / 无结果 / 失败） -->
     <FrameLayout

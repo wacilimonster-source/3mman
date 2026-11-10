@@ -1,7 +1,7 @@
 {
-  "versionCode": 165,
-  "versionName": "1.0.132",
-  "updateMessage": "1.0.132 更新内容：\n1）修复搜索/作者收藏后进入作者作品页一直显示“暂无数据”：作者页改为同步替换列表，避免异步 Diff 未落地时空态盖住结果；\n2）修复 91porny 作者名含下划线/连字符（如 test_mask、steven_ntk）被误判为 9mman 作者，导致作者作品 404/空白；\n3）其余沿用 1.0.131 的全量排查修复：441447 分页/来源遮挡、下载路径与通知、推荐预取与分页并发、后台起播、日志脱敏等。\n注意：91porny 与 441447 源功能需可访问外网的网络环境；仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.132.apk",
-  "sha256": "30c07461827f808881ac3ed600e5c1eda55d14cb560536f788f2c5efd0471785"
+  "versionCode": 166,
+  "versionName": "1.0.133",
+  "updateMessage": "1.0.133 更新内容：\n1）底部「搜索」页新增「主站 / 441447」渠道选择；首次默认主站，并记住上次选择；\n2）441447 支持关键词搜索，结果展示总条数、分页栏，可上拉加载更多；\n3）441447 支持按分类筛选、按相关/最新/最热排序，应用后从第 1 页重搜；\n4）主站与 441447 共用一份搜索历史，热门搜索词仅 441447 展示；\n5）主站搜索保持原有筛选、历史、分页与错误提示不变；\n6）沿用 1.0.132 的修复：作者作品空白、91porny 作者路由、441447 分页/来源遮挡、下载与通知、推荐预取、后台起播、日志脱敏等。\n注意：91porny 与 441447 源功能需可访问外网的网络环境；仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.133.apk",
+  "sha256": "0d665ffacf2934843a8f54ed20c7d6725fac2b2103c848cf642d6cf815742403"
 }

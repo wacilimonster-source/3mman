@@ -23,9 +23,19 @@ public class BaseResult<T> {
 
     private T data;
     private Integer totalPage;
+    /** M167：部分源（441447 搜索/列表）返回精确总条数；主站可能为空。 */
+    private Integer total;
     @ResultCode
     private int code;
     private String message;
+
+    public Integer getTotal() {
+        return total;
+    }
+
+    public void setTotal(Integer total) {
+        this.total = total;
+    }
 
     public T getData() {
         return data;

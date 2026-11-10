@@ -6,7 +6,9 @@ import androidx.appcompat.widget.SearchView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import android.text.TextUtils;
+import android.view.Gravity;
 import android.view.View;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.m3man.R;
@@ -38,6 +40,8 @@ public class SearchHistoryPanel {
     private final View container;
     private final RecyclerView rv;
     private final TextView tvClear;
+    private final View hotContainer;
+    private final LinearLayout hotChipContainer;
     private final SearchHistoryAdapter adapter;
     private final DataManager dm;
     private final OnHistoryItemClickListener clickListener;
@@ -64,6 +68,8 @@ public class SearchHistoryPanel {
 
         this.rv = container.findViewById(R.id.rv_search_history);
         this.tvClear = container.findViewById(R.id.tv_clear_search_history);
+        this.hotContainer = container.findViewById(R.id.ll_search_hot);
+        this.hotChipContainer = container.findViewById(R.id.ll_search_hot_chips);
 
         this.adapter = new SearchHistoryAdapter();
         this.rv.setLayoutManager(new LinearLayoutManager(container.getContext()));
@@ -132,13 +138,64 @@ public class SearchHistoryPanel {
                 .observeOn(io.reactivex.android.schedulers.AndroidSchedulers.mainThread())
                 .subscribe(list -> {
                     if (list == null || list.isEmpty()) {
-                        container.setVisibility(View.GONE);
+                        adapter.setNewData(new ArrayList<>());
+                        // M167：441447 可能没有历史但有热门搜索，不能把整个面板直接藏掉。
+                        boolean hotVisible = hotContainer != null
+                                && hotContainer.getVisibility() == View.VISIBLE;
+                        container.setVisibility(hotVisible ? View.VISIBLE : View.GONE);
                         return;
                     }
                     adapter.setNewData(list);
                     container.setVisibility(View.VISIBLE);
                 });
         panelSubscriptions.add(d);
+    }
+
+    /** M167：441447 热门搜索词；点击与历史词共用同一回调。 */
+    public void showHotKeywords(List<String> keywords) {
+        if (hotContainer == null || hotChipContainer == null) {
+            return;
+        }
+        hotChipContainer.removeAllViews();
+        if (keywords == null || keywords.isEmpty()) {
+            hotContainer.setVisibility(View.GONE);
+            return;
+        }
+        int padH = (int) (hotChipContainer.getResources().getDisplayMetrics().density * 14);
+        int margin = (int) (hotChipContainer.getResources().getDisplayMetrics().density * 8);
+        for (final String keyword : keywords) {
+            if (TextUtils.isEmpty(keyword)) {
+                continue;
+            }
+            TextView chip = new TextView(hotChipContainer.getContext());
+            chip.setText(keyword);
+            chip.setTextSize(12.5f);
+            chip.setTextColor(androidx.core.content.ContextCompat.getColor(
+                    hotChipContainer.getContext(), R.color.text_primary));
+            chip.setGravity(Gravity.CENTER);
+            chip.setSingleLine(true);
+            chip.setBackgroundResource(R.drawable.bg_search_channel);
+            chip.setPadding(padH, 0, padH, 0);
+            chip.setClickable(true);
+            chip.setFocusable(true);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, (int) (36 * hotChipContainer.getResources()
+                    .getDisplayMetrics().density));
+            lp.rightMargin = margin;
+            chip.setOnClickListener(v -> {
+                if (clickListener != null) {
+                    clickListener.onHistoryItemClick(keyword);
+                }
+            });
+            hotChipContainer.addView(chip, lp);
+        }
+        hotContainer.setVisibility(View.VISIBLE);
+    }
+
+    public void hideHotKeywords() {
+        if (hotContainer != null) {
+            hotContainer.setVisibility(View.GONE);
+        }
     }
 
     /**

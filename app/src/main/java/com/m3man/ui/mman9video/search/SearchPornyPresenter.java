@@ -8,6 +8,7 @@ import com.trello.rxlifecycle2.LifecycleProvider;
 import com.m3man.data.DataManager;
 import com.m3man.data.model.BaseResult;
 import com.m3man.data.db.entity.V9MmanItem;
+import com.m3man.data.network.Source441447Client;
 import com.m3man.exception.MessageException;
 import com.m3man.rxjava.CallBackWrapper;
 import com.m3man.rxjava.RetryWhenProcess;
@@ -18,13 +19,16 @@ import java.util.List;
 
 import javax.inject.Inject;
 
+import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.functions.Function;
 
 /**
- * 91porny 搜索 Presenter（首版仅搜索，播放后续）
+ * 搜索 Presenter：主站（现有 91porny/分分钟）与 441447 两个渠道。
  */
 public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implements ISearch {
+
+    public enum Channel { MAIN, SOURCE_441447 }
 
     private static final String TAG = SearchPornyPresenter.class.getSimpleName();
     private LifecycleProvider<Lifecycle.Event> provider;
@@ -32,16 +36,42 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
     /** M43：当前展示页（onSuccess 后记录，供底部页码栏高亮/定位） */
     private int currentPageShown = 1;
     private Integer totalPage;
+    /** 441447 搜索返回的精确总条数；主站源为空。 */
+    private int totalCount;
+    private Channel channel = Channel.MAIN;
+    private String sourceCategoryId = "";
+    private String sourceSort = "";
     /** M100：在途搜索请求，新搜索/跳页发起前先取消，防止旧响应晚到串位覆盖新结果 */
     private Disposable inFlightSearch;
     /** 请求代际：取消旧订阅后仍可能有回调排队，代际校验阻止其改写新搜索状态。 */
     private volatile long searchGeneration;
     private DataManager dataManager;
+    private final Source441447Client source441447Client;
 
     @Inject
-    public SearchPornyPresenter(LifecycleProvider<Lifecycle.Event> provider, DataManager dataManager) {
+    public SearchPornyPresenter(LifecycleProvider<Lifecycle.Event> provider, DataManager dataManager,
+                                Source441447Client source441447Client) {
         this.provider = provider;
         this.dataManager = dataManager;
+        this.source441447Client = source441447Client;
+    }
+
+    public void setChannel(Channel channel) {
+        this.channel = channel == null ? Channel.MAIN : channel;
+    }
+
+    public Channel getChannel() {
+        return channel;
+    }
+
+    /** 441447 分类/排序筛选；主站渠道忽略。 */
+    public void setSourceFilters(String categoryId, String sort) {
+        this.sourceCategoryId = categoryId == null ? "" : categoryId;
+        this.sourceSort = sort == null ? "" : sort;
+    }
+
+    public int getTotalCount() {
+        return totalCount;
     }
 
     /**
@@ -79,6 +109,7 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
         page = 1;
         currentPageShown = 1;
         totalPage = null;
+        totalCount = 0;
     }
 
     /** M42：分页跳转——跳转到指定页并用该页结果替换当前列表。 */
@@ -106,12 +137,22 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
     }
 
     private void doSearch(final int currentPage, String searchId, String sort, String time, String views, final boolean jumpMode) {
-        AppLog.i(TAG, "分分钟搜索 page=" + currentPage + " keyword=" + searchId);
+        AppLog.i(TAG, (channel == Channel.SOURCE_441447 ? "441447" : "主站")
+                + "搜索 page=" + currentPage + " keyword=" + searchId);
         // M100：串位修复——searchVideos/jumpToPage 均汇入本方法，发起前先取消上一条在途请求（保留 ON_DESTROY 绑定）
         disposeInFlightSearch();
         final long generation = ++searchGeneration;
-        dataManager.searchPornyVideos(searchId, currentPage, normalizeFilter(sort), normalizeFilter(time), normalizeFilter(views))
-                .map(new Function<BaseResult<List<V9MmanItem>>, List<V9MmanItem>>() {
+        final Observable<BaseResult<List<V9MmanItem>>> request;
+        if (channel == Channel.SOURCE_441447) {
+            final String categoryId = sourceCategoryId;
+            final String sourceSortValue = sourceSort;
+            request = Observable.fromCallable(() ->
+                    source441447Client.searchVideos(searchId, currentPage, categoryId, sourceSortValue));
+        } else {
+            request = dataManager.searchPornyVideos(searchId, currentPage,
+                    normalizeFilter(sort), normalizeFilter(time), normalizeFilter(views));
+        }
+        request.map(new Function<BaseResult<List<V9MmanItem>>, List<V9MmanItem>>() {
                     @Override
                     public List<V9MmanItem> apply(BaseResult<List<V9MmanItem>> baseResult) throws Exception {
                         if (baseResult.getCode() == BaseResult.ERROR_CODE) {
@@ -122,8 +163,15 @@ public class SearchPornyPresenter extends MvpBasePresenter<SearchView> implement
                         }
                         if (currentPage == 1) {
                             totalPage = baseResult.getTotalPage();
-                        } else if (totalPage == null || totalPage <= 0) {
-                            totalPage = baseResult.getTotalPage();
+                            Integer total = baseResult.getTotal();
+                            totalCount = total == null ? 0 : Math.max(0, total);
+                        } else {
+                            if (totalPage == null || totalPage <= 0) {
+                                totalPage = baseResult.getTotalPage();
+                            }
+                            if (baseResult.getTotal() != null) {
+                                totalCount = Math.max(0, baseResult.getTotal());
+                            }
                         }
                         return baseResult.getData();
                     }

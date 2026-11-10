@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/layout_search_history"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -39,5 +40,41 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:nestedScrollingEnabled="false" />
+
+    <!-- M167：441447 热门搜索；主站渠道隐藏 -->
+    <LinearLayout
+        android:id="@+id/ll_search_hot"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingLeft="@dimen/space_3"
+        android:paddingTop="@dimen/space_2"
+        android:paddingRight="@dimen/space_3"
+        android:paddingBottom="@dimen/space_2"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="@dimen/space_1"
+            android:paddingBottom="@dimen/space_1"
+            android:text="@string/search_hot_title"
+            android:textAppearance="@style/TextAppearance.App.Body"
+            android:textColor="@color/common_black_white_text_color" />
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/ll_search_hot_chips"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingTop="@dimen/space_1"
+                android:paddingBottom="@dimen/space_1" />
+        </HorizontalScrollView>
+    </LinearLayout>
 
 </LinearLayout>

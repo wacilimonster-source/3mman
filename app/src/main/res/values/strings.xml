@@ -557,6 +557,20 @@
     <!-- 搜索（EX-04） -->
     <string name="search_keyword_required">请输入搜索关键词</string>
     <string name="search_scope_note">仅在「分分钟」内搜索 · 结果以实际加载为准</string>
+    <string name="search_channel_main">主站</string>
+    <string name="search_channel_441447">441447</string>
+    <string name="search_channel_remember">记住上次选择</string>
+    <string name="search_scope_main">主站搜索 · 91porny / 分分钟通道</string>
+    <string name="search_scope_441447">441447 搜索 · 支持分类与排序</string>
+    <string name="search_result_count">共 %1$d 个结果</string>
+    <string name="search_filter_441447_title">441447 筛选</string>
+    <string name="search_filter_category">分类</string>
+    <string name="search_filter_sort">排序</string>
+    <string name="search_filter_all">全部</string>
+    <string name="search_sort_relevance">相关</string>
+    <string name="search_sort_latest">最新</string>
+    <string name="search_sort_hot">最热</string>
+    <string name="search_hot_title">热门搜索</string>
     <string name="search_empty_with_keyword">在「%1$s」中没有找到“%2$s”\n试试更短的关键词</string>
     <string name="search_edit_keyword">修改关键词</string>
     <string name="search_reset_filters">重置筛选</string>
