@@ -37,8 +37,23 @@ public class FragmentUtils {
         // M61：同位置已有存活实例时优先复用（Activity 恢复后 getInstance() 新建的对象
         // 与恢复出来的旧实例同 tag 并存，会互相叠加且只隐藏其中一个）
         Fragment tagged = fragmentManager.findFragmentByTag(name);
-        if (tagged != null && tagged != toShowFragment
-                && !tagged.isDetached() && !tagged.isRemoving()) {
+        // M168：低内存释放会 remove 未选中 tab 的 fragment；若 remove 事务尚未执行完，
+        // 旧实例仍带同一个 tag。此时直接 add 新实例会抛
+        // “Fragment already added: ... tag=android:switcher:...”，必须先同步收口旧实例。
+        if (tagged != null && tagged.isRemoving()) {
+            try {
+                fragmentManager.beginTransaction().remove(tagged).commitNowAllowingStateLoss();
+            } catch (Exception e) {
+                Logger.t(TAG).d("finish pending remove failed: " + e.getMessage());
+            }
+            tagged = fragmentManager.findFragmentByTag(name);
+            if (tagged != null && tagged.isRemoving()) {
+                // 仍处于移除中：本次不强行 add，避免 tag 冲突崩溃；等下一次切换重试。
+                Logger.t(TAG).d("fragment still removing, skip switch: " + name);
+                return currentFragment;
+            }
+        }
+        if (tagged != null && tagged != toShowFragment) {
             toShowFragment = tagged;
         }
         FragmentTransaction transaction = fragmentManager.beginTransaction()
@@ -53,7 +68,12 @@ public class FragmentUtils {
         // M61：先隐藏容器内其它全部可见 fragment（含历史残留/重复实例），再显示目标，
         // 从机制上杜绝“上一个页面盖在顶部”
         hideAllOtherVisible(fragmentManager, transaction, toShowFragment);
-        if (!toShowFragment.isAdded()) {
+        if (toShowFragment.isDetached()) {
+            // M168：被 detach 的实例仍属于 FragmentManager，attach 后 show，不能再次 add。
+            transaction.attach(toShowFragment);
+            transaction.show(toShowFragment);
+            Logger.t(TAG).d("attach detached fragment: " + name);
+        } else if (!toShowFragment.isAdded()) {
             transaction.add(viewId, toShowFragment, name);
             Logger.t(TAG).d("add new fragment: " + name);
         } else {

@@ -210,6 +210,13 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         bottomNavigationBar.setTabSelectedListener(new BottomNavigationBar.SimpleOnTabSelectedListener() {
             @Override
             public void onTabSelected(int position) {
+                // M168：doOnTabSelected 末尾会用 selectTab() 同步底部导航态，
+                // 这会再次回调本监听；第一次 switchContent 的 add 事务尚未执行时
+                // 第二次再 add 同一 Fragment 会抛“Fragment already added”。
+                // 程序化切换已经由 doOnTabSelected 完成，这里只处理用户真实切换。
+                if (position == selectIndex) {
+                    return;
+                }
                 doOnTabSelected(position);
             }
         });
