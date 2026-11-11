@@ -105,7 +105,11 @@ public final class MediaStoreArchiver {
             // 读取真实物理路径供播放/删除直读（自己的 MediaStore 贡献物可路径访问）
             String path = queryPath(resolver, pendingUri);
             if (path == null || path.length() == 0) {
-                path = pendingUri.toString();
+                // 部分 ROM 不返回 _data；调用方统一按文件路径播放/删除，
+                // 返回 content:// 会拼成 file://content://... 导致播放/删除失败。
+                // 此时放弃公开归档并保留私有副本，保证下载成品仍可播放。
+                deleteQuietly(resolver, pendingUri);
+                return null;
             }
             // 归档成功 → 删除私有副本，实现「零副本」
             deleteQuietly(src);

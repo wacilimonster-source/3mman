@@ -1,7 +1,7 @@
 {
-  "versionCode": 169,
-  "versionName": "1.0.136",
-  "updateMessage": "1.0.136 更新内容：\n1）修复主站部分视频页新版 strencode2 解析失败：站点把 document.write(strencode2(...)) 改成 var vbXX=strencode2(...)，旧规则识别不到，会播不出或落到外链错误内容；\n2）修复首页/分类首次加载偶发一直显示「这个分类暂时没有内容」：空列表切换为有数据时改为同步刷新，数据到达后立即展示；\n3）91porny 收藏/历史/推荐缓存直链增加短时效识别（/s/ 过期桶、?t=&m= 签名），过期自动重新解析，减少「外链无法访问」类错误画面；\n4）修复 441447 封面域名 cover.317347.xyz 失效导致封面空白，自动切换到可用 CDN；\n5）修复主站播放页解析空指针噪音，播放解析更干净。\n注意：91porny 与 441447 源功能需可访问外网的网络环境；仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.136.apk",
-  "sha256": "b040a0fe12e39cd0588726e990fc1bc2da2df1f1a34cd870c77edfa3730aa396"
+  "versionCode": 170,
+  "versionName": "1.0.137",
+  "updateMessage": "1.0.137 更新内容：\n1）修复 441447 切换来源/翻页后偶发「标题新、封面旧」：换图前先取消上一条封面请求并清掉复用残留；\n2）修复 441447 收藏列表刷新与加载更多并发时旧游标数据追加到新列表的问题；\n3）拒绝媒体权限后不再弹出英文「Permission apply failure」阻断首次使用，改为非阻塞提示；\n4）修复部分 ROM 上 MediaStore 归档读不到真实路径时把 content:// 写入本地路径，导致下载成品无法播放/删除；现在保留私有副本保证可用；\n5）推荐列表同步刷新时作废在途异步 diff，避免旧快照覆盖新列表。\n注意：91porny 与 441447 源功能需可访问外网的网络环境；仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.137.apk",
+  "sha256": "8033bef6a3a1f3bf33c9554dc08d82d9ad3215b894f3586c8efa6f44096d8b47"
 }

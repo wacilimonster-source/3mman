@@ -125,12 +125,17 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
     private Long lastId;
     private boolean loading;
     private boolean noMore;
+    /** 刷新代际：刷新/删除后，在途的 loadMore 结果直接丢弃，避免旧游标数据追加到新列表。 */
+    private int loadGeneration;
 
     private void loadData() {
         helper.showLoading();
         LoadHelperUtils.setLoadingText(helper.getLoadIng(), R.id.tv_loading_text, getString(R.string.porny_fav_loading));
+        loadGeneration++;
+        loading = false;
         lastId = null;
         noMore = false;
+        final int generation = loadGeneration;
         mDisposables.add(Observable.just(1)
                 .map(integer -> {
                     if (com.m3man.perf.PerfFlags.pagedLocalList) {
@@ -142,6 +147,9 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(result -> {
+                    if (generation != loadGeneration) {
+                        return;
+                    }
                     if (result instanceof com.m3man.data.db.Page) {
                         @SuppressWarnings("unchecked")
                         com.m3man.data.db.Page<V9MmanItem> page =
@@ -171,6 +179,9 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
                         AdapterDiffUtil.apply(mAdapter, items, AdapterDiffUtil.v9MmanItem());
                     }
                 }, throwable -> {
+                    if (generation != loadGeneration) {
+                        return;
+                    }
                     helper.showError();
                     LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, getString(R.string.porny_fav_load_failed_retry));
                 }));
@@ -183,11 +194,15 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
         }
         loading = true;
         final Long cursor = lastId;
+        final int generation = loadGeneration;
         mDisposables.add(Observable.just(1)
                 .map(integer -> presenter.loadLocalFavoritePage(cursor, PAGE_SIZE))
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(page -> {
+                    if (generation != loadGeneration) {
+                        return;
+                    }
                     loading = false;
                     if (isFinishing()) {
                         return;
@@ -204,6 +219,9 @@ public class PornyFavoriteActivity extends MvpActivity<FavoriteView, FavoritePre
                         mAdapter.loadMoreComplete();
                     }
                 }, throwable -> {
+                    if (generation != loadGeneration) {
+                        return;
+                    }
                     loading = false;
                     mAdapter.loadMoreFail();
                 }));

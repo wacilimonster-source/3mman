@@ -408,15 +408,10 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         public void onFailed(int requestCode, @NonNull List<String> deniedPermissions) {
             // 权限申请失败回调。
             if (requestCode == permisionCode) {
-                // M-13: 权限被拒绝，检查存储权限并引导用户去设置
+                // M-13: 权限被拒绝不阻塞浏览/在线播放；只在用户真正需要下载或本地播放时再引导。
+                // 旧实现无条件弹出 AndPermission 英文 Setting 对话框，全新安装首次启动即被拦断。
                 if (!hasStorageAccess()) {
-                    // 是否有不再提示并拒绝的权限。
-                    if (AndPermission.hasAlwaysDeniedPermission(MainActivity.this, deniedPermissions)) {
-                        // 第一种：用AndPermission默认的提示语。
-                        AndPermission.defaultSettingDialog(MainActivity.this, permisionReqCode).show();
-                    } else {
-                        AndPermission.defaultSettingDialog(MainActivity.this, permisionReqCode).show();
-                    }
+                    showMessage(getString(R.string.main_storage_perm_denied), TastyToast.INFO);
                 }
             }
         }

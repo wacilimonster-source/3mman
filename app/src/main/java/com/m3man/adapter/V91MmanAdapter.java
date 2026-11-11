@@ -132,6 +132,10 @@ public class V91MmanAdapter extends BaseQuickAdapter<V9MmanItem, BaseViewHolder>
                 if (coverUrl.equals(tag)) {
                     simpleDraweeView.setTag(R.id.tag_adapter_url, null);
                 }
+                // 换图前先取消上一条请求并清掉复用残留：新图加载/失败期间不能继续显示
+                // 上一条视频的封面（切换来源、翻页后曾出现「标题新、封面旧」的张冠李戴）。
+                GlideApp.with(simpleDraweeView).clear(simpleDraweeView);
+                simpleDraweeView.setImageResource(R.drawable.placeholder_cover);
                 GlideLoader.loadCover(simpleDraweeView, coverUrl, R.drawable.placeholder_cover, orientation -> {
                     if (badge == null) {
                         return;

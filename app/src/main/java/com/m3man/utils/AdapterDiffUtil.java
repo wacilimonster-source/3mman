@@ -42,6 +42,11 @@ public final class AdapterDiffUtil {
         // 检查 adapter.getItemCount() 决定显示内容还是空态；异步 diff 期间仍是 0 条，
         // 会先闪出「暂无内容」，数据落地后空态又不会被收起。
         if (current == null || current.isEmpty() || target.isEmpty()) {
+            // 同步刷新绕过 differ；先作废在途 diff，避免旧快照稍后覆盖本次结果。
+            AsyncAdapterDiffer stale = DIFFERS.remove(adapter);
+            if (stale != null) {
+                stale.dispose();
+            }
             adapter.setNewData(target);
             return;
         }
