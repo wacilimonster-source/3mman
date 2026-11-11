@@ -63,4 +63,46 @@ public class IsSecureUrlExpiredTest {
         assertFalse(RecommendPrefetcher.isSecureUrlExpired(null));
         assertFalse(RecommendPrefetcher.isSecureUrlExpired(""));
     }
+
+    // ==================== 91porny 短时效直链 ====================
+
+    @Test
+    public void pornyMainHls_expiryBucketPast_isExpired() {
+        assertTrue(RecommendPrefetcher.isSecureUrlExpired(
+                "https://cdn2.jiuse3.cloud/s/" + PAST + "/sig/hls/1018639/index.m3u8"));
+    }
+
+    @Test
+    public void pornyMainHls_expiryBucketFuture_notExpired() {
+        assertFalse(RecommendPrefetcher.isSecureUrlExpired(
+                "https://cdn2.jiuse3.cloud/s/" + FUTURE + "/sig/hls/1018639/index.m3u8"));
+    }
+
+    @Test
+    public void pornyVodHls_issueTimeOld_isExpired() {
+        assertTrue(RecommendPrefetcher.isSecureUrlExpired(
+                "https://cdn22.jiuse3.cloud/2026/11/10/hash/index.m3u8?t=" + PAST + "&m=sig"));
+    }
+
+    @Test
+    public void pornyVodHls_issueTimeFresh_notExpired() {
+        long now = System.currentTimeMillis() / 1000L;
+        assertFalse(RecommendPrefetcher.isSecureUrlExpired(
+                "https://cdn22.jiuse3.cloud/2026/11/10/hash/index.m3u8?t=" + now + "&m=sig"));
+    }
+
+    @Test
+    public void pornyTadpoleMp4_issueTimeOld_isExpired() {
+        assertTrue(RecommendPrefetcher.isSecureUrlExpired(
+                "https://cdn.cdnkdjs.com/get_file/3/hash/127000/127581/127581.mp4?t=" + PAST + "&m=sig"));
+    }
+
+    @Test
+    public void nonPornyHost_sPathAndTParam_notAffected() {
+        // 非 91porny CDN 的同形 URL 不参与判定，避免误伤其它站点
+        assertFalse(RecommendPrefetcher.isSecureUrlExpired(
+                "https://example.com/s/" + PAST + "/hls/1/index.m3u8"));
+        assertFalse(RecommendPrefetcher.isSecureUrlExpired(
+                "https://example.com/video.mp4?t=" + PAST + "&m=sig"));
+    }
 }

@@ -316,10 +316,11 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
             presenter.loadVideoUrl(v9MmanItem);
             return;
         }
-        // M73：DB 命中的 9mman 直链带时效签名（secure=...,unix秒），历史记录可能已过期。
-        // 过期直链交给 videocache 本地代理建流失败 → 播放器连不上 127.0.0.1 无限转圈
-        // （v1.0.70 已修推荐流入口，这里是收藏/历史/作者页等入口的残留路径）。
-        if (tmp != null && tmp.getVideoResultId() != 0 && !isPornySource) {
+        // M73：DB 命中的直链可能带时效签名（9mman 的 secure=/e=，91porny 的 /s/<过期桶>/ 与 ?t=&m=）。
+        // 过期直链交给 videocache 本地代理建流失败 → 播放器连不上 127.0.0.1 无限转圈；
+        // 91porny 过期直链则可能让 CDN 返回错误占位内容（用户看到「外链无法访问」）。
+        // 这里对持久化缓存统一做时效校验，91porny 也必须走重解析拿新签名。
+        if (tmp != null && tmp.getVideoResultId() != 0) {
             try {
                 VideoResult cachedVr = tmp.getVideoResult();
                 String cachedUrl = cachedVr == null ? null : cachedVr.getVideoUrl();

@@ -48,6 +48,12 @@ public class Source441447Client {
     private static final int PAGE_SIZE = 20;
     /** 页码栏最大页数：异常 total 时不无限生成。 */
     private static final int MAX_PAGES = 500;
+    /**
+     * 封面 CDN 兜底：cover.317347.xyz 已出现 TLS 握手被重置（实测 Android/curl 均失败），
+     * 同一路径在播放 CDN p1.338484.xyz 可正常回源，避免首页/搜索封面全部显示占位图。
+     */
+    private static final String COVER_FALLBACK_HOST = "p1.338484.xyz";
+    private static final String BROKEN_COVER_HOST_SUFFIX = "317347.xyz";
     private final OkHttpClient http;
     /** 入口域名发生迁移时原地更新，后续请求直接走新域名。 */
     private volatile HttpUrl origin;
@@ -161,6 +167,18 @@ public class Source441447Client {
         return keywords;
     }
 
+    /** 解析封面地址；已失效的封面域名改用同路径可用的 CDN，相对路径仍按当前入口解析。 */
+    private String normalizeCoverUrl(String raw) {
+        if (raw == null || raw.trim().isEmpty()) return "";
+        HttpUrl url = baseUrl().resolve(raw.trim());
+        if (url == null) return "";
+        String host = url.host();
+        if (host != null && host.endsWith(BROKEN_COVER_HOST_SUFFIX)) {
+            url = url.newBuilder().host(COVER_FALLBACK_HOST).build();
+        }
+        return url.toString();
+    }
+
     private BaseResult<List<V9MmanItem>> parseVideoList(JsonObject object) throws IOException {
         JsonElement itemsElement = object.get("items");
         if (itemsElement == null || !itemsElement.isJsonArray()) throw new IOException("视频列表格式异常");
@@ -177,8 +195,7 @@ public class Source441447Client {
             item.setSource(SOURCE);
             item.setTitle(string(video, "title"));
             String cover = string(video, "coverUrl");
-            HttpUrl coverUrl = cover.isEmpty() ? null : baseUrl().resolve(cover);
-            item.setImgUrl(coverUrl == null ? "" : coverUrl.toString());
+            item.setImgUrl(normalizeCoverUrl(cover));
             long seconds = number(video, "duration");
             if (seconds > 0) {
                 item.setDuration(seconds >= 3600

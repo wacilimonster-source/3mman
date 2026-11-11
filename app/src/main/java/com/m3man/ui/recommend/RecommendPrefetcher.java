@@ -147,6 +147,44 @@ public class RecommendPrefetcher {
         long nowSec = System.currentTimeMillis() / 1000L;
         try {
             java.net.URI uri = java.net.URI.create(url);
+            String host = uri.getHost();
+            boolean pornyCdn = host != null
+                    && (host.contains("jiuse") || host.contains("cdnkdjs"));
+            if (pornyCdn) {
+                // 91porny 主源 HLS：/s/<过期时间戳>/<签名>/hls/<id>/index.m3u8。
+                // 该时间戳是 CDN 的过期桶（实测下一整点），过期后 403；
+                // 提前 5 分钟判过期，避免起播途中失效。
+                String path = uri.getPath();
+                if (path != null) {
+                    int s = path.indexOf("/s/");
+                    if (s >= 0) {
+                        int start = s + 3;
+                        int end = start;
+                        while (end < path.length() && Character.isDigit(path.charAt(end))) {
+                            end++;
+                        }
+                        if (end > start) {
+                            long expireSec = Long.parseLong(path.substring(start, end));
+                            if (expireSec >= 1_000_000_000L) {
+                                return nowSec >= expireSec - 300;
+                            }
+                        }
+                    }
+                }
+                // 91porny 精品/蝌蚪：?t=<签发秒>&m=<签名>，实测约 3 分钟窗口。
+                // t 是签发时间不是过期时间，提前按 150s 判过期，宁可多解析一次也不播错误内容。
+                String pornyQuery = uri.getRawQuery();
+                if (pornyQuery != null) {
+                    for (String p : pornyQuery.split("&")) {
+                        if (p.startsWith("t=")) {
+                            long issuedSec = Long.parseLong(p.substring(2));
+                            if (issuedSec >= 1_000_000_000L) {
+                                return nowSec >= issuedSec + 150;
+                            }
+                        }
+                    }
+                }
+            }
             String query = uri.getRawQuery();
             if (query == null) {
                 return false;

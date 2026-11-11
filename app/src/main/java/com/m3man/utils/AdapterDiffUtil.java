@@ -36,6 +36,15 @@ public final class AdapterDiffUtil {
     public static <T> void apply(BaseQuickAdapter<T, ?> adapter,
                                  @Nullable List<T> newData,
                                  DiffUtil.ItemCallback<T> itemCallback) {
+        List<T> target = newData == null ? new ArrayList<T>() : newData;
+        List<T> current = adapter.getData();
+        // 空↔非空必须同步 setNewData：调用方（首页/分类/搜索等）会在 apply 后立刻
+        // 检查 adapter.getItemCount() 决定显示内容还是空态；异步 diff 期间仍是 0 条，
+        // 会先闪出「暂无内容」，数据落地后空态又不会被收起。
+        if (current == null || current.isEmpty() || target.isEmpty()) {
+            adapter.setNewData(target);
+            return;
+        }
         if (com.m3man.perf.PerfFlags.asyncDiff) {
             // M165：同一 adapter 复用同一个 differ。旧实现每次 apply 都 new 一个，
             // 在途的旧 differ 不会被作废，可能在新数据之后派发旧快照；
@@ -45,9 +54,9 @@ public final class AdapterDiffUtil {
                 differ = new AsyncAdapterDiffer(adapter);
                 DIFFERS.put(adapter, differ);
             }
-            ((AsyncAdapterDiffer<T>) differ).submit(newData, itemCallback);
+            ((AsyncAdapterDiffer<T>) differ).submit(target, itemCallback);
         } else {
-            legacyApply(adapter, newData, itemCallback);
+            legacyApply(adapter, target, itemCallback);
         }
     }
 

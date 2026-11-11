@@ -38,14 +38,16 @@ import okhttp3.Response;
 
 public class ParseV9MmanVideo {
 
-    /** 正则：匹配 strencode2 单参数格式 document.write(strencode2("...")) */
+    // 正则：匹配 strencode2 单参数格式。站点 2026-11 起部分视频页改为
+    // `var vbF0=strencode2("...")`，不再包 document.write(...)，
+    // 因此直接匹配函数调用本身，同时兼容旧写法。
     private static final Pattern STR_ENCODE2_PATTERN = Pattern.compile(
-            "document\\.write\\(\\s*strencode2\\(\"([^\"]+)\"\\s*\\)"
+            "strencode2\\(\\s*\"([^\"]+)\"\\s*\\)"
     );
 
-    /** 正则：匹配 strencode 三参数格式 document.write(strencode("...","...","...")) */
+    /** 正则：匹配 strencode 三参数格式 document.write(strencode("...","...","...")) 及赋值写法 */
     private static final Pattern STR_ENCODE_PATTERN = Pattern.compile(
-            "document\\.write\\(strencode\\(\"([A-Za-z0-9+/=]+?)\",\"([A-Za-z0-9+/=]+?)\",\"([A-Za-z0-9+/=]+?)\""
+            "strencode\\(\\s*\"([A-Za-z0-9+/=]+?)\"\\s*,\\s*\"([A-Za-z0-9+/=]+?)\"\\s*,\\s*\"([A-Za-z0-9+/=]+?)\"\\s*\\)"
     );
 
     private static final String TAG = ParseV9MmanVideo.class.getSimpleName();
@@ -482,13 +484,15 @@ public class ParseV9MmanVideo {
         Document doc = Jsoup.parse(html);
 
 
-        // 先直接取source
+        // 先直接取 source；新版页面把 <source> 放在 HTML 注释里、由 strencode2 动态写入，
+        // Jsoup 取不到时走 decodeVideoUrl。这里逐级判空，避免每次播放都抛 NPE 再靠 catch 兜底。
         String videoUrl = null;
-        try {
-            videoUrl = doc.select("video").first().select("source").first().attr("src");
-        } catch (Exception e) {
-            Logger.t(TAG).e("解析source失败，尝试获取加密链接");
-            e.printStackTrace();
+        Element videoElement = doc.selectFirst("video");
+        if (videoElement != null) {
+            Element sourceElement = videoElement.selectFirst("source");
+            if (sourceElement != null) {
+                videoUrl = sourceElement.attr("src");
+            }
         }
         try {
             if (TextUtils.isEmpty(videoUrl)) {

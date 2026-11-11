@@ -1,7 +1,7 @@
 {
-  "versionCode": 168,
-  "versionName": "1.0.135",
-  "updateMessage": "1.0.135 更新内容：\n1）首页「主站 / 4源」切换改为「当前来源」胶囊 + 底部选择面板，完整显示来源名称与说明，不再出现「主..」「44..」截断；\n2）选择面板展示当前选中状态，点击后首页内容立即切换，并记住上次选择；\n3）适配窄屏/小屏，来源胶囊不再被压缩，头部布局保持完整；\n4）沿用 1.0.134 的「去推荐看看」闪退修复及低内存页面切换容错。\n注意：91porny 与 441447 源功能需可访问外网的网络环境；仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.135.apk",
-  "sha256": "b187d8f7fbdef64ca2b20b26fd2683a71e92eb5acbf05290632dde053c24b419"
+  "versionCode": 169,
+  "versionName": "1.0.136",
+  "updateMessage": "1.0.136 更新内容：\n1）修复主站部分视频页新版 strencode2 解析失败：站点把 document.write(strencode2(...)) 改成 var vbXX=strencode2(...)，旧规则识别不到，会播不出或落到外链错误内容；\n2）修复首页/分类首次加载偶发一直显示「这个分类暂时没有内容」：空列表切换为有数据时改为同步刷新，数据到达后立即展示；\n3）91porny 收藏/历史/推荐缓存直链增加短时效识别（/s/ 过期桶、?t=&m= 签名），过期自动重新解析，减少「外链无法访问」类错误画面；\n4）修复 441447 封面域名 cover.317347.xyz 失效导致封面空白，自动切换到可用 CDN；\n5）修复主站播放页解析空指针噪音，播放解析更干净。\n注意：91porny 与 441447 源功能需可访问外网的网络环境；仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.136.apk",
+  "sha256": "b040a0fe12e39cd0588726e990fc1bc2da2df1f1a34cd870c77edfa3730aa396"
 }
