@@ -2,18 +2,14 @@ package com.m3man.ui.recommend;
 
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.ActivityInfo;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
-import android.os.Build;
 import android.content.res.Configuration;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
-import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.PagerSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
@@ -21,10 +17,7 @@ import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window;
 import android.view.WindowManager;
-import android.view.WindowInsets;
-import android.view.WindowInsetsController;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
@@ -44,24 +37,18 @@ import com.m3man.data.reco.RecoEngine;
 import com.m3man.data.reco.RecoParams;
 import com.m3man.data.reco.RecoRepository;
 import com.m3man.data.reco.RecoStore;
-import com.m3man.parser.Parse91PornyVideo;
 import com.m3man.service.DownloadVideoService;
 import com.m3man.ui.download.DownloadActivity;
 import com.m3man.ui.mman9video.author.AuthorActivity;
-import com.m3man.utils.PornyFallbackResolver;
 import com.m3man.ui.BaseFragment;
-import com.m3man.ui.BaseAppCompatActivity;
 import com.m3man.utils.AppLog;
-import com.m3man.utils.DownloadDiag;
 import com.m3man.utils.DownloadManager;
 import com.m3man.utils.PlayUiPrefs;
-import com.m3man.utils.SDCardUtils;
 import com.orhanobut.logger.Logger;
 import com.sdsmdg.tastytoast.TastyToast;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -74,7 +61,6 @@ import javax.inject.Inject;
 
 import cn.jzvd.JZVideoPlayer;
 import cn.jzvd.JZVideoPlayerStandard;
-import com.google.gson.Gson;
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
@@ -133,7 +119,6 @@ public class RecommendFeedFragment extends BaseFragment
     /** 首批请求是否已经真正提交；避免首次生命周期回调被跳过后永久停在 loading。 */
     private boolean firstLoadStarted = false;
     private boolean engineInitFailed = false;
-    private boolean engineInitStarted = false;
     private boolean noMore = false;
     private int emptyRetryCount = 0;
     /**
@@ -187,7 +172,7 @@ public class RecommendFeedFragment extends BaseFragment
     /** 下载入队 Helper（从 Fragment 提取，降低 God Class 复杂度） */
     private DownloadEnqueuer downloadEnqueuer;
 
-    /** T01：推荐缓存批次读写器（cacheFirst 开时启用；JSON/IO 全在缓存执行器） */
+    /** T01：推荐缓存批次读写器（JSON/IO 全在缓存执行器） */
     private RecoBatchCache batchCache;
     /** T01：视图代际——onViewCreated/筛选结构变更递增，旧缓存读结果按代际丢弃 */
     private int viewGeneration = 0;
@@ -212,6 +197,8 @@ public class RecommendFeedFragment extends BaseFragment
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        // Fragment 实例可能重建 View，必须复位销毁标记，否则进度轮询/起播会被永久禁用
+        viewDestroyed = false;
         // 初始化 Helper 类
         orientationHelper = new LandscapeOrientationHelper(this);
         downloadEnqueuer = new DownloadEnqueuer(dataManager, okHttpClient, context, disposables);
@@ -246,8 +233,7 @@ public class RecommendFeedFragment extends BaseFragment
         // T01（方案 §5-T01 顺序 1）：View 就绪后缓存 IO 与引擎 IO 并行启动。
         // 缓存解析/过滤/DTO 构造在缓存执行器，主线程只接收不可变批次渲染。
         // 保留既有缓存启用规则：仅预取开关开启时读缓存展示（不改变设置语义）。
-        if (com.m3man.perf.PerfFlags.cacheFirst
-                && PlayUiPrefs.isRecoPrefetchEnabled(appContext)) {
+        if (PlayUiPrefs.isRecoPrefetchEnabled(appContext)) {
             batchCache = new RecoBatchCache(appContext, dataManager);
             startCacheBatchRead();
         }
@@ -288,7 +274,7 @@ public class RecommendFeedFragment extends BaseFragment
                         // T01（方案 §5-T01 顺序 2）：缓存已上屏时不再显示遮挡内容的 globalLoading，
                         // 静默续拉网络召回；需要画像的自动起播/曝光结算在引擎 ready
                         // 且当前页仍有效时执行一次（pendingAutoPlay 只消费一次）。
-                        if (com.m3man.perf.PerfFlags.cacheFirst && cacheRendered
+                        if (cacheRendered
                                 && adapter != null && adapter.getItemCount() > 0) {
                             if (pendingAutoPlay && currentPosition == -1) {
                                 pendingAutoPlay = false;
@@ -778,69 +764,8 @@ public class RecommendFeedFragment extends BaseFragment
     }
 
     /**
-     * L-fix：读取上次会话的本地缓存批次并立即上屏。条目点击后走既有播放解析流程。
-     * 与后续网络批次的衔接：网络批次 append 在尾部，用户滑过缓存条目即进入新内容。
-     * T01：cacheFirst 开启时该 v1 路径不再进入（缓存展示移至 onViewCreated 并行读取）。
-     */
-    private void showCachedBatchFirst() {
-        try {
-            android.content.Context ctx = getContext() != null
-                    ? getContext().getApplicationContext() : null;
-            String json = ctx == null ? null : PlayUiPrefs.getRecoCacheBatch(ctx);
-            if (TextUtils.isEmpty(json)) {
-                return;
-            }
-            V9MmanItem[] arr = new Gson().fromJson(json, V9MmanItem[].class);
-            java.util.List<RecoCandidate> cached = new ArrayList<>();
-            for (V9MmanItem it : (arr == null ? new V9MmanItem[0] : arr)) {
-                if (it != null && !TextUtils.isEmpty(it.getViewKey())) {
-                    cached.add(new RecoCandidate(it, null, RecoCandidate.FROM_EXPLORE));
-                }
-            }
-            if (!cached.isEmpty() && adapter.getItemCount() == 0) {
-                adapter.appendData(cached);
-                globalLoading.setVisibility(View.GONE);
-                // M119：缓存秒显后同样自动起播首页（此前只有网络首批才触发 onPageSelected(0)，
-                // 有缓存时首条视频永远不自动播，新手引导也不会出现）
-                recyclerView.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (currentPosition == -1) {
-                            onPageSelected(0);
-                        }
-                    }
-                });
-            }
-        } catch (Exception e) {
-            Logger.t(TAG).d("展示推荐本地缓存被跳过: %s", e.getMessage());
-        }
-    }
-
-    /** L-fix：把本批候选序列化进本地缓存（保留最近一屏），供冷启动秒显 */
-    private void saveBatchToCache(java.util.List<RecoCandidate> list) {
-        try {
-            android.content.Context ctx = getContext() != null
-                    ? getContext().getApplicationContext() : null;
-            if (ctx == null || list == null || list.isEmpty()) {
-                return;
-            }
-            ArrayList<V9MmanItem> keep = new ArrayList<>();
-            for (RecoCandidate c : list) {
-                if (c != null && c.item != null && !TextUtils.isEmpty(c.item.getViewKey())) {
-                    keep.add(c.item);
-                }
-            }
-            if (keep.size() > BATCH_SIZE) {
-                keep.subList(0, keep.size() - BATCH_SIZE).clear();
-            }
-            PlayUiPrefs.setRecoCacheBatch(ctx, new Gson().toJson(keep));
-        } catch (Exception ignored) {
-        }
-    }
-
-    /**
      * T01（方案 §5-T01 顺序 4）：主线程标量拷贝构造 DTO → 缓存执行器编码落盘。
-     * 保留最近一屏（与 v1 saveBatchToCache 语义一致），合并旧写、只写最新批。
+     * 保留最近一屏，合并旧写、只写最新批。
      */
     private void saveBatchToCacheV2(java.util.List<RecoCandidate> list) {
         if (batchCache == null || list == null || list.isEmpty()) {
@@ -943,12 +868,6 @@ public class RecommendFeedFragment extends BaseFragment
         if (loading || (noMore && !first) || repository == null) {
             return;
         }
-        // L-fix：进入推荐先渲染上次会话的本地缓存批次（秒开，不转圈），随后照常拉取新批次追加在后
-        // T01：cacheFirst 开启时缓存展示已移至 onViewCreated 并行读取，此处仅保留旧路径
-        if (first && !com.m3man.perf.PerfFlags.cacheFirst && PlayUiPrefs.isRecoPrefetchEnabled(
-                getContext() != null ? getContext().getApplicationContext() : null)) {
-            showCachedBatchFirst();
-        }
         if (first) {
             firstLoadStarted = true;
         }
@@ -1005,23 +924,16 @@ public class RecommendFeedFragment extends BaseFragment
         // T01（方案 §5-T01 顺序 4）：缓存与网络按 VideoKey 去重——
         // 网络同 key 只更新权威元数据（不重绑定、不重启播放器），新 key 才追加；
         // 全部重复视为成功空操作，不进空批重试、不清空已到内容。
-        if (com.m3man.perf.PerfFlags.cacheFirst) {
-            int before = list.size();
-            list = dedupAgainstDisplayed(list);
-            if (list.isEmpty() && before > 0) {
-                return;
-            }
+        int before = list.size();
+        list = dedupAgainstDisplayed(list);
+        if (list.isEmpty() && before > 0) {
+            return;
         }
         boolean wasEmpty = adapter.getItemCount() == 0;
         adapter.appendData(list);
         networkVisible = true;
-        // L-fix：成功出批后保存本批到本地缓存（保留最近一屏），供下次冷启动秒显
-        if (com.m3man.perf.PerfFlags.cacheFirst) {
-            // T01：主线程只做标量拷贝构造 DTO，JSON 编码落盘在缓存执行器（合并旧写）
-            saveBatchToCacheV2(list);
-        } else {
-            saveBatchToCache(list);
-        }
+        // T01：主线程只做标量拷贝构造 DTO，JSON 编码落盘在缓存执行器（合并旧写）
+        saveBatchToCacheV2(list);
         emptyLayout.setVisibility(View.GONE);
         if (wasEmpty) {
             recyclerView.post(new Runnable() {
@@ -2032,6 +1944,11 @@ public class RecommendFeedFragment extends BaseFragment
                 || TextUtils.isEmpty(candidate.viewKey())) {
             return;
         }
+        // 引擎/解析器仍在后台初始化（缓存批次可能已先上屏），此时没有可用解析器
+        if (prefetcher == null) {
+            showMessage(getString(R.string.reco_download_parsing), TastyToast.INFO);
+            return;
+        }
         // M119：已下载完成的视频，点下载图标直接跳「我的下载」
         if ("已完成".equals(downloadLabelStates.get(candidate.viewKey()))
                 && getActivity() != null) {
@@ -2041,34 +1958,7 @@ public class RecommendFeedFragment extends BaseFragment
         // 已经解析过（正在播的这条一定已解析）就直接入队
         if (!TextUtils.isEmpty(prefetcher.peekRawUrl(candidate.viewKey()))) {
             downloadEnqueuer.enqueueDownload(candidate.viewKey(), candidate.item,
-                    new DownloadEnqueuer.Callback() {
-                        @Override
-                        public boolean isUsable() {
-                            return RecommendFeedFragment.this.isUsable();
-                        }
-
-                        @Override
-                        public void showMessage(String msg, int type) {
-                            RecommendFeedFragment.this.showMessage(msg, type);
-                        }
-
-                        @Override
-                        public void onEnqueued(String message) {
-                            showDownloadQueuedSnackbar(message);
-                        }
-
-                        @Override
-                        public void startDownloadService() {
-                            if (getActivity() != null) {
-                                try {
-                                    getActivity().startService(new Intent(getActivity(),
-                                            DownloadVideoService.class));
-                                } catch (Exception e) {
-                                    Logger.t(TAG).d("start download service failed: " + e.getMessage());
-                                }
-                            }
-                        }
-                    });
+                    newDownloadCallback());
             return;
         }
         // 还没解析：先解析出真实地址再入队
@@ -2080,34 +1970,7 @@ public class RecommendFeedFragment extends BaseFragment
                     return;
                 }
                 downloadEnqueuer.enqueueDownload(candidate.viewKey(), candidate.item,
-                        new DownloadEnqueuer.Callback() {
-                            @Override
-                            public boolean isUsable() {
-                                return RecommendFeedFragment.this.isUsable();
-                            }
-
-                            @Override
-                            public void showMessage(String msg, int type) {
-                                RecommendFeedFragment.this.showMessage(msg, type);
-                            }
-
-                            @Override
-                            public void onEnqueued(String message) {
-                                showDownloadQueuedSnackbar(message);
-                            }
-
-                            @Override
-                            public void startDownloadService() {
-                                if (getActivity() != null) {
-                                    try {
-                                        getActivity().startService(new Intent(getActivity(),
-                                                DownloadVideoService.class));
-                                    } catch (Exception e) {
-                                        Logger.t(TAG).d("start download service failed: " + e.getMessage());
-                                    }
-                                }
-                            }
-                        });
+                        newDownloadCallback());
             }
 
             @Override
@@ -2119,6 +1982,38 @@ public class RecommendFeedFragment extends BaseFragment
                         ? getString(R.string.reco_download_failed) : message, TastyToast.ERROR);
             }
         });
+    }
+
+    /** 下载入队回调：两处入口（已解析 / 解析后入队）共用，避免逐行复制 */
+    private DownloadEnqueuer.Callback newDownloadCallback() {
+        return new DownloadEnqueuer.Callback() {
+            @Override
+            public boolean isUsable() {
+                return RecommendFeedFragment.this.isUsable();
+            }
+
+            @Override
+            public void showMessage(String msg, int type) {
+                RecommendFeedFragment.this.showMessage(msg, type);
+            }
+
+            @Override
+            public void onEnqueued(String message) {
+                showDownloadQueuedSnackbar(message);
+            }
+
+            @Override
+            public void startDownloadService() {
+                if (getActivity() != null) {
+                    try {
+                        getActivity().startService(new Intent(getActivity(),
+                                DownloadVideoService.class));
+                    } catch (Exception e) {
+                        Logger.t(TAG).d("start download service failed: " + e.getMessage());
+                    }
+                }
+            }
+        };
     }
 
     private boolean isFavorited(RecoCandidate candidate) {
@@ -2285,7 +2180,9 @@ public class RecommendFeedFragment extends BaseFragment
         DownloadManager.getImpl().removeUpdater(downloadUpdater);
         JZVideoPlayer.releaseAllVideos();
         // Fragment 销毁（离开推荐流）：恢复 App 默认紫色状态栏
-        orientationHelper.restoreAppStatusBar();
+        if (orientationHelper != null) {
+            orientationHelper.restoreAppStatusBar();
+        }
         if (getActivity() != null) {
             try {
                 getActivity().getWindow().getDecorView()

@@ -98,19 +98,15 @@ public class AppLog {
                 .append(" (Android ").append(Build.VERSION.RELEASE)
                 .append(", SDK ").append(Build.VERSION.SDK_INT).append(')').append('\n');
         try {
-            String ver = context.getPackageManager()
-                    .getPackageInfo(context.getPackageName(), 0).versionName;
-            int code = context.getPackageManager()
-                    .getPackageInfo(context.getPackageName(), 0).versionCode;
-            sb.append("App: v").append(ver).append(" (").append(code).append(')').append('\n');
+            android.content.pm.PackageInfo info = context.getPackageManager()
+                    .getPackageInfo(context.getPackageName(), 0);
+            sb.append("App: v").append(info.versionName)
+                    .append(" (").append(info.versionCode).append(')').append('\n');
         } catch (Exception ignored) {
         }
         sb.append("时间: ")
                 .append(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date()))
                 .append('\n');
-        if (context instanceof android.app.Application) {
-            // 代理状态与源地址由各埋点处写入，这里不依赖 DataManager
-        }
     }
 
     /**

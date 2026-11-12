@@ -355,8 +355,11 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
 
     /** M115：把 position 挂进待刷集合，500ms 内合并成一次 payload 局部刷新 */
     private void scheduleProgressRefresh(int position) {
+        // 用集合是否为空判断是否已有一次待执行刷新：Handler.hasCallbacks 是 API 29，
+        // minSdk 28 上直接调用会 NoSuchMethodError。
+        boolean schedule = pendingProgressPositions.isEmpty();
         pendingProgressPositions.add(position);
-        if (progressHandler.hasCallbacks(progressFlushRunnable)) {
+        if (!schedule) {
             return;
         }
         progressHandler.postDelayed(progressFlushRunnable, PROGRESS_FLUSH_INTERVAL_MS);

@@ -1,0 +1,171 @@
+name: Release APK
+
+# 手动触发（推荐）：
+#   gh workflow run release.yml -f versionCode=171 -f versionName=1.0.138 -f updateMessage="..."
+# 不再把 APK 提交进仓库：构建、签名、GitHub Release、version.txt 回写全部由本 workflow 完成。
+on:
+  workflow_dispatch:
+    inputs:
+      versionCode:
+        description: 'versionCode（整数，必须递增）'
+        required: true
+        type: number
+      versionName:
+        description: 'versionName（x.y.z，如 1.0.138）'
+        required: true
+        type: string
+      updateMessage:
+        description: '更新说明（可多行；会写入 version.txt 和 Release 说明）'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.versionName }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Validate inputs
+        env:
+          VERSION_CODE: ${{ inputs.versionCode }}
+          VERSION_NAME: ${{ inputs.versionName }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION_CODE" =~ ^[0-9]+$ ]] || { echo "::error::versionCode 必须是整数"; exit 1; }
+          [[ "$VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::versionName 格式应为 x.y.z"; exit 1; }
+
+      - name: Configure signing from Actions secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEYSTORE_BASE64:-}" ]; then
+            echo "::error::缺少 Actions secret ANDROID_KEYSTORE_BASE64（以及 ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD）"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          cat > keystore.properties <<EOF
+          storeFile=$RUNNER_TEMP/release.jks
+          storePassword=$STORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+          chmod 600 keystore.properties
+
+      - name: Bump version in app/build.gradle
+        env:
+          VERSION_CODE: ${{ inputs.versionCode }}
+          VERSION_NAME: ${{ inputs.versionName }}
+        run: |
+          set -euo pipefail
+          sed -i -E "s/versionCode [0-9]+/versionCode ${VERSION_CODE}/; s/versionName \"[^\"]+\"/versionName \"${VERSION_NAME}\"/" app/build.gradle
+          grep -nE 'versionCode|versionName' app/build.gradle | head -4
+
+      - name: Test, lint and build release
+        run: ./gradlew :app:testDebugUnitTest :app:lintRelease :app:assembleRelease --no-daemon
+
+      - name: Verify signing key matches history
+        env:
+          VERSION_NAME: ${{ inputs.versionName }}
+          EXPECTED_SHA1: e72843708a92958b7ae82c230ddef2c3bf53aa7b
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/release/3mman_v${VERSION_NAME}.apk"
+          test -f "$APK"
+          SIGNER="$ANDROID_HOME/build-tools/34.0.0/apksigner"
+          ACTUAL=$("$SIGNER" verify --print-certs "$APK" \
+            | sed -n 's/^Signer #1 certificate SHA-1 digest: //p' \
+            | head -1 | tr -d ':' | tr 'A-F' 'a-f')
+          echo "APK SHA-1: $ACTUAL"
+          if [ "$ACTUAL" != "$EXPECTED_SHA1" ]; then
+            echo "::error::签名 SHA-1 与历史发布不一致（期望 $EXPECTED_SHA1），检查更新会安装失败"
+            exit 1
+          fi
+
+      - name: Generate version.txt
+        env:
+          VERSION_CODE: ${{ inputs.versionCode }}
+          VERSION_NAME: ${{ inputs.versionName }}
+          UPDATE_MESSAGE: ${{ inputs.updateMessage }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/release/3mman_v${VERSION_NAME}.apk"
+          export SHA256
+          SHA256=$(sha256sum "$APK" | awk '{print $1}')
+          export VERSION_CODE VERSION_NAME UPDATE_MESSAGE REPO
+          python3 - <<'PY'
+          import json, os
+          version_name = os.environ["VERSION_NAME"]
+          data = {
+              "versionCode": int(os.environ["VERSION_CODE"]),
+              "versionName": version_name,
+              "updateMessage": os.environ["UPDATE_MESSAGE"],
+              "apkDownloadUrl": (
+                  f"https://github.com/{os.environ['REPO']}/releases/download/"
+                  f"v{version_name}/3mman_v{version_name}.apk"
+              ),
+              "sha256": os.environ["SHA256"],
+          }
+          with open("version.txt", "w", encoding="utf-8") as f:
+              json.dump(data, f, ensure_ascii=False, indent=2)
+              f.write("\n")
+          PY
+          cat version.txt
+
+      - name: Commit version bump and version.txt
+        env:
+          VERSION_CODE: ${{ inputs.versionCode }}
+          VERSION_NAME: ${{ inputs.versionName }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/build.gradle version.txt
+          if git diff --cached --quiet; then
+            echo "没有版本变更需要提交"
+          else
+            git commit -m "release: v${VERSION_NAME} (${VERSION_CODE}) [skip ci]"
+            git push origin HEAD:master
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.versionName }}
+          name: v${{ inputs.versionName }}
+          body: ${{ inputs.updateMessage }}
+          files: |
+            app/build/outputs/apk/release/3mman_v${{ inputs.versionName }}.apk
+            version.txt
+          fail_on_unmatched_files: true

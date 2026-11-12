@@ -34,7 +34,6 @@ import com.m3man.utils.AddressHelper;
 import me.jessyan.retrofiturlmanager.RetrofitUrlManager;
 import com.m3man.utils.UserHelper;
 
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,17 +43,13 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 
 import io.reactivex.Observable;
-import io.reactivex.Scheduler;
-import io.reactivex.schedulers.Schedulers;
 import io.rx_cache2.DynamicKey;
 import io.rx_cache2.DynamicKeyGroup;
 import io.rx_cache2.EvictDynamicKey;
-import io.rx_cache2.EvictDynamicKeyGroup;
 import io.rx_cache2.EvictProvider;
 import io.rx_cache2.Reply;
 import okhttp3.HttpUrl;
 import okhttp3.ResponseBody;
-import retrofit2.Call;
 import retrofit2.Response;
 
 /**
@@ -344,27 +339,6 @@ public class AppApiHelper implements ApiHelper {
                     }
                     return msg;
                 });
-//        return v9MmanServiceApi.favoriteVideo(cpaintFunction, uId, videoId, ownnerId, responseType, HeaderUtils.getIndexHeader(addressHelper))
-//                .map(s -> {
-//                    Logger.t(TAG).d("favoriteStr: " + s);
-//                    return new Gson().fromJson(s, FavoriteJsonResult.class);
-//                })
-//                .map(favoriteJsonResult -> favoriteJsonResult.getAddFavMessage().get(0).getData())
-//                .map(code -> {
-//                    String msg;
-//                    switch (code) {
-//                        case FavoriteJsonResult.FAVORITE_SUCCESS:
-//                            msg = "收藏成功";
-//                            break;
-//                        case FavoriteJsonResult.FAVORITE_FAIL:
-//                            throw new FavoriteException("收藏失败");
-//                        case FavoriteJsonResult.FAVORITE_YOURSELF:
-//                            throw new FavoriteException("不能收藏自己的视频");
-//                        default:
-//                            throw new FavoriteException("收藏失败");
-//                    }
-//                    return msg;
-//                });
     }
 
     @Override

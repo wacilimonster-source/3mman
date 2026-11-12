@@ -10,6 +10,7 @@ import com.m3man.data.reco.RecoCandidate;
 import com.m3man.utils.AppLog;
 import com.m3man.utils.PlayUiPrefs;
 import com.m3man.utils.GlideApp;
+import com.m3man.utils.UrlUtils;
 import com.orhanobut.logger.Logger;
 
 import java.io.InputStream;
@@ -107,8 +108,6 @@ public class RecommendPrefetcher {
     /** 后台解析任务表：viewKey → Disposable（翻页出窗可取消；前台/下载解析不进这张表） */
     private final Map<String, io.reactivex.disposables.Disposable> backgroundParses =
             new ConcurrentHashMap<>();
-    /** 当前窗口（current + 后续 ahead 条的 viewKey） */
-    private final Set<String> windowKeys = new HashSet<>();
     /** warm 等待队列计数：同时 1 个执行 + 最多 1 条待队列 */
     private final java.util.concurrent.atomic.AtomicInteger warmPending =
             new java.util.concurrent.atomic.AtomicInteger();
@@ -222,7 +221,7 @@ public class RecommendPrefetcher {
      * 直接交给播放器，最终触发 "no protocol"。
      */
     public String toPlayUrl(String rawUrl) {
-        if (TextUtils.isEmpty(rawUrl) || isHlsUrl(rawUrl)) {
+        if (TextUtils.isEmpty(rawUrl) || UrlUtils.isHlsUrl(rawUrl)) {
             return rawUrl;
         }
         try {
@@ -231,15 +230,6 @@ public class RecommendPrefetcher {
         } catch (Exception e) {
             return rawUrl;
         }
-    }
-
-    private static boolean isHlsUrl(String url) {
-        String lower = url == null ? "" : url.toLowerCase(java.util.Locale.US);
-        int query = lower.indexOf('?');
-        if (query >= 0) {
-            lower = lower.substring(0, query);
-        }
-        return lower.endsWith(".m3u8") || lower.contains(".m3u8/");
     }
 
     /**
@@ -575,19 +565,6 @@ public class RecommendPrefetcher {
         }
     }
 
-    /** 用户显式重试：绕过负缓存一次（清掉该 key 的封禁） */
-    public void bypassNegativeCacheOnce(String viewKey) {
-        if (TextUtils.isEmpty(viewKey)) {
-            return;
-        }
-        synchronized (failedUntil) {
-            failedUntil.remove(viewKey);
-        }
-        synchronized (forbiddenReparseUsed) {
-            forbiddenReparseUsed.remove(viewKey);
-        }
-    }
-
     // ==================== T04：窗口调度 ====================
 
     /**
@@ -612,8 +589,6 @@ public class RecommendPrefetcher {
                 newWindow.add(c.viewKey());
             }
         }
-        windowKeys.clear();
-        windowKeys.addAll(newWindow);
 
         // 2. 取消窗口外的后台解析（有等待者/已完成的除外——等待者由 waiting 表判定）
         for (Map.Entry<String, io.reactivex.disposables.Disposable> e
@@ -712,7 +687,6 @@ public class RecommendPrefetcher {
 
     /** 退出页面/隐藏时取消全部后台预取（前台与下载等待不受影响） */
     public void cancelBackground() {
-        windowKeys.clear();
         // 快照遍历：取消时必须同步清 inFlight，否则后续 parse()/resolveNow 会因
         // “已在解析中”直接返回，回调永远不触发（表现为永久转圈，重试也无效）。
         for (String key : new ArrayList<>(backgroundParses.keySet())) {
@@ -826,7 +800,7 @@ public class RecommendPrefetcher {
         }
         // T04（第一期）：HLS 直接读 manifest 未形成媒体缓存，无收益——禁止此 warm，
         // 保留必要的详情解析；分片预热留给未来播放器统一缓存任务
-        if (isHlsUrl(rawUrl)) {
+        if (UrlUtils.isHlsUrl(rawUrl)) {
             return;
         }
         synchronized (warmed) {

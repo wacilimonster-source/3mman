@@ -2,49 +2,24 @@
     <string name="app_name">3MMAN</string>
 
     <string name="coming_soon">敬请期待&#8230;</string>
-    <string name="hot">当前最热</string>
-    <string name="recent_updates">最近更新</string>
-    <string name="index">主页</string>
-    <string name="near_rp">最近得分</string>
-    <string name="ten_minutes">10分钟以上</string>
-    <string name="this_month">本月讨论</string>
-    <string name="this_month_collect">本月收藏</string>
-    <string name="most_collect">收藏最多</string>
-    <string name="near_score">最近加精</string>
-    <string name="this_month_hot">本月最热</string>
-    <string name="last_month_hot">上月最热</string>
-    <string name="hd_video">高清(会员)</string>
-    <string name="load_failed">加载失败，点击重试..</string>
-    <string name="other">其他</string>
     <string name="my_collect">我的收藏</string>
     <string name="my_download">我的下载</string>
     <string name="more_setting">更多设置</string>
-    <string name="copy_log">复制全部日志</string>
     <string name="about_me">关于</string>
     <string name="pl_login">请登录</string>
-    <string name="no_data">暂无数据</string>
-    <string name="click_retry">点击重试</string>
-    <string name="load_error_click_retry">加载失败，请确认当前地址可访问</string>
     <string name="collect">收藏</string>
     <string name="download">下载</string>
     <string name="history_views">最近浏览</string>
     <string name="search_history_title">搜索历史</string>
     <string name="search_history_delete_confirm">确定删除搜索历史“%s”吗？</string>
     <string name="register">注册</string>
-    <string name="exit_app">退出程序</string>
     <string name="share">分享</string>
     <string name="close">关闭</string>
-    <string name="comments">评论</string>
     <string name="scale_down_show_behavior">com.m3man.behavior.ScaleDownShowBehavior</string>
-    <string name="bottom_behavior">com.m3man.behavior.BottomBehavior</string>
     <string name="comment_video_hint_tip">切勿回复与视频无关内容，否则禁言</string>
-    <string name="about_item_homepage">去GitHub提建议或者Bug反馈</string>
-    <string name="about_item_github">GitHub 项目</string>
     <string name="about_copyright">© %1$s 3mman</string>
     <string name="about_check_update">检查更新</string>
     <string name="address_mman">设置视频地址</string>
-    <string name="address_forum_mman">设置论坛地址</string>
-    <string name="address_t6y">设置CaoLiu地址</string>
     <string name="address_porny">设置 91porny 地址</string>
     <string name="enable_porny_source">启用 91porny 搜索源</string>
     <string name="about_item_clean_cache">清除缓存</string>
@@ -54,20 +29,11 @@
     <string name="reco_auto_rotate_landscape">横屏视频自动横屏播放</string>
     <string name="reco_hide_action_bar">隐藏播放页操作栏</string>
     <string name="reco_show_actions">呼出操作栏</string>
-    <string name="reco_orientation_filter">方向筛选</string>
-    <string name="reco_duration_filter">时长筛选</string>
     <string name="reco_filter_all">全部 ▾</string>
-    <string name="reco_filter_portrait">竖屏 ▾</string>
-    <string name="reco_filter_landscape">横屏 ▾</string>
-    <string name="reco_duration_all">不限 ▾</string>
-    <string name="reco_auto_next_on">连播 开</string>
-    <string name="reco_auto_next_off">连播 关</string>
     <string name="reco_mute">静音</string>
-    <string name="reco_reset_filters">恢复全部筛选</string>
     <string name="reco_guide_title">操作指南</string>
     <string name="reco_guide_lines">上下滑动 · 切换视频\n单击 · 暂停 / 播放\n双击左侧点赞 · 双击其他区域快进 1/8\n长按左侧 · 2 倍速\n右上角 · 筛选与连播\n第一页继续下拉 · 换一批</string>
     <string name="reco_guide_dismiss">点击任意位置关闭</string>
-    <string name="reco_empty_filtered">当前筛选条件下没有更多内容</string>
     <string name="search_go_recommend">换个关键词，或去推荐页逛逛 ↓</string>
     <string name="night_mode">夜间模式</string>
     <string name="point">.</string>
@@ -75,11 +41,6 @@
 
     <string name="title_video">视频</string>
     <string name="title_porny">搜索</string>
-    <string name="title_search">搜索</string>
-    <string name="title_dashboard">草榴</string>
-    <string name="title_forum">论坛</string>
-    <string name="title_music">音乐</string>
-    <string name="title_photo">图片</string>
     <string name="title_me">我的</string>
     <string name="exit_login_account">退出登录</string>
 
@@ -95,18 +56,13 @@
     <string name="title_user_register">用户注册</string>
     <string name="title_author_video">用户视频</string>
     <string name="title_setting">设置</string>
-    <string name="forum_content">帖子内容</string>
-    <string name="dialog_title_system_msg">系统弹出提示框</string>
-    <string name="photo">看图</string>
     <string name="back">返回</string>
     <string name="sure">确定</string>
     <string name="author">作者：</string>
     <string name="send_icon">sendIcon</string>
-    <string name="search_jav_video">搜Jav视频</string>
 
     <!-- 91porny 搜索筛选 -->
     <string name="porny_filter_title">筛选</string>
-    <string name="porny_jump_page_title">跳页</string>
     <string name="porny_filter_sort">排序</string>
     <string name="porny_filter_time">发布时间</string>
     <string name="porny_filter_views">播放量</string>
@@ -115,7 +71,6 @@
     <string name="porny_sort_default">默认</string>
     <string name="porny_sort_latest">最新</string>
     <string name="porny_sort_hot">最热</string>
-    <string name="porny_filter_all">全部</string>
     <string name="porny_filter_duration10">只看时长≥10分钟</string>
     <string name="porny_source_badge_tad">蝌蚪</string>
     <string name="porny_source_badge_prem">精品</string>
@@ -124,7 +79,6 @@
 
     <!-- 搜索页提示 -->
     <string name="search_hint_default">输入关键词，搜索视频\n如：热门 / 最新 / 女优名\n（点击此处也可直接搜索）</string>
-    <string name="search_empty_result">没有找到相关的视频\n换个关键词试试</string>
     <string name="porny_reset_title">重置</string>
 
     <!-- 推荐流 -->
@@ -141,11 +95,7 @@
     <string name="reco_back">返回竖屏</string>
     <string name="reco_fullscreen">全屏</string>
     <string name="reco_speed">倍速</string>
-    <string name="reco_speed_1x">1x</string>
-    <string name="reco_speed_2x">2x</string>
-    <string name="reco_speed_unsupported">当前设备不支持倍速播放</string>
     <string name="reco_tune">调参</string>
-    <string name="reco_loading_more">正在加载更多…</string>
     <string name="reco_no_more">没有更多了</string>
     <string name="reco_liked">已赞</string>
     <string name="reco_unliked">已取消赞</string>
@@ -155,7 +105,6 @@
     <string name="reco_undisliked">已恢复此类推荐</string>
     <string name="reco_download">下载</string>
     <string name="reco_download_parsing">正在获取下载地址…</string>
-    <string name="reco_download_started">已加入下载队列</string>
     <string name="reco_download_failed">下载失败</string>
 
     <!-- 推荐算法调参 -->
@@ -176,16 +125,11 @@
     <string name="reco_param_dislike_filter">不喜欢直接过滤</string>
     <string name="reco_param_reset">恢复默认</string>
     <string name="reco_param_clear_memory">清空兴趣记忆</string>
-    <string name="reco_param_saved">参数已保存</string>
-    <string name="reco_param_reset_done">已恢复默认参数</string>
-    <string name="reco_param_memory_cleared">已清空兴趣记忆</string>
     <string name="reco_profile_summary">已学习 %1$d 个标签 / %2$d 个作者 / %3$d 条行为</string>
     <string name="reco_param_max_age_years">最长发布年限(年)</string>
     <string name="reco_param_advanced">高级设置</string>
     <string name="reco_param_advanced_hint">权重系数等进阶参数，一般不用改</string>
     <string name="reco_param_basic">常用设置</string>
-    <string name="reco_param_minus">减小</string>
-    <string name="reco_param_plus">增大</string>
 
     <!-- 兴趣记忆明细 -->
     <string name="reco_records">查看学习记录</string>
@@ -309,8 +253,6 @@
     <string name="login_captcha_prepare_failed">验证码识别组件准备失败，请手动输入验证码</string>
     <string name="login_captcha_recognize_failed">验证码识别失败，请手动输入</string>
     <string name="login_captcha_load_failed">无法加载验证码,点击刷新重试</string>
-    <string name="login_register_stopped">注册功能已停止支持，请去9*mman官网注册，之后再来登录！</string>
-    <string name="login_got_it">知道了</string>
 
     <!-- 关于页 -->
     <string name="about_checking_update_loading">正在检查更新，请稍后...</string>
@@ -403,7 +345,6 @@
     <string name="register_layout_register">注     册</string>
     <string name="register_layout_tips">Tips:新帐号注册成功后，前几次登录或打开可能会导致程序异常退出（解析错误，新帐号数据结构不一样），这个不打算去做兼容了，请多登录打开程序几次后即可,验证码是非必须的,加载不出随便填</string>
     <string name="register_layout_notice">注意：切勿频繁重复注册，否则可能所有帐号均被删除，且封禁IP</string>
-    <string name="error_view_message">请确认当前地址可访问，点击重试！</string>
     <string name="proxy_layout_type">类型</string>
     <string name="proxy_layout_delay">延迟</string>
     <string name="proxy_layout_anonymous">匿名度</string>
@@ -517,8 +458,6 @@
     <string name="card_action_favorite">加入收藏</string>
     <string name="card_action_unfavorite">取消收藏</string>
     <string name="card_action_download">下载</string>
-    <string name="card_action_downloading">已在下载中</string>
-    <string name="source_name_mman9">视频源</string>
     <string name="source_name_porny">分分钟</string>
 
     <!-- 通用内容状态（EX-02） -->
@@ -528,10 +467,7 @@
     <string name="state_retry">重新加载</string>
     <string name="state_empty_category">这个分类暂时没有内容</string>
     <string name="state_go_recommend">去推荐看看</string>
-    <string name="state_empty_search">没有找到相关内容</string>
     <string name="state_page_load_failed">加载下一页失败</string>
-    <string name="state_page_retry">重试下一页</string>
-    <string name="state_no_more">没有更多了</string>
     <string name="state_refresh_failed_keep_content">刷新失败，已保留当前内容</string>
     <string name="common_view">查看</string>
 
@@ -560,13 +496,11 @@
     <string name="reco_filter_a11y_next">下一视频</string>
     <string name="reco_filter_a11y_previous">上一视频</string>
     <string name="reco_reason_author">你常看的作者</string>
-    <string name="reco_reason_tags">与你的偏好相似</string>
     <string name="reco_reason_explore">换一种发现</string>
     <string name="reco_favorite_in_flight">收藏正在处理中，请稍候</string>
 
     <!-- 搜索（EX-04） -->
     <string name="search_keyword_required">请输入搜索关键词</string>
-    <string name="search_scope_note">仅在「分分钟」内搜索 · 结果以实际加载为准</string>
     <string name="search_channel_main">主站</string>
     <string name="search_channel_441447">441447</string>
     <string name="search_channel_remember">记住上次选择</string>

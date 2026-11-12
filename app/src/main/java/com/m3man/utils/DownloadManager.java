@@ -8,16 +8,12 @@ import com.liulishuo.filedownloader.FileDownloader;
 import com.liulishuo.filedownloader.model.FileDownloadStatus;
 import com.liulishuo.filedownloader.util.FileDownloadUtils;
 import com.orhanobut.logger.Logger;
-import com.m3man.BuildConfig;
 import com.m3man.MyApplication;
 import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.V9MmanItem;
-import com.m3man.utils.MediaStoreArchiver;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 
@@ -95,12 +91,7 @@ public class DownloadManager {
     }
 
     public static boolean isHlsUrl(String url) {
-        String lower = url == null ? "" : url.toLowerCase(java.util.Locale.US);
-        int query = lower.indexOf('?');
-        if (query >= 0) {
-            lower = lower.substring(0, query);
-        }
-        return lower.endsWith(".m3u8") || lower.contains(".m3u8/");
+        return UrlUtils.isHlsUrl(url);
     }
 
     public int startDownload(String url, final String path, boolean isDownloadNeedWifi, boolean isForceReDownload) {
@@ -118,10 +109,8 @@ public class DownloadManager {
         Logger.t(TAG).d("path::" + path);
         Logger.t(TAG).d("isDownloadNeedWifi::" + isDownloadNeedWifi);
         Logger.t(TAG).d("isForceReDownload::" + isForceReDownload);
-        // FileDownloader 的任务 ID 由 URL+path 生成，enqueue 前即可确定。
-        // 调用方应先把这个 ID 写入 V9MmanItem，避免 pending/started 回调早于
-        // 调用方 updateV9MmanItem，saveDownloadInfo 查不到记录后误清除合法任务。
-        int predictedId = FileDownloadUtils.generateId(url, path);
+        // FileDownloader 的任务 ID 由 URL+path 生成，caller 可用 predictDownloadId 提前写库，
+        // 避免 pending/started 回调早于调用方 updateV9MmanItem。
         BaseDownloadTask task = FileDownloader.getImpl().create(url)
                 .addHeader("User-Agent", DOWNLOAD_UA);
         if (!TextUtils.isEmpty(referer)) {
@@ -134,7 +123,7 @@ public class DownloadManager {
                 .setForceReDownload(isForceReDownload)
                 .asInQueueTask()
                 .enqueue();
-        lastSavedProgress.put(predictedId > 0 ? predictedId : id, -1);
+        lastSavedProgress.put(id, -1);
         FileDownloader.getImpl().start(lis, false);
         return id;
     }
@@ -264,9 +253,6 @@ public class DownloadManager {
             // 否则一个合法的新任务会被首个 pending/started 回调直接杀掉。
             AppLog.w(TAG, "下载回调暂时找不到数据库记录，保留任务 downloadId="
                     + task.getId() + " path=" + task.getPath());
-            if (!BuildConfig.DEBUG) {
-              // 仅保留诊断，不在这里清理下载任务。
-            }
             return;
         }
         // M158：>2GB 大文件经 Large 通道（long）读取——small 通道按 int 返回，
@@ -283,8 +269,6 @@ public class DownloadManager {
 
         if (totalBytes > 0) {
             v9MmanItem.setTotalFarBytes(totalBytes);
-        }
-        if (totalBytes > 0) {
             int p = (int) (((float) soFarBytes / totalBytes) * 100);
             v9MmanItem.setProgress(p);
         }

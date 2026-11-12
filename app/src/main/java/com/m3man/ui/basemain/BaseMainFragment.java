@@ -45,6 +45,7 @@ import com.m3man.ui.MvpFragment;
 import com.m3man.ui.download.DownloadActivity;
 import com.m3man.ui.mman9video.source441447.Source441447Fragment;
 import com.m3man.utils.AnimationUtils;
+import com.m3man.utils.AppLog;
 import com.m3man.utils.FragmentUtils;
 
 import org.greenrobot.eventbus.EventBus;
@@ -147,7 +148,6 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
 //        Drawable dropDownDrawable = ResourceUtil.tintList(context, R.drawable.ic_arrow_drop_down_black_24dp, R.color.common_always_white_text_color);
 //        ivSortCategory.setImageDrawable(dropDownDrawable);
         ivSortCategory.setOnClickListener(this);
-        mBaseMainFragmentAdapter.setDestroy(isNeedDestroy());
         viewPager.setAdapter(mBaseMainFragmentAdapter);
         tabLayout.setupWithViewPager(viewPager);
         viewPager.addOnPageChangeListener(new ViewPager.OnPageChangeListener() {
@@ -313,10 +313,6 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
         }
     }
 
-    public boolean isNeedDestroy() {
-        return false;
-    }
-
     @Override
     public void onResume() {
         super.onResume();
@@ -345,6 +341,12 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        if (popupWindow != null) {
+            // 先摘掉 OnDismissListener：销毁阶段不应再触发分类落库/刷新（此时 View 已解绑）
+            popupWindow.setOnDismissListener(null);
+            popupWindow.dismiss();
+            popupWindow = null;
+        }
         sourceSelector = null;
         sourceSelectorLabel = null;
         sourceRootView = null;
@@ -406,13 +408,8 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
         if (popupWindow == null || !popupWindow.isShowing()) {
             return;
         }
-        AnimationUtils.rotateDown(ivSortCategory);
+        // 统一由 OnDismissListener 负责旋转动画、分类落库与刷新，避免重复执行
         popupWindow.dismiss();
-
-        if (isNeedUpdate()) {
-            presenter.updateCategoryData(sortCategoryList);
-            presenter.loadCategoryData(getCategoryType());
-        }
         isNeedInterruptOnBackPressed = false;
     }
 
@@ -526,6 +523,7 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
 
     }
 
+    // BaseView 接口要求 public；父类实现为 protected，这里必须提升可见性（勿删）
     @Override
     public void showMessage(String msg, int type) {
         super.showMessage(msg, type);
@@ -593,15 +591,9 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
                 }
             }
             mCurTransaction.commitNowAllowingStateLoss();
-            //通知系统尝试释放内存
-            System.gc();
-            System.runFinalization();
             Logger.t(TAG).d("try to release memory success !!!");
         } catch (Exception e) {
-            e.printStackTrace();
-            if (!BuildConfig.DEBUG) {
-                //Bugsnag.notify(new Throwable(TAG + " tryToReleaseMemory error::", e), Severity.WARNING);
-            }
+            AppLog.e(TAG, "tryToReleaseMemory error: " + AppLog.cause(e));
         }
     }
 }

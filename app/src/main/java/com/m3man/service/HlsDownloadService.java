@@ -10,7 +10,6 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
-import android.os.SystemClock;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.FileProvider;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
@@ -164,7 +163,8 @@ public class HlsDownloadService extends Service {
             // 优先使用调用方算好的完整路径（与「我的下载」播放路径一致），否则回退旧的标题拼接 .mp4 路径逻辑
             String newTargetMp4Path;
             if (TextUtils.isEmpty(newSavePath)) {
-                newTargetMp4Path = SDCardUtils.DOWNLOAD_VIDEO_PATH + videoTitle + ".mp4";
+                newTargetMp4Path = SDCardUtils.DOWNLOAD_VIDEO_PATH
+                        + SDCardUtils.sanitizeFileName(videoTitle) + ".mp4";
             } else {
                 newTargetMp4Path = newSavePath;
             }
@@ -291,6 +291,15 @@ public class HlsDownloadService extends Service {
                                final HlsDownloader replacedDownloader,
                                final String replacedViewKey,
                                final int replacedPseudoId) {
+        // 新任务必须重置进度节流游标：旧任务的 lastSeenBytes 更大时，
+        // handleProgress 会把新任务的进度全部当作“回退”丢弃（表现为通知/DB 一直 0%）。
+        lastSeenBytes = -1L;
+        lastNotifyAtMs = 0L;
+        lastBroadcastAtMs = 0L;
+        lastDbWriteAtMs = 0L;
+        lastProgressBytes = 0L;
+        lastProgressBytesAt = 0L;
+        smoothedSpeedBps = 0L;
         // M25：若已有下载在跑，先取消并释放旧下载器，避免孤儿线程（其上下文已由调用方快照）
         // M102：被顶替任务保留已下分片——记录置 error 后用户点重试可分片级续传
         if (replacedDownloader != null) {
@@ -508,7 +517,7 @@ public class HlsDownloadService extends Service {
                 getDataManager().updateHlsProgressColumns(rowId, percent, bytesDone);
             }
         }
-        if (doBroadcast) {
+        if (doBroadcast && !cancelledByUser) {
             Intent i = new Intent(ACTION_HLS_PROGRESS);
             i.putExtra(EXTRA_VIEW_KEY, state.viewKey);
             i.putExtra(EXTRA_PROGRESS, percent);
@@ -553,7 +562,6 @@ public class HlsDownloadService extends Service {
         if (cancelledByUser) {
             AppLog.i("HlsDownload", "已取消，丢弃迟到成功回调 path=" + mp4File.getPath());
             deleteQuietly(mp4File);
-            cleanupHlsTemp();
             stopForeground(true);
             releaseDownloader();
             stopSelf();
@@ -609,7 +617,6 @@ public class HlsDownloadService extends Service {
         if (cancelledByUser) {
             AppLog.i("HlsDownload", "已取消，丢弃迟到错误回调 msg=" + message);
             deleteQuietly(new File(s.targetMp4Path));
-            cleanupHlsTemp();
             stopForeground(true);
             releaseDownloader();
             stopSelf();
@@ -629,28 +636,12 @@ public class HlsDownloadService extends Service {
             item.setDownloadId(s.pseudoDownloadId);
             getDataManager().updateV9MmanItem(item);
         }
-        // 清理临时分片，避免残留
-        cleanupHlsTemp();
+        // 临时分片由 HlsDownloader 的任务目录自行管理
         showErrorNotification(message);
         // M165：同上，保留错误通知让用户看到失败原因。
         stopForeground(false);
         releaseDownloader();
         stopSelf();
-    }
-
-    /** 临时目录由每个 HlsDownloader 自己按任务唯一目录管理，服务不再全局清理。 */
-    private void cleanupHlsTemp() {
-        // 保留方法兼容历史调用点；当前不扫描并删除其他任务目录。
-    }
-
-    private static void deleteRecursively(File dir) {
-        File[] files = dir.listFiles();
-        if (files != null) {
-            for (File f : files) {
-                f.delete();
-            }
-        }
-        dir.delete();
     }
 
     /** M62：静默删除单个文件（半成品 mp4 清理用） */

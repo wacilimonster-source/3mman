@@ -41,6 +41,8 @@ public final class RecoPersistenceCoordinator {
     private static final long URGENT_DELAY_MS = 500L;
     /** 写失败重试退避序列（毫秒） */
     private static final long[] RETRY_BACKOFF_MS = {1000L, 2000L, 4000L};
+    /** 在途保存冲突时的尾随重排延迟 */
+    private static final long FOLLOW_UP_DELAY_MS = 200L;
 
     private static volatile RecoPersistenceCoordinator sInstance;
 
@@ -131,7 +133,10 @@ public final class RecoPersistenceCoordinator {
 
     private void doSave(final RecoStore store, final String reason) {
         if (!saving.compareAndSet(false, true)) {
-            return; // 已有保存在执行（其执行时快照即最新状态）
+            // 在途 saveNow 可能已取过快照，本次变更尚未落盘。
+            // 直接 return 会让脏位一直保留到下一次请求（进程被杀即丢），所以补排一次尾随保存。
+            scheduleFollowUp(store, reason);
+            return;
         }
         try {
             long req = Perf.nextRequestId();
@@ -152,6 +157,32 @@ public final class RecoPersistenceCoordinator {
             }
         } finally {
             saving.set(false);
+        }
+    }
+
+    private void scheduleFollowUp(final RecoStore store, final String reason) {
+        final long now = clock.now();
+        final long due = now + FOLLOW_UP_DELAY_MS;
+        final long v;
+        synchronized (lock) {
+            if (scheduledAt != 0L && scheduledAt <= due) {
+                return; // 已有更早的调度会覆盖本次变更
+            }
+            scheduledAt = due;
+            v = ++version;
+        }
+        try {
+            scheduler.schedule(new Runnable() {
+                @Override
+                public void run() {
+                    runScheduledSave(store, reason, v);
+                }
+            }, FOLLOW_UP_DELAY_MS, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            synchronized (lock) {
+                scheduledAt = 0L;
+            }
+            AppLog.e(TAG, "schedule follow-up failed: " + reason);
         }
     }
 

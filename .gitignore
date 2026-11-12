@@ -8,9 +8,8 @@
 .externalNativeBuild
 *.jks
 generated-images/
-# APK 产物一律不入库：仅当前发布版本 3mman_v1.0.127.apk 例外（历史产物已归档到 apk-archive/）
+# APK 产物一律不入库：改由 GitHub Actions 构建并发布到 GitHub Releases
 /*.apk
-!3mman_v1.0.127.apk
 apk-archive/
 3mman_v*_debug.apk
 
@@ -55,3 +54,48 @@ app/mapping.txt
 app/seeds.txt
 app/unused.txt
 app/class_files.txt
+
+# ---- 2026-11-12 维护性清理 ----
+# 签名与机器配置：只保留本地文件，不入库
+keystore.properties
+
+# Agent 运行时的个人上下文与记忆，避免随公开仓库泄漏
+memory/
+SOUL.md
+USER.md
+IDENTITY.md
+HEARTBEAT.md
+TOOLS.md
+
+# 设计截图/原型/工具残留（体积大且非构建必需）
+design-shots/
+design/experience-*/
+.opencode/
+.openclaw-attachments/
+.gradle-build/
+.gradle-check/
+build-fresh/
+NVIDIA Corporation/
+
+# 一次性排查产物
+lock_scan.txt
+proc_scan.txt
+gradle_args*.txt
+env_*.txt
+init_builddir.gradle
+build_androidx.log
+build_targetsdk.log
+
+# 一次性补丁/抓取/校验脚本与中间数据（保留在本机，不随仓库分发）
+build-tools/_patch_mine.py
+build-tools/build_debug_m60fix*.py
+build-tools/fetch_reco_titles*.py
+build-tools/reco_titles*.txt
+build-tools/reco_userdict.txt
+build-tools/probe_channels.mjs
+build-tools/verify_dict.py
+build-tools/tag_dictionary_v2_backup.json
+ftiger_*.py
+migrate_androidx.ps1
+repro.ps1
+

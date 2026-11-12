@@ -317,19 +317,6 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
         }
     }
 
-    private void showNeedSetAddressDialog() {
-        QMUIDialog.MessageDialogBuilder builder = new QMUIDialog.MessageDialogBuilder(context);
-        builder.setTitle(getString(R.string.main_tip_title));
-        builder.setMessage(getString(R.string.main_need_address_msg));
-        builder.addAction(getString(R.string.main_go_set), (dialog, index) -> {
-            dialog.dismiss();
-            Intent intent = new Intent(context, SettingActivity.class);
-            startActivityWithAnimation(intent);
-        });
-        builder.addAction(getString(R.string.back), (dialog, index) -> dialog.dismiss());
-        builder.show();
-    }
-
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
@@ -426,9 +413,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
                 showMessage(getString(R.string.main_storage_perm_denied), TastyToast.WARNING);
             }
         }
-        if (mCurrentFragment != null) {
-            mCurrentFragment.onActivityResult(requestCode, resultCode, data);
-        }
+        // FragmentActivity 已把结果分发给所有已添加的 Fragment，不能再手动转发一次（会重复回调）
     }
 
     public static final int MIN_CLICK_DELAY_TIME = 2000;
@@ -519,6 +504,7 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
 
     }
 
+    // BaseView 接口要求 public；父类实现为 protected，这里必须提升可见性（勿删）
     @Override
     public void showMessage(String msg, int type) {
         super.showMessage(msg, type);
@@ -534,11 +520,6 @@ public class MainActivity extends MvpActivity<MainView, MainPresenter> implement
     protected void onStop() {
         super.onStop();
         isBackground = true;
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)

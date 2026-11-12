@@ -149,45 +149,8 @@ public class AppCacheUtils {
         return Formatter.formatFileSize(context, fileSize);
     }
 
-    public static boolean cleanRxCache(Context context) {
-        //M28：原实现误清视频缓存目录，导致RxCache永远清不掉
-        File fileDir = getRxCacheDir(context);
-        return deleteDirFile(fileDir);
-    }
-
-    public static boolean cleanVideoCache(Context context) {
-
-        File fileDir = getVideoCacheDir(context);
-        return deleteDirFile(fileDir);
-    }
-
-    public static boolean cleanGlideCache(Context context) {
-        File fileDir = getGlideDiskCacheDir(context);
-        return deleteDirFile(fileDir);
-    }
-
-    public static boolean cleanAllCache(Context context) {
-        //注意：不要用 && 短路，否则前一个失败会导致后面的目录根本不清理
-        boolean rx = cleanRxCache(context);
-        boolean video = cleanVideoCache(context);
-        boolean glide = cleanGlideCache(context);
-        return rx && video && glide;
-    }
-
     public static boolean cleanCacheFile(File fileDir) {
         return deleteDirFile(fileDir);
-    }
-
-    public static boolean cleanAllCacheFile(File[] fileDirs) {
-        if (fileDirs == null) {
-            return false;
-        }
-        boolean result = true;
-        for (File file : fileDirs) {
-            //M28：原实现每轮直接覆盖result，最终只反映最后一个目录的结果
-            result &= deleteDirFile(file);
-        }
-        return result;
     }
 
     /**

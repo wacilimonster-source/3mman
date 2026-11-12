@@ -733,15 +733,13 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
      * 清空关键词与结果、取消在途请求、重置分页、隐藏页码栏、重新展示提示与搜索历史。
      */
     private void resetToInitialState() {
-        // 1. 先让 presenter 取消在途请求并自增代际，避免旧响应回来改写重置后的界面
-        presenter.reset();
-        // 2. 清空关键词与输入框（submit=false，不触发 onQueryTextSubmit 再次搜索）
+        // 1. 清空关键词与结果；presenter.reset() 由 clearResultsForIdle() 统一负责
         searchId = null;
         searchView.setQuery("", false);
         searchView.setIconified(true);
         searchView.clearFocus();
         hideSoftInput();
-        // 3. 清空结果列表与分页栏
+        // 2. 清空结果列表与分页栏（内部会取消在途请求并自增代际）
         clearResultsForIdle();
         // 4. LoadViewHelper 收起 loading/error 层，露出列表（此时为空列表）
         helper.showContent();
@@ -1310,6 +1308,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         }
     }
 
+    // BaseView 接口要求 public；父类实现为 protected，这里必须提升可见性（勿删）
     @Override
     public void showMessage(String msg, int type) {
         super.showMessage(msg, type);

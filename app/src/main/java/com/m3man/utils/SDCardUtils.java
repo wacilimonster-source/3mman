@@ -50,7 +50,6 @@ public class SDCardUtils {
     }
 
     public static final String DOWNLOAD_VIDEO_PATH = LazyPaths.ROOT + "video/";
-    public static final String DOWNLOAD_IMAGE_PATH = LazyPaths.ROOT + "image/";
     public static final String DATE_FORMAT_YEAR_MONTH_DAY_HOUR_MINUTE_SECOND = "yyyy-MM-dd HH:mm:ss";
     public static final String EXPORT_FILE = LazyPaths.ROOT + "export.txt";
 

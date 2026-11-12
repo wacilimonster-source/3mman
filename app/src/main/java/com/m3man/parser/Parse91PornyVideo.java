@@ -5,6 +5,7 @@ import android.text.TextUtils;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.db.entity.VideoResult;
 import com.m3man.data.model.BaseResult;
+import com.m3man.utils.AppLog;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -41,10 +42,8 @@ public class Parse91PornyVideo {
     public static final String SOURCE = "91porny";
     private static final Pattern PAGE_NUM = Pattern.compile("page=(\\d+)");
     private static final Pattern BG_URL = Pattern.compile("url\\(\\s*['\"]?([^'\")]+)['\"]?\\s*\\)");
-    /** 匹配 mp4 / m3u8 等直链 */
-    private static final Pattern MP4_URL = Pattern.compile("https?://[^\\s\"'<>]+\\.(?:mp4|m3u8)(?:\\?[^\\s\"'<>]*)?", Pattern.CASE_INSENSITIVE);
-    /** 兼容以 // 或 / 开头的相对协议链接 */
-    private static final Pattern MP4_URL_LOOSE = Pattern.compile("(?:https?:)?//[^\\s\"'<>]+\\.(?:mp4|m3u8)(?:\\?[^\\s\"'<>]*)?", Pattern.CASE_INSENSITIVE);
+    /** 匹配 mp4 / m3u8 直链（同时覆盖 http(s):// 与 // 协议相对链接） */
+    private static final Pattern MP4_URL = Pattern.compile("(?:https?:)?//[^\\s\"'<>]+\\.(?:mp4|m3u8)(?:\\?[^\\s\"'<>]*)?", Pattern.CASE_INSENSITIVE);
     /** 匹配 JS 变量中的视频地址：file/videoUrl/mp4_url/url/data-src 后跟 mp4/m3u8 */
     private static final Pattern JS_VIDEO_URL = Pattern.compile("(?:file|videoUrl|video_url|mp4_url|mp4Url|data-src|src)\\s*[:=]\\s*['\"]([^'\"]+\\.(?:mp4|m3u8)(?:\\?[^'\"]*)?)['\"]", Pattern.CASE_INSENSITIVE);
     /** 匹配以单个斜杠开头的相对视频路径 */
@@ -64,7 +63,7 @@ public class Parse91PornyVideo {
 
         Elements items = doc.getElementsByClass("video-elem");
         // 没有结果也可能返回空列表（末页）；只有完全拿不到页面才当作错误
-        if (items == null || items.isEmpty()) {
+        if (items.isEmpty()) {
             BaseResult<List<V9MmanItem>> empty = new BaseResult<>();
             empty.setTotalPage(1);
             empty.setData(list);
@@ -193,7 +192,8 @@ public class Parse91PornyVideo {
                 }
             }
         } catch (Exception e) {
-            // 忽略，按下一策略继续
+            // select 理论上不抛异常；真抛出说明页面结构异常，保留诊断
+            AppLog.w("Parse91Porny", "video 标签解析失败: " + AppLog.cause(e));
         }
 
         // 2) 兜底：整页匹配 mp4 / m3u8 / JS 变量
@@ -215,7 +215,10 @@ public class Parse91PornyVideo {
         // data-src 形如 https://cdn2.xxx/hls/1018639/index.m3u8?t=...，取 /hls/<id>/ 段。
         String pornyVideoId = extractPornyVideoId(videoUrl);
         if (TextUtils.isEmpty(pornyVideoId)) {
-            pornyVideoId = author[0]; // 兜底：作者页路径里的标识
+            // 兜底不能再按作者名：同一作者的不同视频会共用 videoId，
+            // saveVideoResult 去重时会互相覆盖直链/元数据（历史上表现为播放到别的视频）。
+            // 用去掉签名参数后的地址路径哈希：同一条视频多次解析稳定，不同视频基本不碰撞。
+            pornyVideoId = fallbackVideoIdFromUrl(videoUrl);
         }
         videoResult.setVideoId(pornyVideoId == null ? "" : "porny_" + pornyVideoId);
         videoResult.setOwnerId(author[0]);
@@ -255,6 +258,23 @@ public class Parse91PornyVideo {
         return null;
     }
 
+    /** 无稳定 id 时的去重键：去签名参数后的 URL 路径哈希（同视频多次解析稳定） */
+    private static String fallbackVideoIdFromUrl(String videoUrl) {
+        if (TextUtils.isEmpty(videoUrl)) {
+            return null;
+        }
+        String path = videoUrl;
+        int query = path.indexOf('?');
+        if (query > 0) {
+            path = path.substring(0, query);
+        }
+        int fragment = path.indexOf('#');
+        if (fragment > 0) {
+            path = path.substring(0, fragment);
+        }
+        return "url_" + Integer.toHexString(path.hashCode());
+    }
+
     private static String[] findAuthorInPlayPage(Document doc) {
         String[] result = new String[]{"", ""};
         try {
@@ -281,24 +301,17 @@ public class Parse91PornyVideo {
                 }
             }
         } catch (Exception e) {
-            // 忽略
+            AppLog.w("Parse91Porny", "作者信息解析失败: " + AppLog.cause(e));
         }
         return result;
     }
 
     private static String findVideoUrlInHtml(String html) {
         String url = null;
-        // 3.1) 整页直接匹配 http(s) mp4/m3u8
+        // 3.1) 整页匹配 mp4/m3u8（含协议相对 // 链接）
         Matcher m = MP4_URL.matcher(html);
         if (m.find()) {
             url = m.group();
-        }
-        // 3.2) 匹配 // 开头的协议相对链接
-        if (TextUtils.isEmpty(url)) {
-            Matcher m2 = MP4_URL_LOOSE.matcher(html);
-            if (m2.find()) {
-                url = m2.group();
-            }
         }
         // 3.3) 匹配 JS 变量：file: 'xxx.mp4' / videoUrl = "xxx" / mp4_url:'xxx' / url:"xxx"
         if (TextUtils.isEmpty(url)) {
@@ -355,7 +368,7 @@ public class Parse91PornyVideo {
         }
         // 命中常见的广告容器
         Elements adContainers = item.select("[class*=advert], [class*=banner], [class*=ad-]");
-        if (adContainers != null && !adContainers.isEmpty()) {
+        if (!adContainers.isEmpty()) {
             return true;
         }
         return false;

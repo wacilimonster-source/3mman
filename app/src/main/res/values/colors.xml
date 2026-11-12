@@ -7,16 +7,13 @@
     <color name="black">#000000</color>
     <color name="lightBlack">#272822</color>
     <color name="white">#FFFFFF</color>
-    <color name="red">#FF0000</color>
     <color name="yeloo">#ffba00</color>
     <color name="LightGray">#aFFFFFFF</color>
 
-    <color name="dark_green">#70ba0f</color>
     <color name="green">#5ACC87</color>
     <color name="lightred">#FE5442</color>
     <color name="lightred1">#afFE5442</color>
 
-    <color name="forum_9_mman_essence">#8F2A90</color>
 
     <color name="gray">@color/qmui_config_color_gray_2</color>
     <color name="gray1">@color/qmui_config_color_gray_4</color>
@@ -30,8 +27,6 @@
 
     <!-- 91 item start-->
     <color name="item_background">@color/white</color>
-    <color name="item_v9pron_title_text_color">#053769</color>
-    <color name="item_v9pron_info_text_color">@color/qmui_config_color_gray_5</color>
     <!-- 91 item end-->
 
     <!-- setting start-->
@@ -47,12 +42,10 @@
     <color name="bottom_navigation_bar_background">@color/bg_surface</color>
     <color name="floating_action_button_tine_bg_color">@color/white</color>
     <color name="mine_header_text_color">@color/white</color>
-    <color name="play_head_video_info_text_color">@color/white</color>
     <color name="item_3mman_comment_message_text_color">@color/qmui_config_color_gray_1</color>
     <color name="item_3mman_comment_info_text_color">@color/qmui_config_color_gray_4</color>
     <color name="sort_category_drag_color">@color/green</color>
     <!-- 作者收藏列表条目文字：日间深色 / 夜间浅色 -->
-    <color name="author_favorite_item_text">@color/qmui_config_color_gray_1</color>
 
     <!-- ==================== 语义色层（Semantic tokens）====================
          新增 / 改造 UI 一律使用下面的 token，不要再直接引用
@@ -62,16 +55,13 @@
     <color name="bg_base">#F7F6F9</color>
     <color name="bg_surface">#FFFFFF</color>
     <color name="bg_elevated">#FFFFFF</color>
-    <color name="bg_scrim">#8016101F</color>
 
     <color name="text_primary">#262331</color>
     <color name="text_secondary">#635D71</color>
     <color name="text_tertiary">#706B7E</color>
-    <color name="text_disabled">#A9A3B4</color>
     <color name="text_inverse">@color/common_always_white_text_color</color>
 
     <color name="brand">#6A1B9A</color>
-    <color name="brand_dark">@color/colorPrimaryDark</color>
     <!-- 顶部栏：日间沿用品牌紫；夜间改为 bg_surface，与内容页同底色。 -->
     <color name="toolbar_background">@color/colorPrimary</color>
     <color name="toolbar_text">@color/white</color>
@@ -79,8 +69,6 @@
     <color name="on_brand">#FFFFFF</color>
     <color name="accent">@color/colorAccent</color>
 
-    <color name="state_success">#237957</color>
-    <color name="state_warning">@color/yeloo</color>
     <color name="state_error">#BA3550</color>
 
     <color name="divider">#E4E0E9</color>
@@ -94,7 +82,6 @@
     <!-- 视频封面加载前占位（同尺寸、无闪烁）。 -->
     <color name="cover_placeholder">#E7E2EC</color>
     <!-- 覆盖在视频/封面上的浮层与胶囊。 -->
-    <color name="overlay_scrim">#8016101F</color>
     <color name="overlay_pill">#66000000</color>
     <!-- ==================== 语义色层 end ==================== -->
 </resources>

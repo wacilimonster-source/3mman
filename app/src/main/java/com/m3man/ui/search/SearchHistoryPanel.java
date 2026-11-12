@@ -73,7 +73,7 @@ public class SearchHistoryPanel {
 
         this.adapter = new SearchHistoryAdapter();
         this.rv.setLayoutManager(new LinearLayoutManager(container.getContext()));
-        rv.setHasFixedSize(true);
+        // 列表高度为 wrap_content，不能声明固定尺寸（Lint InvalidSetHasFixedSize）
         this.rv.setNestedScrollingEnabled(false);
         this.rv.setAdapter(adapter);
 

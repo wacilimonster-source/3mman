@@ -6,15 +6,12 @@
     <color name="black">#000000</color>
     <color name="lightBlack">#272822</color>
     <color name="white">@color/qmui_config_color_gray_1</color>
-    <color name="red">#FF0000</color>
     <color name="yeloo">#ffba00</color>
     <color name="LightGray">#aFFFFFFF</color>
 
-    <color name="dark_green">#70ba0f</color>
     <color name="green">#5ACC87</color>
     <color name="lightred">#FE5442</color>
 
-    <color name="forum_9_mman_essence">@color/green</color>
 
     <!-- common start-->
     <color name="common_background">#111114</color>
@@ -25,8 +22,6 @@
 
     <!-- 9 item start-->
     <color name="item_background">#19191E</color>
-    <color name="item_v9pron_title_text_color">@color/qmui_config_color_gray_7</color>
-    <color name="item_v9pron_info_text_color">@color/qmui_config_color_gray_5</color>
     <!-- 9 item end-->
 
     <!-- setting start-->
@@ -42,27 +37,22 @@
     <color name="bottom_navigation_bar_background">@color/bg_surface</color>
     <color name="floating_action_button_tine_bg_color">@color/qmui_config_color_gray_7</color>
     <color name="mine_header_text_color">@color/qmui_config_color_gray_7</color>
-    <color name="play_head_video_info_text_color">@color/qmui_config_color_gray_7</color>
     <color name="item_3mman_comment_message_text_color">@color/qmui_config_color_gray_7</color>
     <color name="item_3mman_comment_info_text_color">@color/qmui_config_color_gray_6</color>
     <color name="sort_category_drag_color">@color/colorPrimary</color>
-    <color name="author_favorite_item_text">@color/qmui_config_color_gray_7</color>
 
     <!-- ==================== 语义色层（夜间对应值）====================
          必须与 values/colors.xml 中的语义 token 一一对应、成对维护。 -->
     <color name="bg_base">#111114</color>
     <color name="bg_surface">#19191E</color>
     <color name="bg_elevated">#19191E</color>
-    <color name="bg_scrim">#8016101F</color>
 
     <color name="text_primary">#F2EFF4</color>
     <color name="text_secondary">#C3BCCB</color>
     <color name="text_tertiary">#ADA6B6</color>
-    <color name="text_disabled">#6B6575</color>
     <color name="text_inverse">#F2EFF4</color>
 
     <color name="brand">#D0A8EC</color>
-    <color name="brand_dark">#4A148C</color>
     <!-- 顶部栏：夜间使用 bg_surface，避免 QMUI 默认灰色 #353C46 偏离 token。 -->
     <color name="toolbar_background">@color/bg_surface</color>
     <color name="toolbar_text">@color/text_primary</color>
@@ -70,8 +60,6 @@
     <color name="on_brand">#25122F</color>
     <color name="accent">@color/colorAccent</color>
 
-    <color name="state_success">#8AD8B5</color>
-    <color name="state_warning">@color/yeloo</color>
     <color name="state_error">#FF9BAB</color>
 
     <color name="divider">#343039</color>
@@ -85,7 +73,6 @@
     <!-- 视频封面加载前占位（同尺寸、无闪烁）。 -->
     <color name="cover_placeholder">#26232C</color>
     <!-- 覆盖在视频/封面上的浮层与胶囊。 -->
-    <color name="overlay_scrim">#8016101F</color>
     <color name="overlay_pill">#66000000</color>
     <!-- ==================== 语义色层 end ==================== -->
 </resources>

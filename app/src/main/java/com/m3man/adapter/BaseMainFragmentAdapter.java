@@ -1,12 +1,9 @@
 package com.m3man.adapter;
 
-import android.annotation.SuppressLint;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentPagerAdapter;
-import androidx.fragment.app.FragmentTransaction;
-import android.view.ViewGroup;
 
 import com.m3man.data.db.entity.Category;
 import com.m3man.ui.mman9video.index.IndexFragment;
@@ -22,27 +19,13 @@ import java.util.List;
 
 public class BaseMainFragmentAdapter extends FragmentPagerAdapter {
 
-    private static final String TAG = BaseMainFragmentAdapter.class.getSimpleName();
     private List<Category> categoryList;
     private int categoryType;
-    private FragmentTransaction mCurTransaction;
-    private FragmentManager mFragmentManager;
-
-    private boolean isDestroy = false;
 
     public BaseMainFragmentAdapter(FragmentManager fm, List<Category> categoryList, int categoryType) {
         super(fm);
-        mFragmentManager = fm;
         this.categoryList = categoryList;
         this.categoryType = categoryType;
-    }
-
-    public boolean isDestroy() {
-        return isDestroy;
-    }
-
-    public void setDestroy(boolean destroy) {
-        isDestroy = destroy;
     }
 
     @Override
@@ -87,30 +70,5 @@ public class BaseMainFragmentAdapter extends FragmentPagerAdapter {
             default:
         }
         return new Fragment();
-    }
-
-    @SuppressLint("CommitTransaction")
-    @Override
-    public void destroyItem(ViewGroup container, int position, Object object) {
-        if (isDestroy) {
-            if (mCurTransaction == null) {
-                mCurTransaction = mFragmentManager.beginTransaction();
-            }
-            mCurTransaction.remove((Fragment) object);
-        } else {
-            super.destroyItem(container, position, object);
-        }
-
-    }
-
-    @Override
-    public void finishUpdate(ViewGroup container) {
-        super.finishUpdate(container);
-        if (isDestroy) {
-            if (mCurTransaction != null) {
-                mCurTransaction.commitNowAllowingStateLoss();
-                mCurTransaction = null;
-            }
-        }
     }
 }

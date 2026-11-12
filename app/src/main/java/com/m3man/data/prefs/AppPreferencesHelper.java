@@ -49,7 +49,6 @@ public class AppPreferencesHelper implements PreferencesHelper {
     private final static String KEY_SP_PORNY_SEARCH_DUR10 = "key_sp_porny_search_dur10";
     private final static String KEY_SP_PROXY_IP_ADDRESS = "key_sp_proxy_ip_address";
     private final static String KEY_SP_PROXY_PORT = "key_sp_proxy_port";
-    private final static String KEY_SP_NEVER_ASK_FOR_WATCH_DOWNLOAD_TIP = "key_sp_never_ask_for_watch_download_tip";
     private final static String KEY_SP_IGNORE_THIS_VERSION_UPDATE_TIP = "key_sp_ignore_this_version_update_tip";
     private final static String KEY_SP_FORBIDDEN_AUTO_RELEASE_MEMORY_WHEN_LOW_MEMORY = "key_sp_forbidden_auto_release_memory_when_low_memory";
     private final static String KEY_SP_NOTICE_VERSION_CODE = "key_sp_notice_version_code";

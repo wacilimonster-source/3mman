@@ -15,8 +15,6 @@ package com.m3man.perf;
  */
 public final class PerfFlags {
 
-    /** T01：推荐缓存首屏脱离引擎关键路径 */
-    public static volatile boolean cacheFirst = true;
     /** T02：DiffUtil 后台计算 + 不可变列表快照 */
     public static volatile boolean asyncDiff = true;
     /** T03：封面展示/预取共享请求规格 */

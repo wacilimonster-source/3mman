@@ -17,7 +17,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -39,7 +38,6 @@ import com.m3man.data.db.entity.Category;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.db.entity.VideoResult;
 import com.m3man.data.network.Source441447Client;
-import com.m3man.parser.Parse91PornyVideo;
 import com.m3man.service.DownloadVideoService;
 import com.m3man.service.HlsDownloadService;
 import com.m3man.ui.MvpActivity;
@@ -51,6 +49,8 @@ import com.m3man.ui.mman9video.videolist.VideoCardActions;
 import com.m3man.utils.AppLog;
 import com.m3man.utils.DialogUtils;
 import com.m3man.utils.LoadHelperUtils;
+import com.m3man.utils.SDCardUtils;
+import com.m3man.utils.UrlUtils;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -327,7 +327,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
                 if (com.m3man.ui.recommend.RecommendPrefetcher.isSecureUrlExpired(cachedUrl)) {
                     // M96：日志脱敏——DB 缓存直链只打 scheme://host/path，不打印签名 query
                     AppLog.i(TAG, "initData: DB缓存直链已过期，强制重新解析 viewKey=" + tmp.getViewKey()
-                            + " 过期直链=" + maskUrl(cachedUrl));
+                            + " 过期直链=" + UrlUtils.maskForLog(cachedUrl));
                     presenter.loadVideoUrl(tmp);
                     return;
                 }
@@ -382,58 +382,12 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
      * 分片相对路径与签名参数的转发有缺陷，直接播放原始地址；其余来源走原有代理缓存。
      */
     private String resolvePlayUrl(String originalUrl, boolean isPornySource) {
-        if (TextUtils.isEmpty(originalUrl) || isHlsUrl(originalUrl)) {
+        if (TextUtils.isEmpty(originalUrl) || UrlUtils.isHlsUrl(originalUrl)) {
             // 91porny 返回 HLS；旧 videocache 会把 index0.ts 当成独立地址，
             // 因此所有 m3u8 都直接交给 ExoPlayer/系统 HLS 播放器。
             return originalUrl;
         }
         return presenter.getVideoCacheProxyUrl(originalUrl);
-    }
-
-    private static boolean isHlsUrl(String url) {
-        String lower = url == null ? "" : url.toLowerCase(java.util.Locale.US);
-        int query = lower.indexOf('?');
-        if (query >= 0) {
-            lower = lower.substring(0, query);
-        }
-        return lower.endsWith(".m3u8") || lower.contains(".m3u8/");
-    }
-
-    /**
-     * M96：日志脱敏——URL 只保留 scheme://host/path（丢弃 query 中的签名/token），
-     * 追加原始长度便于排查；解析失败时兜底去掉 query 再截断，绝不打印完整直链。
-     */
-    private static String maskUrl(String u) {
-        if (TextUtils.isEmpty(u)) {
-            return "";
-        }
-        int len = u.length();
-        String head = u;
-        try {
-            java.net.URI uri = java.net.URI.create(u);
-            StringBuilder sb = new StringBuilder();
-            if (uri.getScheme() != null) {
-                sb.append(uri.getScheme()).append("://");
-            }
-            if (uri.getHost() != null) {
-                sb.append(uri.getHost());
-            }
-            if (uri.getPath() != null) {
-                sb.append(uri.getPath());
-            }
-            if (sb.length() > 0) {
-                head = sb.toString();
-            }
-        } catch (Exception e) {
-            int q = u.indexOf('?');
-            if (q >= 0) {
-                head = u.substring(0, q);
-            }
-        }
-        if (head.length() > 96) {
-            head = head.substring(0, 96) + "...";
-        }
-        return head + "|len=" + len;
     }
 
     private void setToolBarLayoutInfo(final V9MmanItem v9MmanItem) {
@@ -556,7 +510,14 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         if (viewPagerPlay.getParent() instanceof View) {
             pagerHostView = (View) viewPagerPlay.getParent();
         }
-        helper.setListener(() -> presenter.loadVideoUrl(v9MmanItem));
+        helper.setListener(() -> {
+            // 错误页重试：入参可能为空（viewKey 缺失），不能把 null 传进 Presenter
+            if (v9MmanItem == null) {
+                showMessage(getString(R.string.play_video_info_incomplete), TastyToast.ERROR);
+                return;
+            }
+            presenter.loadVideoUrl(v9MmanItem);
+        });
     }
 
     private void initDialog() {
@@ -608,9 +569,22 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     @Override
     public void parseVideoUrlSuccess(V9MmanItem v9MmanItem) {
         this.v9MmanItem = v9MmanItem;
+        // 防御：Presenter 可能回传只有壳、没有 VideoResult 的记录（DB 脏数据/解析中途失败）
+        if (v9MmanItem == null || v9MmanItem.getVideoResult() == null) {
+            dismissDialog();
+            helper.showError();
+            showMessage(getString(R.string.play_video_info_incomplete), TastyToast.ERROR);
+            return;
+        }
         videoPlayerContainer.setVisibility(View.VISIBLE);
         setToolBarLayoutInfo(v9MmanItem);
         VideoResult videoResult = v9MmanItem.getVideoResult();
+        if (TextUtils.isEmpty(videoResult.getVideoUrl())) {
+            dismissDialog();
+            helper.showError();
+            showMessage(getString(R.string.download_parse_failed), TastyToast.ERROR);
+            return;
+        }
         boolean isPornySource = PlayVideoPresenter.isPornySource(v9MmanItem);
         //开始播放
         playVideo(v9MmanItem.getTitle(), resolvePlayUrl(videoResult.getVideoUrl(), isPornySource), "", videoResult.getThumbImgUrl());
@@ -748,9 +722,11 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         }
         // M154：解析视频地址 + 直链探活是一整条网络链路（正常也要数秒），
         // 期间原先没有任何反馈，用户会认为「点了下载没反应」。这里先给一次即时反馈。
-        if (v9MmanItem != null) {
-            showMessage(getString(R.string.reco_download_parsing), TastyToast.INFO);
+        if (v9MmanItem == null) {
+            showMessage(getString(R.string.play_video_info_incomplete), TastyToast.INFO);
+            return;
         }
+        showMessage(getString(R.string.reco_download_parsing), TastyToast.INFO);
         presenter.downloadVideo(v9MmanItem, false);
         Intent intent = new Intent(this, DownloadVideoService.class);
         startService(intent);
@@ -792,18 +768,11 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         serviceIntent.setAction(HlsDownloadService.ACTION_START);
         serviceIntent.putExtra(HlsDownloadService.EXTRA_VIDEO_URL, videoUrl);
         serviceIntent.putExtra(HlsDownloadService.EXTRA_TITLE, v9MmanItem.getTitle());
-        serviceIntent.putExtra(HlsDownloadService.EXTRA_FILE_NAME, sanitizeFileName(v9MmanItem.getTitle()));
+        serviceIntent.putExtra(HlsDownloadService.EXTRA_FILE_NAME, SDCardUtils.sanitizeFileName(v9MmanItem.getTitle()));
         serviceIntent.putExtra(HlsDownloadService.EXTRA_VIEW_KEY, v9MmanItem.getViewKey());
         serviceIntent.putExtra(HlsDownloadService.EXTRA_SAVE_PATH, savePath);
         startService(serviceIntent);
         showMessage(getString(R.string.play_added_to_background_with_notification), TastyToast.SUCCESS);
-    }
-
-    private static String sanitizeFileName(String title) {
-        if (TextUtils.isEmpty(title)) {
-            return "video_" + System.currentTimeMillis();
-        }
-        return title.replaceAll("[\\\\/:*?\"<>|]", "_");
     }
 
     private void favoriteVideo() {

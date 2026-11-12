@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!--
+      QMUI 夜间模式用同名 drawable 覆盖库内样式，库里没有同名基础资源，
+      Lint 会误报 MissingDefaultResource；这是刻意保留的主题覆盖。
+    -->
+    <issue id="MissingDefaultResource">
+        <ignore path="src/main/res/drawable-night/qmui_*.xml" />
+    </issue>
+</lint>

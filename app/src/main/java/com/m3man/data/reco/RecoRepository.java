@@ -100,8 +100,7 @@ public class RecoRepository {
                     return size() > 2000;
                 }
             });
-    private final Map<String, Integer> categoryPage = new HashMap<>();
-    private final Map<String, Integer> authorPage = new HashMap<>();
+    private final Map<String, Integer> authorPage = new java.util.concurrent.ConcurrentHashMap<>();
     /** L-fix：本会话内已确认失效的作者 UID（token 过期 404），不再重复选中 */
     private final java.util.Set<String> skippedAuthors = new java.util.HashSet<>();
 
@@ -321,7 +320,6 @@ public class RecoRepository {
             batchDisposables.clear();
             pool.clear();
             servedKeys.clear();
-            categoryPage.clear();
             authorPage.clear();
             consecutiveFailures = 0;
         }
@@ -337,15 +335,21 @@ public class RecoRepository {
      * @param want 期望条数
      */
     public Observable<List<RecoCandidate>> nextBatch(final int want) {
+        // 仅用于在 doFinally 里把自己移出 batchDisposables，避免长会话无限累积
+        final java.util.concurrent.atomic.AtomicReference<Disposable> batchRef =
+                new java.util.concurrent.atomic.AtomicReference<>();
         return Observable.defer(new java.util.concurrent.Callable<Observable<List<RecoCandidate>>>() {
             @Override
             public Observable<List<RecoCandidate>> call() {
-                // M78：方向筛选开启时先补齐池内未知方向的探测（本调用运行在 IO 线程）
+                // M78：方向筛选开启时先补齐池内未知方向的探测（本调用运行在 IO 线程）。
+                // 探测内部最多 3×1500ms 网络 IO，必须在 pool 锁外执行——
+                // resetSession() 在主线程调用，不能等这把锁（否则 ANR）。
                 if (orientationFilter != PlayUiPrefs.FILTER_ALL || autoRotateLandscape) {
-                    // M98：串行循环改为并行探测（并发 3 / 单条超时 1500ms），收齐结果再出批
+                    List<RecoCandidate> snapshot;
                     synchronized (pool) {
-                        probeOrientationsParallel(pool);
+                        snapshot = new ArrayList<>(pool);
                     }
+                    probeOrientationsParallel(snapshot);
                 }
                 synchronized (pool) {
                     if (countPassing() >= want) {
@@ -356,24 +360,34 @@ public class RecoRepository {
                         .map(new Function<List<RecoCandidate>, List<RecoCandidate>>() {
                             @Override
                             public List<RecoCandidate> apply(List<RecoCandidate> fetched) {
+                                // 新入池的候选同样需要方向探测后再出队；同样放在锁外
+                                if (orientationFilter != PlayUiPrefs.FILTER_ALL || autoRotateLandscape) {
+                                    probeOrientationsParallel(fetched);
+                                }
                                 synchronized (pool) {
                                     addToPool(fetched);
-                                    // 新入池的候选同样需要方向探测后再出队
-                                    if (orientationFilter != PlayUiPrefs.FILTER_ALL || autoRotateLandscape) {
-                                        // M98：串行循环改为并行探测（并发 3 / 单条超时 1500ms）
-                                        probeOrientationsParallel(fetched);
-                                    }
                                     return take(want);
                                 }
                             }
                         });
             }
         })
-        // 注册到 batchDisposables，使 resetSession() 能取消正在进行的 IO 操作
+        // 注册到 batchDisposables，使 resetSession() 能取消正在进行的 IO 操作；
+        // 终态/取消时移除自身，避免 CompositeDisposable 随会话增长。
         .doOnSubscribe(new io.reactivex.functions.Consumer<Disposable>() {
             @Override
             public void accept(Disposable d) {
+                batchRef.set(d);
                 batchDisposables.add(d);
+            }
+        })
+        .doFinally(new io.reactivex.functions.Action() {
+            @Override
+            public void run() {
+                Disposable d = batchRef.get();
+                if (d != null) {
+                    batchDisposables.remove(d);
+                }
             }
         });
     }

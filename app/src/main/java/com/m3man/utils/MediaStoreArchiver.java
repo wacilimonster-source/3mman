@@ -9,7 +9,6 @@ import android.os.Environment;
 import android.provider.MediaStore;
 
 import com.m3man.data.db.entity.V9MmanItem;
-import com.m3man.BuildConfig;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -56,7 +55,8 @@ public final class MediaStoreArchiver {
         }
         String displayName = SDCardUtils.sanitizeFileName(title);
         if (viewKey != null && viewKey.length() > 0) {
-            displayName = displayName + "_" + viewKey;
+            // viewKey 可能含 /（如 videos/<id>/<slug>、vod/<key>），直接拼进 DISPLAY_NAME 会建文件失败
+            displayName = displayName + "_" + SDCardUtils.sanitizeFileName(viewKey);
         }
         if (!displayName.toLowerCase(java.util.Locale.US).endsWith(".mp4")) {
             displayName = displayName + ".mp4";
@@ -122,9 +122,9 @@ public final class MediaStoreArchiver {
                 }
             } catch (Exception ignored) {
             }
-            if (BuildConfig.DEBUG) {
-                AppLog.w("MediaStoreArchiver", "archiveVideo failed，已保留私有副本: " + e.getMessage());
-            }
+            // 归档失败在 release 同样要可诊断：AppLog 本就是跨版本日志通道
+            AppLog.w("MediaStoreArchiver", "archiveVideo failed，已保留私有副本: "
+                    + AppLog.cause(e));
             return null;
         }
     }
@@ -183,9 +183,8 @@ public final class MediaStoreArchiver {
                 }
             } catch (Exception ignored) {
             }
-            if (BuildConfig.DEBUG) {
-                AppLog.w("MediaStoreArchiver", "archiveTextToDownloads failed: " + e.getMessage());
-            }
+            AppLog.w("MediaStoreArchiver", "archiveTextToDownloads failed: "
+                    + AppLog.cause(e));
             return false;
         }
     }

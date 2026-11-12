@@ -110,10 +110,6 @@ public class RecoEngine {
         this.scorer = newScorer;
     }
 
-    public List<String> tagsOf(String title) {
-        return dictionary.tokenize(title);
-    }
-
     /** 该视频的当前互动状态（点赞 / 不喜欢 / 收藏 / 无） */
     public int actionOf(String viewKey) {
         return store.getAction(viewKey);
@@ -393,11 +389,6 @@ public class RecoEngine {
             candidate.tags = dictionary.tokenize(candidate.title());
         }
         return candidate.tags;
-    }
-
-    /** 落盘（IO 线程调用） */
-    public void persist() {
-        store.save();
     }
 
     /** 清空推荐记忆 */

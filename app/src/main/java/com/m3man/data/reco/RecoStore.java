@@ -244,12 +244,11 @@ public class RecoStore implements RecoScorer.StatSource {
         long[] v = featureStats.get(key);
         if (v == null) {
             v = new long[]{0L, 0L};
-            featureStats.remove(key);
             featureStats.put(key, v);
-            evictSmallestStat();
         }
         v[0]++;
         statTotalServed++;
+        evictSmallestStat(key);
         markDirtyInternal();
     }
 
@@ -261,20 +260,26 @@ public class RecoStore implements RecoScorer.StatSource {
         long[] v = featureStats.get(key);
         if (v == null) {
             v = new long[]{0L, 0L};
-            featureStats.remove(key);
             featureStats.put(key, v);
-            evictSmallestStat();
         }
         v[1]++;
+        evictSmallestStat(key);
         markDirtyInternal();
     }
 
-    /** 统计表超限时淘汰 served+positive 最小的键（信息量最低） */
-    private void evictSmallestStat() {
+    /**
+     * 统计表超限时淘汰 served+positive 最小的键（信息量最低）。
+     * skipKey 是刚写入的新键：它初始 sum 最小，若不跳过会被自己淘汰，
+     * 表现为新特征曝光永远记不上（UCB 探索失效）。
+     */
+    private void evictSmallestStat(String skipKey) {
         while (featureStats.size() > MAX_STATS) {
             String worst = null;
             long worstSum = Long.MAX_VALUE;
             for (Map.Entry<String, long[]> e : featureStats.entrySet()) {
+                if (e.getKey().equals(skipKey)) {
+                    continue;
+                }
                 long sum = e.getValue()[0] + e.getValue()[1];
                 if (sum < worstSum) {
                     worstSum = sum;
@@ -494,10 +499,6 @@ public class RecoStore implements RecoScorer.StatSource {
      * T06：目录 mkdir 与 {@link android.util.AtomicFile} 写盘均在 ioLock 内（状态锁外），
      * saveNow 返回真实成功与否；失败保留 dirty，由 {@link RecoPersistenceCoordinator} 退避重试。
      */
-    public void save() {
-        saveNow("manual");
-    }
-
     /**
      * T06：执行一次保存并返回真实结果（供 RecoPersistenceCoordinator 决定重试）。
      * dirty=false 时直接返回成功（无需写盘）。

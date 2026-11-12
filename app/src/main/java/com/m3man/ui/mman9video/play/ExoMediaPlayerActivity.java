@@ -19,6 +19,7 @@ import com.m3man.R;
 import com.m3man.data.network.Source441447Client;
 import com.m3man.utils.AppLog;
 import com.m3man.utils.GlideApp;
+import com.m3man.utils.UrlUtils;
 
 import java.io.IOException;
 import java.net.ProxySelector;
@@ -93,7 +94,7 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
                 String stack = sw.toString();
                 // M96：日志脱敏——直链只留 scheme://host/path，不打印 query（含签名/token）
                 AppLog.e("Player", "播放失败 viewKey=" + getViewKeyForLog()
-                        + " url=" + maskUrl(currentPlayUrl)
+                        + " url=" + UrlUtils.maskForLog(currentPlayUrl)
                         + " err=" + e.getClass().getName()
                         + " msg=" + e.getMessage()
                         + " stack=" + stack.substring(0, Math.min(800, stack.length())));
@@ -114,7 +115,7 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
                     if (!bufferZeroLogged) {
                         bufferZeroLogged = true;
                         AppLog.i("Player", "起播缓冲 0%（拉流未建立或极慢） viewKey=" + getViewKeyForLog()
-                                + " url=" + maskUrl(currentPlayUrl));
+                                + " url=" + UrlUtils.maskForLog(currentPlayUrl));
                     }
                 } else {
                     bufferZeroLogged = false;
@@ -146,7 +147,7 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
 
     private void onPrepareTimeout() {
         AppLog.e("Player", "起播看门狗超时(20s) viewKey=" + getViewKeyForLog()
-                + " url=" + maskUrl(currentPlayUrl)
+                + " url=" + UrlUtils.maskForLog(currentPlayUrl)
                 + " 同址已自愈=" + (currentPlayUrl != null && currentPlayUrl.equals(lastHealUrl)));
         diagnose(currentPlayUrl);
         attemptReparseOnce("加载超时");
@@ -246,43 +247,6 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
         return probeClient;
     }
 
-    /**
-     * M96：日志脱敏——直链只保留 scheme://host/path（丢弃 query 中的签名/token 等），
-     * 并追加原始长度便于排查；解析失败时兜底截断，绝不打印完整直链。
-     */
-    private static String maskUrl(String u) {
-        if (u == null) {
-            return "";
-        }
-        int len = u.length();
-        String head = u;
-        try {
-            java.net.URI uri = java.net.URI.create(u);
-            StringBuilder sb = new StringBuilder();
-            if (uri.getScheme() != null) {
-                sb.append(uri.getScheme()).append("://");
-            }
-            if (uri.getHost() != null) {
-                sb.append(uri.getHost());
-            }
-            if (uri.getPath() != null) {
-                sb.append(uri.getPath());
-            }
-            if (sb.length() > 0) {
-                head = sb.toString();
-            }
-        } catch (Exception ignored) {
-            int q = u.indexOf('?');
-            if (q >= 0) {
-                head = u.substring(0, q);
-            }
-        }
-        if (head.length() > 96) {
-            head = head.substring(0, 96) + "...";
-        }
-        return head + "|len=" + len;
-    }
-
     @Override
     public void playVideo(String title, String videoUrl, String name, String thumImgUrl) {
 
@@ -308,7 +272,7 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
         // M96：自愈机会由 lastHealUrl 与新 URL 的差异自然判定，这里不再无条件重置；
         // 仅启动准备看门狗。
         startWatchdog();
-        AppLog.i("Player", "起播请求 viewKey=" + getViewKeyForLog() + " url=" + maskUrl(videoUrl));
+        AppLog.i("Player", "起播请求 viewKey=" + getViewKeyForLog() + " url=" + UrlUtils.maskForLog(videoUrl));
     }
 
     @Override

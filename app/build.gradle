@@ -27,18 +27,32 @@ android {
     // T00：androidTest 变体随 benchmark 构建生成（AGP 7.4 只为 testBuildType 建 androidTest），
     // 设备种子/冒烟（DbSeedTest/PerfSmokeTest）都打进 .perf 测试包，与正式包隔离
     testBuildType "benchmark"
+    // 签名配置外置到本地 keystore.properties（已 gitignore），避免把密钥路径/口令写进仓库。
+    // 文件格式：storeFile=... / storePassword=... / keyAlias=... / keyPassword=...
+    // 缺失时 release 产物不签名（debug/benchmark 不受影响），由发布脚本重签。
+    def keystorePropertiesFile = rootProject.file('keystore.properties')
+    def keystoreProperties = new Properties()
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+    } else {
+        logger.warn("[3mman] keystore.properties 缺失：release 产物将不签名（debug/benchmark 不受影响）")
+    }
     signingConfigs {
         release {
-            storeFile file('C:/gwork/origks/debug.keystore')
-            storePassword 'android'
-            keyAlias 'androiddebugkey'
-            keyPassword 'android'
+            if (keystorePropertiesFile.exists()) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
             // zipalign优化
             zipAlignEnabled true
             // 移除无用的资源文件
@@ -71,10 +85,10 @@ android {
         }
     }
     lintOptions {
-        checkReleaseBuilds false
-        // Or, if you prefer, you can continue to check for errors in release builds,
-        // but continue the build even when errors are found:
-        abortOnError false
+        // 2026-11-12 清理后 lintDebug 已 0 error；恢复发布前门禁，防止再积压。
+        // 历史/第三方误报在 app/lint.xml 里按 issue + 路径精确忽略。
+        checkReleaseBuilds true
+        abortOnError true
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -113,7 +127,6 @@ greendao {
 }
 
 dependencies {
-    implementation fileTree(include: ['*.jar'], dir: 'libs')
     // AndroidX（迁移自 com.android.support:*）
     implementation "androidx.appcompat:appcompat:$androidxAppcompatVersion"
     implementation "androidx.core:core:$androidxCoreVersion"

@@ -265,15 +265,4 @@ public class DownloadVideoService extends DaggerService implements DownloadManag
             }
         }
     }
-
-    /**
-     * H-08：外部调用（如下载入队时）刷新内存缓存
-     */
-    public void refreshDownloadItemCache(int downloadId, V9MmanItem item) {
-        if (item != null) {
-            downloadItemCache.put(downloadId, item);
-        } else {
-            downloadItemCache.remove(downloadId);
-        }
-    }
 }

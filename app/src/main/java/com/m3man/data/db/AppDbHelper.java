@@ -396,21 +396,14 @@ public class AppDbHelper implements DbHelper {
         // 导致恒空结果（上一版把唯一命中路径打成了“永远查不到”的功能回归，见 M-09 复查）。
         String bare = viewKey.startsWith("viewkey=") ? viewKey.substring(8) : viewKey;
         String prefixed = "viewkey=" + bare;
-        try {
-            QueryBuilder<V9MmanItem> qb = v9MmanItemDao.queryBuilder();
-            qb.where(qb.or(V9MmanItemDao.Properties.ViewKey.eq(viewKey),
-                           V9MmanItemDao.Properties.ViewKey.eq(bare),
-                           V9MmanItemDao.Properties.ViewKey.eq(prefixed)));
-            return qb.build().uniqueOrThrow();
-        } catch (Exception e) {
-            // 兜底：用 list 取第一条，绝不再删除用户数据
-            QueryBuilder<V9MmanItem> qb2 = v9MmanItemDao.queryBuilder();
-            qb2.where(qb2.or(V9MmanItemDao.Properties.ViewKey.eq(viewKey),
-                             V9MmanItemDao.Properties.ViewKey.eq(bare),
-                             V9MmanItemDao.Properties.ViewKey.eq(prefixed)));
-            List<V9MmanItem> tmp = qb2.build().list();
-            return (tmp != null && !tmp.isEmpty()) ? tmp.get(0) : null;
-        }
+        // 历史脏数据可能存在同 key 多行，uniqueOrThrow 会抛异常；直接用 list 取第一条，
+        // 避免“异常后原样再查一遍”的双倍 DB 往返。
+        QueryBuilder<V9MmanItem> qb = v9MmanItemDao.queryBuilder();
+        qb.where(qb.or(V9MmanItemDao.Properties.ViewKey.eq(viewKey),
+                       V9MmanItemDao.Properties.ViewKey.eq(bare),
+                       V9MmanItemDao.Properties.ViewKey.eq(prefixed)));
+        List<V9MmanItem> tmp = qb.build().list();
+        return (tmp != null && !tmp.isEmpty()) ? tmp.get(0) : null;
     }
 
     @Override
@@ -553,6 +546,9 @@ public class AppDbHelper implements DbHelper {
 
     // ---- 自动补全（地址 / 用户名）建议 ----
 
+    /** 每种类型的自动补全/搜索历史最多保留条数，防止长期使用后无界增长 */
+    private static final int MAX_AUTO_COMPLETE_PER_TYPE = 200;
+
     @Override
     public List<String> getAutoCompleteNames(int type) {
         Set<String> nameSet = new LinkedHashSet<>();
@@ -560,6 +556,7 @@ public class AppDbHelper implements DbHelper {
             List<AutoCompleteEntity> list = daoSession().getAutoCompleteEntityDao().queryBuilder()
                     .where(AutoCompleteEntityDao.Properties.Type.eq(type))
                     .orderDesc(AutoCompleteEntityDao.Properties.UseTime)
+                    .limit(MAX_AUTO_COMPLETE_PER_TYPE)
                     .list();
             for (AutoCompleteEntity e : list) {
                 if (!TextUtils.isEmpty(e.getName())) {
@@ -589,6 +586,20 @@ public class AppDbHelper implements DbHelper {
                 dao.update(exist);
             } else {
                 dao.insert(new AutoCompleteEntity(null, name, 1, type, new Date(), new Date()));
+            }
+            // 无界增长防护：同类型超过上限时，按最近使用时间淘汰最旧记录
+            long count = dao.queryBuilder()
+                    .where(AutoCompleteEntityDao.Properties.Type.eq(type))
+                    .count();
+            if (count > MAX_AUTO_COMPLETE_PER_TYPE) {
+                List<AutoCompleteEntity> stale = dao.queryBuilder()
+                        .where(AutoCompleteEntityDao.Properties.Type.eq(type))
+                        .orderAsc(AutoCompleteEntityDao.Properties.UseTime)
+                        .limit((int) (count - MAX_AUTO_COMPLETE_PER_TYPE))
+                        .list();
+                if (stale != null && !stale.isEmpty()) {
+                    dao.deleteInTx(stale);
+                }
             }
         } catch (Exception e) {
             // 写入失败不应影响设置保存

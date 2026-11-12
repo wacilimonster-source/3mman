@@ -1,8 +1,10 @@
 # 3mman 打包发版流程（供其他 Agent 直接执行）
 
-> 本文档记录 2026-08-22 v1.0.61(94) 实际验证通过的完整打包流程。所有命令均在 Git Bash 中执行，
-> 工作区为 `G:/game/nw/3mman`（旧式 Android 项目：AGP + Gradle 7.6.4 + GreenDAO + support lib）。
-> 按顺序执行九个阶段即可复现发版。
+> **最后核对：2026-11-12（v1.0.137 / versionCode 170）**
+> 本文档描述的是"隔离副本 + 重签"的完整发版流程；日常改代码只需 `./gradlew` 编译/测试。
+> 版本号、依赖、签名、lint 门禁**以 `app/build.gradle` 与 `build-tools/config.py` 为准**，本文只作流程说明。
+> 代码质量硬规则见 [LESSONS.md](LESSONS.md)，提交前最低门禁见该文档第 2 节 R8。
+> 历史内容（v1.0.61 / support lib / `proguard-fresco.pro`）已不适用，勿照抄。
 
 ---
 
@@ -10,45 +12,45 @@
 
 | 组件 | 绝对路径 | 说明 |
 |---|---|---|
-| Gradle | `C:/Users/wacil/.workbuddy/binaries/gradle/gradle-7.6.4/bin/gradle.bat` | **必须 7.6.4**。Gradle 8.x 与本项目 GreenDAO 插件的 `IncrementalTaskInputs` API 不兼容，直接报错 |
-| JDK | `C:/Users/wacil/.workbuddy/binaries/jdk17/jdk-17.0.2` | 通过环境变量 `JAVA_HOME` 注入 |
-| Android SDK | `C:/Android/sdk` | `ANDROID_HOME` / `ANDROID_SDK_ROOT` 都要设 |
-| adb | `C:/Android/sdk/platform-tools/adb.exe` | 安装验证用 |
-| apksigner | `C:/Android/sdk/build-tools/34.0.0/apksigner.bat` | 验签用 |
-| 签名库 | `C:/gwork/origks/debug.keystore` | E7 密钥，配置在 app/build.gradle 内 |
+| Gradle | 项目内 `./gradlew`（7.6.4） | **必须 7.6.4**。Gradle 8.x 与本项目 GreenDAO 插件的 `IncrementalTaskInputs` API 不兼容 |
+| JDK | `C:/Program Files/Eclipse Adoptium/jdk-17.0.20.101-hotspot` | 构建前 `export JAVA_HOME=...`；不要用 Android Studio 自带 JBR（可能是 JDK 21） |
+| Android SDK | `G:/Android/Sdk` | 以 `local.properties` 的 `sdk.dir` 为准；`ANDROID_HOME` / `ANDROID_SDK_ROOT` 同值 |
+| adb | `G:/Android/platform-tools/adb.exe` | 安装验证用 |
+| apksigner | `G:/Android/build-tools/34.0.0/apksigner.bat` | 验签用 |
+| 签名库 | 本地 `keystore.properties` 的 `storeFile` | **不入库**；当前机器为 `C:/gwork/origks/debug.keystore` |
 
 **签名要求（硬约束）**：产物必须以 E7 密钥签名，SHA-1 必须等于
 `e72843708a92958b7ae82c230ddef2c3bf53aa7b`。
-签名配置已写在 `app/build.gradle` 的 `signingConfigs.release`：
+签名配置从本地 `keystore.properties` 读取（该文件已 gitignore）：
 
-```gradle
-signingConfigs {
-    release {
-        storeFile file('C:/gwork/origks/debug.keystore')
-        storePassword 'android'
-        keyAlias 'androiddebugkey'
-        keyPassword 'android'
-    }
-}
+```properties
+storeFile=C:/gwork/origks/debug.keystore
+storePassword=android
+keyAlias=androiddebugkey
+keyPassword=android
 ```
 
+`app/build.gradle` 在文件缺失时不会签名 release 产物（会打 warning）；换机构建前先创建该文件。
+
 release 构建块同时启用：`minifyEnabled true`、`shrinkResources true`、
-`proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro', 'proguard-fresco.pro'`、
-`lintOptions.checkReleaseBuilds false`（跳过 lint 崩溃）。
+`proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'`、
+`lintOptions.checkReleaseBuilds true / abortOnError true`。
 **不要改动这些配置**——尤其 proguard-rules.pro 缺失会导致启动即崩（见阶段五坑点）。
 
 ---
 
 ## 阶段二：修改版本号
 
-编辑 `app/build.gradle` 第 11–12 行附近：
+编辑 `app/build.gradle` 的 `defaultConfig`：
 
 ```gradle
-versionCode 94          // 每次 +1
-versionName "1.0.61"    // 按需递增
+versionCode 170           // 每次 +1
+versionName "1.0.137"     // 按需递增
 ```
 
-产物文件名由构建脚本自动生成为 `3mman_v${versionName}.apk`。
+同时更新根目录 `version.txt` 的 `versionCode` / `versionName` / `apkDownloadUrl`，
+发布后把实际 APK 的 `sha256` 写回。产物文件名由构建脚本自动生成为 `3mman_v${versionName}.apk`。
+
 
 ---
 
@@ -103,8 +105,9 @@ git archive HEAD | tar -x -C "$BLD"
 # 2) 工作区覆盖（注意 cp -a app/src/. 复制"内容"而不是 src 目录本身）
 cp -a app/src/. "$BLD/app/src/"
 cp app/build.gradle app/proguard-rules.pro "$BLD/app/"
-cp app/proguard-fresco.pro "$BLD/app/" 2>/dev/null || true
 cp build.gradle settings.gradle gradle.properties "$BLD/"
+# 签名配置按需复制（本地文件，不入库）
+cp keystore.properties "$BLD/" 2>/dev/null || true
 
 # 3) exolibrary 子模块（链式模块，缺失会导致 Could not resolve project :exolibrary）
 cp exolibrary/build.gradle "$BLD/exolibrary/"
@@ -134,7 +137,7 @@ Caused by: java.lang.NoSuchFieldException: TABLENAME
 校验清单：
 
 ```bash
-# 1) 文件数对比：两边应相等（当前应为 471 = 471）
+# 1) 文件数对比：两边应相等（不要写死具体数字，资源/代码会变）
 cd 'G:/game/nw/3mman' && find app/src exolibrary/src -type f | wc -l
 cd "$BLD"             && find app/src exolibrary/src -type f | wc -l
 
@@ -162,11 +165,11 @@ grep -c "resolveExistingDownloadFile" "$BLD/app/src/main/java/com/m3man/utils/SD
 
 ```bash
 cd "$BLD" && \
-JAVA_HOME='C:/Users/wacil/.workbuddy/binaries/jdk17/jdk-17.0.2' \
-ANDROID_HOME='C:/Android/sdk' ANDROID_SDK_ROOT='C:/Android/sdk' \
+JAVA_HOME='C:/Program Files/Eclipse Adoptium/jdk-17.0.20.101-hotspot' \
+ANDROID_HOME='G:/Android/Sdk' ANDROID_SDK_ROOT='G:/Android/Sdk' \
 ANDROID_USER_HOME="$FABAN/ah_$TAG" \
 GRADLE_USER_HOME="$FABAN/gh_$TAG" \
-'C:/Users/wacil/.workbuddy/binaries/gradle/gradle-7.6.4/bin/gradle.bat' \
+'G:/game/nw/3mman/gradlew' \
   -p "$BLD" \
   --project-cache-dir "$FABAN/project-cache-$TAG" \
   :app:assembleRelease --no-daemon

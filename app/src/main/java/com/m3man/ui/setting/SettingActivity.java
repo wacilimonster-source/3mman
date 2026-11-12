@@ -70,7 +70,8 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
 
     private AlertDialog testAlertDialog;
     private AlertDialog moveOldDirDownloadVideoToNewDirDiaog;
-    private boolean isTestSuccess = false;
+    /** 已通过连通性测试的地址；只有它与当前输入完全一致时才允许跳过二次确认 */
+    private String testedAddress;
     // M100：测试地址草稿按地址类型区分存储/预填——原单一 testBaseUrl 字段导致
     // mman 与 porny 两类地址输入互相串位（打开另一类弹窗时预填了上一类的地址）
     private String testBaseUrlMman;
@@ -136,6 +137,21 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
 
     /** 主线程 Handler（M98：引擎后台初始化完成后回主线程弹窗用） */
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+    @Override
+    protected void onDestroy() {
+        // 后台引擎初始化可能晚于页面退出；清掉回调，避免泄漏 Activity
+        mainHandler.removeCallbacksAndMessages(null);
+        // 加载框显示期间退出页面会 WindowLeaked
+        if (testAlertDialog != null && testAlertDialog.isShowing()) {
+            testAlertDialog.dismiss();
+        }
+        if (moveOldDirDownloadVideoToNewDirDiaog != null
+                && moveOldDirDownloadVideoToNewDirDiaog.isShowing()) {
+            moveOldDirDownloadVideoToNewDirDiaog.dismiss();
+        }
+        super.onDestroy();
+    }
 
     /**
      * 推荐调参弹窗（从「我的」迁入）。
@@ -540,7 +556,7 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
                 // M100：草稿按地址类型分别记录
                 setTestBaseUrlDraft(key, address);
                 alertDialog.dismiss();
-                if (isTestSuccess) {
+                if (address.equals(testedAddress)) {
                     saveToSpAndUpdateQMUICommonListItemView(key, qmuiCommonListItemView, address);
                 } else {
                     showConfirmDialog(qmuiCommonListItemView, address, key);
@@ -823,13 +839,13 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
 
     @Override
     public void showTestingAddressDialog(boolean isTest) {
-        isTestSuccess = false;
+        testedAddress = null;
         testAlertDialog.show();
     }
 
     @Override
     public void testNewAddressSuccess(String message, QMUICommonListItemView qmuiCommonListItemView, String key) {
-        isTestSuccess = true;
+        testedAddress = getTestBaseUrlDraft(key);
         dismissDialog();
         showMessage(message, TastyToast.SUCCESS);
         showAddressSettingDialog(qmuiCommonListItemView, key);
@@ -837,7 +853,7 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
 
     @Override
     public void testNewAddressFailure(String message, QMUICommonListItemView qmuiCommonListItemView, String key) {
-        isTestSuccess = false;
+        testedAddress = null;
         showMessage(message, TastyToast.ERROR);
         showAddressSettingDialog(qmuiCommonListItemView, key);
         dismissDialog();
@@ -863,7 +879,8 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
     private void dismissDialog() {
         if (testAlertDialog.isShowing() && !isFinishing()) {
             testAlertDialog.dismiss();
-        } else if (moveOldDirDownloadVideoToNewDirDiaog.isShowing() && !isFinishing()) {
+        }
+        if (moveOldDirDownloadVideoToNewDirDiaog.isShowing() && !isFinishing()) {
             moveOldDirDownloadVideoToNewDirDiaog.dismiss();
         }
     }

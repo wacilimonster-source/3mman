@@ -19,10 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
-#指定代码的压缩级别
--optimizationpasses 5
-
-#包明不混合大小写
+# R8 构建下不做 ProGuard 式代码优化（历史上为兼容热修复保留 -dontoptimize）
 -dontusemixedcaseclassnames
 
 #不去忽略非公共的库类
@@ -33,21 +30,10 @@
  #预校验
 -dontpreverify
 
-##记录生成的日志数据,gradle build时在本项目根目录输出##
-#apk 包内所有 class 的内部结构
--dump class_files.txt
-#未混淆的类和成员
--printseeds seeds.txt
-#列出从 apk 中删除的代码
--printusage unused.txt
-#混淆前后的映射
--printmapping mapping.txt
-########记录生成的日志数据，gradle build时 在本项目根目录输出-end#####
+##记录生成的日志数据（AGP 默认把 mapping 输出到 build/outputs/mapping，不再写源码目录）##
 
  # 混淆时所采用的算法
--optimizations !code/simplification/arithmetic,!field/*,!class/merging/*
-
-## Retrofit2 ##
+-optimizations !code/simplification/arithmetic,!field/*,!class/merging/*## Retrofit2 ##
 -dontwarn okio.**
 -dontwarn javax.annotation.**
 # Platform calls Class.forName on types which do not exist on Android to determine platform.
@@ -189,12 +175,6 @@
 -keep public class * extends android.app.backup.BackupAgentHelper
 -keep public class * extends android.preference.Preference
 -keep public class com.android.vending.licensing.ILicensingService
-#如果有引用v4包可以添加下面这行
--keep public class * extends android.support.v4.app.Fragment
-
--keepclassmembers class fqcn.of.javascript.interface.for.webview {
-   public *;
-}
 
 ## 保持自定义实体类不被混淆
 -keep class com.m3man.data.model.** { *; }
@@ -241,28 +221,14 @@ public static java.lang.String TABLENAME;
 -keepclassmembers  class **$** extends com.chad.library.adapter.base.BaseViewHolder {
      <init>(...);
 }
-### Safe Java-JS WebView Bridge ###
--keepclassmembers class com.u91mman.data.model.HostJsScope$RetJavaObj{ *; }
--keepclassmembers class com.u91mman.data.model.HostJsScope{ *; }
-
 ### AndroidPicker https://github.com/gzu-liyujiang/AndroidPicker
 -keepattributes InnerClasses,Signature
 -keepattributes *Annotation*
 
--keep class cn.qqtheme.framework.entity.** { *;}
+-keep class cn.qqtheme.framework.entity.** { *; }
 
-
-#基线包使用，生成mapping.txt
--printmapping mapping.txt
-#生成的mapping.txt在app/build/outputs/mapping/release路径下，移动到/app路径下
-#修复后的项目使用，保证混淆结果一致
-#-applymapping mapping.txt
-#hotfix
--keep class com.taobao.sophix.**{*;}
--keep class com.ta.utdid2.device.**{*;}
 #防止inline
 -dontoptimize
--dontwarn com.alibaba.sdk.android.utils.**
 -dontwarn cn.qqtheme.framework.util.**
 # T00：perf 基础件保持原名——benchmark/测试 APK 跨 dex 直接调用、
 # 线程名（Perfetto 定位）、阶段字符串都依赖这些符号；类小、keep 成本可忽略

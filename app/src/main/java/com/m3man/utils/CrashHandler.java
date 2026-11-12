@@ -54,21 +54,6 @@ public final class CrashHandler implements Thread.UncaughtExceptionHandler {
         Thread.setDefaultUncaughtExceptionHandler(new CrashHandler(context.getApplicationContext(), current));
     }
 
-    /** 最近一次崩溃的日志文件；没有则返回 null。供「设置-关于」或后续上报通道读取。 */
-    public static File latestCrashFile(Context context) {
-        File[] files = crashDir(context).listFiles();
-        if (files == null || files.length == 0) {
-            return null;
-        }
-        File latest = null;
-        for (File f : files) {
-            if (latest == null || f.lastModified() > latest.lastModified()) {
-                latest = f;
-            }
-        }
-        return latest;
-    }
-
     @Override
     public void uncaughtException(Thread thread, Throwable throwable) {
         try {

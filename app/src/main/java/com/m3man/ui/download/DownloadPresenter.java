@@ -629,29 +629,6 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         return dataManager.loadFinishedAfter(lastDateMs, lastId, limit);
     }
 
-    /**
-     * M68：查询 FileDownloader 中是否真的存在该 downloadId 的运行中任务。
-     * FileDownloadList.copy() 是包私有无法访问；保留此方法供日志/调试参考，
-     * 实际僵尸判定用 pause 探针（见 downloadVideo）。
-     */
-    @SuppressWarnings("unused")
-    private static Boolean findRunningTask(V9MmanItem item, String path) {
-        try {
-            String url = item.getVideoResult() == null ? null : item.getVideoResult().getVideoUrl();
-            if (TextUtils.isEmpty(url)) {
-                return null;
-            }
-            int regeneratedId = com.liulishuo.filedownloader.util.FileDownloadUtils
-                    .generateId(url, path);
-            if (regeneratedId != item.getDownloadId()) {
-                return null;
-            }
-            return Boolean.TRUE;
-        } catch (Throwable t) {
-            return null;
-        }
-    }
-
     /** 91mman 源下载 Referer：指向播放页，部分 CDN 校验该头 */
     private String buildReferer(String viewKey) {
         try {
