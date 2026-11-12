@@ -1,10 +1,53 @@
 # 3mman 打包发版流程（供其他 Agent 直接执行）
 
-> **最后核对：2026-11-12（v1.0.137 / versionCode 170）**
-> 本文档描述的是"隔离副本 + 重签"的完整发版流程；日常改代码只需 `./gradlew` 编译/测试。
+> **最后核对：2026-11-12（v1.0.138 / versionCode 171）**
+> **默认发版方式已切换为 GitHub Actions**（见下方"阶段零"），不再把 APK 提交进仓库。
+> 本文档后半部分的"隔离副本 + 重签"流程仅作为 CI 不可用时的本地兜底。
 > 版本号、依赖、签名、lint 门禁**以 `app/build.gradle` 与 `build-tools/config.py` 为准**，本文只作流程说明。
 > 代码质量硬规则见 [LESSONS.md](LESSONS.md)，提交前最低门禁见该文档第 2 节 R8。
 > 历史内容（v1.0.61 / support lib / `proguard-fresco.pro`）已不适用，勿照抄。
+
+---
+
+## 阶段零：GitHub Actions 发版（推荐）
+
+workflow：`.github/workflows/release.yml`，手动触发：
+
+```bash
+gh workflow run release.yml -R wacilimonster-source/3mman \
+  -f versionCode=172 -f versionName=1.0.139 \
+  -f updateMessage="1.0.139 更新内容：..."
+# 或 GitHub → Actions → Release APK → Run workflow
+```
+
+前置（一次性，仓库管理员）——Actions secrets：
+
+| Secret | 内容 |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | E7 签名库的 base64（`base64 -w0 C:/gwork/origks/debug.keystore`） |
+| `ANDROID_KEYSTORE_PASSWORD` | keystore 口令 |
+| `ANDROID_KEY_ALIAS` | `androiddebugkey` |
+| `ANDROID_KEY_PASSWORD` | key 口令 |
+
+workflow 会依次完成：
+1. JDK 17 + runner 预装 Android SDK（安装 platform 34 / build-tools 34.0.0）
+2. 从 secrets 还原 keystore 到临时目录并生成本地 `keystore.properties`
+3. 改 `app/build.gradle` 版本号
+4. `testDebugUnitTest` + `lintRelease` + `assembleRelease`
+5. **校验 apksigner SHA-1 必须等于 `e72843708a92958b7ae82c230ddef2c3bf53aa7b`**，不一致直接失败
+6. 生成 `version.txt`（`apkDownloadUrl` 指向 Release 资产，含 sha256）
+7. 把 `app/build.gradle` + `version.txt` 提交回 master
+8. 创建 GitHub Release `vX.Y.Z`，上传 APK 与 `version.txt`
+
+发版后核验：
+
+```bash
+gh release view v1.0.139 -R wacilimonster-source/3mman
+curl -s https://raw.githubusercontent.com/wacilimonster-source/3mman/master/version.txt
+# 下载 APK 后：sha256sum / apksigner verify --print-certs
+```
+
+**禁止**再把 APK `git add -f` 进仓库；否则会重新把几百 MB 历史塞回 git。
 
 ---
 
