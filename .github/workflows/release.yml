@@ -101,7 +101,7 @@ jobs:
           grep -nE 'versionCode|versionName' app/build.gradle | head -4
 
       - name: Test, lint and build release
-        run: ./gradlew :app:testDebugUnitTest :app:lintRelease :app:assembleRelease --no-daemon
+        run: bash ./gradlew :app:testDebugUnitTest :app:lintRelease :app:assembleRelease --no-daemon
 
       - name: Verify signing key matches history
         env:
