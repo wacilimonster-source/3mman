@@ -1,7 +1,7 @@
 {
-  "versionCode": 170,
-  "versionName": "1.0.137",
-  "updateMessage": "1.0.137 更新内容：\n1）修复 441447 切换来源/翻页后偶发「标题新、封面旧」：换图前先取消上一条封面请求并清掉复用残留；\n2）修复 441447 收藏列表刷新与加载更多并发时旧游标数据追加到新列表的问题；\n3）拒绝媒体权限后不再弹出英文「Permission apply failure」阻断首次使用，改为非阻塞提示；\n4）修复部分 ROM 上 MediaStore 归档读不到真实路径时把 content:// 写入本地路径，导致下载成品无法播放/删除；现在保留私有副本保证可用；\n5）推荐列表同步刷新时作废在途异步 diff，避免旧快照覆盖新列表。\n注意：91porny 与 441447 源功能需可访问外网的网络环境；仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://raw.githubusercontent.com/wacilimonster-source/3mman/master/3mman_v1.0.137.apk",
-  "sha256": "8033bef6a3a1f3bf33c9554dc08d82d9ad3215b894f3586c8efa6f44096d8b47"
+  "versionCode": 171,
+  "versionName": "1.0.138",
+  "updateMessage": "1.0.138 更新内容：\n1）代码质量清理：移除历史死代码/死资源，修复潜在空指针与并发问题；\n2）修复连续下载多个 HLS 视频时，第二个任务进度一直 0% 的问题；\n3）修复 91porny 同作者多条视频的直链缓存互相覆盖的问题；\n4）修复部分来源（含 / 的 viewKey）下载归档失败的问题；\n5）修复 Android 9 上打开「我的下载」可能闪退的问题；\n6）恢复发布前 lint 检查，降低后续版本回归风险。\n注意：91porny 与 441447 源功能需可访问外网的网络环境；仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.138/3mman_v1.0.138.apk",
+  "sha256": "f7c447ab5c7e27837b620240a97b44870aaaf5fe7dfd68fbef0eacd1790aaf7d"
 }
