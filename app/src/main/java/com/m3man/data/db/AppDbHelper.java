@@ -71,6 +71,7 @@ public class AppDbHelper implements DbHelper {
                     initCategory(Category.TYPE_91PORN, Category.CATEGORY_DEFAULT_91PORN_VALUE, Category.CATEGORY_DEFAULT_91PORN_NAME);
                     removeRetiredPornyChannelCategories();
                     repairMisflaggedPornyRows();
+                    repairBroken441447Covers();
                 } catch (Exception e) {
                     // M99：种子失败不再静默吞掉，至少留一条错误日志便于排查
                     AppLog.e("AppDbHelper", "initCategory/repairMisflaggedPornyRows failed: " + AppLog.cause(e));
@@ -101,6 +102,36 @@ public class AppDbHelper implements DbHelper {
 
     /** M99：应用上下文，供 repairMisflaggedPornyRows 读写一次性标记 */
     private final Context mAppContext;
+
+    /** R-fix：441447 历史封面域名修复的一次性 SP 标记 */
+    private static final String REPAIR_COVER_SP_NAME = "repair_cover_v1";
+    private static final String REPAIR_COVER_DONE_KEY = "repair_cover_v1_done";
+    /** 与 Source441447Client.normalizeCoverUrl 同口径：失效封面 CDN → 同路径可用的播放 CDN */
+    private static final String BROKEN_COVER_HOST = "://cover.317347.xyz/";
+    private static final String COVER_FALLBACK_HOST = "://p1.338484.xyz/";
+
+    /**
+     * R-fix 一次性数据修复：441447 历史行的 IMG_URL 停留在已失效封面域名 cover.317347.xyz
+     * （TLS 握手被重置，列表/收藏/历史封面恒显示占位图）。解析入口已在落库前改写
+     * （Source441447Client.normalizeCoverUrl），这里把迁移前入库的历史行迁到同路径可用的
+     * p1.338484.xyz。失败不落标记，下次启动重试。
+     */
+    private void repairBroken441447Covers() {
+        try {
+            if (mAppContext.getSharedPreferences(REPAIR_COVER_SP_NAME, Context.MODE_PRIVATE)
+                    .getBoolean(REPAIR_COVER_DONE_KEY, false)) {
+                return;
+            }
+            daoSession().getV9MmanItemDao().getDatabase().execSQL(
+                    "UPDATE V9_MMAN_ITEM SET IMG_URL = REPLACE(IMG_URL, ?, ?) "
+                            + "WHERE IMG_URL LIKE ?",
+                    new Object[]{BROKEN_COVER_HOST, COVER_FALLBACK_HOST, "%" + BROKEN_COVER_HOST + "%"});
+            mAppContext.getSharedPreferences(REPAIR_COVER_SP_NAME, Context.MODE_PRIVATE)
+                    .edit().putBoolean(REPAIR_COVER_DONE_KEY, true).apply();
+        } catch (Exception e) {
+            AppLog.w("AppDbHelper", "repairBroken441447Covers failed: " + AppLog.cause(e));
+        }
+    }
 
     /**
      * M66b 一次性数据修复：旧版 isPornySource 的 hex 正则误判把大量 9mman 视频标成了
@@ -220,6 +251,121 @@ public class AppDbHelper implements DbHelper {
         } catch (Exception e) {
             AppLog.e("AppDbHelper", "updateHlsProgressColumns failed: " + AppLog.cause(e));
         }
+    }
+
+    // ==================== R-fix：下载状态定向列写（见 DbHelper 接口注释） ====================
+
+    /** UPDATE SET 子句拼装：value 为 null 的列跳过（保留 DB 原值） */
+    private static void appendSet(StringBuilder sql, List<Object> args, String column, Object value) {
+        if (value == null) {
+            return;
+        }
+        if (args.size() > 0) {
+            sql.append(", ");
+        }
+        sql.append(column).append("=?");
+        args.add(value);
+    }
+
+    /** 执行定向列 UPDATE；失败记错误日志但不抛出（下载回调线程不得因写库失败崩溃） */
+    private void execTargetedUpdate(String tag, String sql, Object[] args) {
+        try {
+            daoSession().getV9MmanItemDao().getDatabase().execSQL(sql, args);
+        } catch (Exception e) {
+            AppLog.e("AppDbHelper", tag + " failed: " + AppLog.cause(e));
+        }
+    }
+
+    @Override
+    public void updateDownloadStateColumns(long rowId, Integer downloadId, int status, Integer progress,
+                                           Long soFarBytes, Long totalFarBytes, Long speed,
+                                           Date finishedDownloadDate) {
+        if (rowId <= 0) {
+            return;
+        }
+        StringBuilder sql = new StringBuilder("UPDATE V9_MMAN_ITEM SET ");
+        List<Object> args = new ArrayList<>();
+        appendSet(sql, args, "DOWNLOAD_ID", downloadId);
+        appendSet(sql, args, "STATUS", status);
+        appendSet(sql, args, "PROGRESS", progress);
+        appendSet(sql, args, "SO_FAR_BYTES", soFarBytes);
+        appendSet(sql, args, "TOTAL_FAR_BYTES", totalFarBytes);
+        appendSet(sql, args, "SPEED", speed);
+        // Date 列按 greenDAO 的 epoch 毫秒语义落盘（不能直接绑 Date 对象）
+        appendSet(sql, args, "FINISHED_DOWNLOAD_DATE",
+                finishedDownloadDate == null ? null : Long.valueOf(finishedDownloadDate.getTime()));
+        if (args.isEmpty()) {
+            return;
+        }
+        sql.append(" WHERE _id=?");
+        args.add(rowId);
+        execTargetedUpdate("updateDownloadStateColumns", sql.toString(), args.toArray());
+    }
+
+    @Override
+    public void updateLocalFilePathColumn(long rowId, String localFilePath) {
+        if (rowId <= 0) {
+            return;
+        }
+        execTargetedUpdate("updateLocalFilePathColumn",
+                "UPDATE V9_MMAN_ITEM SET LOCAL_FILE_PATH=? WHERE _id=?",
+                new Object[]{localFilePath, rowId});
+    }
+
+    @Override
+    public void updateDownloadBindingColumns(long rowId, int downloadId, Date addDownloadDate) {
+        if (rowId <= 0) {
+            return;
+        }
+        if (addDownloadDate == null) {
+            execTargetedUpdate("updateDownloadBindingColumns",
+                    "UPDATE V9_MMAN_ITEM SET DOWNLOAD_ID=? WHERE _id=?",
+                    new Object[]{downloadId, rowId});
+        } else {
+            execTargetedUpdate("updateDownloadBindingColumns",
+                    "UPDATE V9_MMAN_ITEM SET DOWNLOAD_ID=?, ADD_DOWNLOAD_DATE=? WHERE _id=?",
+                    new Object[]{downloadId, Long.valueOf(addDownloadDate.getTime()), rowId});
+        }
+    }
+
+    @Override
+    public void updateVideoResultIdColumn(long rowId, long videoResultId) {
+        if (rowId <= 0) {
+            return;
+        }
+        execTargetedUpdate("updateVideoResultIdColumn",
+                "UPDATE V9_MMAN_ITEM SET VIDEO_RESULT_ID=? WHERE _id=?",
+                new Object[]{videoResultId, rowId});
+    }
+
+    @Override
+    public void updateVideoSourceColumn(long rowId, String sourceName) {
+        if (rowId <= 0) {
+            return;
+        }
+        execTargetedUpdate("updateVideoSourceColumn",
+                "UPDATE V9_MMAN_ITEM SET SOURCE_NAME=? WHERE _id=?",
+                new Object[]{sourceName, rowId});
+    }
+
+    @Override
+    public void updateLocalFavoriteColumn(long rowId, boolean favorite) {
+        if (rowId <= 0) {
+            return;
+        }
+        execTargetedUpdate("updateLocalFavoriteColumn",
+                "UPDATE V9_MMAN_ITEM SET IS_LOCAL_FAVORITE=? WHERE _id=?",
+                new Object[]{favorite ? 1 : 0, rowId});
+    }
+
+    @Override
+    public void updateViewHistoryColumn(long rowId, Date viewHistoryDate) {
+        if (rowId <= 0 || viewHistoryDate == null) {
+            return;
+        }
+        execTargetedUpdate("updateViewHistoryColumn",
+                "UPDATE V9_MMAN_ITEM SET VIEW_HISTORY_DATE=? WHERE _id=?",
+                new Object[]{Long.valueOf(viewHistoryDate.getTime()), rowId});
     }
 
     @Override

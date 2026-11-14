@@ -202,23 +202,38 @@ export JAVA_HOME="C:/Program Files/Eclipse Adoptium/jdk-17.0.20.101-hotspot"
 
 ---
 
-## 3. 本轮清理的遗留项（不要假装全清）
+## 3. 审计遗留项（2026-11-14 已修复 7 项，剩 3 项未做）
 
-这些是审计发现、但本轮**没有**做（风险/工作量原因），下一轮优先处理：
+2026-11-14 轮已修复（细节见 `检测报告_遗留项修复代码测试_2026-11-14.md`）：
 
-1. **下载状态整行回写竞态**（P1/P2）：`AppDbHelper.updateV9MmanItem` 与 `DownloadManager.saveDownloadInfo`、
-   `HlsDownloadService`、`DownloadPresenter` 多入口整行 `insertOrReplace`，会互相覆盖 `localFilePath`/完成时间。
-   正确做法：所有进度/状态写改定向列 SQL（复用 `updateHlsProgressColumns` 模式），只允许一个终态写入者。
-2. **RecoProfile 非原子计数**（P2）：`likeCount/favoriteCount/watchCount` 是非 volatile 普通字段，主线程与 IO 线程并发 ++ 会丢更新。
-3. **来源判定 4 套未完全统一**（P2）：推荐预取、下载、播放、卡片标签仍各有一套，应统一到 `VideoKey`/`sourceName`。
-4. **收藏写库 4 份实现**（P2）：`VideoCardActions`、`FavoritePresenter`、`PlayVideoPresenter`、`RecommendFeedFragment.saveFavorite`。
-5. **AppDataManager 691 行纯委托**（P3）：新字段要在接口 + 实现 ×3 处同步，长期维护成本高。
+1. ~~**下载状态整行回写竞态**（P1/P2）~~ ✅ 已修复：`DbHelper` 新增定向列写方法组
+   （`updateDownloadStateColumns` / `updateLocalFilePathColumn` / `updateDownloadBindingColumns` /
+   `updateVideoResultIdColumn` / `updateVideoSourceColumn` / `updateLocalFavoriteColumn` / `updateViewHistoryColumn`），
+   `DownloadManager`、`HlsDownloadService`、`DownloadPresenter`、`DownloadingFragment`、`FinishedFragment`、
+   `DownloadEnqueuer`、`BasePlayVideo` 的进度/状态/绑定/成品路径写全部改定向列；
+   终态（completed）只由各自下载通道提交一次；`PornyFallbackResolver.applyPornyResult` 改为重读 DB 行后落库。
+2. ~~**RecoProfile 非原子计数**（P2）~~ ✅ 已修复：四计数改 `AtomicInteger`（Gson 不参与画像序列化，org.json 手写读写在 RecoStore）。
+3. ~~**来源判定 4 套未完全统一**（P2）~~ ✅ 已修复：唯一权威实现收敛到 `Parse91PornyVideo.isPornySource(V9MmanItem)`，
+   `PlayVideoPresenter.isPornySource` / `DownloadPresenter.isPornyVideo` / `VideoCardMeta.sourceLabel` 全部委托；
+   `Parse91PornyVideoSourceTest` 固定状态组合。注意：`RecommendPrefetcher` 的 `isPornyHex`（直链刷新路由）与
+   `isTadpoleViewKey/isPremiumViewKey`（解析端点路由）是 URL 形状判定，非持久化来源路由，有意保留。
+4. ~~**收藏写库 4 份实现**（P2）~~ ✅ 已修复：唯一写库路径 `FavoritePresenter.setLocalFavorite/toggleLocalFavorite`（静态），
+   `VideoCardActions.toggleFavorite` / `PlayVideoPresenter.addLocalFavorite` / `RecommendFeedFragment.saveFavorite` 全部委托；
+   DB 已有行只定向写 `IS_LOCAL_FAVORITE`/`SOURCE_NAME` 列。
+7. ~~**推荐缓存 v2 存在 SharedPreferences**（P2）~~ ✅ 已修复：迁到 `filesDir/reco/cache_batch_v2.json`（临时文件+rename 原子写），
+   首次读取时从旧 SP 键一次性迁移并删除；`PlayUiPrefs` 的 v2 存取方法已删。
+8. ~~**`enableDislikeFilter` 设置项无效**（P2）~~ ✅ 已修复（移除）：该开关承诺"不喜欢直接过滤"但 scorer 从不消费，
+   且与产品决策 #2（不喜欢只降权不屏蔽）冲突；`RecoParams`/`RecoSettingsDialog`/strings.xml 已同步删除。
+10. ~~**441447 旧封面域名**（P3）~~ ✅ 已修复：`AppDbHelper.repairBroken441447Covers()` 启动一次性把历史行
+    `IMG_URL` 的 `://cover.317347.xyz/` 改写为 `://p1.338484.xyz/`（与解析入口 normalizeCoverUrl 同口径），SP 标记防重扫。
+
+仍未做（下一轮评估）：
+
+5. **AppDataManager 纯委托膨胀**（P3）：新字段要在接口 + 实现 ×3 处同步；本轮定向列方法同样经此层委托，
+   长期应考虑合并 DataManager/DbHelper 层或生成委托。
 6. **依赖/构建栈老化**（P3）：AGP 7.4.2 + compileSdk 34（靠 suppress）、jsoup 1.11.3、Retrofit 2.5/OkHttp 3.12、Glide 4.9、
    ButterKnife/GreenDAO 已归档。升级需要单独排期和完整回归，不要顺手做。
-7. **推荐缓存 v2 存在 SharedPreferences**（P2）：最大 256KB JSON，冷启动会全量加载；应移到 `filesDir/reco/`。
-8. **`enableDislikeFilter` 设置项无效**（P2）：`RecoParams` 里有，`RecoSettingsDialog` 能开关，但 scorer/repository 从不消费。
-9. **91porny 直链 TTL**（P2）：`?t=&m=` 目前按实测 150s 保守处理，需要更多样本收紧。
-10. **441447 旧封面域名**（P3）：`cover.317347.xyz` 的历史 DB 记录未迁移，仍显示占位图。
+9. **91porny 直链 TTL**（P2）：`?t=&m=` 目前按实测 150s 保守处理，需要更多样本收紧（数据采集任务，非代码修复）。
 
 ---
 

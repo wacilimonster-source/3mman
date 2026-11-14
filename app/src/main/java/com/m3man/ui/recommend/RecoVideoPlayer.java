@@ -69,6 +69,9 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
         public void run() {
             // M98：延迟到期真正执行，标志复位
             singleTapPosted = false;
+            if (longPressActive || suppressClickAfterLongPress) {
+                return;
+            }
             if (tapListener != null) {
                 tapListener.onSingleTap(RecoVideoPlayer.this);
             } else {
@@ -266,6 +269,11 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
 
     @Override
     public void onClickUiToggle() {
+        // 长按 2x 结束时 JZ 仍会走一次 click 回调；这里直接吞掉，避免松手变成暂停。
+        if (suppressClickAfterLongPress || longPressActive) {
+            suppressClickAfterLongPress = false;
+            return;
+        }
         long now = SystemClock.uptimeMillis();
         if (lastTapTime > 0 && now - lastTapTime < DOUBLE_TAP_TIMEOUT) {
             lastTapTime = 0;
@@ -292,7 +300,10 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
 
     private float lastTouchX = -1f;
     private boolean longPressTriggered;
+    private boolean longPressActive;
     private float speedBeforeLongPress = 1.0f;
+    /** 长按结束后 JZ 仍会回调 onClickUiToggle；吞掉这次“松手即暂停”。 */
+    private boolean suppressClickAfterLongPress;
 
     private final Runnable longPressRunnable = new Runnable() {
         @Override
@@ -305,6 +316,7 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
             float touchX = getLastTouchX();
             if (touchX < getWidth() / 2f) {
                 longPressTriggered = true;
+                longPressActive = true;
                 speedBeforeLongPress = readCurrentSpeed();
                 setPlaybackSpeed(LONG_PRESS_SPEED);
             }
@@ -336,17 +348,44 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
     }
 
     @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        // 触摸常被播放器内部子 View 消费，onTouchEvent 收不到 DOWN；
+        // 这里在分发前记录真实触点并启动长按计时，保证双击左 1/3 点赞、长按 2x 都能触发。
+        if (event != null) {
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_DOWN) {
+                lastTouchX = event.getX();
+                longPressTriggered = false;
+                longPressActive = false;
+                tapHandler.postDelayed(longPressRunnable, LONG_PRESS_TIMEOUT);
+            } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                tapHandler.removeCallbacks(longPressRunnable);
+                if (longPressTriggered) {
+                    longPressTriggered = false;
+                    longPressActive = false;
+                    setPlaybackSpeed(speedBeforeLongPress);
+                    suppressClickAfterLongPress = true;
+                    tapHandler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            suppressClickAfterLongPress = false;
+                        }
+                    }, 500L);
+                }
+            }
+        }
+        return super.dispatchTouchEvent(event);
+    }
+
+    @Override
     public boolean onTouchEvent(MotionEvent event) {
         if (event == null) {
             return super.onTouchEvent(event);
         }
         int action = event.getActionMasked();
         if (action == MotionEvent.ACTION_DOWN) {
-            lastTouchX = event.getX();
-            longPressTriggered = false;
             pullDownStartY = event.getY();
             pullDownTriggered = false;
-            tapHandler.postDelayed(longPressRunnable, LONG_PRESS_TIMEOUT);
         } else if (action == MotionEvent.ACTION_MOVE) {
             // M119：下拉换一批——只累计位移，是否处于第一页由 Fragment 侧判断。
             // 第一页向下拖时 RecyclerView 本就不可滚（无越界滚动），位移能稳定累积。
@@ -357,11 +396,6 @@ public class RecoVideoPlayer extends JZVideoPlayerStandard {
             }
         } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
             pullDownStartY = -1f;
-            tapHandler.removeCallbacks(longPressRunnable);
-            if (longPressTriggered) {
-                longPressTriggered = false;
-                setPlaybackSpeed(speedBeforeLongPress);
-            }
         }
         return super.onTouchEvent(event);
     }

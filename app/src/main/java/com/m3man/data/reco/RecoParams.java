@@ -23,7 +23,6 @@ public class RecoParams {
     private static final String K_DECAY_DAYS = "decay_days";
     private static final String K_PREFETCH_AHEAD = "prefetch_ahead";
     private static final String K_AUTHOR_RECALL_RATIO = "author_recall_ratio";
-    private static final String K_ENABLE_DISLIKE_FILTER = "enable_dislike_filter";
     private static final String K_TAG_COEF = "tag_coef";
     private static final String K_CATEGORY_COEF = "category_coef";
     private static final String K_AUTHOR_COEF = "author_coef";
@@ -54,8 +53,6 @@ public class RecoParams {
     public static final int DEF_PREFETCH_AHEAD = 3;
     /** 作者召回占比 */
     public static final float DEF_AUTHOR_RECALL_RATIO = 0.30f;
-    /** 是否把强不喜欢的作者直接过滤掉（默认关闭，仅降权） */
-    public static final boolean DEF_ENABLE_DISLIKE_FILTER = false;
     /** 标题标签得分权重 */
     public static final float DEF_TAG_COEF = 1.0f;
     /** 分类得分权重 */
@@ -91,7 +88,6 @@ public class RecoParams {
     public int decayDays = DEF_DECAY_DAYS;
     public int prefetchAhead = DEF_PREFETCH_AHEAD;
     public float authorRecallRatio = DEF_AUTHOR_RECALL_RATIO;
-    public boolean enableDislikeFilter = DEF_ENABLE_DISLIKE_FILTER;
     public float tagCoef = DEF_TAG_COEF;
     public float categoryCoef = DEF_CATEGORY_COEF;
     public float authorCoef = DEF_AUTHOR_COEF;
@@ -124,7 +120,6 @@ public class RecoParams {
         p.decayDays = sp.getInt(K_DECAY_DAYS, DEF_DECAY_DAYS);
         p.prefetchAhead = sp.getInt(K_PREFETCH_AHEAD, DEF_PREFETCH_AHEAD);
         p.authorRecallRatio = sp.getFloat(K_AUTHOR_RECALL_RATIO, DEF_AUTHOR_RECALL_RATIO);
-        p.enableDislikeFilter = sp.getBoolean(K_ENABLE_DISLIKE_FILTER, DEF_ENABLE_DISLIKE_FILTER);
         p.tagCoef = sp.getFloat(K_TAG_COEF, DEF_TAG_COEF);
         p.categoryCoef = sp.getFloat(K_CATEGORY_COEF, DEF_CATEGORY_COEF);
         p.authorCoef = sp.getFloat(K_AUTHOR_COEF, DEF_AUTHOR_COEF);
@@ -158,7 +153,6 @@ public class RecoParams {
                 .putInt(K_DECAY_DAYS, decayDays)
                 .putInt(K_PREFETCH_AHEAD, prefetchAhead)
                 .putFloat(K_AUTHOR_RECALL_RATIO, authorRecallRatio)
-                .putBoolean(K_ENABLE_DISLIKE_FILTER, enableDislikeFilter)
                 .putFloat(K_TAG_COEF, tagCoef)
                 .putFloat(K_CATEGORY_COEF, categoryCoef)
                 .putFloat(K_AUTHOR_COEF, authorCoef)
@@ -185,7 +179,6 @@ public class RecoParams {
         decayDays = DEF_DECAY_DAYS;
         prefetchAhead = DEF_PREFETCH_AHEAD;
         authorRecallRatio = DEF_AUTHOR_RECALL_RATIO;
-        enableDislikeFilter = DEF_ENABLE_DISLIKE_FILTER;
         tagCoef = DEF_TAG_COEF;
         categoryCoef = DEF_CATEGORY_COEF;
         authorCoef = DEF_AUTHOR_COEF;

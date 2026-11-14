@@ -404,10 +404,10 @@ public class RecoStore implements RecoScorer.StatSource {
             readWeights(prof.optJSONObject("durations"), p.durationWeights);
             readWeights(prof.optJSONObject("orientations"), p.orientationWeights);
             p.lastDecayTime = prof.optLong("lastDecayTime", 0L);
-            p.likeCount = prof.optInt("likeCount", 0);
-            p.dislikeCount = prof.optInt("dislikeCount", 0);
-            p.favoriteCount = prof.optInt("favoriteCount", 0);
-            p.watchCount = prof.optInt("watchCount", 0);
+            p.likeCount.set(prof.optInt("likeCount", 0));
+            p.dislikeCount.set(prof.optInt("dislikeCount", 0));
+            p.favoriteCount.set(prof.optInt("favoriteCount", 0));
+            p.watchCount.set(prof.optInt("watchCount", 0));
         }
         profile = p;
 
@@ -626,10 +626,10 @@ public class RecoStore implements RecoScorer.StatSource {
         snap.durations = new HashMap<>(profile.durationWeights);
         snap.orientations = new HashMap<>(profile.orientationWeights);
         snap.lastDecayTime = profile.lastDecayTime;
-        snap.likeCount = profile.likeCount;
-        snap.dislikeCount = profile.dislikeCount;
-        snap.favoriteCount = profile.favoriteCount;
-        snap.watchCount = profile.watchCount;
+        snap.likeCount = profile.likeCount.get();
+        snap.dislikeCount = profile.dislikeCount.get();
+        snap.favoriteCount = profile.favoriteCount.get();
+        snap.watchCount = profile.watchCount.get();
         snap.actions = new LinkedHashMap<>(actions);
         snap.seen = new ArrayList<>(seen);
         snap.authorNames = new LinkedHashMap<>(authorNames);

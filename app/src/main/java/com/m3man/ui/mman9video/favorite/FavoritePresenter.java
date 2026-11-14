@@ -375,22 +375,7 @@ public class FavoritePresenter extends MvpBasePresenter<FavoriteView> implements
      * 需要在 IO 线程调用。
      */
     public boolean addLocalFavorite(V9MmanItem v9MmanItem) {
-        if (v9MmanItem == null) {
-            return false;
-        }
-        // 同步持久化来源标记，避免重启后无法识别
-        if (v9MmanItem.getSourceName() == null) {
-            v9MmanItem.setSourceName(v9MmanItem.getSource());
-        }
-        if (v9MmanItem.getSourceName() == null) {
-            v9MmanItem.setSourceName(com.m3man.parser.Parse91PornyVideo.SOURCE);
-        }
-        v9MmanItem.setIsLocalFavorite(true);
-        if (v9MmanItem.getVideoResult() != null) {
-            dataManager.saveVideoResult(v9MmanItem.getVideoResult());
-        }
-        dataManager.saveV9MmanItem(v9MmanItem);
-        return true;
+        return setLocalFavorite(dataManager, v9MmanItem, true);
     }
 
     /**
@@ -398,12 +383,85 @@ public class FavoritePresenter extends MvpBasePresenter<FavoriteView> implements
      * 需要在 IO 线程调用。
      */
     public boolean deleteLocalFavorite(V9MmanItem v9MmanItem) {
-        if (v9MmanItem == null) {
+        return setLocalFavorite(dataManager, v9MmanItem, false);
+    }
+
+    // ==================== R-fix：收藏写库唯一实现（LESSONS §3-4） ====================
+    // 收藏写库历史上 4 份实现（VideoCardActions/FavoritePresenter/PlayVideoPresenter/
+    // RecommendFeedFragment.saveFavorite），口径与竞态行为各异。统一收口到下面两个静态方法：
+    // DB 已有行 → 只写 IS_LOCAL_FAVORITE/SOURCE_NAME 定向列（不整行覆盖下载状态）；
+    // DB 无行 → saveV9MmanItem 整行落库（其 mergeDownloadState 保护下载字段）。
+
+    /**
+     * 设置本地收藏标记（唯一写库路径）。需在 IO 线程调用。
+     *
+     * @return 是否成功写入
+     */
+    public static boolean setLocalFavorite(DataManager dataManager, V9MmanItem v9MmanItem, boolean favorite) {
+        if (dataManager == null || v9MmanItem == null) {
             return false;
         }
-        v9MmanItem.setIsLocalFavorite(false);
-        dataManager.updateV9MmanItem(v9MmanItem);
+        String key = v9MmanItem.getViewKey();
+        V9MmanItem target = TextUtils.isEmpty(key) ? null : dataManager.findV9MmanItemByViewKey(key);
+        if (target == null) {
+            // DB 无行：整行落库（传入实体可能是刚解析的内存对象，尚无 id）
+            v9MmanItem.setIsLocalFavorite(favorite);
+            if (v9MmanItem.getSourceName() == null) {
+                v9MmanItem.setSourceName(v9MmanItem.getSource());
+            }
+            if (v9MmanItem.getSourceName() == null) {
+                v9MmanItem.setSourceName(com.m3man.parser.Parse91PornyVideo.SOURCE);
+            }
+            try {
+                if (v9MmanItem.getVideoResult() != null) {
+                    dataManager.saveVideoResult(v9MmanItem.getVideoResult());
+                }
+            } catch (Exception ignored) {
+                // 实体脱离 DaoSession 时 getVideoResult 会抛 DaoException
+            }
+            dataManager.saveV9MmanItem(v9MmanItem);
+            return true;
+        }
+        // DB 有行：先保证解析结果存在，再定向写收藏列与来源标记，不整行覆盖
+        try {
+            if (target.getVideoResult() != null) {
+                dataManager.saveVideoResult(target.getVideoResult());
+            }
+        } catch (Exception ignored) {
+            // 同上：detached 实体取不到解析结果
+        }
+        target.setIsLocalFavorite(favorite);
+        if (target.getId() != null) {
+            dataManager.updateLocalFavoriteColumn(target.getId(), favorite);
+            if (TextUtils.isEmpty(target.getSourceName())) {
+                String sourceName = com.m3man.parser.Parse91PornyVideo.isPornySource(target)
+                        ? com.m3man.parser.Parse91PornyVideo.SOURCE
+                        : com.m3man.ui.mman9video.play.PlayVideoPresenter.SOURCE_MMAN9_PERSIST;
+                target.setSourceName(sourceName);
+                dataManager.updateVideoSourceColumn(target.getId(), sourceName);
+            }
+        } else {
+            dataManager.updateV9MmanItem(target);
+        }
         return true;
+    }
+
+    /**
+     * 切换本地收藏（唯一写库路径）。需在 IO 线程调用。
+     *
+     * @return 切换后的收藏状态
+     */
+    public static boolean toggleLocalFavorite(DataManager dataManager, V9MmanItem v9MmanItem) {
+        if (dataManager == null || v9MmanItem == null) {
+            return false;
+        }
+        String key = v9MmanItem.getViewKey();
+        V9MmanItem target = TextUtils.isEmpty(key) ? null : dataManager.findV9MmanItemByViewKey(key);
+        boolean current = Boolean.TRUE.equals(
+                (target != null ? target : v9MmanItem).getIsLocalFavorite());
+        boolean now = !current;
+        setLocalFavorite(dataManager, v9MmanItem, now);
+        return now;
     }
 
     /**

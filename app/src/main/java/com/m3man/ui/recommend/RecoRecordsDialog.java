@@ -141,8 +141,8 @@ public class RecoRecordsDialog {
         TextView tv = new TextView(context);
         tv.setText(String.format(Locale.getDefault(),
                 "赞 %d · 不喜欢 %d · 收藏 %d · 观看 %d",
-                profile.likeCount, profile.dislikeCount,
-                profile.favoriteCount, profile.watchCount));
+                profile.likeCount.get(), profile.dislikeCount.get(),
+                profile.favoriteCount.get(), profile.watchCount.get()));
         tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         tv.setTextColor(Color.GRAY);
         tv.setPadding(dp(16), dp(4), dp(16), dp(6));

@@ -40,6 +40,47 @@ public class Parse91PornyVideo {
 
     private static final String TAG = Parse91PornyVideo.class.getSimpleName();
     public static final String SOURCE = "91porny";
+
+    /**
+     * R-fix（LESSONS §3-3）：91porny 来源判定全仓库唯一权威实现。
+     * 判定顺序：
+     * <ol>
+     *   <li>持久化标记 sourceName / 内存标记 source == {@link #SOURCE} → porny；</li>
+     *   <li>明确标为 mman9（{@link com.m3man.perf.VideoKey#SOURCE_MMAN9}）的直接判 9mman
+     *       （权威短路，不进入格式兜底——防裸 hex + mman9 标记被误判）；</li>
+     *   <li>无任何标记时才用 viewKey 格式兜底：91porny 主源 ID 恒为 16~32 位纯 hex 且
+     *       不带 "viewkey=" 前缀；9mman 的 viewKey 恒带前缀（extractViewKey 契约）。</li>
+     * </ol>
+     * 历史上 DownloadPresenter.isPornyVideo / VideoCardMeta.sourceLabel 等各抄一份，
+     * 口径漂移导致过「裸 hex 的 9mman 视频被误路由到 91porny」。修改判定规则只改这里。
+     */
+    public static boolean isPornySource(V9MmanItem item) {
+        if (item == null) {
+            return false;
+        }
+        boolean markedPorny = SOURCE.equals(item.getSourceName())
+                || SOURCE.equals(item.getSource());
+        if (markedPorny) {
+            return true;
+        }
+        // 权威短路：明确标 mman9 的不走格式推断
+        if (com.m3man.perf.VideoKey.SOURCE_MMAN9.equals(item.getSourceName())
+                || com.m3man.perf.VideoKey.SOURCE_MMAN9.equals(item.getSource())) {
+            return false;
+        }
+        // 兜底：带前缀恒为 9mman，裸 hex 才可能是 porny
+        // （用原生判空而非 TextUtils：JVM 单测中 TextUtils 是 stub，行为不可依赖）
+        String viewKey = item.getViewKey();
+        if (viewKey == null || viewKey.length() == 0) {
+            return false;
+        }
+        boolean prefixed = viewKey.startsWith("viewkey=");
+        String bare = prefixed ? viewKey.substring(8) : viewKey;
+        if (bare.matches("[0-9a-fA-F]{16,32}")) {
+            return !prefixed;
+        }
+        return false;
+    }
     private static final Pattern PAGE_NUM = Pattern.compile("page=(\\d+)");
     private static final Pattern BG_URL = Pattern.compile("url\\(\\s*['\"]?([^'\")]+)['\"]?\\s*\\)");
     /** 匹配 mp4 / m3u8 直链（同时覆盖 http(s):// 与 // 协议相对链接） */

@@ -12,8 +12,6 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.CheckBox;
-import android.widget.CompoundButton;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -248,7 +246,6 @@ public class RecoSettingsDialog {
                         p.prefetchAhead = Math.round(v);
                     }
                 });
-        addDislikeFilterBox(parent);
     }
 
     private void buildAdvancedGroup(LinearLayout parent) {
@@ -369,32 +366,12 @@ public class RecoSettingsDialog {
                 });
     }
 
-    private void addDislikeFilterBox(LinearLayout parent) {
-        final CheckBox filterBox = new CheckBox(context);
-        filterBox.setText(R.string.reco_param_dislike_filter);
-        filterBox.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        filterBox.setChecked(working.enableDislikeFilter);
-        filterBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                working.enableDislikeFilter = isChecked;
-            }
-        });
-        parent.addView(filterBox);
-        syncFromParams.add(new Runnable() {
-            @Override
-            public void run() {
-                filterBox.setChecked(working.enableDislikeFilter);
-            }
-        });
-    }
-
     // ==================== 头部 ====================
 
     private void addProfileSummary(LinearLayout root) {
         RecoProfile profile = engine.getProfile();
-        int actions = profile.likeCount + profile.dislikeCount
-                + profile.favoriteCount + profile.watchCount;
+        int actions = profile.likeCount.get() + profile.dislikeCount.get()
+                + profile.favoriteCount.get() + profile.watchCount.get();
         TextView tv = new TextView(context);
         tv.setText(context.getString(R.string.reco_profile_summary,
                 profile.tagWeights.size(), profile.authorWeights.size(), actions));

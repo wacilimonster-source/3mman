@@ -221,7 +221,8 @@ public class AppPreferencesHelper implements PreferencesHelper {
 
     @Override
     public void setNightMode(int nightMode) {
-        mPrefs.edit().putInt(KEY_SP_NIGHT_MODE, nightMode).apply();
+        // 主题切换后会立即重启进程；apply() 异步落盘可能丢写，导致新进程仍读到旧主题。
+        mPrefs.edit().putInt(KEY_SP_NIGHT_MODE, nightMode).commit();
     }
 
     @Override

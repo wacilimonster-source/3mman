@@ -1354,9 +1354,12 @@ public class RecommendFeedFragment extends BaseFragment
         // 以前是在文案末尾拼「，点击重试」让用户去点整块文字——没有按钮外观，
         // 绝大多数用户不知道这里可以点，只能滑走。
         holder.errorContainer.setVisibility(View.VISIBLE);
-        holder.error.setText(TextUtils.isEmpty(message)
-                ? getString(R.string.reco_parse_failed)
-                : message);
+        // 用户界面只展示可理解的失败文案；异常原文（如 StringIndexOutOfBoundsException
+        // 的 "begin 63, end 44, length 572"）只进日志，避免把 Java 异常当提示给用户看。
+        if (!TextUtils.isEmpty(message)) {
+            AppLog.w(TAG, "推荐播放失败 position=" + position + " reason=" + message);
+        }
+        holder.error.setText(getString(R.string.reco_parse_failed));
     }
 
     /**
@@ -2023,24 +2026,9 @@ public class RecommendFeedFragment extends BaseFragment
         return candidate.item != null && Boolean.TRUE.equals(candidate.item.getIsLocalFavorite());
     }
 
-    /** 与播放页的本地收藏保持一致（IO 线程调用） */
+    /** 与播放页的本地收藏保持一致（IO 线程调用）。R-fix：写库统一走 FavoritePresenter 唯一实现。 */
     private void saveFavorite(V9MmanItem item, boolean favorite) {
-        if (item == null) {
-            return;
-        }
-        if (item.getSourceName() == null) {
-            item.setSourceName(item.getSource());
-        }
-        item.setIsLocalFavorite(favorite);
-        try {
-            VideoResult result = item.getVideoResult();
-            if (result != null) {
-                dataManager.saveVideoResult(result);
-            }
-        } catch (Exception ignored) {
-            // 实体脱离 DaoSession 时 getVideoResult 会抛 DaoException
-        }
-        dataManager.saveV9MmanItem(item);
+        com.m3man.ui.mman9video.favorite.FavoritePresenter.setLocalFavorite(dataManager, item, favorite);
     }
 
     // ==================== 持久化 ====================

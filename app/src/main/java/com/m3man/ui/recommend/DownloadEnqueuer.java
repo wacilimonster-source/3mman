@@ -162,9 +162,14 @@ class DownloadEnqueuer {
                         .firstOrError()
                         .flatMap(fresh -> {
                             if (fresh != null && !TextUtils.isEmpty(fresh.getVideoUrl())) {
-                                dataManager.saveVideoResult(fresh);
+                                long freshId = dataManager.saveVideoResult(fresh);
                                 target.setVideoResult(fresh);
-                                dataManager.updateV9MmanItem(target);
+                                if (target.getId() != null && freshId > 0) {
+                                    // R-fix：只回写解析结果引用列（链路已等待解析+探活，target 已是旧快照）
+                                    dataManager.updateVideoResultIdColumn(target.getId(), freshId);
+                                } else {
+                                    dataManager.updateV9MmanItem(target);
+                                }
                                 DownloadDiag.append(viewKey, "reparse=成功 host=" + DownloadDiag.hostOf(fresh.getVideoUrl()));
                                 return Single.just(fresh.getVideoUrl());
                             } else {
@@ -220,7 +225,14 @@ class DownloadEnqueuer {
             target.setDownloadId(predictedId);
             target.setStatus(FileDownloadStatus.pending);
             target.setProgress(0);
-            dataManager.updateV9MmanItem(target);
+            if (target.getId() != null) {
+                // R-fix：入队绑定/状态改定向列写（target 在解析+探活期间已变旧）
+                dataManager.updateDownloadBindingColumns(target.getId(), predictedId, target.getAddDownloadDate());
+                dataManager.updateDownloadStateColumns(target.getId(), null,
+                        FileDownloadStatus.pending, 0, null, null, null, null);
+            } else {
+                dataManager.updateV9MmanItem(target);
+            }
         }
         int id = DownloadManager.getImpl().startDownload(url, path,
                 dataManager.isDownloadVideoNeedWifi(), false, referer);
@@ -232,7 +244,14 @@ class DownloadEnqueuer {
                 || target.getStatus() == FileDownloadStatus.completed) {
             target.setStatus(FileDownloadStatus.pending);
         }
-        dataManager.updateV9MmanItem(target);
+        if (target.getId() != null) {
+            // R-fix：绑定最终任务 id + 状态，定向列写
+            dataManager.updateDownloadBindingColumns(target.getId(), id, target.getAddDownloadDate());
+            dataManager.updateDownloadStateColumns(target.getId(), null,
+                    target.getStatus(), null, null, null, null, null);
+        } else {
+            dataManager.updateV9MmanItem(target);
+        }
         // 复查修正：方法签名返回 Single<DownloadResult>，原语句直接 return 实体导致类型不匹配
         return Single.just(new DownloadResult(true, "已加入下载队列 · 查看"));
     }

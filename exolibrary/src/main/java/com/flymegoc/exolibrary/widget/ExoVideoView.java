@@ -107,6 +107,14 @@ public class ExoVideoView extends RelativeLayout {
     private boolean leftPressSpeedEnabled;
     private float playbackSpeed = 1.0f;
 
+    /**
+     * 重新挂载 Surface（全屏切换时把播放器 View 搬到 DecorView）会释放 codec，
+     * 必须 stop 后重新 setVideoURI；这里记录 prepare 完成后要恢复的进度。
+     */
+    private long pendingSeekPosition = -1;
+    /** prepare 完成后是否自动起播；全屏切换前处于暂停状态时恢复后保持暂停。 */
+    private boolean autoStartOnPrepared = true;
+
     public ExoVideoView(Context context) {
         super(context);
         setup(context, null);
@@ -315,6 +323,24 @@ public class ExoVideoView extends RelativeLayout {
     @Nullable
     public Uri getVideoUri() {
         return videoUri;
+    }
+
+    /**
+     * 全屏切换等场景需要 stop + 重新 setVideoURI 时，指定 prepare 完成后恢复到的进度。
+     * 传负数表示不恢复。
+     */
+    public void setPendingSeekPosition(long position) {
+        this.pendingSeekPosition = position;
+    }
+
+    /** prepare 完成后是否自动起播；默认 true。 */
+    public void setAutoStartOnPrepared(boolean autoStart) {
+        this.autoStartOnPrepared = autoStart;
+    }
+
+    /** 供播放页在 onPrepared 中判断是否需要自动起播。 */
+    public boolean shouldAutoStartOnPrepared() {
+        return autoStartOnPrepared;
     }
 
     /**
@@ -714,11 +740,17 @@ public class ExoVideoView extends RelativeLayout {
                 // 等效于 showBuffering()
                 if (!mobile.isLoading && mobile.loadingProgressBar != null) {
                     mobile.loadingProgressBar.setVisibility(VISIBLE);
+                    if (mobile.playPauseButton != null) {
+                        mobile.playPauseButton.setVisibility(GONE);
+                    }
                 }
             } else if (!mobile.isPlayError && !mobile.isPlayComplete) {
                 // 等效于 hideBuffering()
                 if (!mobile.isLoading && mobile.loadingProgressBar != null) {
                     mobile.loadingProgressBar.setVisibility(GONE);
+                    if (mobile.playPauseButton != null && mobile.isVisible()) {
+                        mobile.playPauseButton.setVisibility(VISIBLE);
+                    }
                 }
             }
         }
@@ -1021,6 +1053,12 @@ public class ExoVideoView extends RelativeLayout {
             if (videoControls != null) {
                 videoControls.setDuration(getDuration());
                 videoControls.finishLoading();
+            }
+            // 全屏切换重新 prepare 后恢复原进度（只消费一次）。
+            if (pendingSeekPosition >= 0) {
+                long seekPosition = pendingSeekPosition;
+                pendingSeekPosition = -1;
+                seekTo(seekPosition);
             }
         }
 

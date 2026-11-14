@@ -231,10 +231,11 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
             } catch (Exception e) {
                 AppLog.w("Download", "僵尸清理异常(忽略) " + AppLog.cause(e));
             }
-            item.setStatus(FileDownloadStatus.error);
-            item.setSoFarBytes(0);
-            item.setProgress(0);
-            dataManager.updateV9MmanItem(item);
+            if (item.getId() != null) {
+                // R-fix：定向列写
+                dataManager.updateDownloadStateColumns(item.getId(), null,
+                        FileDownloadStatus.error, 0, 0L, null, null, null);
+            }
         }
         return resumedRealTask;
     }
@@ -428,9 +429,13 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                         }
                         // 写回 DB，保证「我的下载」等其它入口下次直接命中新鲜地址
                         try {
-                            dataManager.saveVideoResult(fresh);
+                            long freshId = dataManager.saveVideoResult(fresh);
                             item.setVideoResult(fresh);
-                            dataManager.updateV9MmanItem(item);
+                            if (item.getId() != null && freshId > 0) {
+                                // R-fix：重新解析后只回写解析结果引用列，
+                                // 不整行覆盖（此前整行 update 会用旧快照覆盖下载期间变化的其他列）
+                                dataManager.updateVideoResultIdColumn(item.getId(), freshId);
+                            }
                         } catch (Exception ignored) {
                         }
                         // M154：直链探活必须离开主线程，见 probeAliveThen 的方法注释
@@ -602,7 +607,13 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         // 下载列表刷新在广播回调时才读库，无读取竞态）
         io.reactivex.Completable.fromRunnable(() -> {
             try {
-                dataManager.updateV9MmanItem(item);
+                if (item.getId() != null) {
+                    // R-fix：入队只绑定 downloadId/加入时间，定向列写——
+                    // item 可能已在解析/探活等待中变旧，整行覆盖会回写陈旧的下载状态
+                    dataManager.updateDownloadBindingColumns(item.getId(), id, item.getAddDownloadDate());
+                } else {
+                    dataManager.updateV9MmanItem(item);
+                }
             } catch (Exception e) {
                 AppLog.e("Download", "startDownload 落库失败 viewKey=" + item.getViewKey()
                         + " " + AppLog.cause(e));
@@ -666,13 +677,12 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                                 File f = SDCardUtils.resolveExistingDownloadFile(context,
                                         item.getDownLoadPath(customDir));
                                 if (SDCardUtils.isDownloadFileComplete(f, item.getTotalFarBytes())) {
-                                    item.setStatus(FileDownloadStatus.completed);
-                                    item.setProgress(100);
-                                    // M99：字段已改 long，去掉 int 强转避免 >2GB 文件尺寸截断
-                                    item.setSoFarBytes(f.length());
-                                    item.setTotalFarBytes(f.length());
-                                    item.setFinishedDownloadDate(new Date());
-                                    dataManager.updateV9MmanItem(item);
+                                    if (item.getId() != null) {
+                                        // R-fix：终态提交走定向列写
+                                        dataManager.updateDownloadStateColumns(item.getId(), null,
+                                                FileDownloadStatus.completed, 100, f.length(), f.length(),
+                                                null, new Date());
+                                    }
                                     it.remove();
                                 }
                             }
@@ -780,7 +790,12 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
                 deleteFileWithTemp(fallback.getAbsolutePath());
             }
             v9MmanItem.setDownloadId(0);
-            dataManager.updateV9MmanItem(v9MmanItem);
+            if (v9MmanItem.getId() != null) {
+                // R-fix：删除只清任务绑定列
+                dataManager.updateDownloadBindingColumns(v9MmanItem.getId(), 0, null);
+            } else {
+                dataManager.updateV9MmanItem(v9MmanItem);
+            }
             return Boolean.TRUE;
         })
                 .subscribeOn(Schedulers.io())
@@ -862,6 +877,36 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         dataManager.updateV9MmanItem(v9MmanItem);
     }
 
+    /**
+     * R-fix：仅更新状态列的定向写（列表 UI 的暂停/状态纠偏用）。
+     * 列表适配器持有的实体是旧快照，整行 update 会把陈旧的进度/收藏/localFilePath 一并回写。
+     */
+    public void updateDownloadStatus(V9MmanItem item, int status) {
+        if (item == null) {
+            return;
+        }
+        item.setStatus(status);
+        if (item.getId() != null) {
+            dataManager.updateDownloadStateColumns(item.getId(), null, status,
+                    null, null, null, null, null);
+        } else {
+            dataManager.updateV9MmanItem(item);
+        }
+    }
+
+    /** R-fix：仅清任务绑定列（downloadId=0）的定向写，删除/取消 HLS 任务用。 */
+    public void clearDownloadBinding(V9MmanItem item) {
+        if (item == null) {
+            return;
+        }
+        item.setDownloadId(0);
+        if (item.getId() != null) {
+            dataManager.updateDownloadBindingColumns(item.getId(), 0, null);
+        } else {
+            dataManager.updateV9MmanItem(item);
+        }
+    }
+
     @Override
     public String getCustomDownloadVideoDirPath() {
         return dataManager.getCustomDownloadVideoDirPath();
@@ -874,7 +919,21 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
      */
     private void deleteWithoutFile(V9MmanItem v9MmanItem) {
         resetDownloadState(v9MmanItem);
-        dataManager.updateV9MmanItem(v9MmanItem);
+        persistResetDownloadState(v9MmanItem);
+    }
+
+    /**
+     * R-fix：把复位后的下载状态按定向列落库。入参实体可能来自列表适配器（快照可能已旧），
+     * 整行 update 会把陈旧的 localFilePath/收藏/来源一并回写，必须逐列覆盖。
+     */
+    private void persistResetDownloadState(V9MmanItem item) {
+        if (item.getId() == null) {
+            dataManager.updateV9MmanItem(item);
+            return;
+        }
+        dataManager.updateDownloadStateColumns(item.getId(), 0,
+                FileDownloadStatus.INVALID_STATUS, 0, 0L, 0L, 0L, null);
+        dataManager.updateLocalFilePathColumn(item.getId(), null);
     }
 
     /** 删除后必须把下载状态一起复位，否则卡片“下载”会一直判定“已经下载过了”。 */
@@ -911,7 +970,7 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         }
         if (deleted) {
             resetDownloadState(v9MmanItem);
-            dataManager.updateV9MmanItem(v9MmanItem);
+            persistResetDownloadState(v9MmanItem);
         } else {
             ifViewAttached(new ViewAction<DownloadView>() {
                 @Override
@@ -1026,11 +1085,22 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
         }).map(new Function<V9MmanItem, String>() {
             @Override
             public String apply(V9MmanItem v9MmanItem) throws Exception {
+                // R-fix：缓存拷贝的入参实体可能是页面持有很久的旧快照，整行覆盖
+                // 会回写陈旧的收藏/来源/localFilePath，改定向列写终态
+                int cachedId = FileDownloadUtils.generateId(v9MmanItem.getVideoResult().getVideoUrl(),
+                        v9MmanItem.getDownLoadPath(getCustomDownloadVideoDirPath()));
                 v9MmanItem.setStatus(FileDownloadStatus.completed);
                 v9MmanItem.setProgress(100);
-                v9MmanItem.setFinishedDownloadDate(new Date());
-                v9MmanItem.setDownloadId(FileDownloadUtils.generateId(v9MmanItem.getVideoResult().getVideoUrl(), v9MmanItem.getDownLoadPath(getCustomDownloadVideoDirPath())));
-                dataManager.updateV9MmanItem(v9MmanItem);
+                v9MmanItem.setDownloadId(cachedId);
+                if (v9MmanItem.getId() != null) {
+                    dataManager.updateDownloadStateColumns(v9MmanItem.getId(), cachedId,
+                            FileDownloadStatus.completed, 100,
+                            v9MmanItem.getSoFarBytes(), v9MmanItem.getTotalFarBytes(),
+                            null, new Date());
+                } else {
+                    v9MmanItem.setFinishedDownloadDate(new Date());
+                    dataManager.updateV9MmanItem(v9MmanItem);
+                }
                 return "下载完成";
             }
         })
@@ -1127,36 +1197,14 @@ public class DownloadPresenter extends MvpBasePresenter<DownloadView> implements
 
 
     /**
-     * M68：判断是否 91porny 源。与 PlayVideoPresenter.isPornySource 保持同一权威逻辑：
-     * 持久化标记优先（mman9 标记直接短路为 false），无标记时才做格式推断兜底。
+     * M68：判断是否 91porny 源。
+     * R-fix（LESSONS §3-3）：来源判定全仓库统一到 Parse91PornyVideo.isPornySource 唯一实现，
+     * 本方法只是下载模块的语义化别名。
      * v1.0.67 及之前此方法是纯 hex 正则，会把带 hex key 的 9mman 视频误判成 porny，
      * 跳过下载前的重新解析、拿过期签名直链去下导致必然失败。
      */
     private static boolean isPornyVideo(V9MmanItem item) {
-        if (item == null) {
-            return false;
-        }
-        boolean markedPorny = Parse91PornyVideo.SOURCE.equals(item.getSource())
-                || Parse91PornyVideo.SOURCE.equals(item.getSourceName());
-        if (markedPorny) {
-            return true;
-        }
-        // 权威短路：明确标 mman9 的不走格式推断
-        if (PlayVideoPresenter.SOURCE_MMAN9_PERSIST.equals(item.getSourceName())
-                || PlayVideoPresenter.SOURCE_MMAN9_PERSIST.equals(item.getSource())) {
-            return false;
-        }
-        // 兜底：带前缀恒为 9mman，裸 hex 才可能是 porny
-        String viewKey = item.getViewKey();
-        if (TextUtils.isEmpty(viewKey)) {
-            return false;
-        }
-        boolean prefixed = viewKey.startsWith("viewkey=");
-        String bare = prefixed ? viewKey.substring(8) : viewKey;
-        if (bare.matches("[0-9a-fA-F]{16,32}")) {
-            return !prefixed;
-        }
-        return false;
+        return Parse91PornyVideo.isPornySource(item);
     }
 
     public interface DownloadListener {

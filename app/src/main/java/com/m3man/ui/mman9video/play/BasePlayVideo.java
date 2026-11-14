@@ -756,7 +756,16 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         if (v9MmanItem.getAddDownloadDate() == null) {
             v9MmanItem.setAddDownloadDate(new Date());
         }
-        MyApplication.getInstance().getDataManager().updateV9MmanItem(v9MmanItem);
+        // R-fix：定向列写——播放页实体从进入页面起可能持有数分钟，整行覆盖会回写陈旧的其他列
+        if (v9MmanItem.getId() != null) {
+            MyApplication.getInstance().getDataManager().updateDownloadBindingColumns(
+                    v9MmanItem.getId(), pseudoId, v9MmanItem.getAddDownloadDate());
+            MyApplication.getInstance().getDataManager().updateDownloadStateColumns(
+                    v9MmanItem.getId(), null, FileDownloadStatus.progress,
+                    null, null, null, null, null);
+        } else {
+            MyApplication.getInstance().getDataManager().updateV9MmanItem(v9MmanItem);
+        }
         // 通知「正在下载」页刷新
         Intent progressIntent = new Intent(HlsDownloadService.ACTION_HLS_PROGRESS);
         progressIntent.putExtra(HlsDownloadService.EXTRA_VIEW_KEY, v9MmanItem.getViewKey());

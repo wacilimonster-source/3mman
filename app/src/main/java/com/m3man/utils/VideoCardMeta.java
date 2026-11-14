@@ -65,15 +65,9 @@ public final class VideoCardMeta {
         if (Source441447Client.isSource(item)) {
             return "441447";
         }
-        String sourceName = item.getSourceName();
-        String source = item.getSource();
-        if (Parse91PornyVideo.SOURCE.equals(sourceName)
-                || Parse91PornyVideo.SOURCE.equals(source)) {
-            return "分分钟";
-        }
-        String key = item.getViewKey();
-        if (key != null && !key.startsWith("viewkey=")
-                && key.matches("[0-9a-fA-F]{16,32}")) {
+        // R-fix（LESSONS §3-3）：来源判定统一走 Parse91PornyVideo.isPornySource 唯一实现，
+        // 不再本地复制一份「标记 + 裸 hex 兜底」口径
+        if (Parse91PornyVideo.isPornySource(item)) {
             return "分分钟";
         }
         return "视频源";

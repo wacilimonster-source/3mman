@@ -630,8 +630,13 @@ public class ParseV9MmanVideo {
                 int addTime = allInfo.indexOf("添加时间");
                 int author = allInfo.indexOf("作者");
                 String addDate = "";
-                if (addTime != -1 && author != -1) {
+                // 页面字段顺序并非固定：曾有条目「作者」出现在「添加时间」之前，
+                // 直接 substring(addTime, author) 会抛 StringIndexOutOfBoundsException
+                // （begin 63, end 44, length 572），整条推荐解析失败。仅在顺序正确时截取。
+                if (addTime != -1 && author > addTime) {
                     addDate = allInfo.substring(addTime, author);
+                } else if (addTime != -1 && author == -1) {
+                    addDate = allInfo.substring(addTime);
                 }
                 videoResult.setAddDate(addDate);
                 Logger.t(TAG).d("添加时间：" + addDate);
@@ -639,7 +644,7 @@ public class ParseV9MmanVideo {
                 int regIndex = allInfo.indexOf("注册");
                 int introduction = allInfo.indexOf("简介");
                 String otherInfo = "";
-                if (regIndex != -1 && introduction != -1) {
+                if (regIndex != -1 && introduction > regIndex) {
                     otherInfo = allInfo.substring(regIndex, introduction);
                 }
                 videoResult.setUserOtherInfo(otherInfo);

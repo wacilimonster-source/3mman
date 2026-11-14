@@ -1,11 +1,16 @@
 package com.m3man.ui.setting;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Process;
+import android.os.SystemClock;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatDelegate;
@@ -26,6 +31,7 @@ import com.sdsmdg.tastytoast.TastyToast;
 import com.m3man.R;
 import com.m3man.utils.PlayUiPrefs;
 import com.m3man.constants.Constants;
+import com.m3man.constants.Keys;
 import com.m3man.data.DataManager;
 import com.m3man.data.network.Api;
 import com.m3man.data.db.entity.AutoCompleteEntity;
@@ -33,11 +39,13 @@ import com.m3man.data.prefs.AppPreferencesHelper;
 import com.m3man.data.reco.RecoEngine;
 import com.m3man.data.reco.RecoParams;
 import com.m3man.ui.MvpActivity;
+import com.m3man.ui.main.MainActivity;
 import com.m3man.ui.mman9video.user.UserLoginActivity;
 import com.m3man.ui.proxy.ProxySettingActivity;
 import com.m3man.ui.recommend.RecoSettingsDialog;
 import com.m3man.utils.DialogUtils;
 import com.m3man.utils.SDCardUtils;
+import com.m3man.utils.AppLog;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -805,7 +813,40 @@ public class SettingActivity extends MvpActivity<SettingView, SettingPresenter> 
                 break;
         }
         AppCompatDelegate.setDefaultNightMode(mode);
-        recreate();
+        restartApplicationForTheme();
+    }
+
+    /**
+     * 主题切换后重启应用进程。
+     * <p>
+     * 仅 recreate 时 MainActivity 的 Fragment/Presenter 会被保留，而 Presenter 注入的
+     * LifecycleProvider 仍绑定已销毁的旧 Activity，bindUntilEvent(ON_DESTROY) 会让新请求
+     * 立即取消，首页停在“连接较慢，仍在加载”。进程重启可彻底重建 Dagger 组件、Presenter
+     * 与主题，保证切换后主界面和内容立即可用（约 1 秒）。
+     */
+    private void restartApplicationForTheme() {
+        try {
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.putExtra(Keys.KEY_SELECT_INDEX, 3);
+            int flags = PendingIntent.FLAG_CANCEL_CURRENT;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                flags |= PendingIntent.FLAG_IMMUTABLE;
+            }
+            PendingIntent restartIntent = PendingIntent.getActivity(this, 0, intent, flags);
+            AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+            if (alarmManager == null) {
+                recreate();
+                return;
+            }
+            alarmManager.set(AlarmManager.ELAPSED_REALTIME,
+                    SystemClock.elapsedRealtime() + 300L, restartIntent);
+        } catch (Exception e) {
+            AppLog.w(TAG, "主题切换重启调度失败: " + AppLog.cause(e));
+            recreate();
+            return;
+        }
+        Process.killProcess(Process.myPid());
     }
 
     private void showExitDialog() {

@@ -89,6 +89,15 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
         videoPlayer.setOnErrorListener(new OnErrorListener() {
             @Override
             public boolean onError(Exception e) {
+                // 全屏切换会把播放器 View 搬到 DecorView 并重建 Surface，ExoPlayer 2.9
+                // 会在此窗口内报一次瞬时错误；此时控件库正在 stop→重新 prepare，
+                // 不应触发“解析失败”提示或重新解析（否则用户会看到误报 toast）。
+                if (ExoVideoControlsMobile.isReparenting()) {
+                    AppLog.w("Player", "全屏切换期间忽略播放器瞬时错误 viewKey="
+                            + getViewKeyForLog() + " msg=" + e.getMessage()
+                            + " cause=" + AppLog.cause(e));
+                    return true;
+                }
                 java.io.StringWriter sw = new java.io.StringWriter();
                 e.printStackTrace(new java.io.PrintWriter(sw));
                 String stack = sw.toString();
@@ -263,6 +272,7 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
         if (!TextUtils.isEmpty(thumImgUrl)) {
             GlideApp.with(this).load(Uri.parse(thumImgUrl)).transition(new DrawableTransitionOptions().crossFade(300)).into(videoPlayer.getPreviewImageView());
         }
+        videoPlayer.setAutoStartOnPrepared(true);
         videoPlayer.setVideoURI(Uri.parse(videoUrl));
         videoControlsMobile.setTitle(title);
         // M70：记录本次播放 URL + 起播日志，配合错误/缓冲埋点定位转圈问题
@@ -281,6 +291,11 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
         prepared = true;
         // M165：缓冲期间用户按 Home/切后台，prepare 完成后不能直接起播（否则后台突然出声）；
         // 记下待续播标记，等 onResume 再真正开始。
+        // 全屏切换会 stop 后重新 prepare：切换前是暂停态时，恢复进度后保持暂停。
+        if (!videoPlayer.shouldAutoStartOnPrepared()) {
+            videoPlayer.setAutoStartOnPrepared(true);
+            return;
+        }
         if (isPauseByActivityEvent || !activityResumed) {
             isPauseByActivityEvent = true;
             return;

@@ -1,7 +1,7 @@
 {
-  "versionCode": 171,
-  "versionName": "1.0.138",
-  "updateMessage": "1.0.138 更新内容：\n1）代码质量清理：移除历史死代码/死资源，修复潜在空指针与并发问题；\n2）修复连续下载多个 HLS 视频时，第二个任务进度一直 0% 的问题；\n3）修复 91porny 同作者多条视频的直链缓存互相覆盖的问题；\n4）修复部分来源（含 / 的 viewKey）下载归档失败的问题；\n5）修复 Android 9 上打开「我的下载」可能闪退的问题；\n6）恢复发布前 lint 检查，降低后续版本回归风险。\n注意：91porny 与 441447 源功能需可访问外网的网络环境；仅支持 64 位 CPU 的设备。",
-  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.138/3mman_v1.0.138.apk",
-  "sha256": "f7c447ab5c7e27837b620240a97b44870aaaf5fe7dfd68fbef0eacd1790aaf7d"
+  "versionCode": 172,
+  "versionName": "1.0.139",
+  "updateMessage": "1.0.139 更新内容：\n1）修复推荐条目解析越界导致整条视频无法播放的问题；\n2）修复播放页返回后封面残影、全屏切换误报播放错误；\n3）修复夜间模式切换后主界面不立即生效（切换后自动重启生效）；\n4）修复推荐流双击左侧点赞永远快进、长按 2 倍速失效；\n5）下载/收藏/历史/来源写库改为定向列更新，修复下载期间收藏被旧快照覆盖、完成记录丢失成品路径等竞态；\n6）来源判定收敛为单一权威实现，避免裸 hex 视频被误判来源；\n7）推荐缓存从 SharedPreferences 迁到应用私有文件，降低冷启动内存占用（旧缓存自动迁移）；\n8）移除无效的「不喜欢直接过滤」设置项；441447 历史封面地址自动迁移修复。\n注意：91porny 与 441447 源功能需可访问外网的网络环境；仅支持 64 位 CPU 的设备。",
+  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.139/3mman_v1.0.139.apk",
+  "sha256": "bc6ccc451c2648c07c006a3b895a96007921159315a379dfab50a40b6073b7ca"
 }

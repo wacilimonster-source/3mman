@@ -163,9 +163,21 @@ public class PornyFallbackResolver {
             item.setVideoResult(pornyResult);
             item.setSource(Parse91PornyVideo.SOURCE);
             item.setSourceName(Parse91PornyVideo.SOURCE);
-            dm.updateV9MmanItem(item);
+            // R-fix：重新读一次 DB 行落库——调用链（解析+探活）等待期间传入实体可能已旧，
+            // 整行覆盖会回写陈旧的下载状态/localFilePath；查不到行时才用内存实体整行落库
+            V9MmanItem target = TextUtils.isEmpty(item.getViewKey())
+                    ? null : dm.findV9MmanItemByViewKey(item.getViewKey());
+            if (target != null) {
+                target.setVideoResult(pornyResult);
+                target.setSource(Parse91PornyVideo.SOURCE);
+                target.setSourceName(Parse91PornyVideo.SOURCE);
+                dm.updateV9MmanItem(target);
+            } else {
+                dm.updateV9MmanItem(item);
+            }
             return true;
         } catch (Exception e) {
+            AppLog.w("PornyFallbackResolver", "applyPornyResult 写库失败 " + AppLog.cause(e));
             return false;
         }
     }

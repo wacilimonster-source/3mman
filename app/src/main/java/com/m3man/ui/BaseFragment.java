@@ -1,7 +1,6 @@
 package com.m3man.ui;
 
 import android.app.Activity;
-import android.app.ActivityOptions;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -160,9 +159,10 @@ public abstract class BaseFragment extends DaggerFragment {
     }
 
     /**
-     * 启动播放页，支持共享元素转场（封面 → 播放器容器）。
-     * @param sharedCover 列表项封面 View（item_v_9mman.xml 中 transitionName="video_cover" 的 ImageView），
-     *                    传 null 则走普通滑入动画。
+     * 启动播放页。
+     * <p>
+     * 共享元素转场在列表复用/页面隐藏后会在返回时留下封面残影，统一改为滑入动画；
+     * sharedCover 参数仅为兼容既有调用点保留。
      */
     protected void goToPlayVideo(V9MmanItem v9MmanItem, int skipPage, int position, View sharedCover) {
         Intent intent = PlaybackEngine.getPlaybackEngineIntent(getContext());
@@ -171,13 +171,8 @@ public abstract class BaseFragment extends DaggerFragment {
         intent.putExtra(Keys.KEY_INTENT_SKIP_PAGE, skipPage);
         intent.putExtra(Keys.KEY_INTENT_SCROLL_TO_POSITION, position);
         if (activity instanceof MainActivity || activity instanceof DownloadActivity) {
-            if (sharedCover != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
-                ActivityOptions options = ActivityOptions.makeSceneTransitionAnimation(activity, sharedCover, "video_cover");
-                startActivity(intent, options.toBundle());
-            } else {
-                startActivity(intent);
-                activity.overridePendingTransition(R.anim.slide_in_right, R.anim.side_out_left);
-            }
+            startActivity(intent);
+            activity.overridePendingTransition(R.anim.slide_in_right, R.anim.side_out_left);
         } else if (activity instanceof BasePlayVideo) {
             BasePlayVideo basePlayVideo = (BasePlayVideo) activity;
             basePlayVideo.setV9MmanItems(v9MmanItem);

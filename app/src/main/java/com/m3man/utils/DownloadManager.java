@@ -211,13 +211,10 @@ public class DownloadManager {
                 if (SDCardUtils.isDownloadFileComplete(f, total)) {
                     V9MmanItem item = dataManager.findV9MmanItemByDownloadId(task.getId());
                     if (item != null) {
-                        item.setStatus(FileDownloadStatus.completed);
-                        item.setProgress(100);
-                        // M99：实体字段已改为 long，直接存真实字节数，避免 >2GB 截断
-                        item.setSoFarBytes(f.length());
-                        item.setTotalFarBytes(f.length());
-                        item.setFinishedDownloadDate(new Date());
-                        dataManager.updateV9MmanItem(item);
+                        // R-fix：终态提交走定向列写（该任务唯一的 completed 写入点）
+                        dataManager.updateDownloadStateColumns(item.getId(), null,
+                                FileDownloadStatus.completed, 100, f.length(), f.length(),
+                                null, new Date());
                         archiveAndPersist(item, task.getPath());
                     }
                     complete(task);
@@ -263,17 +260,16 @@ public class DownloadManager {
             totalBytes = task.getLargeFileTotalBytes();
             soFarBytes = task.getLargeFileSoFarBytes();
         }
-        if (soFarBytes > 0) {
-            v9MmanItem.setSoFarBytes(soFarBytes);
-        }
-
-        if (totalBytes > 0) {
-            v9MmanItem.setTotalFarBytes(totalBytes);
-            int p = (int) (((float) soFarBytes / totalBytes) * 100);
-            v9MmanItem.setProgress(p);
-        }
+        // R-fix：改为定向列写——本回调高频触发，若整行 update 会用本行快照覆盖
+        // 下载期间其他入口（收藏/归档路径/来源）刚写入的列。
+        // 未知字节量传 null 保留 DB 原值，与旧的"仅 >0 才 set"行为一致。
+        Long soFarArg = soFarBytes > 0 ? Long.valueOf(soFarBytes) : null;
+        Long totalArg = totalBytes > 0 ? Long.valueOf(totalBytes) : null;
+        Integer progressArg = totalBytes > 0
+                ? Integer.valueOf((int) (((float) soFarBytes / totalBytes) * 100)) : null;
+        Date finishedDate = null;
         if (task.getStatus() == FileDownloadStatus.completed) {
-            v9MmanItem.setFinishedDownloadDate(new Date());
+            finishedDate = new Date();
             // M61/M73：假完成防护——m3u8 播放列表/错误页被当 mp4 下完时只有几百字节。
             // M73 收紧判定：①文件头必须是文本（m3u8/#EXTM3U/HTML），排除合法的小体积视频；
             // ②或 URL 本身就是 m3u8。纯大小阈值会误删 <100KB 的合法短视频。
@@ -283,16 +279,15 @@ public class DownloadManager {
                     AppLog.e(TAG, "疑似假完成文件(" + done.length() + "B, 文本内容)已删除 url.host="
                             + AppLog.hostOf(task.getUrl()));
                     done.delete();
-                    v9MmanItem.setStatus(FileDownloadStatus.error);
-                    dataManager.updateV9MmanItem(v9MmanItem);
+                    dataManager.updateDownloadStateColumns(v9MmanItem.getId(), null,
+                            FileDownloadStatus.error, null, null, null, null, null);
                     return;
                 }
             } catch (Exception ignored) {
             }
         }
-        v9MmanItem.setSpeed(task.getSpeed());
-        v9MmanItem.setStatus(task.getStatus());
-        dataManager.updateV9MmanItem(v9MmanItem);
+        dataManager.updateDownloadStateColumns(v9MmanItem.getId(), null, task.getStatus(),
+                progressArg, soFarArg, totalArg, Long.valueOf(task.getSpeed()), finishedDate);
         if (task.getStatus() == FileDownloadStatus.completed) {
             // V13：下载完成后归档进 MediaStore 公共 Movies/3mman，实现相册/文件管理器可见且零副本。
             // M165：归档是整文件逐字节复制，FileDownloader 回调在主线程，必须移到后台，
@@ -313,6 +308,8 @@ public class DownloadManager {
     /**
      * V13：把已完成文件归档进 MediaStore 并持久化成品路径（best-effort）。
      * 归档成功 → 存 V9MmanItem.localFilePath（播放/删除直读公共路径）；失败 → 保留私有副本走原逻辑。
+     * R-fix：异步执行时本实体是完成时刻的旧快照，改定向列写 LOCAL_FILE_PATH，
+     * 不把旧快照的其余列（进度/状态/收藏）整行回写。
      */
     private void archiveAndPersist(V9MmanItem item, String srcPath) {
         try {
@@ -321,9 +318,8 @@ public class DownloadManager {
             }
             String archived = MediaStoreArchiver.archiveVideo(
                     MyApplication.getInstance(), new File(srcPath), item.getTitle(), item.getViewKey());
-            if (archived != null) {
-                item.setLocalFilePath(archived);
-                dataManager.updateV9MmanItem(item);
+            if (archived != null && item.getId() != null) {
+                dataManager.updateLocalFilePathColumn(item.getId(), archived);
             }
         } catch (Exception ignored) {
         }

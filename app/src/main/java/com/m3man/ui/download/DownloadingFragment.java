@@ -136,7 +136,8 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
                         continue;
                     }
                     v9MmanItem.setStatus(status);
-                    presenter.updateV9MmanItem(v9MmanItem);
+                    // R-fix：定向列写（DB 刚查出的行，但整行覆盖仍可能踩到读改写窗口）
+                    presenter.updateDownloadStatus(v9MmanItem, status);
                 }
             }
             presenter.loadDownloadingData();
@@ -257,8 +258,8 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
                                 || v9MmanItem.getStatus() == FileDownloadStatus.connected
                                 || v9MmanItem.getStatus() == FileDownloadStatus.pending) {
                             FileDownloader.getImpl().pause(v9MmanItem.getDownloadId());
-                            v9MmanItem.setStatus(FileDownloadStatus.paused);
-                            presenter.updateV9MmanItem(v9MmanItem);
+                            // R-fix：定向列写（适配器实体是旧快照，不整行覆盖）
+                            presenter.updateDownloadStatus(v9MmanItem, FileDownloadStatus.paused);
                             ((ImageView) view).setImageResource(R.drawable.start_download);
                         } else {
                             // 暂停、失败、警告状态统一支持继续/重试。
@@ -406,8 +407,8 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
         }
         getContext().startService(pause);
         if (item != null) {
-            item.setStatus(FileDownloadStatus.paused);
-            presenter.updateV9MmanItem(item);
+            // R-fix：定向列写
+            presenter.updateDownloadStatus(item, FileDownloadStatus.paused);
         }
         showMessage(getString(R.string.downloading_paused), TastyToast.INFO);
     }
@@ -420,8 +421,8 @@ public class DownloadingFragment extends MvpFragment<DownloadView, DownloadPrese
         }
         getContext().startService(cancel);
         if (item != null) {
-            item.setDownloadId(0);
-            presenter.updateV9MmanItem(item);
+            // R-fix：定向列写
+            presenter.clearDownloadBinding(item);
         }
     }
 

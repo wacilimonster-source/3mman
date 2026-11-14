@@ -143,8 +143,8 @@ public class RecoScorer {
         if (candidate == null || candidate.item == null || params.hotnessCoef <= 0f) {
             return 0.0d;
         }
-        boolean cold = profile.likeCount + profile.dislikeCount + profile.favoriteCount
-                + profile.watchCount < 10;
+        boolean cold = profile.likeCount.get() + profile.dislikeCount.get()
+                + profile.favoriteCount.get() + profile.watchCount.get() < 10;
         return parseHotness(candidate.item.getInfo()) * params.hotnessCoef * (cold ? 2.0d : 1.0d);
     }
 
@@ -350,39 +350,39 @@ public class RecoScorer {
 
     public void onLike(RecoProfile profile, List<String> tags, String category, String authorKey) {
         applyFeedback(profile, tags, category, authorKey, params.likeBoost);
-        profile.likeCount++;
+        profile.likeCount.incrementAndGet();
     }
 
     public void onUnlike(RecoProfile profile, List<String> tags, String category, String authorKey) {
         applyFeedback(profile, tags, category, authorKey, -params.likeBoost);
-        if (profile.likeCount > 0) {
-            profile.likeCount--;
+        if (profile.likeCount.get() > 0) {
+            profile.likeCount.decrementAndGet();
         }
     }
 
     public void onFavorite(RecoProfile profile, List<String> tags, String category, String authorKey) {
         applyFeedback(profile, tags, category, authorKey, params.favoriteBoost);
-        profile.favoriteCount++;
+        profile.favoriteCount.incrementAndGet();
     }
 
     /** 取消收藏：把收藏时加的权重原样退回 */
     public void onUnfavorite(RecoProfile profile, List<String> tags, String category, String authorKey) {
         applyFeedback(profile, tags, category, authorKey, -params.favoriteBoost);
-        if (profile.favoriteCount > 0) {
-            profile.favoriteCount--;
+        if (profile.favoriteCount.get() > 0) {
+            profile.favoriteCount.decrementAndGet();
         }
     }
 
     public void onDislike(RecoProfile profile, List<String> tags, String category, String authorKey) {
         applyFeedback(profile, tags, category, authorKey, -params.dislikePenalty);
-        profile.dislikeCount++;
+        profile.dislikeCount.incrementAndGet();
     }
 
     /** 撤销不喜欢 */
     public void onUndislike(RecoProfile profile, List<String> tags, String category, String authorKey) {
         applyFeedback(profile, tags, category, authorKey, params.dislikePenalty);
-        if (profile.dislikeCount > 0) {
-            profile.dislikeCount--;
+        if (profile.dislikeCount.get() > 0) {
+            profile.dislikeCount.decrementAndGet();
         }
     }
 

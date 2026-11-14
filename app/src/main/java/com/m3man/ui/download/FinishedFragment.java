@@ -217,17 +217,19 @@ public class FinishedFragment extends MvpFragment<DownloadView, DownloadPresente
             public void onClick(DialogInterface dialog, int which) {
                 if (PlayVideoPresenter.isPornySource(v9MmanItem)) {
                     // HLS（分分钟）重新下载走专用通道
+                    // R-fix：定向列写（适配器实体是旧快照，不整行覆盖）
                     v9MmanItem.setDownloadId(0);
                     v9MmanItem.setSoFarBytes(0);
-                    presenter.updateV9MmanItem(v9MmanItem);
+                    presenter.clearDownloadBinding(v9MmanItem);
                     startHlsReDownload(v9MmanItem);
                     return;
                 }
+                // R-fix：定向列写
                 v9MmanItem.setDownloadId(0);
                 v9MmanItem.setSoFarBytes(0);
                 v9MmanItem.setProgress(0);
-                v9MmanItem.setStatus(FileDownloadStatus.pending);
-                presenter.updateV9MmanItem(v9MmanItem);
+                presenter.clearDownloadBinding(v9MmanItem);
+                presenter.updateDownloadStatus(v9MmanItem, FileDownloadStatus.pending);
                 // 直接用已有地址入队，确认后立即显示为下载中，不再经过一次延迟解析。
                 presenter.downloadVideoImmediately(v9MmanItem);
                 isFocusRefresh = true;

@@ -52,7 +52,7 @@ public final class VideoCardActions {
     private VideoCardActions() {
     }
 
-    /** 切换本地收藏（写入成功后才回调成功）。 */
+    /** 切换本地收藏（写入成功后才回调成功）。R-fix：写库统一走 FavoritePresenter 唯一实现。 */
     public static void toggleFavorite(final DataManager dataManager, final V9MmanItem item,
                                       final Callback callback) {
         if (dataManager == null || item == null || TextUtils.isEmpty(item.getViewKey())) {
@@ -62,28 +62,8 @@ public final class VideoCardActions {
         if (!FAVORITE_IN_FLIGHT.add(key)) {
             return;
         }
-        Observable.fromCallable(() -> {
-            V9MmanItem target = dataManager.findV9MmanItemByViewKey(key);
-            if (target == null) {
-                target = item;
-            }
-            boolean nowFavorite = !Boolean.TRUE.equals(target.getIsLocalFavorite());
-            target.setIsLocalFavorite(nowFavorite);
-            if (TextUtils.isEmpty(target.getSourceName())) {
-                target.setSourceName(PlayVideoPresenter.isPornySource(target)
-                        ? Parse91PornyVideo.SOURCE : PlayVideoPresenter.SOURCE_MMAN9_PERSIST);
-            }
-            try {
-                VideoResult result = target.getVideoResult();
-                if (result != null) {
-                    dataManager.saveVideoResult(result);
-                }
-            } catch (Exception ignored) {
-                // 实体脱离 DaoSession 时 getVideoResult 会抛 DaoException
-            }
-            dataManager.saveV9MmanItem(target);
-            return nowFavorite;
-        })
+        Observable.fromCallable(() ->
+                com.m3man.ui.mman9video.favorite.FavoritePresenter.toggleLocalFavorite(dataManager, item))
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(nowFavorite -> {

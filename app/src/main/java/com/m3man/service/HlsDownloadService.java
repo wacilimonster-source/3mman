@@ -212,9 +212,10 @@ public class HlsDownloadService extends Service {
             s.downloader.shutdown();
             state = new TaskState(null, s.viewKey, s.savePath, s.targetMp4Path, s.pseudoDownloadId, s.lastProgress, s.rowId);
             V9MmanItem item = findItem();
-            if (item != null) {
-                item.setStatus(FileDownloadStatus.paused);
-                getDataManager().updateV9MmanItem(item);
+            if (item != null && item.getId() != null) {
+                // R-fix：定向列写，不整行覆盖
+                getDataManager().updateDownloadStateColumns(item.getId(), null,
+                        FileDownloadStatus.paused, null, null, null, null, null);
             }
             LocalBroadcastManager.getInstance(this).sendBroadcast(new Intent(ACTION_HLS_PROGRESS)
                     .putExtra(EXTRA_VIEW_KEY, s.viewKey).putExtra(EXTRA_PROGRESS, s.lastProgress < 0 ? 0 : s.lastProgress)
@@ -263,8 +264,11 @@ public class HlsDownloadService extends Service {
                 item = getDataManager().findV9MmanItemByDownloadId(oldPseudoId);
             }
             if (item != null && item.getStatus() == FileDownloadStatus.progress) {
-                item.setStatus(FileDownloadStatus.paused);
-                getDataManager().updateV9MmanItem(item);
+                if (item.getId() != null) {
+                    // R-fix：定向列写
+                    getDataManager().updateDownloadStateColumns(item.getId(), null,
+                            FileDownloadStatus.paused, null, null, null, null, null);
+                }
                 Intent i = new Intent(ACTION_HLS_DONE);
                 i.putExtra(EXTRA_VIEW_KEY, oldViewKey);
                 LocalBroadcastManager.getInstance(this).sendBroadcast(i);
@@ -381,16 +385,12 @@ public class HlsDownloadService extends Service {
             if (item == null && taskPseudoId != 0) {
                 item = getDataManager().findV9MmanItemByDownloadId(taskPseudoId);
             }
-            if (item != null) {
+            if (item != null && item.getId() != null) {
                 long len = mp4File.length();
                 // M99：实体字段已改为 long，直接存真实字节数，避免 >2GB 截断
-                item.setStatus(FileDownloadStatus.completed);
-                item.setProgress(100);
-                item.setFinishedDownloadDate(new Date());
-                item.setSoFarBytes(len);
-                item.setTotalFarBytes(len);
-                item.setDownloadId(taskPseudoId);
-                getDataManager().updateV9MmanItem(item);
+                // R-fix：终态提交走定向列写
+                getDataManager().updateDownloadStateColumns(item.getId(), taskPseudoId,
+                        FileDownloadStatus.completed, 100, len, len, null, new Date());
             }
         } catch (Exception e) {
             AppLog.e("HlsDownload", "markTaskCompletedQuietly failed: " + e.getMessage());
@@ -430,19 +430,14 @@ public class HlsDownloadService extends Service {
     private void markRecordDownloading() {
         try {
             V9MmanItem item = findItemOrByDownloadId();
-            if (item != null) {
-                item.setStatus(FileDownloadStatus.progress);
-                item.setProgress(0);
-                item.setDownloadId(state.pseudoDownloadId);
-                item.setSoFarBytes(0);
-                item.setTotalFarBytes(0);
-                getDataManager().updateV9MmanItem(item);
-                // T05：启动时在协调路径查一次记录 id，后续进度按 id 定向更新进度列，
-                // 不再用本实体整行覆盖（防下载期间用户改过的收藏/来源被旧快照回写）
-                Long id = item.getId();
+            if (item != null && item.getId() != null) {
+                // M62：统一在此落伪 downloadId + status=progress（修复 2.5）——
+                // R-fix：定向列写（T05：后续进度按 rowId 定向更新，不整行覆盖）
+                getDataManager().updateDownloadStateColumns(item.getId(), state.pseudoDownloadId,
+                        FileDownloadStatus.progress, 0, 0L, 0L, null, null);
                 TaskState cur = state;
                 state = new TaskState(cur.downloader, cur.viewKey, cur.savePath, cur.targetMp4Path,
-                        cur.pseudoDownloadId, cur.lastProgress, id == null ? 0L : id);
+                        cur.pseudoDownloadId, cur.lastProgress, item.getId());
             }
         } catch (Exception e) {
             AppLog.e("HlsDownload", "markRecordDownloading failed: " + e.getMessage());
@@ -568,16 +563,12 @@ public class HlsDownloadService extends Service {
             return;
         }
         V9MmanItem item = findItemOrByDownloadId();
-        if (item != null) {
-            item.setStatus(FileDownloadStatus.completed);
-            item.setProgress(100);
-            item.setFinishedDownloadDate(new Date());
+        if (item != null && item.getId() != null) {
             // M99：实体字段已改为 long，直接存真实字节数，避免 >2GB 截断
+            // R-fix：终态提交走定向列写（该任务唯一的 completed 写入点）
             long len = mp4File.length();
-            item.setSoFarBytes(len);
-            item.setTotalFarBytes(len);
-            item.setDownloadId(s.pseudoDownloadId);
-            getDataManager().updateV9MmanItem(item);
+            getDataManager().updateDownloadStateColumns(item.getId(), s.pseudoDownloadId,
+                    FileDownloadStatus.completed, 100, len, len, null, new Date());
         }
         // V13：HLS 转码成品归档进 MediaStore 公共 Movies/3mman（best-effort，失败保留私有副本）。
         // 需在 showCompletedNotification 之前执行——归档成功会删除私有 mp4File，通知要指向归档成品。
@@ -587,9 +578,9 @@ public class HlsDownloadService extends Service {
             String archived = MediaStoreArchiver.archiveVideo(this, mp4File, (item != null ? item.getTitle() : null), s.viewKey);
             if (archived != null) {
                 archivedPath = archived;
-                if (item != null) {
-                    item.setLocalFilePath(archived);
-                    getDataManager().updateV9MmanItem(item);
+                if (item != null && item.getId() != null) {
+                    // R-fix：归档路径单独定向写，不回写其余列
+                    getDataManager().updateLocalFilePathColumn(item.getId(), archived);
                 }
             }
         } catch (Exception ignored) {
@@ -630,11 +621,10 @@ public class HlsDownloadService extends Service {
         // 使「正在下载」列表显示“下载错误”并可重试/删除；
         // 不再 resetRecord 把 downloadId 置 0 导致记录从两个列表都消失。
         V9MmanItem item = findItemOrByDownloadId();
-        if (item != null) {
-            item.setStatus(FileDownloadStatus.error);
-            item.setProgress(100);
-            item.setDownloadId(s.pseudoDownloadId);
-            getDataManager().updateV9MmanItem(item);
+        if (item != null && item.getId() != null) {
+            // R-fix：定向列写（保留记录可重试/删除，downloadId 不变语义同前）
+            getDataManager().updateDownloadStateColumns(item.getId(), s.pseudoDownloadId,
+                    FileDownloadStatus.error, 100, null, null, null, null);
         }
         // 临时分片由 HlsDownloader 的任务目录自行管理
         showErrorNotification(message);
@@ -654,10 +644,9 @@ public class HlsDownloadService extends Service {
 
     private void resetRecord() {
         V9MmanItem item = findItem();
-        if (item != null) {
-            // downloadId 置 0 使「我的下载」两列表（DownloadId!=0）均排除该记录
-            item.setDownloadId(0);
-            getDataManager().updateV9MmanItem(item);
+        if (item != null && item.getId() != null) {
+            // downloadId 置 0 使「我的下载」两列表（DownloadId!=0）均排除该记录；R-fix：定向列写
+            getDataManager().updateDownloadBindingColumns(item.getId(), 0, null);
         }
     }
 

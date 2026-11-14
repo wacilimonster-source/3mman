@@ -81,6 +81,46 @@ public class AppDataManager implements DataManager {
         mDbHelper.updateHlsProgressColumns(rowId, progress, soFarBytes);
     }
 
+    // ==================== R-fix：下载状态定向列写（见 DbHelper 接口注释） ====================
+
+    @Override
+    public void updateDownloadStateColumns(long rowId, Integer downloadId, int status, Integer progress,
+                                           Long soFarBytes, Long totalFarBytes, Long speed,
+                                           java.util.Date finishedDownloadDate) {
+        mDbHelper.updateDownloadStateColumns(rowId, downloadId, status, progress,
+                soFarBytes, totalFarBytes, speed, finishedDownloadDate);
+    }
+
+    @Override
+    public void updateLocalFilePathColumn(long rowId, String localFilePath) {
+        mDbHelper.updateLocalFilePathColumn(rowId, localFilePath);
+    }
+
+    @Override
+    public void updateDownloadBindingColumns(long rowId, int downloadId, java.util.Date addDownloadDate) {
+        mDbHelper.updateDownloadBindingColumns(rowId, downloadId, addDownloadDate);
+    }
+
+    @Override
+    public void updateVideoResultIdColumn(long rowId, long videoResultId) {
+        mDbHelper.updateVideoResultIdColumn(rowId, videoResultId);
+    }
+
+    @Override
+    public void updateVideoSourceColumn(long rowId, String sourceName) {
+        mDbHelper.updateVideoSourceColumn(rowId, sourceName);
+    }
+
+    @Override
+    public void updateLocalFavoriteColumn(long rowId, boolean favorite) {
+        mDbHelper.updateLocalFavoriteColumn(rowId, favorite);
+    }
+
+    @Override
+    public void updateViewHistoryColumn(long rowId, java.util.Date viewHistoryDate) {
+        mDbHelper.updateViewHistoryColumn(rowId, viewHistoryDate);
+    }
+
     @Override
     public Page<V9MmanItem> loadHistoryAfter(Long lastDateMs, Long lastId, int limit) {
         return mDbHelper.loadHistoryAfter(lastDateMs, lastId, limit);

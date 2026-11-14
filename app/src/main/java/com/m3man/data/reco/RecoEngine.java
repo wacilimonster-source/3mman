@@ -345,7 +345,7 @@ public class RecoEngine {
                 candidate.authorKey, applied);
         bumpSoftPrefs(candidate, applied);
         if (firstEver) {
-            longP.watchCount++;
+            longP.watchCount.incrementAndGet();
         }
         if (!done) {
             store.markImplicit(key, positive);

@@ -10,8 +10,10 @@ import com.m3man.data.reco.RecoCandidate;
 import com.m3man.perf.ExecutorRegistry;
 import com.m3man.perf.Perf;
 import com.m3man.perf.PerfFlags;
+import com.m3man.utils.AppLog;
 import com.m3man.utils.PlayUiPrefs;
 
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
@@ -110,6 +112,16 @@ public final class RecoBatchCache {
     private final AtomicBoolean drainBusy = new AtomicBoolean(false);
     private final AtomicReference<PendingWrite> pending = new AtomicReference<>();
 
+    // R-fix（LESSONS §3-7）：缓存从 SharedPreferences 迁到 filesDir/reco/。
+    // 256KB 级 JSON 放 SP 会被 SP 全量驻留内存且冷启动整串加载；文件版只在读缓存时解析。
+    private static final String CACHE_DIR = "reco";
+    private static final String CACHE_FILE = "cache_batch_v2.json";
+    /** 迁移源：旧 SP（PlayUiPrefs 的 play_ui_prefs）里 v2 键，读出后立即删除 */
+    private static final String LEGACY_SP_NAME = "play_ui_prefs";
+    private static final String LEGACY_SP_KEY = "reco_cache_batch_v2";
+    /** 迁移标记：避免每次冷启动都做一次 SP 读（迁移成功后旧键已删，此标记是双保险） */
+    private static final String MIGRATED_SP_KEY = "reco_cache_batch_v2_migrated";
+
     private static final class PendingWrite {
         final CacheScope scope;
         final List<CachedVideo> items;
@@ -151,7 +163,7 @@ public final class RecoBatchCache {
     }
 
     private CacheBatch doRead() {
-        String json = PlayUiPrefs.getRecoCacheBatchV2(appContext);
+        String json = readCacheJson();
         if (TextUtils.isEmpty(json)) {
             return CacheBatch.EMPTY;
         }
@@ -250,11 +262,103 @@ public final class RecoBatchCache {
                     || json.getBytes(StandardCharsets.UTF_8).length > MAX_ENCODED_BYTES) {
                 return; // 超限不写（6 条规模正常远小于该值，防御性保护）
             }
-            PlayUiPrefs.setRecoCacheBatchV2(appContext, json);
+            writeCacheJson(json);
         } catch (Exception ignored) {
             // 缓存写失败不影响功能；下次出批会再写
         } finally {
             Perf.recorder().end(Perf.ST_RECO_FLUSH, req, begin, Perf.OUTCOME_OK);
+        }
+    }
+
+    // ==================== R-fix：filesDir 文件读写（替代 SharedPreferences） ====================
+
+    private File cacheFile() {
+        File dir = new File(appContext.getFilesDir(), CACHE_DIR);
+        if (!dir.exists() && !dir.mkdirs()) {
+            // 目录创建失败时仍返回路径，让后续写失败走统一 catch
+            AppLog.w(TAG, "reco 缓存目录创建失败 dir=" + dir.getAbsolutePath());
+        }
+        return new File(dir, CACHE_FILE);
+    }
+
+    /** 读缓存 JSON；文件缺失时做一次 SP → 文件迁移（历史版本数据不丢） */
+    private String readCacheJson() {
+        File f = cacheFile();
+        if (!f.exists()) {
+            migrateFromPrefs();
+            return "";
+        }
+        try {
+            java.io.FileInputStream fis = new java.io.FileInputStream(f);
+            try {
+                java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = fis.read(buf)) > 0) {
+                    bos.write(buf, 0, n);
+                    // 防御：远超上限的脏文件直接判未命中，不再继续读
+                    if (bos.size() > MAX_ENCODED_BYTES * 2) {
+                        return "";
+                    }
+                }
+                return new String(bos.toByteArray(), StandardCharsets.UTF_8);
+            } finally {
+                fis.close();
+            }
+        } catch (Exception e) {
+            AppLog.w(TAG, "reco 缓存读取失败 " + AppLog.cause(e));
+            return "";
+        }
+    }
+
+    /** 原子写：先写临时文件再 rename，避免读到半个 JSON */
+    private void writeCacheJson(String json) throws java.io.IOException {
+        File f = cacheFile();
+        File tmp = new File(f.getParentFile(), f.getName() + ".tmp");
+        try {
+            java.io.FileOutputStream fos = new java.io.FileOutputStream(tmp);
+            try {
+                fos.write(json.getBytes(StandardCharsets.UTF_8));
+            } finally {
+                fos.close();
+            }
+            if (!tmp.renameTo(f)) {
+                // rename 失败（极少数文件系统）退化为直接写，不影响功能
+                AppLog.w(TAG, "reco 缓存 rename 失败，退化为直接写 path=" + f.getAbsolutePath());
+                java.io.FileOutputStream direct = new java.io.FileOutputStream(f);
+                try {
+                    direct.write(json.getBytes(StandardCharsets.UTF_8));
+                } finally {
+                    direct.close();
+                }
+                //noinspection ResultOfMethodCallIgnored
+                tmp.delete();
+            }
+        } catch (Exception e) {
+            //noinspection ResultOfMethodCallIgnored
+            tmp.delete();
+            throw e;
+        }
+    }
+
+    /** 一次性迁移：旧版 SP 里的 v2 JSON → 文件；成功后删除 SP 键 */
+    private void migrateFromPrefs() {
+        try {
+            android.content.SharedPreferences sp =
+                    appContext.getSharedPreferences(LEGACY_SP_NAME, Context.MODE_PRIVATE);
+            if (sp.getBoolean(MIGRATED_SP_KEY, false)) {
+                return;
+            }
+            String legacy = sp.getString(LEGACY_SP_KEY, null);
+            if (!TextUtils.isEmpty(legacy)) {
+                writeCacheJson(legacy);
+                sp.edit().remove(LEGACY_SP_KEY).apply();
+                AppLog.i(TAG, "reco 缓存已从 SP 迁移到 filesDir bytes=" + legacy.length());
+            }
+            sp.edit().putBoolean(MIGRATED_SP_KEY, true).apply();
+        } catch (Exception e) {
+            // 迁移失败不影响功能：缓存未命中语义，下次出批会写新文件
+            AppLog.w(TAG, "reco 缓存 SP 迁移失败 " + AppLog.cause(e));
         }
     }
 

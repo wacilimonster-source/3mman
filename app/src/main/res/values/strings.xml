@@ -122,8 +122,7 @@
     <string name="reco_param_author_coef">作者权重系数</string>
     <string name="reco_param_finish_boost">看完加权</string>
     <string name="reco_param_skip_penalty">划走降权</string>
-    <string name="reco_param_dislike_filter">不喜欢直接过滤</string>
-    <string name="reco_param_reset">恢复默认</string>
+        <string name="reco_param_reset">恢复默认</string>
     <string name="reco_param_clear_memory">清空兴趣记忆</string>
     <string name="reco_profile_summary">已学习 %1$d 个标签 / %2$d 个作者 / %3$d 条行为</string>
     <string name="reco_param_max_age_years">最长发布年限(年)</string>

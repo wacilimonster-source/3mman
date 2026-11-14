@@ -303,50 +303,26 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
     /**
      * 判断视频是否来自 91porny 源。
      *
-     * M66b（方案B 彻底改造）：来源判定以「解析时写入的持久化标记」为唯一权威：
-     * 1. sourceName（持久化列）== "91porny" → porny；
-     * 2. transient source == "91porny"（本次会话内存中标记）→ porny；
-     * 3. sourceName/sourceSource 明确标为 mman9 的直接判 9mman（权威短路，
-     *    不再进入格式兜底——测试用例发现的漏洞：裸 hex + mman9 标记会被兜底误判）；
-     * 4. 无任何标记时才用 viewKey 格式兜底，且规则收紧：
-     *    - 91porny 的视频 ID 恒为纯 hex（16~32 位）且【不带 "viewkey=" 前缀】；
-     *    - 9mman 的 viewKey 可能恰好是纯 hex（如 c9236ce81db652e4b5d9），但
-     *      【恒带 "viewkey=" 前缀】（extractViewKey 契约），带前缀的一律按 9mman。
+     * M66b（方案B 彻底改造）：来源判定以「解析时写入的持久化标记」为唯一权威。
+     * R-fix（LESSONS §3-3）：判定逻辑收敛到 {@link Parse91PornyVideo#isPornySource}
+     * 全仓库唯一实现（下载/卡片标签同源），此处保留公共 API 兼容既有调用点与测试。
      * 旧版「只要裸值是 hex 就算 porny」把大量 9mman hex key 误判成 porny，
      * 导致作者页 404、播放走错源、DB 写入错误 VideoResult（标题/缩略图错乱）。
      */
     public static boolean isPornySource(V9MmanItem item) {
-        if (item == null) {
-            return false;
-        }
-        // 权威判定：持久化标记 / 内存标记
-        boolean markedPorny = Parse91PornyVideo.SOURCE.equals(item.getSourceName())
-                || Parse91PornyVideo.SOURCE.equals(item.getSource());
-        if (markedPorny) {
-            return true;
-        }
-        // 权威短路：明确标为 mman9 的不再走格式推断（防裸 hex 被兜底误判）
-        if (SOURCE_MMAN9_PERSIST.equals(item.getSourceName())
-                || SOURCE_MMAN9_PERSIST.equals(item.getSource())) {
-            return false;
-        }
-        // 兜底：格式推断（仅在无任何标记时）
-        String viewKey = item.getViewKey();
-        if (TextUtils.isEmpty(viewKey)) {
-            return false;
-        }
-        boolean prefixed = viewKey.startsWith("viewkey=");
-        String bare = prefixed ? viewKey.substring(8) : viewKey;
-        if (bare.matches("[0-9a-fA-F]{16,32}")) {
-            // 带前缀的 hex = 9mman（extractViewKey 契约）；裸 hex 才可能是 porny
-            return !prefixed;
-        }
-        return false;
+        return Parse91PornyVideo.isPornySource(item);
     }
 
     @Override
     public void updateV9MmanItemForHistory(V9MmanItem v9MmanItem) {
-        dataManager.updateV9MmanItem(v9MmanItem);
+        // R-fix：观看历史只写 VIEW_HISTORY_DATE 列，不整行覆盖
+        //（播放页实体可能持有较久，整行 update 会回写陈旧的下载状态/收藏）
+        if (v9MmanItem != null && v9MmanItem.getId() != null
+                && v9MmanItem.getViewHistoryDate() != null) {
+            dataManager.updateViewHistoryColumn(v9MmanItem.getId(), v9MmanItem.getViewHistoryDate());
+        } else if (v9MmanItem != null) {
+            dataManager.updateV9MmanItem(v9MmanItem);
+        }
     }
 
     @Override
@@ -383,23 +359,10 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
 
     /**
      * 91porny 本地收藏：写入数据库并标记收藏。需在 IO 线程调用。
+     * R-fix（LESSONS §3-4）：实现收敛到 FavoritePresenter.setLocalFavorite 唯一实现。
      */
     public boolean addLocalFavorite(V9MmanItem v9MmanItem) {
-        if (v9MmanItem == null) {
-            return false;
-        }
-        if (v9MmanItem.getSourceName() == null) {
-            v9MmanItem.setSourceName(v9MmanItem.getSource());
-        }
-        if (v9MmanItem.getSourceName() == null) {
-            v9MmanItem.setSourceName(Parse91PornyVideo.SOURCE);
-        }
-        v9MmanItem.setIsLocalFavorite(true);
-        if (v9MmanItem.getVideoResult() != null) {
-            dataManager.saveVideoResult(v9MmanItem.getVideoResult());
-        }
-        dataManager.saveV9MmanItem(v9MmanItem);
-        return true;
+        return favoritePresenter.addLocalFavorite(v9MmanItem);
     }
 
     /** M42：是否本地收藏模式（true=本地收藏，与分分钟合并展示；false=服务器收藏） */

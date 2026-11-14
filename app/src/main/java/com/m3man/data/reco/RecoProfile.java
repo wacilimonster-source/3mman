@@ -38,10 +38,12 @@ public class RecoProfile {
     public final Map<String, Double> orientationWeights = new ConcurrentHashMap<>();
 
     public long lastDecayTime = 0L;
-    public int likeCount = 0;
-    public int dislikeCount = 0;
-    public int favoriteCount = 0;
-    public int watchCount = 0;
+    // R-fix（LESSONS §3-2）：显式互动（UI 线程）与隐式观看结算（IO 线程）并发递增，
+    // 普通 int 的 ++ 会丢更新，改原子计数
+    public final java.util.concurrent.atomic.AtomicInteger likeCount = new java.util.concurrent.atomic.AtomicInteger();
+    public final java.util.concurrent.atomic.AtomicInteger dislikeCount = new java.util.concurrent.atomic.AtomicInteger();
+    public final java.util.concurrent.atomic.AtomicInteger favoriteCount = new java.util.concurrent.atomic.AtomicInteger();
+    public final java.util.concurrent.atomic.AtomicInteger watchCount = new java.util.concurrent.atomic.AtomicInteger();
 
     public double tag(String key) {
         return value(tagWeights, key);
@@ -206,7 +208,7 @@ public class RecoProfile {
 
     /** 画像是否还处于冷启动（几乎没有反馈） */
     public boolean isColdStart() {
-        return likeCount + dislikeCount + favoriteCount == 0 && tagWeights.isEmpty();
+        return likeCount.get() + dislikeCount.get() + favoriteCount.get() == 0 && tagWeights.isEmpty();
     }
 
     /** 取权重最高的 N 个作者（用于作者召回） */
@@ -243,9 +245,9 @@ public class RecoProfile {
         durationWeights.clear();
         orientationWeights.clear();
         lastDecayTime = 0L;
-        likeCount = 0;
-        dislikeCount = 0;
-        favoriteCount = 0;
-        watchCount = 0;
+        likeCount.set(0);
+        dislikeCount.set(0);
+        favoriteCount.set(0);
+        watchCount.set(0);
     }
 }

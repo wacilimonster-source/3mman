@@ -20,6 +20,7 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.pm.ActivityInfo;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Build;
 import androidx.annotation.IntRange;
 import androidx.annotation.Nullable;
@@ -27,6 +28,7 @@ import androidx.core.content.ContextCompat;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.AppCompatSeekBar;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -72,6 +74,18 @@ public class ExoVideoControlsMobile extends ExoVideoControls {
     protected ViewGroup parentViewGroup;
     protected boolean isFullScreen = false;
     protected FullScreenListener fullScreenListener = new FullScreenListener();
+
+    /** 全屏切换会把 videoView 搬到 DecorView 再搬回，期间 Surface 被释放；
+     *  必须 stop 后重新 prepare，否则 ExoPlayer 2.9 会复用已释放的 codec。 */
+    private Uri reparentUri;
+    private long reparentPosition;
+    private boolean reparentPlaying;
+    /** 全屏搬移窗口内播放器会报一次瞬时错误；供播放页忽略，避免误弹“解析失败”。 */
+    private static volatile boolean reparenting = false;
+
+    public static boolean isReparenting() {
+        return reparenting;
+    }
 
     protected boolean isPlayComplete = false;
     protected Drawable replayDrawable;
@@ -158,6 +172,10 @@ public class ExoVideoControlsMobile extends ExoVideoControls {
             return;
         }
         loadingProgressBar.setVisibility(GONE);
+        // 转圈结束后恢复播放键；控制栏隐藏时保持隐藏，由 animateVisibility 管理。
+        if (isVisible() && playPauseButton != null) {
+            playPauseButton.setVisibility(VISIBLE);
+        }
     }
 
     private void showBuffering() {
@@ -165,6 +183,10 @@ public class ExoVideoControlsMobile extends ExoVideoControls {
             return;
         }
         loadingProgressBar.setVisibility(VISIBLE);
+        // 转圈与播放/暂停键同位置，转圈期间隐藏播放键，避免出现“看得到但点不动”的按钮。
+        if (playPauseButton != null) {
+            playPauseButton.setVisibility(GONE);
+        }
     }
 
 
@@ -247,6 +269,17 @@ public class ExoVideoControlsMobile extends ExoVideoControls {
         backImageButton = findViewById(R.id.exomedia_controls_back);
         formatTimeTextView = findViewById(R.id.exomedia_controls_format_time);
         volumeLightTextView = findViewById(R.id.exomedia_controls_volume_textview);
+        // 转圈与播放/暂停键完全重叠：确保它不接收触摸，否则转圈显示时点击会被吞掉。
+        if (loadingProgressBar != null) {
+            loadingProgressBar.setClickable(false);
+            loadingProgressBar.setFocusable(false);
+            loadingProgressBar.setOnTouchListener(new View.OnTouchListener() {
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    return false;
+                }
+            });
+        }
     }
 
     @Override
@@ -303,6 +336,47 @@ public class ExoVideoControlsMobile extends ExoVideoControls {
         });
     }
 
+    /**
+     * 搬移播放器 View 前停止播放并保存现场。TextureView 从窗口分离会销毁 Surface，
+     * ExoPlayer 2.9 在 Surface 重建时会尝试复用已释放的 MediaCodec，触发
+     * "setSurface() is valid only at Executing states; currently at Released state"。
+     */
+    private void detachPlayerForReparent() {
+        if (videoView == null) {
+            return;
+        }
+        reparentUri = videoView.getVideoUri();
+        reparentPosition = videoView.getCurrentPosition();
+        reparentPlaying = videoView.isPlaying();
+        reparenting = true;
+        // 兜底：即使后续恢复流程异常，也不能永久屏蔽真实错误。
+        postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                reparenting = false;
+            }
+        }, 3000);
+        videoView.stopPlayback(true);
+    }
+
+    /** 搬移完成后用同一 URI 重新 prepare，并恢复进度/播放状态。 */
+    private void restorePlayerAfterReparent() {
+        if (videoView == null || reparentUri == null) {
+            reparenting = false;
+            return;
+        }
+        videoView.setAutoStartOnPrepared(reparentPlaying);
+        videoView.setPendingSeekPosition(reparentPosition);
+        videoView.setVideoURI(reparentUri);
+        // 错误回调通常滞后于 stop，保留 1.5s 窗口让播放页忽略这次瞬时错误。
+        postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                reparenting = false;
+            }
+        }, 1500);
+    }
+
     protected void goFullScreen() {
         isFullScreen = true;
         fullScreenImageView.setVisibility(View.GONE);
@@ -325,11 +399,13 @@ public class ExoVideoControlsMobile extends ExoVideoControls {
         if (parentViewGroup == null) {
             return;
         }
+        detachPlayerForReparent();
         parentViewGroup.removeView(videoView);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
 
         viewGroup.addView(videoView, lp);
+        restorePlayerAfterReparent();
 
         RelativeLayout parent = (RelativeLayout) controlsContainer.getParent();
         if (parent != null) {
@@ -356,6 +432,7 @@ public class ExoVideoControlsMobile extends ExoVideoControls {
         if (viewGroup == null) {
             return;
         }
+        detachPlayerForReparent();
         viewGroup.removeView(videoView);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
@@ -363,6 +440,7 @@ public class ExoVideoControlsMobile extends ExoVideoControls {
         if (parentViewGroup != null) {
             parentViewGroup.addView(videoView, 0, lp);
         }
+        restorePlayerAfterReparent();
     }
 
     /**
@@ -530,7 +608,12 @@ public class ExoVideoControlsMobile extends ExoVideoControls {
             }
             bottomProgressBar.setVisibility(VISIBLE);
         } else {
-            playPauseButton.setVisibility(VISIBLE);
+            // 显示控制栏时，若转圈仍在，保持播放键隐藏，避免出现被转圈盖住、点不动的按钮。
+            boolean buffering = loadingProgressBar != null
+                    && loadingProgressBar.getVisibility() == View.VISIBLE;
+            if (!isLoading && !buffering) {
+                playPauseButton.setVisibility(VISIBLE);
+            }
             bottomProgressBar.setVisibility(GONE);
         }
         isVisible = toVisible;
