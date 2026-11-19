@@ -1,7 +1,7 @@
 {
-  "versionCode": 173,
-  "versionName": "1.0.140",
-  "updateMessage": "1.0.140 更新内容：修复主站新版播放页解析错误，改用站内播放器加载实际视频地址。保留旧版视频页原生播放支持。",
-  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.140/3mman_v1.0.140.apk",
-  "sha256": "33962aaff276e74ef593981e2abe59b82ee7f244a3638d085f499f29acc53ebf"
+  "versionCode": 174,
+  "versionName": "1.0.141",
+  "updateMessage": "1.0.141 ??:\n- ????????????,???????\n- ?????????????\n- ???/?????????????\n- ??????",
+  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.141/3mman_v1.0.141.apk",
+  "sha256": "927cb12c12334979bb37aefcfe6e91b691d4c762e3a68fb05032e06dde4574e3"
 }
