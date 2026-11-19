@@ -162,27 +162,14 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
         dataManager.loadMman9VideoUrl(viewKey)
                 .doOnSubscribe(d -> AppLog.i(TAG, "请求9mman播放页 viewKey=" + viewKey))
                 .map(videoResult -> {
-                    if (videoResult != null && !TextUtils.isEmpty(videoResult.getWebPlaybackUrl())) {
-                        try {
-                            Date now = new Date();
-                            V9MmanItem existing = dataManager.findV9MmanItemByViewKey(viewKey);
-                            if (existing != null) {
-                                dataManager.updateViewHistoryColumn(existing.getId(), now);
-                            } else {
-                                v9MmanItem.setViewHistoryDate(now);
-                                dataManager.saveV9MmanItem(v9MmanItem);
-                            }
-                        } catch (Exception e) {
-                            AppLog.w(TAG, "主站网页播放历史保存失败 " + AppLog.cause(e));
-                        }
-                        return videoResult;
-                    }
                     if (videoResult == null || TextUtils.isEmpty(videoResult.getVideoUrl())) {
                         if (videoResult != null && VideoResult.OUT_OF_WATCH_TIMES.equals(videoResult.getId())) {
                             //尝试强行重置，并上报异常
                             dataManager.resetMman91VideoWatchTime(true);
                             AppLog.w(TAG, "观看次数达上限，已重置cookie viewKey=" + viewKey);
                             throw new VideoException("观看次数达上限，请到「我的 → 设置」更换线路地址或代理后重试");
+                        } else if (videoResult != null && videoResult.requiresSitePlayback()) {
+                            throw new VideoException("该视频需要源站播放器验证，当前线路没有提供可在 App 内直接播放的地址");
                         } else {
                             AppLog.e(TAG, "9mman解析失败(空结果) viewKey=" + viewKey);
                             throw new VideoException("解析视频链接失败了");
@@ -203,10 +190,6 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
                     @Override
                     public void onSuccess(final VideoResult videoResult) {
                         if (generation != playbackGeneration) return;
-                        if (!TextUtils.isEmpty(videoResult.getWebPlaybackUrl())) {
-                            ifViewAttached(view -> view.playMainSiteWebPage(videoResult.getWebPlaybackUrl()));
-                            return;
-                        }
                         dataManager.resetMman91VideoWatchTime(false);
                         // M96：saveVideoUrl 含数据库写入，改到 IO 线程异步执行，不再阻塞主线程；
                         // 生命周期复用 provider.bindUntilEvent，页面销毁自动断流。
@@ -395,14 +378,17 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
 
     /**
      * 收藏作者（本地）。authorKey 对 91porny 即作者名、对视频源即作者 uid；
-     * authorName 用于收藏列表展示。需在 IO 线程调用。
+     * authorName 用于收藏列表展示，lastViewKey 供主站加密 UID 过期时自愈。需在 IO 线程调用。
      */
-    public void addAuthorFavorite(String authorKey, String authorName, String source) {
+    public void addAuthorFavorite(String authorKey, String authorName, String source, String lastViewKey) {
         AuthorFavorite authorFavorite = new AuthorFavorite();
         authorFavorite.setAuthorKey(authorKey);
         authorFavorite.setAuthorName(authorName);
         authorFavorite.setSource(source);
         authorFavorite.setFavoriteDate(new Date());
+        if (!TextUtils.isEmpty(lastViewKey)) {
+            authorFavorite.setLastViewKey(lastViewKey);
+        }
         dataManager.saveAuthorFavorite(authorFavorite);
     }
 

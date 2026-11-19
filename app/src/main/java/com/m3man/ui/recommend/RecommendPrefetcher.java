@@ -7,6 +7,8 @@ import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.db.entity.VideoResult;
 import com.m3man.data.reco.RecoCandidate;
+import com.m3man.parser.Parse91PornyVideo;
+import com.m3man.parser.ParseV9MmanVideo;
 import com.m3man.utils.AppLog;
 import com.m3man.utils.PlayUiPrefs;
 import com.m3man.utils.GlideApp;
@@ -124,9 +126,22 @@ public class RecommendPrefetcher {
         if (TextUtils.isEmpty(viewKey)) {
             return null;
         }
+        String rawUrl;
         synchronized (urlCache) {
-            return urlCache.get(viewKey);
+            rawUrl = urlCache.get(viewKey);
         }
+        if (!isSecureUrlExpired(rawUrl)) {
+            return rawUrl;
+        }
+        synchronized (urlCache) {
+            urlCache.remove(viewKey, rawUrl);
+        }
+        return null;
+    }
+
+    static boolean isReusableMediaUrl(String url, boolean isPorny) {
+        return url != null && !url.isEmpty() && !isSecureUrlExpired(url)
+                && (isPorny || !ParseV9MmanVideo.hasTQueryParam(url));
     }
 
     /**
@@ -251,20 +266,12 @@ public class RecommendPrefetcher {
         }
         String viewKey = candidate.viewKey();
         String cached = peekRawUrl(viewKey);
-        if (!TextUtils.isEmpty(cached)) {
-            // M72：内存缓存命中但签名已过期 → 丢弃走重新解析
-            if (isSecureUrlExpired(cached)) {
-                AppLog.i(TAG, "缓存直链已过期，重新解析 viewKey=" + viewKey);
-                synchronized (urlCache) {
-                    urlCache.remove(viewKey);
-                }
-            } else {
-                if (callback != null) {
-                    callback.onResolved(viewKey, toPlayUrl(cached), candidate.item);
-                }
-                warm(cached);
-                return;
+        if (cached != null) {
+            if (callback != null) {
+                callback.onResolved(viewKey, toPlayUrl(cached), candidate.item);
             }
+            warm(cached);
+            return;
         }
         // M98/T04：负缓存未到期直接快速失败，不打网络请求
         if (isNegativeCached(viewKey)) {
@@ -389,7 +396,6 @@ public class RecommendPrefetcher {
                         VideoResult dbCached = loadDbCachedResult(viewKey);
                         if (dbCached != null) {
                             AppLog.i(TAG, "DB缓存直链命中，跳过网络解析 viewKey=" + viewKey);
-                            put(viewKey, dbCached.getVideoUrl());
                             return Observable.just(dbCached);
                         }
                         return parseObs;
@@ -429,16 +435,12 @@ public class RecommendPrefetcher {
             V9MmanItem dbItem = dataManager.findV9MmanItemByViewKey(viewKey);
             VideoResult dbVr = (dbItem == null || dbItem.getVideoResultId() == 0)
                     ? null : dbItem.getVideoResult();
-            if (dbVr == null || TextUtils.isEmpty(dbVr.getVideoUrl())) {
-                return null;
-            }
-            if (isSecureUrlExpired(dbVr.getVideoUrl())) {
-                AppLog.i(TAG, "DB直链已过期，强制重新解析 viewKey=" + viewKey);
+            if (dbVr == null || !isReusableMediaUrl(dbVr.getVideoUrl(), Parse91PornyVideo.isPornySource(dbItem))) {
                 return null;
             }
             return dbVr;
-        } catch (Throwable ignored) {
-            // DB 查询失败不影响后续网络解析流程
+        } catch (Exception e) {
+            AppLog.w(TAG, "读取推荐缓存直链失败 " + AppLog.cause(e));
             return null;
         }
     }
@@ -464,7 +466,7 @@ public class RecommendPrefetcher {
         }
         // M98：解析成功，解除负缓存封禁
         failedUntil.remove(viewKey);
-        put(viewKey, videoResult.getVideoUrl());
+        put(viewKey, videoResult.getVideoUrl(), Parse91PornyVideo.isPornySource(candidate.item));
         // 回填作者，供作者召回与作者收藏使用
         if (!TextUtils.isEmpty(videoResult.getOwnerId())) {
             candidate.authorKey = videoResult.getOwnerId();
@@ -661,7 +663,6 @@ public class RecommendPrefetcher {
                 .defer(() -> {
                     VideoResult dbCached = loadDbCachedResult(viewKey);
                     if (dbCached != null) {
-                        put(viewKey, dbCached.getVideoUrl());
                         return Observable.just(dbCached);
                     }
                     return parseObs;
@@ -770,8 +771,8 @@ public class RecommendPrefetcher {
                 }, throwable -> Logger.t(TAG).d("markWatched failed: " + throwable.getMessage())));
     }
 
-    private void put(String viewKey, String rawUrl) {
-        if (TextUtils.isEmpty(viewKey) || TextUtils.isEmpty(rawUrl)) {
+    private void put(String viewKey, String rawUrl, boolean isPorny) {
+        if (TextUtils.isEmpty(viewKey) || !isReusableMediaUrl(rawUrl, isPorny)) {
             return;
         }
         synchronized (urlCache) {

@@ -72,44 +72,36 @@ public class AuthorFavoriteActivity extends BaseAppCompatActivity {
         toolbar.setTitle(R.string.author_favorite);
 
         mAdapter = new AuthorFavoriteAdapter();
-        mAdapter.setOnItemClickListener(new BaseQuickAdapter.OnItemClickListener() {
-            @Override
-            public void onItemClick(BaseQuickAdapter adapter, View view, int position) {
-                AuthorFavorite item = (AuthorFavorite) adapter.getData().get(position);
-                clearNewBadge(item, position);
-                Intent intent = new Intent(AuthorFavoriteActivity.this, AuthorActivity.class);
-                intent.putExtra(Keys.KEY_INTENT_UID, item.getAuthorKey());
-                intent.putExtra(Keys.KEY_INTENT_SOURCE, item.getSource());
-                intent.putExtra(Keys.KEY_INTENT_AUTHOR_NAME, item.getAuthorName());
-                // M92g：带上关联作品的 viewKey，作者页 UID 过期 404 时可自愈
-                if (!TextUtils.isEmpty(item.getLastViewKey())) {
-                    intent.putExtra(Keys.KEY_INTENT_AUTHOR_LAST_VIEW_KEY, item.getLastViewKey());
-                }
-                startActivityWithAnimation(intent);
+        mAdapter.setOnItemClickListener((adapter, view, position) -> openAuthorDetail(position));
+        mAdapter.setOnItemChildClickListener((adapter, view, position) -> {
+            int id = view.getId();
+            if (id == R.id.ll_author_content) {
+                openAuthorDetail(position);
+            } else if (id == R.id.right_menu_delete) {
+                SwipeItemLayout swipeItemLayout = (SwipeItemLayout) view.getParent();
+                swipeItemLayout.close();
+                confirmDeleteAt(position);
             }
         });
-        mAdapter.setOnItemChildClickListener(new BaseQuickAdapter.OnItemChildClickListener() {
-            @Override
-            public void onItemChildClick(BaseQuickAdapter adapter, View view, int position) {
-                if (view.getId() == R.id.right_menu_delete) {
-                    SwipeItemLayout swipeItemLayout = (SwipeItemLayout) view.getParent();
-                    swipeItemLayout.close();
-                    AuthorFavorite item = (AuthorFavorite) adapter.getData().get(position);
-                    confirmDelete(item);
-                }
-            }
+        mAdapter.setOnItemLongClickListener((adapter, view, position) -> {
+            confirmDeleteAt(position);
+            return true;
         });
-        mAdapter.setOnItemLongClickListener(new BaseQuickAdapter.OnItemLongClickListener() {
-            @Override
-            public boolean onItemLongClick(BaseQuickAdapter adapter, View view, int position) {
-                AuthorFavorite item = (AuthorFavorite) adapter.getData().get(position);
-                confirmDelete(item);
+        mAdapter.setOnItemChildLongClickListener((adapter, view, position) -> {
+            if (view.getId() == R.id.ll_author_content) {
+                confirmDeleteAt(position);
                 return true;
             }
+            return false;
         });
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setHasFixedSize(true);
+        // 禁用局部变更动画：后台静默刷新摘要或清除 NEW 角标调用 notifyItemChanged 时不再替换 ViewHolder，防止点击命中动画中旧视图失效
+        if (recyclerView.getItemAnimator() instanceof androidx.recyclerview.widget.SimpleItemAnimator) {
+            ((androidx.recyclerview.widget.SimpleItemAnimator) recyclerView.getItemAnimator())
+                    .setSupportsChangeAnimations(false);
+        }
         recyclerView.setAdapter(mAdapter);
 
         helper = new LoadViewHelper(recyclerView);
@@ -271,6 +263,9 @@ public class AuthorFavoriteActivity extends BaseAppCompatActivity {
 
     /** 主线程：把刷新完的实体替换进适配器并局部刷新对应行 */
     private void onSummaryUpdated(AuthorFavorite updated) {
+        if (isFinishing() || isDestroyed()) {
+            return;
+        }
         List<AuthorFavorite> data = mAdapter.getData();
         for (int i = 0; i < data.size(); i++) {
             AuthorFavorite cur = data.get(i);
@@ -280,6 +275,36 @@ public class AuthorFavoriteActivity extends BaseAppCompatActivity {
                 break;
             }
         }
+    }
+
+    private AuthorFavorite getItemSafely(int position) {
+        List<AuthorFavorite> data = mAdapter == null ? null : mAdapter.getData();
+        if (data == null || position < 0 || position >= data.size()) {
+            return null;
+        }
+        return data.get(position);
+    }
+
+    private void openAuthorDetail(int position) {
+        AuthorFavorite item = getItemSafely(position);
+        if (item == null || TextUtils.isEmpty(item.getAuthorKey())) {
+            showMessage(getString(R.string.common_user_info_error), com.sdsmdg.tastytoast.TastyToast.ERROR);
+            return;
+        }
+        clearNewBadge(item, position);
+        Intent intent = new Intent(AuthorFavoriteActivity.this, AuthorActivity.class);
+        intent.putExtra(Keys.KEY_INTENT_UID, item.getAuthorKey());
+        intent.putExtra(Keys.KEY_INTENT_SOURCE, item.getSource());
+        intent.putExtra(Keys.KEY_INTENT_AUTHOR_NAME, item.getAuthorName());
+        // M92g：带上关联作品的 viewKey，作者页 UID 过期 404 时可自愈
+        if (!TextUtils.isEmpty(item.getLastViewKey())) {
+            intent.putExtra(Keys.KEY_INTENT_AUTHOR_LAST_VIEW_KEY, item.getLastViewKey());
+        }
+        startActivityWithAnimation(intent);
+    }
+
+    private void confirmDeleteAt(int position) {
+        confirmDelete(getItemSafely(position));
     }
 
     /** 进入作者页时清除 NEW 角标（立即更新 UI，DB 异步落库） */

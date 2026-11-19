@@ -468,7 +468,7 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
         return dataManager.isAuthorFavorited(authorKey, source);
     }
 
-    public void addAuthorFavorite(String authorKey, String authorName, String source) {
+    public void addAuthorFavorite(String authorKey, String authorName, String source, String lastViewKey) {
         // 入库前查重，避免竞态 / 多入口并发写入产生 (authorKey, source) 重复行
         if (dataManager.isAuthorFavorited(authorKey, source)) {
             return;
@@ -478,6 +478,9 @@ public class AuthorPresenter extends MvpBasePresenter<AuthorView> implements IAu
         favorite.setAuthorName(authorName);
         favorite.setSource(source);
         favorite.setFavoriteDate(new Date());
+        if (!TextUtils.isEmpty(lastViewKey)) {
+            favorite.setLastViewKey(lastViewKey);
+        }
         dataManager.saveAuthorFavorite(favorite);
     }
 

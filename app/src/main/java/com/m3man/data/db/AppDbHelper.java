@@ -19,6 +19,7 @@ import android.text.TextUtils;
 import java.util.Date;
 
 import com.m3man.di.ApplicationContext;
+import com.m3man.parser.Parse91PornyVideo;
 import com.m3man.utils.AppLog;
 import org.greenrobot.greendao.AbstractDao;
 import org.greenrobot.greendao.query.QueryBuilder;
@@ -638,16 +639,68 @@ public class AppDbHelper implements DbHelper {
 
     @Override
     public List<AuthorFavorite> loadAuthorFavorites() {
-        AuthorFavoriteDao dao = daoSession().getAuthorFavoriteDao();
-        return dao.queryBuilder()
-                .orderDesc(AuthorFavoriteDao.Properties.FavoriteDate)
-                .build().list();
+        DaoSession session = daoSession();
+        AuthorFavoriteDao dao = session.getAuthorFavoriteDao();
+        return session.callInTxNoException(() -> {
+            List<AuthorFavorite> rows = dao.queryBuilder()
+                    .orderDesc(AuthorFavoriteDao.Properties.FavoriteDate)
+                    .build().list();
+            for (AuthorFavorite row : rows) {
+                migrateLegacyAuthorKey(dao, row);
+            }
+            return rows;
+        });
     }
 
     @Override
     public AuthorFavorite findAuthorFavorite(String authorKey, String source) {
+        DaoSession session = daoSession();
+        return session.callInTxNoException(() -> findAuthorFavorite(session.getAuthorFavoriteDao(), authorKey, source));
+    }
+
+    private AuthorFavorite findAuthorFavorite(AuthorFavoriteDao dao, String authorKey, String source) {
+        AuthorFavorite exact = findAuthorFavoriteByKey(dao, authorKey, source);
+        if (!AuthorFavorite.SOURCE_PORNY.equals(source)) {
+            return exact;
+        }
+        if (Parse91PornyVideo.isDashenAuthorKey(authorKey)) {
+            if (exact != null) {
+                return exact;
+            }
+            AuthorFavorite legacy = findAuthorFavoriteByKey(dao, authorKey.substring("dashen/".length()), source);
+            migrateLegacyAuthorKey(dao, legacy);
+            return legacy != null && authorKey.equals(legacy.getAuthorKey()) ? legacy : null;
+        }
+        migrateLegacyAuthorKey(dao, exact);
+        return exact != null && authorKey.equals(exact.getAuthorKey()) ? exact : null;
+    }
+
+    private void migrateLegacyAuthorKey(AuthorFavoriteDao dao, AuthorFavorite row) {
+        if (row == null || !AuthorFavorite.SOURCE_PORNY.equals(row.getSource())
+                || Parse91PornyVideo.isDashenAuthorKey(row.getAuthorKey())) {
+            return;
+        }
+        // 以旧收藏关联作品已解析出的作者链接为证据，避免合并同名的普通作者。
+        String viewKey = TextUtils.isEmpty(row.getLastViewKey()) ? row.getTopViewKey() : row.getLastViewKey();
+        V9MmanItem item = findV9MmanItemByViewKey(viewKey);
+        if (item == null || !Parse91PornyVideo.isPornySource(item) || item.getVideoResultId() == 0) {
+            return;
+        }
+        VideoResult video = item.getVideoResult();
+        String confirmedOwnerKey = video == null ? null : video.getOwnerId();
+        if (Parse91PornyVideo.matchesLegacyDashenAuthor(row.getAuthorKey(), confirmedOwnerKey)
+                && findAuthorFavoriteByKey(dao, confirmedOwnerKey, row.getSource()) == null) {
+            row.setAuthorKey(confirmedOwnerKey);
+            dao.update(row);
+        }
+    }
+
+    private AuthorFavorite findAuthorFavoriteByKey(AuthorFavoriteDao dao, String authorKey, String source) {
+        if (authorKey == null || source == null) {
+            return null;
+        }
         // D5：用 list().get(0) 而非 unique()，即便历史上已存在重复行也不会抛 DaoException 导致功能永久损坏
-        List<AuthorFavorite> list = daoSession().getAuthorFavoriteDao().queryBuilder()
+        List<AuthorFavorite> list = dao.queryBuilder()
                 .where(AuthorFavoriteDao.Properties.AuthorKey.eq(authorKey),
                         AuthorFavoriteDao.Properties.Source.eq(source))
                 .build().list();
@@ -655,21 +708,15 @@ public class AppDbHelper implements DbHelper {
     }
 
     @Override
-    public synchronized long saveAuthorFavorite(AuthorFavorite authorFavorite) {
-        // D5：入库前查重（synchronized 单例实例，保证 check-then-act 原子），
-        // 避免快速双击 / 多入口并发写入产生 (authorKey, source) 重复行
-        if (findAuthorFavorite(authorKeyOrNull(authorFavorite), sourceOrNull(authorFavorite)) != null) {
-            return -1;
-        }
-        return daoSession().getAuthorFavoriteDao().insertOrReplace(authorFavorite);
-    }
-
-    private static String authorKeyOrNull(AuthorFavorite f) {
-        return f != null ? f.getAuthorKey() : null;
-    }
-
-    private static String sourceOrNull(AuthorFavorite f) {
-        return f != null ? f.getSource() : null;
+    public long saveAuthorFavorite(AuthorFavorite authorFavorite) {
+        DaoSession session = daoSession();
+        AuthorFavoriteDao dao = session.getAuthorFavoriteDao();
+        return session.callInTxNoException(() -> {
+            if (findAuthorFavorite(dao, authorFavorite.getAuthorKey(), authorFavorite.getSource()) != null) {
+                return -1L;
+            }
+            return dao.insertOrReplace(authorFavorite);
+        });
     }
 
     @Override

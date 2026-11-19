@@ -471,7 +471,7 @@ public class ParseV9MmanVideo {
      * @return 视频连接
      */
     @WorkerThread
-    public static VideoResult parseVideoPlayUrl(String html, User user, String pageUrl) {
+    public static VideoResult parseVideoPlayUrl(String html, User user) {
         VideoResult videoResult = new VideoResult();
         if (html == null || html.isEmpty()) {
             return videoResult;
@@ -485,26 +485,21 @@ public class ParseV9MmanVideo {
 
         Document doc = Jsoup.parse(html);
 
-        // 这个模板里的静态 source 是占位地址。真实流由源站播放器在用户操作后加载。
-        boolean requiresWebPlayer = doc.selectFirst("video#player_one") != null
+        // 需要站点播放器交互的模板仅提供占位地址，仍保留详情和作者元数据。
+        boolean requiresSitePlayback = doc.selectFirst("video#player_one") != null
                 && doc.select("script").stream().map(Element::data)
                         .anyMatch(script -> script.contains("'/vlk.php'") || script.contains("\"/vlk.php\""));
-        String videoUrl = requiresWebPlayer ? "" : extractNativePlaybackUrl(html, doc);
-        if (requiresWebPlayer) {
-            videoResult.setWebPlaybackUrl(pageUrl);
+        String videoUrl = requiresSitePlayback ? "" : extractNativePlaybackUrl(html, doc);
+        if (hasTQueryParam(videoUrl)) {
+            requiresSitePlayback = true;
+            videoUrl = "";
         }
+        videoResult.setRequiresSitePlayback(requiresSitePlayback);
         videoResult.setVideoUrl(videoUrl);
         Logger.t(TAG).d("视频链接：" + UrlUtils.maskForLog(videoUrl));
 
         // M32：站点改版/视频下架/反爬时 videoUrl 可能为空，不再触发 substring 崩溃
-        String videoId = "";
-        if (!TextUtils.isEmpty(videoUrl)) {
-            int endIndex = videoUrl.indexOf(".mp4");
-            if (endIndex > 0) {
-                int startIndex = videoUrl.substring(0, endIndex).lastIndexOf("/");
-                videoId = videoUrl.substring(startIndex + 1, endIndex);
-            }
-        }
+        String videoId = extractMp4VideoId(videoUrl);
         videoResult.setVideoId(videoId);
         Logger.t(TAG).d("视频Id：" + videoId);
 
@@ -623,9 +618,12 @@ public class ParseV9MmanVideo {
         String videoUrl = null;
         Element videoElement = doc.selectFirst("video");
         if (videoElement != null) {
-            Element sourceElement = videoElement.selectFirst("source");
-            if (sourceElement != null) {
-                videoUrl = sourceElement.attr("src");
+            videoUrl = videoElement.attr("src");
+            if (videoUrl.isEmpty()) {
+                Element sourceElement = videoElement.selectFirst("source[src]");
+                if (sourceElement != null) {
+                    videoUrl = sourceElement.attr("src");
+                }
             }
         }
         try {
@@ -670,6 +668,40 @@ public class ParseV9MmanVideo {
         }
 
         return videoUrl;
+    }
+
+    /** 旧缓存中的主站占位地址含有非空的 t 参数。 */
+    public static boolean hasTQueryParam(String url) {
+        if (url == null || url.isEmpty()) {
+            return false;
+        }
+        int q = url.indexOf('?');
+        if (q < 0 || q + 1 >= url.length()) {
+            return false;
+        }
+        String query = url.substring(q + 1);
+        int hash = query.indexOf('#');
+        if (hash >= 0) {
+            query = query.substring(0, hash);
+        }
+        for (String param : query.split("&")) {
+            if (param.startsWith("t=") && param.length() > 2) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String extractMp4VideoId(String videoUrl) {
+        if (videoUrl == null || videoUrl.isEmpty()) {
+            return "";
+        }
+        int endIndex = videoUrl.indexOf(".mp4");
+        if (endIndex <= 0) {
+            return "";
+        }
+        int startIndex = videoUrl.substring(0, endIndex).lastIndexOf("/");
+        return videoUrl.substring(startIndex + 1, endIndex);
     }
 
     /**
@@ -717,7 +749,7 @@ public class ParseV9MmanVideo {
                 Document decodedDoc = Jsoup.parse(decodedHtml);
                 Element source = decodedDoc.selectFirst("source[src]");
                 if (source != null && !TextUtils.isEmpty(source.attr("src"))) {
-                    Logger.t(TAG).d("strencode2 视频source：" + source.attr("src"));
+                    Logger.t(TAG).d("strencode2 视频source：" + UrlUtils.maskForLog(source.attr("src")));
                     return source.attr("src");
                 }
             }

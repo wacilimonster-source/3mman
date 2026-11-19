@@ -209,7 +209,7 @@ public class Parse91PornyVideo {
      */
     public static VideoResult parseVideoPlayUrl(String html, String baseUrl) {
         VideoResult videoResult = new VideoResult();
-        if (TextUtils.isEmpty(html)) {
+        if (html == null || html.isEmpty()) {
             return videoResult;
         }
 
@@ -221,11 +221,11 @@ public class Parse91PornyVideo {
             Element video = doc.select("video").first();
             if (video != null) {
                 videoUrl = video.attr("data-src");
-                if (TextUtils.isEmpty(videoUrl)) {
+                if (videoUrl == null || videoUrl.isEmpty()) {
                     videoUrl = video.attr("src");
                 }
                 // <source> 子标签兜底
-                if (TextUtils.isEmpty(videoUrl)) {
+                if (videoUrl == null || videoUrl.isEmpty()) {
                     Element source = video.selectFirst("source");
                     if (source != null) {
                         videoUrl = source.attr("src");
@@ -238,12 +238,12 @@ public class Parse91PornyVideo {
         }
 
         // 2) 兜底：整页匹配 mp4 / m3u8 / JS 变量
-        if (TextUtils.isEmpty(videoUrl)) {
+        if (videoUrl == null || videoUrl.isEmpty()) {
             videoUrl = findVideoUrlInHtml(html);
         }
 
         // 3) HTML 实体还原（&amp; -> &）与相对路径补全
-        if (!TextUtils.isEmpty(videoUrl)) {
+        if (videoUrl != null && !videoUrl.isEmpty()) {
             videoUrl = videoUrl.replace("&amp;", "&");
         }
         videoUrl = resolveUrl(videoUrl, baseUrl);
@@ -255,7 +255,7 @@ public class Parse91PornyVideo {
         // 空 videoId 绕过 saveVideoResult 的去重逻辑，VIDEO_RESULT 表对 porny 源无限膨胀。
         // data-src 形如 https://cdn2.xxx/hls/1018639/index.m3u8?t=...，取 /hls/<id>/ 段。
         String pornyVideoId = extractPornyVideoId(videoUrl);
-        if (TextUtils.isEmpty(pornyVideoId)) {
+        if (pornyVideoId == null || pornyVideoId.isEmpty()) {
             // 兜底不能再按作者名：同一作者的不同视频会共用 videoId，
             // saveVideoResult 去重时会互相覆盖直链/元数据（历史上表现为播放到别的视频）。
             // 用去掉签名参数后的地址路径哈希：同一条视频多次解析稳定，不同视频基本不碰撞。
@@ -279,7 +279,7 @@ public class Parse91PornyVideo {
      * M73：从 m3u8 直链提取 porny 视频 id（/hls/<数字>/ 段），作为 DB 去重键。
      */
     private static String extractPornyVideoId(String videoUrl) {
-        if (TextUtils.isEmpty(videoUrl)) {
+        if (videoUrl == null || videoUrl.isEmpty()) {
             return null;
         }
         Matcher m = HLS_ID.matcher(videoUrl);
@@ -329,13 +329,16 @@ public class Parse91PornyVideo {
                 String href = a.attr("href");
                 int idx = href.indexOf(prefix);
                 if (idx >= 0) {
-                    String key = href.substring(idx + prefix.length());
+                    String key = normalizePathKey(href.substring(idx + prefix.length()));
                     // href 里的中文段是 URL 编码形态（%E5%A4%A7...），统一解码为显示名作为
                     // 作者键——键同时用于 /dashen/{name} 请求与 AuthorFavorite 去重，
                     // 请求时由数据层按需重新编码；不解码会被"长度>32 判 9mman"防御误杀。
                     try {
                         key = java.net.URLDecoder.decode(key, "UTF-8");
                     } catch (Exception ignored) {
+                    }
+                    if ("/dashen/".equals(prefix) && !key.isEmpty() && !isDashenAuthorKey(key)) {
+                        key = "dashen/" + key;
                     }
                     result[0] = key;
                     result[1] = a.text().trim();
@@ -382,7 +385,7 @@ public class Parse91PornyVideo {
      * 把相对路径视频链接补全为绝对地址
      */
     private static String resolveUrl(String url, String baseUrl) {
-        if (TextUtils.isEmpty(url) || TextUtils.isEmpty(baseUrl)) {
+        if (url == null || url.isEmpty() || baseUrl == null || baseUrl.isEmpty()) {
             return url;
         }
         String trimmed = url.trim();
@@ -525,6 +528,11 @@ public class Parse91PornyVideo {
     /** 是否大神作者页标识（ownerId / 作者收藏键形如 "dashen/<name>"） */
     public static boolean isDashenAuthorKey(String key) {
         return key != null && key.startsWith("dashen/");
+    }
+
+    public static boolean matchesLegacyDashenAuthor(String legacyKey, String confirmedOwnerKey) {
+        return legacyKey != null && !legacyKey.isEmpty() && !isDashenAuthorKey(legacyKey)
+                && ("dashen/" + legacyKey).equals(confirmedOwnerKey);
     }
 
     private static String extractBackgroundUrl(String style) {

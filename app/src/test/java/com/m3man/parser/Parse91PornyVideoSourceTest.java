@@ -1,9 +1,11 @@
 package com.m3man.parser;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.m3man.data.db.entity.V9MmanItem;
+import com.m3man.data.db.entity.VideoResult;
 import com.m3man.perf.VideoKey;
 
 import org.junit.Test;
@@ -75,5 +77,27 @@ public class Parse91PornyVideoSourceTest {
         V9MmanItem emptyKey = new V9MmanItem();
         emptyKey.setViewKey("");
         assertFalse(Parse91PornyVideo.isPornySource(emptyKey));
+    }
+
+    @Test
+    public void parseVideoPlayUrl_preservesDashenAuthorPrefix() {
+        String html = "<video data-src='https://cdn22.jiuse3.cloud/2026/11/18/abc/index.m3u8'></video>"
+                + "<a href='/dashen/%E5%A4%A7%E9%AD%94%E7%8E%8B/'>大魔王</a>";
+
+        VideoResult result = Parse91PornyVideo.parseVideoPlayUrl(html, "https://91porny.com/");
+
+        assertEquals("dashen/大魔王", result.getOwnerId());
+        assertEquals("大魔王", result.getOwnerName());
+    }
+
+    @Test
+    public void parseVideoPlayUrl_stripsQueryFromAuthorLink() {
+        String html = "<video data-src='https://cdn2.jiuse3.cloud/s/1795111200/sig/hls/123/index.m3u8'></video>"
+                + "<a href='/author/alon425666?sort=new'>alon425666</a>";
+
+        VideoResult result = Parse91PornyVideo.parseVideoPlayUrl(html, "https://91porny.com/");
+
+        assertEquals("alon425666", result.getOwnerId());
+        assertEquals("alon425666", result.getOwnerName());
     }
 }

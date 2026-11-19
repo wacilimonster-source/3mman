@@ -369,11 +369,10 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     }
 
     /**
-     * 91porny 视频为 m3u8 HLS 流，videocache 代理（HttpProxyCacheServer 2.7.1）对 HLS
-     * 分片相对路径与签名参数的转发有缺陷，直接播放原始地址；其余来源走原有代理缓存。
+     * 主站直链直接交给播放器，避免旧本地缓存代理阻塞拉流。HLS 同样直接播放。
      */
     private String resolvePlayUrl(String originalUrl, boolean isPornySource) {
-        if (TextUtils.isEmpty(originalUrl) || UrlUtils.isHlsUrl(originalUrl)) {
+        if (!isPornySource || TextUtils.isEmpty(originalUrl) || UrlUtils.isHlsUrl(originalUrl)) {
             // 91porny 返回 HLS；旧 videocache 会把 index0.ts 当成独立地址，
             // 因此所有 m3u8 都直接交给 ExoPlayer/系统 HLS 播放器。
             return originalUrl;
@@ -443,6 +442,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         final String finalAuthorName = authorName;
         final String source = PlayVideoPresenter.isPornySource(v9MmanItem)
                 ? AuthorFavorite.SOURCE_PORNY : AuthorFavorite.SOURCE_MMAN9;
+        final String finalViewKey = v9MmanItem == null ? null : v9MmanItem.getViewKey();
         mDisposables.add(Observable.just(1)
                 .map(integer -> {
                     // 实时查库判断收藏态，避免异步刷新完成前点击导致的重复收藏 / 漏删
@@ -450,7 +450,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
                     if (currentlyFav) {
                         presenter.removeAuthorFavorite(authorKey, source);
                     } else {
-                        presenter.addAuthorFavorite(authorKey, finalAuthorName, source);
+                        presenter.addAuthorFavorite(authorKey, finalAuthorName, source, finalViewKey);
                     }
                     return !currentlyFav;
                 })
@@ -612,14 +612,6 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     }
 
     @Override
-    public void playMainSiteWebPage(String pageUrl) {
-        dismissDialog();
-        if (isFinishing()) return;
-        startActivity(new Intent(this, MainSitePlaybackActivity.class).setData(Uri.parse(pageUrl)));
-        finish();
-    }
-
-    @Override
     public void errorParseVideoUrl(String errorMessage) {
         dismissDialog();
         if (Source441447Client.isSource(v9MmanItem)) {
@@ -640,10 +632,14 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
             builder.show();
             return;
         }
-        helper.showError();
         AppLog.e("BasePlayVideo", "播放页解析失败: " + errorMessage);
-        LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, "解析视频地址失败了，点击重试");
-        showMessage(errorMessage, TastyToast.ERROR);
+        showVideoLoadError(errorMessage, "解析视频地址失败了，点击重试");
+    }
+
+    private void showVideoLoadError(String message, String errorText) {
+        helper.showError();
+        LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, errorText);
+        showMessage(message, TastyToast.ERROR);
     }
 
     @Override

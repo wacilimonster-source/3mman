@@ -30,10 +30,10 @@ public interface PornyServiceApi {
                                @Query("views") String views,
                                @Header("Referer") String referer);
 
-    /** 大神作者页（name 为路径段，可能含 URL 编码的中文，encoded=true 原样传递） */
+    /** 大神作者页（name 为解码后的作者名，由 Retrofit 自动按 UTF-8 路径编码） */
     @Headers({"Domain-Name: " + Api.PORNY_DOMAIN_NAME})
     @GET("/dashen/{name}")
-    Observable<String> dashenVideos(@Path(value = "name", encoded = true) String name,
+    Observable<String> dashenVideos(@Path("name") String name,
                                     @Query("page") int page,
                                     @Header("Referer") String referer);
 

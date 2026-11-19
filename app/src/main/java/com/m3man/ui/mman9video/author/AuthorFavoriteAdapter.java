@@ -27,7 +27,9 @@ public class AuthorFavoriteAdapter extends BaseQuickAdapter<AuthorFavorite, Base
 
     @Override
     protected void convert(BaseViewHolder helper, AuthorFavorite item) {
-        // 注册左滑「删除」按钮的点击事件（否则 setOnItemChildClickListener 不生效）
+        // 注册内容区与左滑「删除」按钮的点击事件：内容区直接承载点击/长按，避免 SwipeItemLayout 水平微抖或更新动画吞掉条目点击
+        helper.addOnClickListener(R.id.ll_author_content);
+        helper.addOnLongClickListener(R.id.ll_author_content);
         helper.addOnClickListener(R.id.right_menu_delete);
         TextView name = helper.getView(R.id.tv_author_name);
         TextView badge = helper.getView(R.id.tv_author_new_badge);

@@ -139,7 +139,7 @@ public class AuthorActivity extends MvpActivity<AuthorView, AuthorPresenter> imp
                     if (currentlyFav) {
                         presenter.removeAuthorFavorite(uid, source);
                     } else {
-                        presenter.addAuthorFavorite(uid, authorName, source);
+                        presenter.addAuthorFavorite(uid, authorName, source, lastViewKey);
                     }
                     return !currentlyFav;
                 })
