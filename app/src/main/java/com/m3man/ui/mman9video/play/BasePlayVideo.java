@@ -310,16 +310,19 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
             return;
         }
         boolean isPornySource = PlayVideoPresenter.isPornySource(v9MmanItem);
+        boolean is441447Source = Source441447Client.isSource(v9MmanItem);
+        // 主站缓存可能仍指向占位直链，进详情时重新检查播放页模板。
+        if (!isPornySource && !is441447Source) {
+            presenter.loadVideoUrl(v9MmanItem);
+            return;
+        }
         V9MmanItem tmp = presenter.findV9MmanItemByViewKey(v9MmanItem.getViewKey());
-        if (Source441447Client.isSource(v9MmanItem)) {
+        if (is441447Source) {
             if (tmp != null) v9MmanItem = tmp;
             presenter.loadVideoUrl(v9MmanItem);
             return;
         }
-        // M73：DB 命中的直链可能带时效签名（9mman 的 secure=/e=，91porny 的 /s/<过期桶>/ 与 ?t=&m=）。
-        // 过期直链交给 videocache 本地代理建流失败 → 播放器连不上 127.0.0.1 无限转圈；
-        // 91porny 过期直链则可能让 CDN 返回错误占位内容（用户看到「外链无法访问」）。
-        // 这里对持久化缓存统一做时效校验，91porny 也必须走重解析拿新签名。
+        // 91porny 的缓存直链过期后 CDN 可能返回占位内容，起播前检查签名时效。
         if (tmp != null && tmp.getVideoResultId() != 0) {
             try {
                 VideoResult cachedVr = tmp.getVideoResult();
@@ -359,20 +362,8 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
             presenter.updateV9MmanItemForHistory(v9MmanItem);
             setToolBarLayoutInfo(v9MmanItem);
             playVideo(v9MmanItem.getTitle(), resolvePlayUrl(videoResult.getVideoUrl(), isPornySource), videoResult.getVideoName(), videoResult.getThumbImgUrl());
-            if (isPornySource) {
-                // 91porny 只设置作者
-                if (authorFragment != null) {
-                    authorFragment.setV9MmanItem(v9MmanItem);
-                }
-            } else {
-                //加载评论
-                if (commentFragment != null) {
-                    commentFragment.setV9MmanItem(v9MmanItem);
-                    commentFragment.loadVideoComment(videoResult.getVideoId(), v9MmanItem.getViewKey(), true);
-                }
-                if (authorFragment != null) {
-                    authorFragment.setV9MmanItem(v9MmanItem);
-                }
+            if (authorFragment != null) {
+                authorFragment.setV9MmanItem(v9MmanItem);
             }
         }
     }
@@ -618,6 +609,14 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         tvPlayVideoInfo.setText("441447");
         playVideo(item.getTitle(), url, "", item.getImgUrl());
         dismissDialog();
+    }
+
+    @Override
+    public void playMainSiteWebPage(String pageUrl) {
+        dismissDialog();
+        if (isFinishing()) return;
+        startActivity(new Intent(this, MainSitePlaybackActivity.class).setData(Uri.parse(pageUrl)));
+        finish();
     }
 
     @Override

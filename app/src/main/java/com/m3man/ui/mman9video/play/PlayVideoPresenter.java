@@ -54,6 +54,7 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
 
     private DataManager dataManager;
     private final Source441447Client source441447Client;
+    private int playbackGeneration;
 
 //    private final WebView webView;
 
@@ -68,6 +69,7 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
 
     @Override
     public void loadVideoUrl(final V9MmanItem v9MmanItem) {
+        final int generation = ++playbackGeneration;
         if (Source441447Client.isSource(v9MmanItem)) {
             Observable.fromCallable(() -> {
                 String url = source441447Client.loadPlayUrl(v9MmanItem.getViewKey());
@@ -160,6 +162,21 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
         dataManager.loadMman9VideoUrl(viewKey)
                 .doOnSubscribe(d -> AppLog.i(TAG, "请求9mman播放页 viewKey=" + viewKey))
                 .map(videoResult -> {
+                    if (videoResult != null && !TextUtils.isEmpty(videoResult.getWebPlaybackUrl())) {
+                        try {
+                            Date now = new Date();
+                            V9MmanItem existing = dataManager.findV9MmanItemByViewKey(viewKey);
+                            if (existing != null) {
+                                dataManager.updateViewHistoryColumn(existing.getId(), now);
+                            } else {
+                                v9MmanItem.setViewHistoryDate(now);
+                                dataManager.saveV9MmanItem(v9MmanItem);
+                            }
+                        } catch (Exception e) {
+                            AppLog.w(TAG, "主站网页播放历史保存失败 " + AppLog.cause(e));
+                        }
+                        return videoResult;
+                    }
                     if (videoResult == null || TextUtils.isEmpty(videoResult.getVideoUrl())) {
                         if (videoResult != null && VideoResult.OUT_OF_WATCH_TIMES.equals(videoResult.getId())) {
                             //尝试强行重置，并上报异常
@@ -185,6 +202,11 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
 
                     @Override
                     public void onSuccess(final VideoResult videoResult) {
+                        if (generation != playbackGeneration) return;
+                        if (!TextUtils.isEmpty(videoResult.getWebPlaybackUrl())) {
+                            ifViewAttached(view -> view.playMainSiteWebPage(videoResult.getWebPlaybackUrl()));
+                            return;
+                        }
                         dataManager.resetMman91VideoWatchTime(false);
                         // M96：saveVideoUrl 含数据库写入，改到 IO 线程异步执行，不再阻塞主线程；
                         // 生命周期复用 provider.bindUntilEvent，页面销毁自动断流。
@@ -211,6 +233,7 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
 
                     @Override
                     public void onError(final String msg, int code) {
+                        if (generation != playbackGeneration) return;
                         AppLog.e(TAG, "9mman解析失败 viewKey=" + viewKey + " msg=" + msg);
                         ifViewAttached(view -> view.errorParseVideoUrl(diagnoseMsg(msg, videoAddr)));
                     }

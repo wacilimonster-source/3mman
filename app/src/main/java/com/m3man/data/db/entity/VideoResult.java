@@ -4,6 +4,7 @@ import org.greenrobot.greendao.annotation.Entity;
 import org.greenrobot.greendao.annotation.Id;
 import org.greenrobot.greendao.annotation.Index;
 import org.greenrobot.greendao.annotation.Generated;
+import org.greenrobot.greendao.annotation.Transient;
 
 import java.io.Serializable;
 
@@ -25,6 +26,9 @@ public class VideoResult implements Serializable {
     @Id
     public Long id;
     private String videoUrl;
+
+    @Transient
+    private transient String webPlaybackUrl;
 
     @Index
     private String videoId;
@@ -71,6 +75,14 @@ public class VideoResult implements Serializable {
 
     public void setVideoUrl(String videoUrl) {
         this.videoUrl = videoUrl;
+    }
+
+    public String getWebPlaybackUrl() {
+        return webPlaybackUrl;
+    }
+
+    public void setWebPlaybackUrl(String webPlaybackUrl) {
+        this.webPlaybackUrl = webPlaybackUrl;
     }
 
     public String getVideoId() {

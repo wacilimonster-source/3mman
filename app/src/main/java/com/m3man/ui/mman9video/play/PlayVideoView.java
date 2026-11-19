@@ -19,6 +19,8 @@ public interface PlayVideoView extends BaseView {
 
     void play441447Video(V9MmanItem item, String url);
 
+    void playMainSiteWebPage(String pageUrl);
+
     void errorParseVideoUrl(String errorMessage);
 
     void favoriteSuccess();

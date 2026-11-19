@@ -195,7 +195,13 @@ public class AppApiHelper implements ApiHelper {
         String ip = addressHelper.getRandomIPAddress();
         //因为登录后不在返回用户uid，需要在此页面获取，所以当前页面不在缓存，确保用户登录后刷新当前页面可以获取到用户uid
         return v9MmanServiceApi.getVideoPlayPage(viewKeyQuery, ip, HeaderUtils.getIndexHeader(addressHelper))
-                .map(html -> ParseV9MmanVideo.parseVideoPlayUrl(html, user));
+                .map(response -> {
+                    if (!response.isSuccessful()) {
+                        throw new retrofit2.HttpException(response);
+                    }
+                    return ParseV9MmanVideo.parseVideoPlayUrl(response.body(), user,
+                            response.raw().request().url().toString());
+                });
     }
 
     @Override

@@ -10,8 +10,10 @@ import com.m3man.data.db.entity.VideoResult;
 import com.m3man.data.model.BaseResult;
 import com.m3man.data.model.User;
 import com.m3man.data.model.VideoComment;
+import com.m3man.utils.AppLog;
 import com.m3man.utils.NetworkClientHolder;
 import com.m3man.utils.StringUtils;
+import com.m3man.utils.UrlUtils;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -469,9 +471,9 @@ public class ParseV9MmanVideo {
      * @return 视频连接
      */
     @WorkerThread
-    public static VideoResult parseVideoPlayUrl(String html, User user) {
+    public static VideoResult parseVideoPlayUrl(String html, User user, String pageUrl) {
         VideoResult videoResult = new VideoResult();
-        if (TextUtils.isEmpty(html)) {
+        if (html == null || html.isEmpty()) {
             return videoResult;
         }
         if (html.contains("你每天只可观看10个视频")) {
@@ -483,60 +485,16 @@ public class ParseV9MmanVideo {
 
         Document doc = Jsoup.parse(html);
 
-
-        // 先直接取 source；新版页面把 <source> 放在 HTML 注释里、由 strencode2 动态写入，
-        // Jsoup 取不到时走 decodeVideoUrl。这里逐级判空，避免每次播放都抛 NPE 再靠 catch 兜底。
-        String videoUrl = null;
-        Element videoElement = doc.selectFirst("video");
-        if (videoElement != null) {
-            Element sourceElement = videoElement.selectFirst("source");
-            if (sourceElement != null) {
-                videoUrl = sourceElement.attr("src");
-            }
+        // 这个模板里的静态 source 是占位地址。真实流由源站播放器在用户操作后加载。
+        boolean requiresWebPlayer = doc.selectFirst("video#player_one") != null
+                && doc.select("script").stream().map(Element::data)
+                        .anyMatch(script -> script.contains("'/vlk.php'") || script.contains("\"/vlk.php\""));
+        String videoUrl = requiresWebPlayer ? "" : extractNativePlaybackUrl(html, doc);
+        if (requiresWebPlayer) {
+            videoResult.setWebPlaybackUrl(pageUrl);
         }
-        try {
-            if (TextUtils.isEmpty(videoUrl)) {
-                videoUrl = decodeVideoUrl(html);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        if(TextUtils.isEmpty(videoUrl)) {
-            //如果都获取不到就找分享链接
-            Logger.t(TAG).e("解析加密链接失败，尝试获取分享链接");
-            // M95：兜底结果初始为空串——shareLink 为空或请求异常时直接以空串收尾，不再携带 null
-            videoUrl = "";
-            // M95：裸 Jsoup.connect 每次新建连接池且绕过全局 Cookie/代理配置，
-            // 改走 NetworkClientHolder 统一持有的 OkHttpClient（MyApplication 主进程启动时注入）。
-            // 兜底请求使用短超时（5s），避免 CDN 慢响应长时间占用 IO 线程
-            OkHttpClient fallbackClient = NetworkClientHolder.get().newBuilder()
-                    .connectTimeout(5, TimeUnit.SECONDS)
-                    .readTimeout(5, TimeUnit.SECONDS)
-                    .build();
-            Response response = null;
-            try {
-                String shareLink = doc.select("#linkForm2 #fm-video_link").text();
-                if (!TextUtils.isEmpty(shareLink)) {
-                    Request request = new Request.Builder()
-                            .url(shareLink)
-                            .header("User-Agent", FALLBACK_UA)
-                            .build();
-                    response = fallbackClient.newCall(request).execute();
-                    String shareHtml = response.body() != null ? response.body().string() : "";
-                    videoUrl = decodeVideoUrl(shareHtml);
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            } finally {
-                if (response != null) {
-                    response.close();
-                }
-            }
-        }
-
         videoResult.setVideoUrl(videoUrl);
-        Logger.t(TAG).d("视频链接：" + videoUrl);
+        Logger.t(TAG).d("视频链接：" + UrlUtils.maskForLog(videoUrl));
 
         // M32：站点改版/视频下架/反爬时 videoUrl 可能为空，不再触发 substring 崩溃
         String videoId = "";
@@ -657,6 +615,61 @@ public class ParseV9MmanVideo {
             }
         }
         return videoResult;
+    }
+
+    private static String extractNativePlaybackUrl(String html, Document doc) {
+        // 先直接取 source；新版页面把 <source> 放在 HTML 注释里、由 strencode2 动态写入，
+        // Jsoup 取不到时走 decodeVideoUrl。这里逐级判空，避免每次播放都抛 NPE 再靠 catch 兜底。
+        String videoUrl = null;
+        Element videoElement = doc.selectFirst("video");
+        if (videoElement != null) {
+            Element sourceElement = videoElement.selectFirst("source");
+            if (sourceElement != null) {
+                videoUrl = sourceElement.attr("src");
+            }
+        }
+        try {
+            if (TextUtils.isEmpty(videoUrl)) {
+                videoUrl = decodeVideoUrl(html);
+            }
+        } catch (Exception e) {
+            AppLog.w(TAG, "播放地址解码失败 " + AppLog.cause(e));
+        }
+
+        if(TextUtils.isEmpty(videoUrl)) {
+            //如果都获取不到就找分享链接
+            Logger.t(TAG).e("解析加密链接失败，尝试获取分享链接");
+            // M95：兜底结果初始为空串——shareLink 为空或请求异常时直接以空串收尾，不再携带 null
+            videoUrl = "";
+            // M95：裸 Jsoup.connect 每次新建连接池且绕过全局 Cookie/代理配置，
+            // 改走 NetworkClientHolder 统一持有的 OkHttpClient（MyApplication 主进程启动时注入）。
+            // 兜底请求使用短超时（5s），避免 CDN 慢响应长时间占用 IO 线程
+            OkHttpClient fallbackClient = NetworkClientHolder.get().newBuilder()
+                    .connectTimeout(5, TimeUnit.SECONDS)
+                    .readTimeout(5, TimeUnit.SECONDS)
+                    .build();
+            Response response = null;
+            try {
+                String shareLink = doc.select("#linkForm2 #fm-video_link").text();
+                if (!TextUtils.isEmpty(shareLink)) {
+                    Request request = new Request.Builder()
+                            .url(shareLink)
+                            .header("User-Agent", FALLBACK_UA)
+                            .build();
+                    response = fallbackClient.newCall(request).execute();
+                    String shareHtml = response.body() != null ? response.body().string() : "";
+                    videoUrl = decodeVideoUrl(shareHtml);
+                }
+            } catch (Exception e) {
+                AppLog.w(TAG, "分享页播放地址解析失败 " + AppLog.cause(e));
+            } finally {
+                if (response != null) {
+                    response.close();
+                }
+            }
+        }
+
+        return videoUrl;
     }
 
     /**

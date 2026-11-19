@@ -412,6 +412,9 @@
 
     <!-- 播放页相关 -->
     <string name="play_video_info_incomplete">视频信息不完整，无法播放，请返回重试</string>
+    <string name="play_main_site_web">主站网页播放</string>
+    <string name="play_main_site_web_error">主站播放页加载失败</string>
+    <string name="play_main_site_web_retry">重试</string>
     <string name="play_author_not_ready">作者信息未就绪，无法收藏</string>
     <string name="play_favorite_success">收藏成功</string>
     <string name="play_not_parsed_cannot_download">还未成功解析视频链接，不能下载！</string>
