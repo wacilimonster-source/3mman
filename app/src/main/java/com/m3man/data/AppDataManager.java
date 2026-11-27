@@ -60,9 +60,31 @@ public class AppDataManager implements DataManager {
         // 启动时从已保存的登录账号恢复登录态：会话 cookie 由 cookie 持久化保持，
         // 这里仅恢复用户名展示，使“我的”页与收藏功能在重启后仍能识别已登录用户
         String savedLoginUserName = mPreferencesHelper.getMman9VideoLoginUserName();
-        if (!TextUtils.isEmpty(savedLoginUserName)) {
+        // 优先用完整快照恢复（用户名/状态/最后登录时间），退回只用用户名。
+        String snapshot = mPreferencesHelper.getMman9VideoUserSnapshot();
+        if (!TextUtils.isEmpty(snapshot)) {
+            try {
+                User saved = new com.google.gson.Gson().fromJson(snapshot, User.class);
+                if (saved != null && !TextUtils.isEmpty(saved.getUserName())) {
+                    saved.copyProperties(user);
+                    user.setLogin(true);
+                }
+            } catch (Exception e) {
+                com.m3man.utils.AppLog.w("AppDataManager", "恢复登录快照失败 " + com.m3man.utils.AppLog.cause(e));
+            }
+        }
+        if (!TextUtils.isEmpty(savedLoginUserName) && TextUtils.isEmpty(user.getUserName())) {
             user.setUserName(savedLoginUserName);
             user.setLogin(true);
+        }
+    }
+
+    @Override
+    public void saveLoginUserSnapshot() {
+        try {
+            mPreferencesHelper.setMman9VideoUserSnapshot(new com.google.gson.Gson().toJson(user));
+        } catch (Exception e) {
+            com.m3man.utils.AppLog.w("AppDataManager", "保存登录快照失败 " + com.m3man.utils.AppLog.cause(e));
         }
     }
 
@@ -397,6 +419,16 @@ public class AppDataManager implements DataManager {
     }
 
     @Override
+    public void setMman9VideoUserSnapshot(String json) {
+        mPreferencesHelper.setMman9VideoUserSnapshot(json);
+    }
+
+    @Override
+    public String getMman9VideoUserSnapshot() {
+        return mPreferencesHelper.getMman9VideoUserSnapshot();
+    }
+
+    @Override
     public void setFavoriteNeedRefresh(boolean needRefresh) {
         mPreferencesHelper.setFavoriteNeedRefresh(needRefresh);
     }
@@ -613,6 +645,8 @@ public class AppDataManager implements DataManager {
         // H6：同时清空持久化的登录用户名，否则重启后构造函数会再次恢复"假登录态"。
         // 设置页与"我的"页退出均走此路径，统一在此清理可保证两处行为一致。
         mPreferencesHelper.setMman9VideoLoginUserName("");
+        // 登录快照同样清空，避免登出后重启又“复活”成已登录态。
+        mPreferencesHelper.setMman9VideoUserSnapshot("");
         // M94：登出同时清理密码 SP 键（空串触发 helper 内部 remove，键名不变），
         // 并关闭自动登录标记，避免换账号登录页自动填充他人密码。
         mPreferencesHelper.setMman9VideoLoginUserPassWord("");

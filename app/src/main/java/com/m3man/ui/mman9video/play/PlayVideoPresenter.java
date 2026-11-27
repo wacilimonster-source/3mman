@@ -256,6 +256,10 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
                 .map(videoResult -> {
                     // 源站对游客隐藏了 3 天内新视频的播放器：解析结果为空但带登录标记，
                     // 交给 onSuccess 引导登录，不能当成“解析失败”。
+                    if (videoResult != null && videoResult.requiresEmailVerify()) {
+                        AppLog.w(TAG, "源站要求先验证邮箱 viewKey=" + viewKey);
+                        return videoResult;
+                    }
                     if (videoResult != null && videoResult.requiresLogin()) {
                         AppLog.w(TAG, "源站要求登录后才能观看 viewKey=" + viewKey);
                         return videoResult;
@@ -286,6 +290,15 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
                     @Override
                     public void onSuccess(final VideoResult videoResult) {
                         if (generation != playbackGeneration) return;
+                        if (videoResult.requiresEmailVerify()) {
+                            // 站点把内容页 302 到 confirm_email.php：会话有效但邮箱未验证。
+                            // 不写库、不播放，直接给出可执行的入口。
+                            String base = dataManager.getMman9VideoAddress();
+                            final String verifyUrl = (TextUtils.isEmpty(base) ? "" : base) + "email_verify.php";
+                            ifViewAttached(view -> view.needEmailVerifyForPlayback(
+                                    context.getString(R.string.play_email_verify_required), verifyUrl));
+                            return;
+                        }
                         if (videoResult.requiresLogin()) {
                             // 不写库、不播放：空直链落库会把脏数据缓存下来
                             ifViewAttached(view -> view.needLoginForPlayback(

@@ -374,7 +374,9 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
 
     @SuppressLint("SetTextI18n")
     private void setUpUserInfo(User user) {
-
+        // 2026-11 实测：老实现只在 status 非空时才写 tvNavUsername，进程重启后
+        // status/lastLoginTime 没有持久化（为空），已登录用户也会一直看到布局默认的
+        // “请登录”。用户名只要非空就必须展示，缺失字段用占位符补。
         if (!UserHelper.isUserInfoComplete(user)) {
             tvNavUsername.setText(getString(R.string.pl_login));
             tvNavLastLoginTime.setText("---");
@@ -382,14 +384,18 @@ public class MineFragment extends MvpFragment<MineView, MinePresenter> implement
             return;
         }
 
+        String displayName = user.getUserName();
         if (!TextUtils.isEmpty(user.getStatus())) {
-            String status = user.getStatus().contains("正常") ? getString(R.string.mine_status_normal) : getString(R.string.mine_status_abnormal);
-            tvNavUsername.setText(user.getUserName() + "(" + status + ")");
+            String status = user.getStatus().contains("正常")
+                    ? getString(R.string.mine_status_normal)
+                    : getString(R.string.mine_status_abnormal);
+            displayName = displayName + "(" + status + ")";
         }
-        if (!TextUtils.isEmpty(user.getLastLoginTime())) {
-            tvNavLastLoginTime.setText(user.getLastLoginTime().replace("(如果你觉得时间不对,可能帐号被盗)", ""));
-        }
-        tvNavLastLoginIp.setText(user.getLastLoginIP());
+        tvNavUsername.setText(displayName);
+        tvNavLastLoginTime.setText(TextUtils.isEmpty(user.getLastLoginTime())
+                ? "---"
+                : user.getLastLoginTime().replace("(如果你觉得时间不对,可能帐号被盗)", ""));
+        tvNavLastLoginIp.setText(TextUtils.isEmpty(user.getLastLoginIP()) ? "---" : user.getLastLoginIP());
     }
 
     private void logout() {

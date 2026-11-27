@@ -116,6 +116,8 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     private boolean favoriteInFlight;
     /** 登录拦截提示已弹过：作者页自愈等后台重新解析不应反复弹窗。 */
     private boolean loginRequiredDialogShown;
+    /** 邮箱验证提示已弹过（同页只弹一次）。 */
+    private boolean emailVerifyDialogShown;
     /** 单实例复用，避免重复 show 叠出多个一模一样的弹窗。 */
     private AlertDialog loginRequiredDialog;
 
@@ -678,6 +680,35 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         if (!loginRequiredDialog.isShowing()) {
             loginRequiredDialog.show();
         }
+    }
+
+    @Override
+    public void needEmailVerifyForPlayback(String message, String verifyUrl) {
+        dismissDialog();
+        videoPlayerContainer.setVisibility(View.GONE);
+        helper.showError();
+        LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_title,
+                getString(R.string.play_email_verify_title));
+        LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text,
+                getString(R.string.play_error_retry, message));
+        if (emailVerifyDialogShown || isFinishing() || isDestroyed()) {
+            return;
+        }
+        emailVerifyDialogShown = true;
+        String target = TextUtils.isEmpty(verifyUrl) ? "about:blank" : verifyUrl;
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.play_email_verify_title)
+                .setMessage(message)
+                .setPositiveButton(R.string.play_email_verify_action, (dialog, which) -> {
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(target)));
+                    } catch (Exception e) {
+                        AppLog.w(TAG, "打开邮箱验证页失败 " + AppLog.cause(e));
+                        showMessage(getString(R.string.play_email_verify_no_browser), TastyToast.ERROR);
+                    }
+                })
+                .setNegativeButton(R.string.common_cancel, null)
+                .show();
     }
 
     @Override

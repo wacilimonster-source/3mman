@@ -281,8 +281,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
         tvSearchHint.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                searchView.setIconified(false);
-                searchView.requestFocus();
+                expandSearchView();
             }
         });
         // M119：空结果时「去推荐页逛逛」→ 切到推荐 Tab
@@ -301,16 +300,7 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
             btnSearchEditQuery.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    if (searchView.isIconified()) {
-                        searchView.setIconified(false);
-                    }
-                    searchView.requestFocus();
-                    android.view.inputmethod.InputMethodManager imm =
-                            (android.view.inputmethod.InputMethodManager) context
-                                    .getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
-                    if (imm != null) {
-                        imm.showSoftInput(searchView, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
-                    }
+                    expandSearchView();
                 }
             });
         }
@@ -847,6 +837,37 @@ public class SearchPornyFragment extends MvpFragment<SearchView, SearchPornyPres
     }
 
     // ============ 搜索页 UX 辅助方法 ============
+
+    /**
+     * 展开搜索框并弹出输入法（空态提示「点击此处也可直接搜索」与「修改关键词」共用）。
+     * 只调 setIconified(false) 在 AppCompat 上经常不展开（实测点提示无反应），
+     * 需要再走 onActionViewExpanded() 并直接聚焦内部输入框。
+     */
+    private void expandSearchView() {
+        if (searchView == null) {
+            return;
+        }
+        searchView.setIconified(false);
+        searchView.onActionViewExpanded();
+        searchView.requestFocus();
+        View input = searchView.findViewById(androidx.appcompat.R.id.search_src_text);
+        if (input != null) {
+            input.requestFocus();
+            if (input instanceof android.widget.EditText) {
+                android.widget.EditText et = (android.widget.EditText) input;
+                et.setSelection(et.getText().length());
+            }
+        }
+        if (context != null) {
+            android.view.inputmethod.InputMethodManager imm =
+                    (android.view.inputmethod.InputMethodManager) context
+                            .getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.showSoftInput(input != null ? input : searchView,
+                        android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
+            }
+        }
+    }
 
     /** 居中展示搜索 / 空结果提示 */
     private void showSearchHint(int msgRes) {

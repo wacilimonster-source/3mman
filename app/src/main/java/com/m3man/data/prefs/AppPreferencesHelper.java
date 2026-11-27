@@ -35,6 +35,8 @@ public class AppPreferencesHelper implements PreferencesHelper {
     public final static String KEY_SP_PORNY_ADDRESS = "key_sp_porny_address";
     public final static String KEY_SP_PORNY_ENABLED = "key_sp_porny_enabled";
     private final static String KEY_SP_USER_LOGIN_USERNAME = "key_sp_user_login_username";
+    /** 登录用户快照（JSON）：重启后恢复用户名/状态/最后登录信息。 */
+    private final static String KEY_SP_USER_SNAPSHOT = "key_sp_user_snapshot";
     private final static String KEY_SP_USER_LOGIN_PASSWORD = "key_sp_user_login_password";
     private final static String KEY_SP_USER_AUTO_LOGIN = "key_sp_user_auto_login";
     private final static String KEY_SP_USER_FAVORITE_NEED_REFRESH = "key_sp_user_favorite_need_refresh";
@@ -110,6 +112,20 @@ public class AppPreferencesHelper implements PreferencesHelper {
     @Override
     public String getMman9VideoLoginUserName() {
         return mPrefs.getString(KEY_SP_USER_LOGIN_USERNAME, "");
+    }
+
+    @Override
+    public void setMman9VideoUserSnapshot(String json) {
+        if (TextUtils.isEmpty(json)) {
+            mPrefs.edit().remove(KEY_SP_USER_SNAPSHOT).apply();
+        } else {
+            mPrefs.edit().putString(KEY_SP_USER_SNAPSHOT, json).apply();
+        }
+    }
+
+    @Override
+    public String getMman9VideoUserSnapshot() {
+        return mPrefs.getString(KEY_SP_USER_SNAPSHOT, "");
     }
 
     @Override

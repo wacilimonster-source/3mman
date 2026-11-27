@@ -26,5 +26,11 @@ public interface PlayVideoView extends BaseView {
      */
     void needLoginForPlayback(String message);
 
+    /**
+     * 账号邮箱未验证：站点把播放页重定向到 confirm_email.php，无法取流。
+     * 页面据此提示，并给出「去站点验证邮箱」的入口。
+     */
+    void needEmailVerifyForPlayback(String message, String verifyUrl);
+
     void favoriteSuccess();
 }

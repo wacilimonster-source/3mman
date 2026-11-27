@@ -55,6 +55,13 @@ public class VideoResult implements Serializable {
     @Transient
     private transient boolean requiresLogin;
 
+    /**
+     * 账号邮箱未验证：站点把播放页 302 到 confirm_email.php，页面没有播放器。
+     * 解析结果为空时用于给出「去站点验证邮箱」的提示，而不是笼统的解析失败。
+     */
+    @Transient
+    private transient boolean requiresEmailVerify;
+
     public boolean requiresSitePlayback() {
         return requiresSitePlayback;
     }
@@ -69,6 +76,14 @@ public class VideoResult implements Serializable {
 
     public void setRequiresLogin(boolean requiresLogin) {
         this.requiresLogin = requiresLogin;
+    }
+
+    public boolean requiresEmailVerify() {
+        return requiresEmailVerify;
+    }
+
+    public void setRequiresEmailVerify(boolean requiresEmailVerify) {
+        this.requiresEmailVerify = requiresEmailVerify;
     }
 
     @Generated(hash = 1158187111)

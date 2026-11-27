@@ -62,6 +62,9 @@ public class UserPresenter extends MvpBasePresenter<UserView> implements IUser {
                             stored.setUserName(username);
                         }
                         stored.setLogin(true);
+                        // 持久化完整用户快照：否则进程重启后 status/lastLoginTime 丢失，
+                        // 「我的」页会退回“请登录”，收藏等登录态功能也会被当游客。
+                        dataManager.saveLoginUserSnapshot();
                         if (loginListener != null) {
                             loginListener.loginSuccess(stored);
                         } else {

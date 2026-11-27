@@ -20,4 +20,10 @@ public interface DataManager extends DbHelper, ApiHelper, PreferencesHelper {
     User getUser();
 
     boolean isUserLogin();
+
+    /** 主站地址（用户可在设置里改），拼接站点页面 URL 用（如邮箱验证页）。 */
+    String getMman9VideoAddress();
+
+    /** 登录成功后把当前用户快照写入 SP，供进程重启后恢复登录态。 */
+    void saveLoginUserSnapshot();
 }

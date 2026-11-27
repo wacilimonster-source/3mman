@@ -103,6 +103,14 @@ public class UserHelper {
                 || html.contains("最后登录")) {
             return true;
         }
+        // 2026-11 实测：账号邮箱未验证时 login.php 会 302 到 email_verify.php / confirm_email.php，
+        // 此时 cookie 已经下发、会话有效（播放页仍会被站点拦到 confirm_email.php）。
+        // 这属于「登录成功但需验证邮箱」，不能再判成登录失败，否则 App 会把已登录用户当游客。
+        if (html.contains("confirm_email.php")
+                || html.contains("email_verify")
+                || html.contains("你需要邮箱验证")) {
+            return true;
+        }
         return false;
     }
 }

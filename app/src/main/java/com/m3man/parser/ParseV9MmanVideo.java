@@ -516,6 +516,9 @@ public class ParseV9MmanVideo {
         // 只留一句 “New videos are for logged-in members only”。这种情况必须与解析失败区分，
         // 否则用户只会看到一句无法自行解决的“解析失败”。
         videoResult.setRequiresLogin((videoUrl == null || videoUrl.isEmpty()) && isLoginRequiredPage(doc));
+        // 邮箱未验证时站点把内容页 302 到 confirm_email.php，页面没有播放器；
+        // 与「解析失败」区分开，UI 才能给出可执行的提示。
+        videoResult.setRequiresEmailVerify((videoUrl == null || videoUrl.isEmpty()) && isEmailVerifyPage(html));
         Logger.t(TAG).d("视频链接：" + UrlUtils.maskForLog(videoUrl));
 
         // M32：站点改版/视频下架/反爬时 videoUrl 可能为空，不再触发 substring 崩溃
@@ -758,6 +761,21 @@ public class ParseV9MmanVideo {
      * “New videos are for logged-in members only … Guests can watch videos older than 3 days.”。
      * 只按页面正文的关键句判定，不依赖具体模板结构。
      */
+    /**
+     * 邮箱验证拦截页判定：账号未验证邮箱时站点把内容页 302 到 confirm_email.php，
+     * 页面没有播放器，只有「你需要邮箱验证才能进行下一步操作」与 Confirm_email 表单。
+     * 注意正常播放页里也有一个指向 confirm_email.php 的收藏提示链接，因此不能只认这个文件名。
+     */
+    private static boolean isEmailVerifyPage(String html) {
+        if (html == null || html.isEmpty()) {
+            return false;
+        }
+        return html.contains("你需要邮箱验证")
+                || html.contains("name=Confirm_email")
+                || html.contains("name=\"Confirm_email\"")
+                || html.contains("verify your email address");
+    }
+
     private static boolean isLoginRequiredPage(Document doc) {
         Element body = doc == null ? null : doc.body();
         if (body == null) {
@@ -878,7 +896,10 @@ public class ParseV9MmanVideo {
         Element element = doc.getElementById("userinfo-title");
         if (element == null) {
             user.setLogin(true);
-            user.setUserName("无法解析用户信息...");
+            // 用户名留空由调用方（UserPresenter）回退成登录表单里的账号：
+            // 邮箱未验证时站点返回的是 email_verify/confirm_email 页，没有 userinfo-title，
+            // 以前这里塞“无法解析用户信息...”，登录后“我的”页会显示这句假名字。
+            user.setUserName("");
             return user;
         }
 

@@ -26,6 +26,14 @@ public interface PreferencesHelper {
 
     boolean isMman9VideoUserAutoLogin();
 
+    /**
+     * 登录用户快照（JSON）。会话 cookie 由 cookie jar 持久化，这里补用户名/状态/最后登录信息，
+     * 进程重启后「我的」页与登录判定才不会再退回游客态。
+     */
+    void setMman9VideoUserSnapshot(String json);
+
+    String getMman9VideoUserSnapshot();
+
     void setFavoriteNeedRefresh(boolean needRefresh);
 
     boolean isFavoriteNeedRefresh();
