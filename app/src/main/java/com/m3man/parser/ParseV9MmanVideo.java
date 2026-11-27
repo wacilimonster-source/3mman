@@ -85,7 +85,7 @@ public class ParseV9MmanVideo {
             return new ArrayList<>();
         }
 
-        return parserByDivContainer(container);
+        return parseListItems(container, body);
 
     }
 
@@ -110,7 +110,7 @@ public class ParseV9MmanVideo {
         }
 
         Element container = body.selectFirst("div.container");
-        List<V9MmanItem> v9MmanItemList = parserByDivContainer(container);
+        List<V9MmanItem> v9MmanItemList = parseListItems(container, body);
 
 
         // get page info
@@ -173,6 +173,108 @@ public class ParseV9MmanVideo {
             }
         }
         return false;
+    }
+
+    /**
+     * 列表解析统一入口：先走历史模板（div.row>div.col-sm-12>div.row>div + .video-title），
+     * 再把新模板（首页 div.videos-text-align / 分类页 article.vitem）的条目按 viewKey 合并进来。
+     * 2026-11 实测：线上分类页已改成 article.vitem 且标题类名随机化（如 tc60871 里的 &lt;bdi&gt;），
+     * 老模板在分类页恒为 0 条；首页老模板只能拿到 2 条（真实 24 条）。
+     */
+    private static List<V9MmanItem> parseListItems(Element container, Element root) {
+        List<V9MmanItem> items = parserByDivContainer(container);
+        java.util.Set<String> keys = new java.util.HashSet<>();
+        for (V9MmanItem item : items) {
+            if (!TextUtils.isEmpty(item.getViewKey())) {
+                keys.add(item.getViewKey());
+            }
+        }
+        for (V9MmanItem item : parserByItemBlocks(root)) {
+            if (keys.add(item.getViewKey())) {
+                items.add(item);
+            }
+        }
+        return items;
+    }
+
+    /**
+     * 新模板列表解析（浏览器可见的那批条目）：
+     * - 首页：每个条目是 div.videos-text-align，标题在 span.video-title；
+     * - 分类/搜索页：每个条目是 article.vitem，标题在随机 class 下的 &lt;bdi&gt;，没有 video-title。
+     * 站点会额外渲染 col-lg-8 的隐藏重复块（浏览器不显示），这里同样跳过，避免错位标题。
+     */
+    private static List<V9MmanItem> parserByItemBlocks(Element root) {
+        List<V9MmanItem> items = new ArrayList<>();
+        if (root == null) {
+            return items;
+        }
+        Elements blocks = new Elements();
+        blocks.addAll(root.select("div.videos-text-align"));
+        blocks.addAll(root.select("article.vitem"));
+        if (blocks.isEmpty()) {
+            blocks.addAll(root.select("a[href*=view_video.php]"));
+        }
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (Element block : blocks) {
+            if (isHiddenDuplicateBlock(block)) {
+                continue;
+            }
+            Element anchor = "a".equals(block.tagName())
+                    ? block
+                    : block.selectFirst("a[href*=view_video.php]");
+            if (anchor == null) {
+                continue;
+            }
+            String viewKey = extractViewKey(anchor.attr("href"));
+            if (TextUtils.isEmpty(viewKey) || !seen.add(viewKey)) {
+                continue;
+            }
+            String title = extractItemBlockTitle(block, anchor);
+            if (TextUtils.isEmpty(title)) {
+                continue;
+            }
+            V9MmanItem item = new V9MmanItem();
+            item.setTitle(title);
+            Element imgEle = anchor.selectFirst("img.img-responsive");
+            item.setImgUrl(imgEle != null ? imgEle.attr("src") : "");
+            Element durationEle = anchor.selectFirst("span.duration");
+            item.setDuration(durationEle != null ? durationEle.text().trim() : "00:00");
+            item.setViewKey(viewKey);
+            item.setSourceName("mman9");
+            String allInfo = block.text();
+            String listAuthor = extractAuthor(allInfo);
+            if (!TextUtils.isEmpty(listAuthor)) {
+                item.setAuthorText(listAuthor);
+            }
+            item.setInfo(allInfo);
+            items.add(item);
+        }
+        return items;
+    }
+
+    /** 站点用 col-lg-8 包裹隐藏的重复条目（浏览器 CSS 隐藏），往上 4 层内命中即视为隐藏。 */
+    private static boolean isHiddenDuplicateBlock(Element block) {
+        Element current = block;
+        for (int i = 0; i < 4 && current != null; i++) {
+            if (current.hasClass("col-lg-8")) {
+                return true;
+            }
+            current = current.parent();
+        }
+        return false;
+    }
+
+    /** 新模板标题：优先 .video-title，其次 <bdi>（分类页随机 class 里的唯一稳定标记）。 */
+    private static String extractItemBlockTitle(Element block, Element anchor) {
+        Element titleEle = block.getElementsByClass("video-title").first();
+        if (titleEle != null && !TextUtils.isEmpty(titleEle.text().trim())) {
+            return titleEle.text().trim();
+        }
+        Element bdi = anchor.selectFirst("bdi");
+        if (bdi != null && !TextUtils.isEmpty(bdi.text().trim())) {
+            return bdi.text().trim();
+        }
+        return "";
     }
 
     private static List<V9MmanItem> parserByDivContainer(Element container) {
@@ -1134,7 +1236,7 @@ public class ParseV9MmanVideo {
         // M117b：模板同页有多个 div.container（导航/页脚等），首个往往不含视频列表；
         // 用候选容器遍历替换原 selectFirst（含 a37f47a 的 null 回退——container 恒非 null，回退从未生效）。
         Element container = findBestListContainer(body);
-        List<V9MmanItem> v9MmanItemList = parserByDivContainer(container);
+        List<V9MmanItem> v9MmanItemList = parseListItems(container, body);
 
 
         //总页数
