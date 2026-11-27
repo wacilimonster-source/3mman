@@ -1,7 +1,7 @@
 {
-  "versionCode": 176,
-  "versionName": "1.0.143",
-  "updateMessage": "1.0.143 更新内容：\n- 修复登录后仍提示「该视频需要源站播放器验证」导致无法播放（登录态交互模板里明明带可播直链）\n- 交互模板缺静态地址时自动调用站点取流接口 /vlk.php，仍失败才提示\n- 同步修正上一版解析顺序：先取地址再判断模板，不再提前丢弃媒体地址",
-  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.143/3mman_v1.0.143.apk",
-  "sha256": "c1b9ba2c1a37a915a7771a9de835be7104d7b6103d6ea017f82358f3bca698a0"
+  "versionCode": 177,
+  "versionName": "1.0.144",
+  "updateMessage": "1. 鎾斁椤佃瘑鍒簮绔欍€岄偖绠遍獙璇併€嶆嫤鎴〉锛氭湭楠岃瘉閭鐨勮处鍙蜂細鐪嬪埌銆岄渶瑕佸厛楠岃瘉閭銆嶅苟鍙洿鎺ヨ烦绔欑偣楠岃瘉锛屼笉鍐嶆樉绀烘棤娉曠悊瑙ｇ殑銆屾簮绔欐湭杩斿洖鍙挱鏀剧殑濯掍綋鍦板潃銆?2. 淇宸茬櫥褰曠敤鎴烽噸鍚悗琚綋鎴愭父瀹㈢殑闂锛氥€屾垜鐨勩€嶉〉閲嶆柊姝ｇ‘鏄剧ず璐﹀彿锛屻€屾垜鐨勬敹钘忋€嶇瓑鐧诲綍鍔熻兘涓嶅啀瑕佹眰閲嶅鐧诲綍\n3. 淇鐧诲綍琚鍒ゅけ璐ワ紙绔欑偣瑕佹眰楠岃瘉閭鏃跺叾瀹炲凡鐧诲綍鎴愬姛锛?4. 鎼滅储椤电┖鎬佹彁绀恒€岀偣鍑绘澶勪篃鍙洿鎺ユ悳绱€嶄慨澶嶏細鐐瑰嚮鍚庝細灞曞紑鎼滅储妗嗗苟寮瑰嚭閿洏",
+  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.144/3mman_v1.0.144.apk",
+  "sha256": "8104b27f08d4b8dee6a6f06779b5d6f936ca186759f2f26d525af1e0e1aba2d4"
 }

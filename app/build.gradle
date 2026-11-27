@@ -8,8 +8,8 @@ android {
         applicationId "com.m3man"
         minSdkVersion parent.ext.minSdkVersion
         targetSdkVersion parent.ext.targetSdkVersion
-        versionCode 176
-        versionName "1.0.143"
+        versionCode 177
+        versionName "1.0.144"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
         multiDexEnabled true
