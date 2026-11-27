@@ -48,12 +48,27 @@ public class VideoResult implements Serializable {
     @Transient
     private transient boolean requiresSitePlayback;
 
+    /**
+     * 源站只对登录用户开放本视频（游客页不给播放器）。解析结果为空时用于区分
+     * “解析失败”与“需要登录”。
+     */
+    @Transient
+    private transient boolean requiresLogin;
+
     public boolean requiresSitePlayback() {
         return requiresSitePlayback;
     }
 
     public void setRequiresSitePlayback(boolean requiresSitePlayback) {
         this.requiresSitePlayback = requiresSitePlayback;
+    }
+
+    public boolean requiresLogin() {
+        return requiresLogin;
+    }
+
+    public void setRequiresLogin(boolean requiresLogin) {
+        this.requiresLogin = requiresLogin;
     }
 
     @Generated(hash = 1158187111)

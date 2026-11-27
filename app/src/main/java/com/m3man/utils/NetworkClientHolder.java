@@ -8,10 +8,10 @@ import okhttp3.OkHttpClient;
  * M95：静态解析器专用 OkHttpClient 持有器。
  *
  * 背景：ParseV9MmanVideo 等纯静态解析类无法参与 Dagger 注入，旧代码兜底请求直接
- * Jsoup.connect()，会绕过全局 Cookie（RulerCookie）/代理（MyProxySelector）配置，
+ * Jsoup.connect()，会绕过应用的登录会话和网络配置，
  * 且每次新建连接池造成资源浪费。
  *
- * 用法：MyApplication 在主进程 onCreate 时组装一个与主链路同构的客户端并 set(...)；
+ * 用法：MyApplication 在主进程 onCreate 时注入主链路 OkHttpClient；
  * 解析器侧统一通过 get() 取用。未初始化（如单测/非常规入口）时回退默认实例，
  * 保证兜底请求不崩。volatile 保证跨线程可见。
  */

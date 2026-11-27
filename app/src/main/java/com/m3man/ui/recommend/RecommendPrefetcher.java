@@ -7,8 +7,6 @@ import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.db.entity.VideoResult;
 import com.m3man.data.reco.RecoCandidate;
-import com.m3man.parser.Parse91PornyVideo;
-import com.m3man.parser.ParseV9MmanVideo;
 import com.m3man.utils.AppLog;
 import com.m3man.utils.PlayUiPrefs;
 import com.m3man.utils.GlideApp;
@@ -139,9 +137,10 @@ public class RecommendPrefetcher {
         return null;
     }
 
-    static boolean isReusableMediaUrl(String url, boolean isPorny) {
-        return url != null && !url.isEmpty() && !isSecureUrlExpired(url)
-                && (isPorny || !ParseV9MmanVideo.hasTQueryParam(url));
+    static boolean isReusableMediaUrl(String url) {
+        // 主站直链的 query 里 t= 属于签名参数（st=&e=&t=&k=&f=），2026-11 线上实测可直接播放；
+        // 不能再按“含 t 参数即占位地址”丢弃，否则推荐流拿到的每条直链都会被判无效。
+        return url != null && !url.isEmpty() && !isSecureUrlExpired(url);
     }
 
     /**
@@ -404,10 +403,6 @@ public class RecommendPrefetcher {
                 .subscribeOn(Schedulers.io())
                 .map(videoResult -> {
                     if (videoResult == null || TextUtils.isEmpty(videoResult.getVideoUrl())) {
-                        if (!isHexViewKey && videoResult != null
-                                && VideoResult.OUT_OF_WATCH_TIMES.equals(videoResult.getId())) {
-                            dataManager.resetMman91VideoWatchTime(true);
-                        }
                         AppLog.e("RecoPrefetcher", "推荐解析失败(空结果) viewKey=" + viewKey
                                 + " 源=" + (isHexViewKey ? "91porny" : "9mman")
                                 + " 代理=" + (dataManager.isOpenHttpProxy()
@@ -435,7 +430,7 @@ public class RecommendPrefetcher {
             V9MmanItem dbItem = dataManager.findV9MmanItemByViewKey(viewKey);
             VideoResult dbVr = (dbItem == null || dbItem.getVideoResultId() == 0)
                     ? null : dbItem.getVideoResult();
-            if (dbVr == null || !isReusableMediaUrl(dbVr.getVideoUrl(), Parse91PornyVideo.isPornySource(dbItem))) {
+            if (dbVr == null || !isReusableMediaUrl(dbVr.getVideoUrl())) {
                 return null;
             }
             return dbVr;
@@ -466,7 +461,7 @@ public class RecommendPrefetcher {
         }
         // M98：解析成功，解除负缓存封禁
         failedUntil.remove(viewKey);
-        put(viewKey, videoResult.getVideoUrl(), Parse91PornyVideo.isPornySource(candidate.item));
+        put(viewKey, videoResult.getVideoUrl());
         // 回填作者，供作者召回与作者收藏使用
         if (!TextUtils.isEmpty(videoResult.getOwnerId())) {
             candidate.authorKey = videoResult.getOwnerId();
@@ -771,8 +766,8 @@ public class RecommendPrefetcher {
                 }, throwable -> Logger.t(TAG).d("markWatched failed: " + throwable.getMessage())));
     }
 
-    private void put(String viewKey, String rawUrl, boolean isPorny) {
-        if (TextUtils.isEmpty(viewKey) || !isReusableMediaUrl(rawUrl, isPorny)) {
+    private void put(String viewKey, String rawUrl) {
+        if (TextUtils.isEmpty(viewKey) || !isReusableMediaUrl(rawUrl)) {
             return;
         }
         synchronized (urlCache) {

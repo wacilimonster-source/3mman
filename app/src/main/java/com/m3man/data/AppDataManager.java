@@ -620,11 +620,6 @@ public class AppDataManager implements DataManager {
     }
 
     @Override
-    public void resetMman91VideoWatchTime(boolean reset) {
-        cookieManager.resetMman91VideoWatchTime(reset);
-    }
-
-    @Override
     public User getUser() {
         return user;
     }

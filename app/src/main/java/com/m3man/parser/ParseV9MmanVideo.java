@@ -27,6 +27,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import androidx.annotation.WorkerThread;
+import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -471,7 +472,7 @@ public class ParseV9MmanVideo {
      * @return 视频连接
      */
     @WorkerThread
-    public static VideoResult parseVideoPlayUrl(String html, User user) {
+    public static VideoResult parseVideoPlayUrl(String html, User user, HttpUrl pageUrl) {
         VideoResult videoResult = new VideoResult();
         if (html == null || html.isEmpty()) {
             return videoResult;
@@ -489,13 +490,13 @@ public class ParseV9MmanVideo {
         boolean requiresSitePlayback = doc.selectFirst("video#player_one") != null
                 && doc.select("script").stream().map(Element::data)
                         .anyMatch(script -> script.contains("'/vlk.php'") || script.contains("\"/vlk.php\""));
-        String videoUrl = requiresSitePlayback ? "" : extractNativePlaybackUrl(html, doc);
-        if (hasTQueryParam(videoUrl)) {
-            requiresSitePlayback = true;
-            videoUrl = "";
-        }
+        String videoUrl = requiresSitePlayback ? "" : extractNativePlaybackUrl(html, doc, pageUrl);
         videoResult.setRequiresSitePlayback(requiresSitePlayback);
         videoResult.setVideoUrl(videoUrl);
+        // 2026-11 源站改版：游客打开“3 天内发布的新视频”时页面不再输出播放器，
+        // 只留一句 “New videos are for logged-in members only”。这种情况必须与解析失败区分，
+        // 否则用户只会看到一句无法自行解决的“解析失败”。
+        videoResult.setRequiresLogin((videoUrl == null || videoUrl.isEmpty()) && isLoginRequiredPage(doc));
         Logger.t(TAG).d("视频链接：" + UrlUtils.maskForLog(videoUrl));
 
         // M32：站点改版/视频下架/反爬时 videoUrl 可能为空，不再触发 substring 崩溃
@@ -612,11 +613,16 @@ public class ParseV9MmanVideo {
         return videoResult;
     }
 
-    private static String extractNativePlaybackUrl(String html, Document doc) {
+    private static String extractNativePlaybackUrl(String html, Document doc, HttpUrl pageUrl) {
         // 先直接取 source；新版页面把 <source> 放在 HTML 注释里、由 strencode2 动态写入，
         // Jsoup 取不到时走 decodeVideoUrl。这里逐级判空，避免每次播放都抛 NPE 再靠 catch 兜底。
         String videoUrl = null;
-        Element videoElement = doc.selectFirst("video");
+        // 真实播放页里广告位也可能带 <video>，站点播放器固定是 #player_one；
+        // 优先取它，避免把页面更靠前的广告视频当成正文。
+        Element videoElement = doc.selectFirst("video#player_one");
+        if (videoElement == null) {
+            videoElement = doc.selectFirst("video");
+        }
         if (videoElement != null) {
             videoUrl = videoElement.attr("src");
             if (videoUrl.isEmpty()) {
@@ -626,70 +632,67 @@ public class ParseV9MmanVideo {
                 }
             }
         }
+        String directUrl = resolveHttpUrl(pageUrl, videoUrl);
+        if (directUrl != null) {
+            return directUrl;
+        }
         try {
-            if (TextUtils.isEmpty(videoUrl)) {
-                videoUrl = decodeVideoUrl(html);
+            String decodedUrl = resolveHttpUrl(pageUrl, decodeVideoUrl(html));
+            if (decodedUrl != null) {
+                return decodedUrl;
             }
         } catch (Exception e) {
             AppLog.w(TAG, "播放地址解码失败 " + AppLog.cause(e));
         }
 
-        if(TextUtils.isEmpty(videoUrl)) {
-            //如果都获取不到就找分享链接
-            Logger.t(TAG).e("解析加密链接失败，尝试获取分享链接");
-            // M95：兜底结果初始为空串——shareLink 为空或请求异常时直接以空串收尾，不再携带 null
-            videoUrl = "";
-            // M95：裸 Jsoup.connect 每次新建连接池且绕过全局 Cookie/代理配置，
-            // 改走 NetworkClientHolder 统一持有的 OkHttpClient（MyApplication 主进程启动时注入）。
-            // 兜底请求使用短超时（5s），避免 CDN 慢响应长时间占用 IO 线程
-            OkHttpClient fallbackClient = NetworkClientHolder.get().newBuilder()
-                    .connectTimeout(5, TimeUnit.SECONDS)
-                    .readTimeout(5, TimeUnit.SECONDS)
-                    .build();
-            Response response = null;
-            try {
-                String shareLink = doc.select("#linkForm2 #fm-video_link").text();
-                if (!TextUtils.isEmpty(shareLink)) {
-                    Request request = new Request.Builder()
-                            .url(shareLink)
-                            .header("User-Agent", FALLBACK_UA)
-                            .build();
-                    response = fallbackClient.newCall(request).execute();
-                    String shareHtml = response.body() != null ? response.body().string() : "";
-                    videoUrl = decodeVideoUrl(shareHtml);
-                }
-            } catch (Exception e) {
-                AppLog.w(TAG, "分享页播放地址解析失败 " + AppLog.cause(e));
-            } finally {
-                if (response != null) {
-                    response.close();
-                }
-            }
+        String shareUrl = resolveHttpUrl(null, doc.select("#linkForm2 #fm-video_link").text());
+        if (shareUrl == null) {
+            return "";
         }
 
-        return videoUrl;
+        // 分享页沿用应用网络配置，并用该页最终请求地址解析相对媒体路径。
+        OkHttpClient fallbackClient = NetworkClientHolder.get().newBuilder()
+                .connectTimeout(5, TimeUnit.SECONDS)
+                .readTimeout(5, TimeUnit.SECONDS)
+                .build();
+        Request request = new Request.Builder().url(shareUrl).header("User-Agent", FALLBACK_UA).build();
+        try (Response response = fallbackClient.newCall(request).execute()) {
+            if (!response.isSuccessful() || response.body() == null) {
+                AppLog.w(TAG, "分享页请求失败 HTTP " + response.code());
+                return "";
+            }
+            String shareHtml = response.body().string();
+            String resolved = resolveHttpUrl(response.request().url(), decodeVideoUrl(shareHtml));
+            return resolved == null ? "" : resolved;
+        } catch (Exception e) {
+            AppLog.w(TAG, "分享页播放地址解析失败 " + AppLog.cause(e));
+            return "";
+        }
     }
 
-    /** 旧缓存中的主站占位地址含有非空的 t 参数。 */
-    public static boolean hasTQueryParam(String url) {
-        if (url == null || url.isEmpty()) {
+    private static String resolveHttpUrl(HttpUrl pageUrl, String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        HttpUrl resolved = pageUrl == null ? HttpUrl.parse(value) : pageUrl.resolve(value);
+        return resolved == null ? null : resolved.toString();
+    }
+
+    /**
+     * 游客拦截页判定：源站对未登录用户不再输出播放器，只在页面里留一句
+     * “New videos are for logged-in members only … Guests can watch videos older than 3 days.”。
+     * 只按页面正文的关键句判定，不依赖具体模板结构。
+     */
+    private static boolean isLoginRequiredPage(Document doc) {
+        Element body = doc == null ? null : doc.body();
+        if (body == null) {
             return false;
         }
-        int q = url.indexOf('?');
-        if (q < 0 || q + 1 >= url.length()) {
-            return false;
-        }
-        String query = url.substring(q + 1);
-        int hash = query.indexOf('#');
-        if (hash >= 0) {
-            query = query.substring(0, hash);
-        }
-        for (String param : query.split("&")) {
-            if (param.startsWith("t=") && param.length() > 2) {
-                return true;
-            }
-        }
-        return false;
+        String text = body.text();
+        return text.contains("logged-in members only")
+                || text.contains("Guests can watch videos older than")
+                || text.contains("仅限登录用户")
+                || text.contains("登录后才能观看");
     }
 
     private static String extractMp4VideoId(String videoUrl) {

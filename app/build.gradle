@@ -215,6 +215,4 @@ dependencies {
     }
     implementation project(':exolibrary')
     implementation "ru.noties:markwon:$rootProject.markwonVersion"
-    // 离线 OCR，用于登录验证码自动识别（无需 GMS/ML Kit）
-    implementation 'com.rmtheis:tess-two:9.1.0'
 }

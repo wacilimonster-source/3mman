@@ -1,15 +1,11 @@
 package com.m3man;
 
 import android.content.Context;
-import androidx.annotation.NonNull;
 import androidx.multidex.MultiDex;
 import androidx.appcompat.app.AppCompatDelegate;
 
 import com.helper.loadviewhelper.load.LoadViewHelper;
 import com.liulishuo.filedownloader.FileDownloader;
-import com.m3man.cookie.RulerCookie;
-import com.m3man.cookie.SetCookieCache;
-import com.m3man.cookie.SharedPrefsCookiePersistor;
 import com.m3man.data.DataManager;
 import com.m3man.data.network.okhttp.MyProxySelector;
 import com.m3man.di.component.DaggerAppComponent;
@@ -22,7 +18,6 @@ import com.m3man.utils.NotificationChannelHelper;
 
 import org.greenrobot.eventbus.EventBus;
 
-import java.io.IOException;
 import java.net.ProxySelector;
 
 import javax.inject.Inject;
@@ -30,10 +25,7 @@ import javax.inject.Inject;
 import cn.bingoogolapple.swipebacklayout.BGASwipeBackHelper;
 import dagger.android.AndroidInjector;
 import dagger.android.support.DaggerApplication;
-import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 
 /**
  * 应用入口
@@ -45,14 +37,14 @@ import okhttp3.Response;
 public class MyApplication extends DaggerApplication {
 
     private static final String TAG = MyApplication.class.getSimpleName();
-    /** M95：通用 Chrome UA（与 CommonHeaderInterceptor 保持一致），供解析兜底客户端使用 */
-    private static final String FALLBACK_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.84 Safari/537.36";
-
     @Inject
     DataManager dataManager;
 
     @Inject
     MyProxySelector myProxySelector;
+
+    @Inject
+    OkHttpClient okHttpClient;
 
     private static MyApplication myApplication;
 
@@ -90,8 +82,8 @@ public class MyApplication extends DaggerApplication {
         ProxySelector systemDefaultSelector = ProxySelector.getDefault();
         ProxySelector.setDefault(myProxySelector);
         myProxySelector.setSystemDefaultSelector(systemDefaultSelector);
-        // M95：为静态解析器（ParseV9MmanVideo 分享链接兜底）注入统一网络客户端
-        initNetworkClientHolder();
+        // 播放页与解析器的分享页请求共用同一会话和连接池。
+        NetworkClientHolder.set(okHttpClient);
         // M112：崩溃兜底——崩溃堆栈落本地文件（供排查/统计），随后交回系统默认处理器
         CrashHandler.install(this);
         initNightMode();
@@ -114,36 +106,6 @@ public class MyApplication extends DaggerApplication {
     private boolean isMainProcess() {
         String processName = getProcessNameSafely();
         return processName == null || getPackageName().equals(processName);
-    }
-
-    /**
-     * M95：为静态解析器的兜底请求组装统一 OkHttpClient 并注入 NetworkClientHolder。
-     * 组装参照 ApiServiceModule.providesOkHttpClient 的关键项：
-     *   RulerCookie（视频页请求剥离登录态 cookie）+ MyProxySelector（全局 HTTP 代理）
-     *   + 统一 Chrome UA 头。ApiServiceModule 未直接暴露 OkHttpClient，
-     *   且解析器无法参与 DI，故此处按相同关键件独立组装（持久层与主链路共用同一 SharedPreferences，
-     *   cookie 视图一致）。失败仅记日志，NetworkClientHolder 会回退默认实例。
-     */
-    private void initNetworkClientHolder() {
-        try {
-            RulerCookie rulerCookie = new RulerCookie(new SetCookieCache(), new SharedPrefsCookiePersistor(this));
-            OkHttpClient.Builder builder = new OkHttpClient.Builder();
-            builder.cookieJar(rulerCookie);
-            builder.proxySelector(myProxySelector);
-            builder.addInterceptor(new Interceptor() {
-                @Override
-                public Response intercept(@NonNull Chain chain) throws IOException {
-                    Request original = chain.request();
-                    Request withUa = original.newBuilder()
-                            .header("User-Agent", FALLBACK_UA)
-                            .build();
-                    return chain.proceed(withUa);
-                }
-            });
-            NetworkClientHolder.set(builder.build());
-        } catch (Exception e) {
-            AppLog.e(TAG, "初始化解析兜底网络客户端失败: " + AppLog.cause(e));
-        }
     }
 
     private String getProcessNameSafely() {

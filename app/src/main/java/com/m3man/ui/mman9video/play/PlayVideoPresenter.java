@@ -1,19 +1,28 @@
 package com.m3man.ui.mman9video.play;
 
 import androidx.lifecycle.Lifecycle;
+import android.content.ContentResolver;
+import android.content.Context;
+import android.content.res.AssetFileDescriptor;
+import android.net.Uri;
 import android.text.TextUtils;
+import android.util.Pair;
 import android.webkit.WebView;
 
 import com.hannesdorfmann.mosby3.mvp.MvpBasePresenter;
+import com.liulishuo.filedownloader.model.FileDownloadStatus;
 import com.orhanobut.logger.Logger;
 import com.sdsmdg.tastytoast.TastyToast;
 import com.trello.rxlifecycle2.LifecycleProvider;
+import com.m3man.R;
 import com.m3man.data.DataManager;
 import com.m3man.data.network.Source441447Client;
 import com.m3man.data.db.entity.AuthorFavorite;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.db.entity.VideoResult;
 import com.m3man.data.model.User;
+import com.m3man.di.ApplicationContext;
+import com.m3man.exception.ApiException;
 import com.m3man.exception.VideoException;
 import com.m3man.parser.Parse91PornyVideo;
 import com.m3man.rxjava.CallBackWrapper;
@@ -22,11 +31,15 @@ import com.m3man.rxjava.RxSchedulersHelper;
 import com.m3man.ui.download.DownloadPresenter;
 import com.m3man.ui.mman9video.favorite.FavoritePresenter;
 import com.m3man.utils.AppLog;
+import com.m3man.utils.SDCardUtils;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Date;
+import java.util.Optional;
 
 import javax.inject.Inject;
 
@@ -54,17 +67,97 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
 
     private DataManager dataManager;
     private final Source441447Client source441447Client;
+    private final Context context;
     private int playbackGeneration;
 
 //    private final WebView webView;
 
     @Inject
-    public PlayVideoPresenter(FavoritePresenter favoritePresenter, DownloadPresenter downloadPresenter, LifecycleProvider<Lifecycle.Event> provider, DataManager dataManager, Source441447Client source441447Client) {
+    public PlayVideoPresenter(FavoritePresenter favoritePresenter, DownloadPresenter downloadPresenter,
+                              LifecycleProvider<Lifecycle.Event> provider, DataManager dataManager,
+                              Source441447Client source441447Client, @ApplicationContext Context context) {
         this.favoritePresenter = favoritePresenter;
         this.downloadPresenter = downloadPresenter;
         this.provider = provider;
         this.dataManager = dataManager;
         this.source441447Client = source441447Client;
+        this.context = context;
+    }
+
+    void loadMainSiteCard(V9MmanItem item) {
+        if (isLoadForUid()) {
+            loadVideoUrl(item);
+            return;
+        }
+        final int generation = ++playbackGeneration;
+        final String viewKey = item.getViewKey();
+        Runnable loadOnline = () -> {
+            if (generation == playbackGeneration && isViewAttached()) {
+                loadVideoUrl(item);
+            }
+        };
+        Observable.fromCallable(() -> Optional.ofNullable(findLocalMainSiteVideo(viewKey)))
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .compose(provider.bindUntilEvent(Lifecycle.Event.ON_DESTROY))
+                .subscribe(local -> {
+                    if (generation != playbackGeneration) return;
+                    if (local.isPresent()) {
+                        Pair<V9MmanItem, String> saved = local.get();
+                        ifViewAttached(view -> view.playSavedVideo(saved.first, saved.second));
+                    } else {
+                        loadOnline.run();
+                    }
+                }, error -> {
+                    AppLog.w(TAG, "读取已下载视频失败 " + AppLog.cause(error));
+                    loadOnline.run();
+                });
+    }
+
+    private Pair<V9MmanItem, String> findLocalMainSiteVideo(String viewKey) {
+        V9MmanItem saved = dataManager.findV9MmanItemByViewKey(viewKey);
+        if (saved == null || saved.getStatus() != FileDownloadStatus.completed
+                || isPornySource(saved) || Source441447Client.isSource(saved)) {
+            return null;
+        }
+        String mediaUri = resolveCompletedFile(saved);
+        if (mediaUri == null) {
+            return null;
+        }
+        try {
+            if (saved.getVideoResultId() != 0) {
+                saved.getVideoResult();
+            }
+            if (saved.getId() != null) {
+                Date now = new Date();
+                dataManager.updateViewHistoryColumn(saved.getId(), now);
+                saved.setViewHistoryDate(now);
+            }
+        } catch (Exception e) {
+            AppLog.w(TAG, "本地播放信息读取或历史更新失败 " + AppLog.cause(e));
+        }
+        return Pair.create(saved, mediaUri);
+    }
+
+    private String resolveCompletedFile(V9MmanItem saved) {
+        String archived = saved.getLocalFilePath();
+        if (!TextUtils.isEmpty(archived)) {
+            Uri uri = Uri.parse(archived);
+            if (ContentResolver.SCHEME_CONTENT.equals(uri.getScheme()) && "media".equals(uri.getAuthority())) {
+                try (AssetFileDescriptor media = context.getContentResolver().openAssetFileDescriptor(uri, "r")) {
+                    if (media != null && media.getLength() != 0) {
+                        return uri.toString();
+                    }
+                } catch (IOException | SecurityException e) {
+                    AppLog.w(TAG, "已归档视频无法打开 " + AppLog.cause(e));
+                }
+            }
+        }
+        String path = SDCardUtils.resolvePlayablePath(context, archived,
+                saved.getDownLoadPath(dataManager.getCustomDownloadVideoDirPath()));
+        File file = path == null ? null : new File(path);
+        return file != null && file.isAbsolute() && file.isFile() && file.canRead() && file.length() > 0
+                ? Uri.fromFile(file).toString() : null;
     }
 
     @Override
@@ -99,7 +192,7 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
         String videoAddr = porny ? dataManager.getPornyAddress() : dataManager.getMman9VideoAddress();
         AppLog.i(TAG, "解析开始 viewKey=" + viewKey + " 源=" + source
                 + " 地址=" + (videoAddr == null ? "null" : videoAddr)
-                + " 代理=" + (dataManager.isOpenHttpProxy()
+                + " App内代理=" + (dataManager.isOpenHttpProxy()
                         ? dataManager.getProxyIpAddress() + ":" + dataManager.getProxyPort() : "关"));
         if (porny) {
             // 91porny 来源走单独的解析路径
@@ -112,7 +205,7 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
                     .map(videoResult -> {
                         if (videoResult == null || TextUtils.isEmpty(videoResult.getVideoUrl())) {
                             AppLog.e(TAG, "解析失败(空结果) viewKey=" + pornyViewKey + " 源=91porny");
-                            throw new VideoException("解析视频链接失败了");
+                            throw new VideoException(context.getString(R.string.play_no_media_url));
                         }
                         AppLog.i(TAG, "解析成功 viewKey=" + pornyViewKey + " 源=91porny url=" + shortUrl(videoResult.getVideoUrl()));
                         return videoResult;
@@ -153,8 +246,7 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
 
                         @Override
                         public void onError(final String msg, int code) {
-                            AppLog.e(TAG, "91porny解析失败 viewKey=" + viewKey + " msg=" + msg);
-                            ifViewAttached(view -> view.errorParseVideoUrl(diagnoseMsg(msg, videoAddr)));
+                            reportPlaybackPageError(generation, viewKey, msg, code);
                         }
                     });
             return;
@@ -162,17 +254,21 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
         dataManager.loadMman9VideoUrl(viewKey)
                 .doOnSubscribe(d -> AppLog.i(TAG, "请求9mman播放页 viewKey=" + viewKey))
                 .map(videoResult -> {
+                    // 源站对游客隐藏了 3 天内新视频的播放器：解析结果为空但带登录标记，
+                    // 交给 onSuccess 引导登录，不能当成“解析失败”。
+                    if (videoResult != null && videoResult.requiresLogin()) {
+                        AppLog.w(TAG, "源站要求登录后才能观看 viewKey=" + viewKey);
+                        return videoResult;
+                    }
                     if (videoResult == null || TextUtils.isEmpty(videoResult.getVideoUrl())) {
                         if (videoResult != null && VideoResult.OUT_OF_WATCH_TIMES.equals(videoResult.getId())) {
-                            //尝试强行重置，并上报异常
-                            dataManager.resetMman91VideoWatchTime(true);
-                            AppLog.w(TAG, "观看次数达上限，已重置cookie viewKey=" + viewKey);
-                            throw new VideoException("观看次数达上限，请到「我的 → 设置」更换线路地址或代理后重试");
+                            AppLog.w(TAG, "源站观看次数达上限 viewKey=" + viewKey);
+                            throw new VideoException(context.getString(R.string.play_view_limit_reached));
                         } else if (videoResult != null && videoResult.requiresSitePlayback()) {
-                            throw new VideoException("该视频需要源站播放器验证，当前线路没有提供可在 App 内直接播放的地址");
+                            throw new VideoException(context.getString(R.string.play_source_verification_required));
                         } else {
                             AppLog.e(TAG, "9mman解析失败(空结果) viewKey=" + viewKey);
-                            throw new VideoException("解析视频链接失败了");
+                            throw new VideoException(context.getString(R.string.play_no_media_url));
                         }
                     }
                     AppLog.i(TAG, "解析成功 viewKey=" + viewKey + " 源=9mman url=" + shortUrl(videoResult.getVideoUrl()));
@@ -190,7 +286,12 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
                     @Override
                     public void onSuccess(final VideoResult videoResult) {
                         if (generation != playbackGeneration) return;
-                        dataManager.resetMman91VideoWatchTime(false);
+                        if (videoResult.requiresLogin()) {
+                            // 不写库、不播放：空直链落库会把脏数据缓存下来
+                            ifViewAttached(view -> view.needLoginForPlayback(
+                                    context.getString(R.string.play_login_required)));
+                            return;
+                        }
                         // M96：saveVideoUrl 含数据库写入，改到 IO 线程异步执行，不再阻塞主线程；
                         // 生命周期复用 provider.bindUntilEvent，页面销毁自动断流。
                         Observable.fromCallable(() -> saveVideoUrl(videoResult, v9MmanItem))
@@ -216,34 +317,23 @@ public class PlayVideoPresenter extends MvpBasePresenter<PlayVideoView> implemen
 
                     @Override
                     public void onError(final String msg, int code) {
-                        if (generation != playbackGeneration) return;
-                        AppLog.e(TAG, "9mman解析失败 viewKey=" + viewKey + " msg=" + msg);
-                        ifViewAttached(view -> view.errorParseVideoUrl(diagnoseMsg(msg, videoAddr)));
+                        reportPlaybackPageError(generation, viewKey, msg, code);
                     }
                 });
     }
 
-    /**
-     * 解析失败的提示增强：给出可操作的排查方向，而不是一句笼统的「解析视频链接失败」。
-     */
-    private String diagnoseMsg(String msg, String videoAddr) {
-        if (msg == null || msg.length() > 30) {
-            // 已经有明确/较长描述（如观看上限）时不再拼接
-            if (msg != null && !msg.contains("失败")) {
-                return msg;
-            }
-        }
-        boolean proxyOn = dataManager.isOpenHttpProxy();
-        StringBuilder sb = new StringBuilder("解析视频失败");
-        if (!proxyOn) {
-            sb.append("（未开启HTTP代理，源站可能无法访问，可在 我的-HTTP代理 中开启）");
+    private void reportPlaybackPageError(int generation, String viewKey, String detail, int code) {
+        if (generation != playbackGeneration) return;
+        AppLog.e(TAG, "播放页请求或解析失败 viewKey=" + viewKey + " code=" + code);
+        final String message;
+        if (code >= 400 && code < 600) {
+            message = context.getString(R.string.play_source_http_error, code);
+        } else if (TextUtils.isEmpty(detail) || code == ApiException.Error.UNKNOWN) {
+            message = context.getString(R.string.play_load_failed);
         } else {
-            sb.append("（代理 ").append(dataManager.getProxyIpAddress()).append(':')
-                    .append(dataManager.getProxyPort()).append("，地址：")
-                    .append(TextUtils.isEmpty(videoAddr) ? "未设置" : videoAddr).append('）');
+            message = detail;
         }
-        sb.append("，请点击「复制日志」后反馈");
-        return sb.toString();
+        ifViewAttached(view -> view.errorParseVideoUrl(message));
     }
 
     /** 截断 URL 防日志过长（只留 host + 前 80 字符） */

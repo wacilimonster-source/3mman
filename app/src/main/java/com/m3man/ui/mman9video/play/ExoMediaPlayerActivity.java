@@ -121,7 +121,7 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
             public void onBufferingUpdate(int percent) {
                 if (percent <= 0) {
                     // 首帧前持续 0% 说明拉流没建立，只打一次避免刷屏
-                    if (!bufferZeroLogged) {
+                    if (!bufferZeroLogged && !TextUtils.isEmpty(currentPlayUrl)) {
                         bufferZeroLogged = true;
                         AppLog.i("Player", "起播缓冲 0%（拉流未建立或极慢） viewKey=" + getViewKeyForLog()
                                 + " url=" + UrlUtils.maskForLog(currentPlayUrl));
@@ -147,7 +147,9 @@ public class ExoMediaPlayerActivity extends BasePlayVideo implements OnPreparedL
 
     private void startWatchdog() {
         cancelWatchdog();
-        watchdog.postDelayed(prepareTimeoutTask, PREPARE_TIMEOUT_MS);
+        if (!TextUtils.isEmpty(currentPlayUrl)) {
+            watchdog.postDelayed(prepareTimeoutTask, PREPARE_TIMEOUT_MS);
+        }
     }
 
     private void cancelWatchdog() {

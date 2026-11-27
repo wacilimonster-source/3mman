@@ -27,10 +27,7 @@ import java.util.Set;
 import okhttp3.Cookie;
 
 /**
- * M62：线程安全化——PersistentCookieJar 与 RulerCookie 两个 jar 实例共享本缓存，
- * 但二者是不同对象、互斥锁互不相干；OkHttp 线程遍历与退出登录 clear()/delete()
- * 并发时会对同一个裸 HashSet 造成结构损坏或 ConcurrentModificationException。
- * 现所有读写统一走内部 lock，迭代器改为锁内快照，跨实例并发安全。
+ * Cookie 缓存供网络请求和退出登录共用。所有读写由同一把锁保护，迭代器读取锁内快照。
  */
 public class SetCookieCache implements CookieCache {
 
@@ -48,17 +45,6 @@ public class SetCookieCache implements CookieCache {
                 this.cookies.remove(cookie);
                 this.cookies.add(cookie);
             }
-        }
-    }
-
-    /**
-     * 新增，删除一个cookie
-     *
-     * @param cookie 要删除的cookie
-     */
-    public void delete(Cookie cookie) {
-        synchronized (lock) {
-            this.cookies.remove(new IdentifiableCookie(cookie));
         }
     }
 

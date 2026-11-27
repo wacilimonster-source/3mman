@@ -114,6 +114,10 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     private AlertDialog favoriteDialog;
     /** EX-05：收藏写入在途标记，同项请求期间禁用重复点击。 */
     private boolean favoriteInFlight;
+    /** 登录拦截提示已弹过：作者页自愈等后台重新解析不应反复弹窗。 */
+    private boolean loginRequiredDialogShown;
+    /** 单实例复用，避免重复 show 叠出多个一模一样的弹窗。 */
+    private AlertDialog loginRequiredDialog;
 
     private LoadViewHelper helper;
 
@@ -278,27 +282,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
                     AppLog.w(TAG, "本地播放：附着DB实体失败 " + AppLog.cause(e));
                 }
             }
-            videoPlayerContainer.setVisibility(View.VISIBLE);
-            try {
-                setToolBarLayoutInfo(v9MmanItem);
-            } catch (Exception e) {
-                // 信息栏失败绝不影响播放本身
-                AppLog.w(TAG, "本地播放：信息栏渲染失败 " + AppLog.cause(e));
-            }
-            String displayTitle = v9MmanItem == null ? "本地视频" : v9MmanItem.getTitle();
-            AppLog.i(TAG, "本地播放开始 标题=" + displayTitle + " path=" + localVideoPath);
-            playVideo(displayTitle, "file://" + localVideoPath, "", null);
-            // M102：本地播放也要把视频信息交给「作者」tab——远程路径(304/313/540/550)
-            // 均有接线，唯独本分支此前直接 return，AuthorFragment.v9MmanItem 恒为 null，
-            // canLoadAuthorVideos()=false，下滑到“作者”页永远空白。
-            // 仅在成功附着 DB 实体时接线（detached 实体 getVideoResult() 会抛 DaoException）；
-            // 只调 setV9MmanItem 不直接 loadAuthorVideos：视图未创建时加载回调会触碰
-            // null 的 swipeLayout/recyclerView，交给 onLazyLoadOnce 在视图就绪后触发；
-            // 91mman 记录的旧加密 UID 过期时由 AuthorFragment 的 M92 自愈逻辑兜底换新。
-            if (authorFragment != null && attachedFromDb
-                    && v9MmanItem != null && v9MmanItem.getVideoResultId() != 0) {
-                authorFragment.setV9MmanItem(v9MmanItem);
-            }
+            startLocalPlayback("file://" + localVideoPath, attachedFromDb);
             return;
         }
         // C9：入参零校验，避免 v9MmanItem 或 viewKey 为 null 时直接 NPE
@@ -311,9 +295,9 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         }
         boolean isPornySource = PlayVideoPresenter.isPornySource(v9MmanItem);
         boolean is441447Source = Source441447Client.isSource(v9MmanItem);
-        // 主站缓存可能仍指向占位直链，进详情时重新检查播放页模板。
+        // 主站有同一作品的已下载文件时可立即播放，否则从详情页取新的媒体地址。
         if (!isPornySource && !is441447Source) {
-            presenter.loadVideoUrl(v9MmanItem);
+            presenter.loadMainSiteCard(v9MmanItem);
             return;
         }
         V9MmanItem tmp = presenter.findV9MmanItemByViewKey(v9MmanItem.getViewKey());
@@ -365,6 +349,29 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
             if (authorFragment != null) {
                 authorFragment.setV9MmanItem(v9MmanItem);
             }
+        }
+    }
+
+    @Override
+    public void playSavedVideo(V9MmanItem item, String mediaUri) {
+        if (isFinishing() || isDestroyed()) return;
+        v9MmanItem = item;
+        helper.showContent();
+        startLocalPlayback(mediaUri, true);
+    }
+
+    private void startLocalPlayback(String mediaUri, boolean attachedFromDb) {
+        videoPlayerContainer.setVisibility(View.VISIBLE);
+        try {
+            setToolBarLayoutInfo(v9MmanItem);
+        } catch (Exception e) {
+            AppLog.w(TAG, "本地播放：信息栏渲染失败 " + AppLog.cause(e));
+        }
+        String displayTitle = v9MmanItem == null ? "本地视频" : v9MmanItem.getTitle();
+        playVideo(displayTitle, mediaUri, "", null);
+        if (authorFragment != null && attachedFromDb
+                && v9MmanItem != null && v9MmanItem.getVideoResultId() != 0) {
+            authorFragment.setV9MmanItem(v9MmanItem);
         }
     }
 
@@ -507,6 +514,8 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
                 showMessage(getString(R.string.play_video_info_incomplete), TastyToast.ERROR);
                 return;
             }
+            // 用户主动重试：允许再次给出登录引导
+            loginRequiredDialogShown = false;
             presenter.loadVideoUrl(v9MmanItem);
         });
     }
@@ -633,13 +642,42 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
             return;
         }
         AppLog.e("BasePlayVideo", "播放页解析失败: " + errorMessage);
-        showVideoLoadError(errorMessage, "解析视频地址失败了，点击重试");
+        // 首次解析失败时播放器仍占着整屏高度，收起后才能直接看到原因和重试入口。
+        videoPlayerContainer.setVisibility(View.GONE);
+        helper.showError();
+        LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_title, getString(R.string.play_load_failed));
+        LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text,
+                getString(R.string.play_error_retry, errorMessage));
+        showMessage(errorMessage, TastyToast.ERROR);
     }
 
-    private void showVideoLoadError(String message, String errorText) {
+    @Override
+    public void needLoginForPlayback(String message) {
+        dismissDialog();
+        // 播放器还没起播，收起整屏播放区，让错误区和登录引导可见
+        videoPlayerContainer.setVisibility(View.GONE);
         helper.showError();
-        LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text, errorText);
-        showMessage(message, TastyToast.ERROR);
+        LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_title,
+                getString(R.string.play_login_required_title));
+        LoadHelperUtils.setErrorText(helper.getLoadError(), R.id.tv_error_text,
+                getString(R.string.play_error_retry, message));
+        // 作者页自愈等后台重新解析会再次走到这里；同一页只弹一次，避免反复弹窗
+        if (loginRequiredDialogShown || isFinishing() || isDestroyed()) {
+            return;
+        }
+        loginRequiredDialogShown = true;
+        if (loginRequiredDialog == null) {
+            loginRequiredDialog = new AlertDialog.Builder(this)
+                    .setTitle(R.string.play_login_required_title)
+                    .setPositiveButton(R.string.play_login_action,
+                            (dialog, which) -> goToLogin(KeysActivityRequestResultCode.LOGIN_ACTION_FOR_GET_UID))
+                    .setNegativeButton(R.string.common_cancel, null)
+                    .create();
+        }
+        loginRequiredDialog.setMessage(message);
+        if (!loginRequiredDialog.isShowing()) {
+            loginRequiredDialog.show();
+        }
     }
 
     @Override
@@ -905,6 +943,9 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
         }
         if (favoriteDialog != null && favoriteDialog.isShowing()) {
             favoriteDialog.dismiss();
+        }
+        if (loginRequiredDialog != null && loginRequiredDialog.isShowing()) {
+            loginRequiredDialog.dismiss();
         }
         super.onDestroy();
     }

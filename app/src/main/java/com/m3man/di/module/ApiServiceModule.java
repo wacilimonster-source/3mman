@@ -7,7 +7,6 @@ import android.text.TextUtils;
 import com.franmontiel.persistentcookiejar.PersistentCookieJar;
 import com.orhanobut.logger.Logger;
 import com.m3man.BuildConfig;
-import com.m3man.cookie.RulerCookie;
 import com.m3man.cookie.SetCookieCache;
 import com.m3man.cookie.SharedPrefsCookiePersistor;
 import com.m3man.data.network.Api;
@@ -65,12 +64,6 @@ public class ApiServiceModule {
 
     @Singleton
     @Provides
-    RulerCookie providesRuler(SharedPrefsCookiePersistor sharedPrefsCookiePersistor, SetCookieCache setCookieCache){
-        return new RulerCookie(setCookieCache,sharedPrefsCookiePersistor);
-    }
-
-    @Singleton
-    @Provides
     HttpLoggingInterceptor providesHttpLoggingInterceptor() {
         HttpLoggingInterceptor logging = new HttpLoggingInterceptor(new HttpLoggingInterceptor.Logger() {
             @Override
@@ -91,7 +84,7 @@ public class ApiServiceModule {
 
     @Singleton
     @Provides
-    OkHttpClient providesOkHttpClient(@ApplicationContext Context context, CommonHeaderInterceptor commonHeaderInterceptor, HttpLoggingInterceptor httpLoggingInterceptor, RulerCookie rulerCookie, MyProxySelector myProxySelector, AddressHelper addressHelper) {
+    OkHttpClient providesOkHttpClient(@ApplicationContext Context context, CommonHeaderInterceptor commonHeaderInterceptor, HttpLoggingInterceptor httpLoggingInterceptor, PersistentCookieJar cookieJar, MyProxySelector myProxySelector, AddressHelper addressHelper) {
         OkHttpClient.Builder builder = new OkHttpClient.Builder();
         // M95：评审结论——超时必须显式声明，不能依赖 OkHttp 默认值（默认 connect/read/write 均为 10s，
         // 且散落在隐式行为里，弱网/慢站点场景下排障困难）。显式设置：
@@ -109,7 +102,7 @@ public class ApiServiceModule {
         builder.cache(new okhttp3.Cache(new java.io.File(context.getCacheDir(), "http_cache"), 20L * 1024 * 1024));
         builder.addInterceptor(commonHeaderInterceptor);
         builder.addInterceptor(httpLoggingInterceptor);
-        builder.cookieJar(rulerCookie);
+        builder.cookieJar(cookieJar);
         builder.proxySelector(myProxySelector);
         //动态baseUrl
         RetrofitUrlManager.getInstance().putDomain(Api.GITHUB_DOMAIN_NAME, Api.APP_GITHUB_DOMAIN);

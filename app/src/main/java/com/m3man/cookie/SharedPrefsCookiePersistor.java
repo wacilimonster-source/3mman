@@ -74,17 +74,6 @@ public class SharedPrefsCookiePersistor implements CookiePersistor {
         editor.apply();
     }
 
-    /**
-     * 删除一个cookie
-     *
-     * @param cookie 要删除的cookie
-     */
-    public void delete(Cookie cookie) {
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.remove(createCookieKey(cookie));
-        editor.apply();
-    }
-
     private static String createCookieKey(Cookie cookie) {
         return (cookie.secure() ? "https" : "http") + "://" + cookie.domain() + cookie.path() + "|" + cookie.name();
     }

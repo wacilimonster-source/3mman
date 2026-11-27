@@ -31,6 +31,7 @@ import com.m3man.parser.ParseProxy;
 import com.m3man.parser.ParseV9MmanVideo;
 import com.m3man.rxjava.RetryWhenProcess;
 import com.m3man.utils.AddressHelper;
+import com.m3man.utils.AppLog;
 import me.jessyan.retrofiturlmanager.RetrofitUrlManager;
 import com.m3man.utils.UserHelper;
 
@@ -192,10 +193,22 @@ public class AppApiHelper implements ApiHelper {
         }
 
 
-        String ip = addressHelper.getRandomIPAddress();
         //因为登录后不在返回用户uid，需要在此页面获取，所以当前页面不在缓存，确保用户登录后刷新当前页面可以获取到用户uid
-        return v9MmanServiceApi.getVideoPlayPage(viewKeyQuery, ip, HeaderUtils.getIndexHeader(addressHelper))
-                .map(html -> ParseV9MmanVideo.parseVideoPlayUrl(html, user));
+        return v9MmanServiceApi.getVideoPlayPage(viewKeyQuery, HeaderUtils.getIndexHeader(addressHelper))
+                .map(response -> {
+                    if (!response.isSuccessful()) {
+                        throw new retrofit2.HttpException(response);
+                    }
+                    HttpUrl pageUrl = response.raw().request().url();
+                    String html = response.body();
+                    VideoResult result = ParseV9MmanVideo.parseVideoPlayUrl(html, user, pageUrl);
+                    if (TextUtils.isEmpty(result.getVideoUrl()) && !VideoResult.OUT_OF_WATCH_TIMES.equals(result.getId())) {
+                        AppLog.w(TAG, "播放页已返回但没有可播放地址 HTTP=" + response.code()
+                                + " host=" + pageUrl.host() + " chars=" + (html == null ? 0 : html.length())
+                                + " requiresSitePlayback=" + result.requiresSitePlayback());
+                    }
+                    return result;
+                });
     }
 
     @Override

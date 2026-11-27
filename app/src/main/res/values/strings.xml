@@ -248,9 +248,6 @@
     <string name="login_go_set">去设置</string>
     <string name="login_exit">退出</string>
     <string name="login_success">登录成功</string>
-    <string name="login_preparing_captcha">正在准备验证码识别组件…</string>
-    <string name="login_captcha_prepare_failed">验证码识别组件准备失败，请手动输入验证码</string>
-    <string name="login_captcha_recognize_failed">验证码识别失败，请手动输入</string>
     <string name="login_captcha_load_failed">无法加载验证码,点击刷新重试</string>
 
     <!-- 关于页 -->
@@ -333,7 +330,7 @@
     <string name="login_layout_captcha">验证码</string>
     <string name="login_layout_login">登     录</string>
     <string name="login_layout_remember">记住密码</string>
-    <string name="login_layout_tips">Tips：验证码现已是必须的，请正确填写，同时已经不支持自动登录了（因为无法识别验证码）</string>
+    <string name="login_layout_tips">请填写图片中的验证码。点击图片可以刷新。</string>
     <string name="setting_addr_dialog_tip">提示：地址设置只需要主地址，不需要长长的一串，例如：你要设置百度为地址，现在你有地址https://www.baidu.com/s?wd=xxxxrsv_iqid=0xfea01101000018c1xxxxxxx,后面接着长长的一串东西，但是你不需要输入这么多，只需要输入第一个“/”之前的内容即可(包括“/”),所以我们最终设置的地址应该是：https://www.baidu.com/，以此类推。测试结果仅供参考</string>
     <string name="setting_addr_dialog_hint">示例：https://www.baidu.com/</string>
     <string name="register_layout_username">用户名</string>
@@ -419,6 +416,15 @@
     <string name="play_not_parsed_cannot_favorite">还未成功解析视频链接，不能收藏！</string>
     <string name="play_favorite_saved_local">收藏成功（已保存到本地）</string>
     <string name="play_favorite_failed">收藏失败</string>
+    <string name="play_load_failed">视频加载失败</string>
+    <string name="play_no_media_url">源站未返回可播放的媒体地址</string>
+    <string name="play_source_verification_required">该视频需要源站播放器验证，当前线路没有提供可在 App 内直接播放的地址</string>
+    <string name="play_view_limit_reached">已达到源站观看次数上限</string>
+    <string name="play_source_http_error">播放页请求失败（HTTP %1$d）</string>
+    <string name="play_error_retry">%1$s\n点击重试</string>
+    <string name="play_login_required_title">需要登录才能观看</string>
+    <string name="play_login_required">该视频仅登录用户可观看；游客只能看 3 天前发布的视频，登录后会自动重新解析。</string>
+    <string name="play_login_action">去登录</string>
     <string name="play_please_login_first">请先登录</string>
 
     <!-- 注册相关 -->

@@ -17,8 +17,6 @@ public interface DataManager extends DbHelper, ApiHelper, PreferencesHelper {
 
     void existLogin();
 
-    void resetMman91VideoWatchTime(boolean reset);
-
     User getUser();
 
     boolean isUserLogin();

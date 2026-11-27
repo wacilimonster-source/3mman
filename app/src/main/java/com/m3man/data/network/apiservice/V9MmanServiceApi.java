@@ -40,9 +40,9 @@ public interface V9MmanServiceApi {
      * @param ipAddress 随机访问地址，为了突破限制游客每天10次观看次数
      * @return body
      */
-    @Headers({"Domain-Name: " + Api.PORN9_VIDEO_DOMAIN_NAME})
+    @Headers({"Domain-Name: " + Api.PORN9_VIDEO_DOMAIN_NAME, "Cache-Control: no-cache, no-store"})
     @GET("/view_video.php")
-    Observable<String> getVideoPlayPage(@QueryMap Map<String, String> viewkey, @Header("X-Forwarded-For") String ipAddress, @Header("Referer") String referer);
+    Observable<Response<String>> getVideoPlayPage(@QueryMap Map<String, String> viewkey, @Header("Referer") String referer);
 
     /**
      * 获取相应类别数据

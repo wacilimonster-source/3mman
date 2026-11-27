@@ -6,12 +6,5 @@ package com.m3man.cookie;
  */
 
 public interface CookieManager {
-    /**
-     * 重置观看次数
-     *
-     * @param forceReset 强制重置
-     */
-    void resetMman91VideoWatchTime(boolean forceReset);
-
     void cleanAllCookies();
 }
