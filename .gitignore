@@ -99,3 +99,7 @@ ftiger_*.py
 migrate_androidx.ps1
 repro.ps1
 
+
+# 本地实机测试临时目录（脚本/截图/抓到的 HTML），不入库
+/.t/
+/qa-artifacts/
