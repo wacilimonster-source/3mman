@@ -77,7 +77,9 @@ public class ApiException extends Exception {
         if (e instanceof HttpException) {
             HttpException httpException = (HttpException) e;
             ex = new ApiException(httpException, httpException.code());
-            ex.message = httpException.getMessage();
+            // 2026-11 实测：原样使用 httpException.getMessage() 会把 "HTTP 404 Not Found"
+            // 这种英文直接弹给用户（作者页 token 失效、下载 404 时都能看到），改成中文提示。
+            ex.message = httpErrorMessage(httpException.code());
             return ex;
         } else if (e instanceof JsonParseException
                 || e instanceof JSONException
@@ -144,6 +146,34 @@ public class ApiException extends Exception {
     @Override
     public String getMessage() {
         return message;
+    }
+
+    /** HTTP 状态码 → 用户可读中文（避免把 okhttp 的英文原因短语直接弹出来）。 */
+    private static String httpErrorMessage(int code) {
+        switch (code) {
+            case BADREQUEST:
+                return "请求无效（400）";
+            case UNAUTHORIZED:
+                return "登录状态已失效，请重新登录（401）";
+            case FORBIDDEN:
+                return "访问被拒绝（403）";
+            case NOT_FOUND:
+                return "内容不存在或链接已失效（404）";
+            case METHOD_NOT_ALLOWED:
+                return "请求方式不被支持（405）";
+            case REQUEST_TIMEOUT:
+                return "请求超时（408）";
+            case INTERNAL_SERVER_ERROR:
+                return "服务器内部错误（500）";
+            case BAD_GATEWAY:
+                return "网关错误（502）";
+            case SERVICE_UNAVAILABLE:
+                return "服务暂不可用（503）";
+            case GATEWAY_TIMEOUT:
+                return "网关超时（504）";
+            default:
+                return "网络请求失败（HTTP " + code + "）";
+        }
     }
 
     /**
