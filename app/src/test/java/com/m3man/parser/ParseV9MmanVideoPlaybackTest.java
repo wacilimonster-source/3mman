@@ -17,15 +17,16 @@ public class ParseV9MmanVideoPlaybackTest {
     private static final HttpUrl PAGE_URL = HttpUrl.parse("https://mirror.example/watch/456.html");
 
     @Test
-    public void interactivePageKeepsOwnerMetadataWithoutReturningPlaceholder() {
+    public void interactivePageKeepsOwnerMetadataAndStillReturnsMedia() {
         String html = VIDEO + "<script>request.open('POST','/vlk.php',false);</script>"
                 + "<a href='uvideos.php?UID=author-token'>Author</a>";
 
         VideoResult result = ParseV9MmanVideo.parseVideoPlayUrl(html, new User(), PAGE_URL);
 
-        assertEquals("", result.getVideoUrl());
+        // 页面引用 /vlk.php 不代表没有直链：有 <source> 就必须交给播放器
+        assertEquals(SOURCE, result.getVideoUrl());
         assertEquals("author-token", result.getOwnerId());
-        assertTrue(result.requiresSitePlayback());
+        assertFalse(result.requiresSitePlayback());
     }
 
     @Test
@@ -69,6 +70,32 @@ public class ParseV9MmanVideoPlaybackTest {
         VideoResult result = ParseV9MmanVideo.parseVideoPlayUrl(html, new User(), PAGE_URL);
 
         assertEquals(SOURCE, result.getVideoUrl());
+    }
+
+    @Test
+    public void interactiveTemplateWithStaticSourceStillPlays() {
+        // 登录态下的新视频页：既引用 /vlk.php，又在 vbF0=strencode2(...) / <source> 里带着可播直链。
+        // 旧实现看到 /vlk.php 就把地址丢空 → 用户侧表现为「该视频需要源站播放器验证」。实测该直链 206。
+        String html = "<video id='player_one'><source src='" + SOURCE + "'></video>"
+                + "<script>x.open('POST','/vlk.php',false);</script>";
+
+        VideoResult result = ParseV9MmanVideo.parseVideoPlayUrl(html, new User(), PAGE_URL);
+
+        assertEquals(SOURCE, result.getVideoUrl());
+        assertFalse(result.requiresSitePlayback());
+    }
+
+    @Test
+    public void interactiveTemplateWithoutAnySourceStillAsksForSitePlayer() {
+        // 只有交互脚本、页面确实没有静态地址时，才保留「需要站点播放器」的判定
+        String html = "<video id='player_one'></video>"
+                + "<script>x.open('POST','/vlk.php',false);</script>";
+
+        VideoResult result = ParseV9MmanVideo.parseVideoPlayUrl(html, new User(), PAGE_URL);
+
+        assertEquals("", result.getVideoUrl());
+        assertTrue(result.requiresSitePlayback());
+        assertFalse(result.requiresLogin());
     }
 
     @Test

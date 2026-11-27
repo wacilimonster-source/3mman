@@ -19,6 +19,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,8 +29,10 @@ import java.util.regex.Pattern;
 
 import androidx.annotation.WorkerThread;
 import okhttp3.HttpUrl;
+import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.RequestBody;
 import okhttp3.Response;
 
 /**
@@ -52,6 +55,10 @@ public class ParseV9MmanVideo {
     private static final Pattern STR_ENCODE_PATTERN = Pattern.compile(
             "strencode\\(\\s*\"([A-Za-z0-9+/=]+?)\"\\s*,\\s*\"([A-Za-z0-9+/=]+?)\"\\s*,\\s*\"([A-Za-z0-9+/=]+?)\"\\s*\\)"
     );
+
+    /** 交互模板的取流票据：页面里的 {@code var vbG="…",vbGV=…,vbGT="…"} */
+    private static final Pattern VLK_GATE_PATTERN = Pattern.compile("vbG\\s*=\\s*\"([^\"]+)\"");
+    private static final Pattern VLK_TOKEN_PATTERN = Pattern.compile("vbGT\\s*=\\s*\"([^\"]+)\"");
 
     private static final String TAG = ParseV9MmanVideo.class.getSimpleName();
     /** M95：通用 Chrome UA（与 CommonHeaderInterceptor 保持一致），供分享链接兜底请求使用 */
@@ -486,11 +493,23 @@ public class ParseV9MmanVideo {
 
         Document doc = Jsoup.parse(html);
 
-        // 需要站点播放器交互的模板仅提供占位地址，仍保留详情和作者元数据。
-        boolean requiresSitePlayback = doc.selectFirst("video#player_one") != null
-                && doc.select("script").stream().map(Element::data)
-                        .anyMatch(script -> script.contains("'/vlk.php'") || script.contains("\"/vlk.php\""));
-        String videoUrl = requiresSitePlayback ? "" : extractNativePlaybackUrl(html, doc, pageUrl);
+        // 先解析媒体地址，再判断模板能力。
+        // 2026-11 登录态下的新视频页同时具备「可播直链」和「/vlk.php 交互脚本」：
+        //   <video id="player_one"> … var vbF0=strencode2("<source src=…>") …
+        //   x.open('POST','/vlk.php') → {"u":…} 只是站点播放器自己的取流方式。
+        // 旧实现只要看到 /vlk.php 就把直链丢空并报「需要源站播放器验证」，
+        // 实测该页的直链 curl 取 Range 返回 206 video/mp4，属于可用地址。
+        String videoUrl = extractNativePlaybackUrl(html, doc, pageUrl);
+        boolean requiresSitePlayback = false;
+        if (videoUrl == null || videoUrl.isEmpty()) {
+            // 静态地址确实拿不到时，才走站点播放器自己的 /vlk.php 取流接口
+            String vlkUrl = requestVlkMediaUrl(html, pageUrl);
+            if (vlkUrl != null && !vlkUrl.isEmpty()) {
+                videoUrl = vlkUrl;
+            } else {
+                requiresSitePlayback = isInteractiveTemplate(doc);
+            }
+        }
         videoResult.setRequiresSitePlayback(requiresSitePlayback);
         videoResult.setVideoUrl(videoUrl);
         // 2026-11 源站改版：游客打开“3 天内发布的新视频”时页面不再输出播放器，
@@ -667,6 +686,62 @@ public class ParseV9MmanVideo {
         } catch (Exception e) {
             AppLog.w(TAG, "分享页播放地址解析失败 " + AppLog.cause(e));
             return "";
+        }
+    }
+
+    /**
+     * 站点播放器交互模板的判定：#player_one + 页面引用 /vlk.php。
+     * 注意这只表示「页面带了站点播放器」，不代表没有可播直链；判定顺序见 parseVideoPlayUrl。
+     */
+    private static boolean isInteractiveTemplate(Document doc) {
+        return doc != null && doc.selectFirst("video#player_one") != null
+                && doc.select("script").stream().map(Element::data)
+                        .anyMatch(script -> script.contains("'/vlk.php'") || script.contains("\"/vlk.php\""));
+    }
+
+    /**
+     * 交互模板在页面里不给静态地址时，用站点播放器自己的取流接口取一次：
+     * POST /vlk.php（text/plain + JSON 指纹体）→ {"u": 媒体地址, "ty": 类型, "d": 下载地址}。
+     * 失败（非 2xx / 无 u 字段 / 网络异常）返回 null，由调用方降级为 requiresSitePlayback。
+     */
+    private static String requestVlkMediaUrl(String html, HttpUrl pageUrl) {
+        if (html == null || pageUrl == null) {
+            return null;
+        }
+        Matcher gate = VLK_GATE_PATTERN.matcher(html);
+        Matcher token = VLK_TOKEN_PATTERN.matcher(html);
+        if (!gate.find() || !token.find()) {
+            return null;
+        }
+        HttpUrl endpoint = pageUrl.resolve("/vlk.php");
+        if (endpoint == null) {
+            return null;
+        }
+        // 指纹字段用于站点人机判定，这里只填普通桌面浏览器的真实形态，不伪造成功态
+        String payload = "{\"g\":\"" + gate.group(1) + "\",\"t\":\"" + token.group(1) + "\","
+                + "\"ev\":\"mousemove\",\"op\":1500,\"mc\":2,\"tc\":0,\"sc\":1,\"kc\":0,\"wd\":0,"
+                + "\"pl\":3,\"lg\":2,\"ow\":1080,\"oh\":1920,\"sw\":1080,\"sh\":1920,\"tz\":-480}";
+        Request request = new Request.Builder()
+                .url(endpoint)
+                .header("User-Agent", FALLBACK_UA)
+                .header("Referer", pageUrl.toString())
+                .post(RequestBody.create(MediaType.parse("text/plain; charset=utf-8"), payload))
+                .build();
+        try (Response response = NetworkClientHolder.get().newCall(request).execute()) {
+            if (!response.isSuccessful() || response.body() == null) {
+                AppLog.w(TAG, "vlk 取流失败 HTTP " + response.code());
+                return null;
+            }
+            String body = response.body().string();
+            String media = new JSONObject(body).optString("u", "");
+            if (media.isEmpty()) {
+                AppLog.w(TAG, "vlk 返回里没有媒体地址 len=" + body.length());
+                return null;
+            }
+            return resolveHttpUrl(response.request().url(), media);
+        } catch (Exception e) {
+            AppLog.w(TAG, "vlk 取流异常 " + AppLog.cause(e));
+            return null;
         }
     }
 
