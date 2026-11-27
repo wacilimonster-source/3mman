@@ -1,7 +1,7 @@
 {
-  "versionCode": 178,
-  "versionName": "1.0.145",
-  "updateMessage": "1. 修复分类页/搜索页列表空白：站点模板改版后（article.vitem + 随机标题类名）老解析规则失效，导致「最近更新 / 当前最热 / 最近得分 / 10分钟以上」全部 0 条\n2. 首页列表补齐：改版后只能解析出 2 条，现在能完整解析整页条目\n3. 保持一致：作者页与分类页共用同一套列表解析（含跳过站点隐藏的重复块）",
-  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.145/3mman_v1.0.145.apk",
-  "sha256": "c2e44253a056f870d0a5fe96f53d1f910aeeedefe9a1cee670355c1107650662"
+  "versionCode": 179,
+  "versionName": "1.0.146",
+  "updateMessage": "1. 下载完整闭环已验证：91porny 视频走 HLS 分片下载转 mp4，29.32 MB 下载完成并出现在「我的下载 · 下载完成」（进度/大小/已完成状态正确）\n2. 修复错误提示语言：接口 4xx/5xx 时不再把 okhttp 的英文短语（如「HTTP 404 Not Found」）直接弹给用户，改为中文提示（400/401/403/404/405/408/500/502/503/504 与兜底）\n3. 顺带确认：播放页作者 Tab、真实起播、收藏落库、历史记录、推荐流连播、设置项开关均在真实站点下正常",
+  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.146/3mman_v1.0.146.apk",
+  "sha256": "8b11e2ff974f9dff743efb4dab3c170966bcb60ffba46e94e0aa07e227ccdca5"
 }
