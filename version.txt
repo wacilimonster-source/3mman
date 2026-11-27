@@ -1,7 +1,7 @@
 {
-  "versionCode": 175,
-  "versionName": "1.0.142",
-  "updateMessage": "1.0.142 更新内容：\n- 修复首页点视频必现「需要源站播放器验证」无法播放（直链签名参数 t= 被误判为占位地址）\n- 主站播放页不再剥掉登录态，登录用户可正常拿到播放器\n- 游客打开仅登录可见的新视频时给出登录引导，登录后自动重新解析\n- 移除登录验证码自动识别，验证码改为手动填写",
-  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.142/3mman_v1.0.142.apk",
-  "sha256": "6beb1f7fb85babcc5db87b58f49af7b7894d5395a71c7015c074893859ad30d7"
+  "versionCode": 176,
+  "versionName": "1.0.143",
+  "updateMessage": "1.0.143 更新内容：\n- 修复登录后仍提示「该视频需要源站播放器验证」导致无法播放（登录态交互模板里明明带可播直链）\n- 交互模板缺静态地址时自动调用站点取流接口 /vlk.php，仍失败才提示\n- 同步修正上一版解析顺序：先取地址再判断模板，不再提前丢弃媒体地址",
+  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.143/3mman_v1.0.143.apk",
+  "sha256": "c1b9ba2c1a37a915a7771a9de835be7104d7b6103d6ea017f82358f3bca698a0"
 }
