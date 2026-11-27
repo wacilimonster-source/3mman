@@ -1,7 +1,7 @@
 {
-  "versionCode": 177,
-  "versionName": "1.0.144",
-  "updateMessage": "1. 播放页识别源站「邮箱验证」拦截页：未验证邮箱的账号会看到「需要先验证邮箱」并可直接跳站点验证，不再显示看不懂的「源站未返回可播放的媒体地址」\n2. 修复已登录用户重启后被当成游客的问题：「我的」页重新正确显示账号，「我的收藏」等登录功能不再要求重复登录\n3. 修复登录被误判失败（站点要求验证邮箱时其实已经登录成功，cookie 已下发）\n4. 搜索页空态提示「点击此处也可直接搜索」修复：点击后会展开搜索框并弹出键盘",
-  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.144/3mman_v1.0.144.apk",
-  "sha256": "8104b27f08d4b8dee6a6f06779b5d6f936ca186759f2f26d525af1e0e1aba2d4"
+  "versionCode": 178,
+  "versionName": "1.0.145",
+  "updateMessage": "1. 修复分类页/搜索页列表空白：站点模板改版后（article.vitem + 随机标题类名）老解析规则失效，导致「最近更新 / 当前最热 / 最近得分 / 10分钟以上」全部 0 条\n2. 首页列表补齐：改版后只能解析出 2 条，现在能完整解析整页条目\n3. 保持一致：作者页与分类页共用同一套列表解析（含跳过站点隐藏的重复块）",
+  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.145/3mman_v1.0.145.apk",
+  "sha256": "c2e44253a056f870d0a5fe96f53d1f910aeeedefe9a1cee670355c1107650662"
 }
