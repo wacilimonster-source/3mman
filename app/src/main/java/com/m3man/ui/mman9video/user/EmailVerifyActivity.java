@@ -1,6 +1,7 @@
 package com.m3man.ui.mman9video.user;
 
 import android.annotation.SuppressLint;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -18,6 +19,7 @@ import com.m3man.R;
 import com.m3man.cookie.SharedPrefsCookiePersistor;
 import com.m3man.utils.AppLog;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import okhttp3.Cookie;
@@ -59,6 +61,7 @@ public class EmailVerifyActivity extends AppCompatActivity {
             public void onPageFinished(WebView view, String finishedUrl) {
                 super.onPageFinished(view, finishedUrl);
                 prepareEmailField(view);
+                syncCookiesToApp();
             }
         });
         setContentView(webView, new ViewGroup.LayoutParams(
@@ -124,11 +127,64 @@ public class EmailVerifyActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
+        syncCookiesToApp();
         if (webView != null && webView.canGoBack()) {
             webView.goBack();
             return;
         }
         super.onBackPressed();
+    }
+
+    @Override
+    protected void onPause() {
+        syncCookiesToApp();
+        super.onPause();
+    }
+
+    /**
+     * 把 WebView 侧可能被站点更新过的 cookie 写回 App 的 OkHttp cookie 仓库。
+     * <p>
+     * 2026-11 实测：站点在验证页提交邮箱后，会把「已验证」状态绑在**当前会话**上（浏览器里提交完就能播）。
+     * 但 WebView 与 OkHttp 是两套 cookie 存储，只做「App → WebView」单向注入时，原生播放器仍然带着
+     * 未验证的会话；这里补齐反向同步，让返回播放页后的请求复用同一个会话。
+     */
+    private void syncCookiesToApp() {
+        try {
+            if (webView == null) {
+                return;
+            }
+            String url = webView.getUrl();
+            if (TextUtils.isEmpty(url)) {
+                url = DEFAULT_URL;
+            }
+            String cookieHeader = CookieManager.getInstance().getCookie(url);
+            if (TextUtils.isEmpty(cookieHeader)) {
+                return;
+            }
+            String host = Uri.parse(url).getHost();
+            if (TextUtils.isEmpty(host)) {
+                return;
+            }
+            List<Cookie> parsed = new ArrayList<>();
+            for (String pair : cookieHeader.split(";")) {
+                int eq = pair.indexOf('=');
+                if (eq <= 0) {
+                    continue;
+                }
+                String name = pair.substring(0, eq).trim();
+                String value = pair.substring(eq + 1).trim();
+                if (name.isEmpty()) {
+                    continue;
+                }
+                parsed.add(new Cookie.Builder().domain(host).path("/").name(name).value(value).build());
+            }
+            if (!parsed.isEmpty()) {
+                new SharedPrefsCookiePersistor(getApplicationContext()).saveAll(parsed);
+                AppLog.i(TAG, "回写 WebView cookie 数量=" + parsed.size() + " host=" + host);
+            }
+        } catch (Exception e) {
+            AppLog.w(TAG, "回写 WebView cookie 失败 " + AppLog.cause(e));
+        }
     }
 
     @Override
