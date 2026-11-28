@@ -119,6 +119,8 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     private boolean loginRequiredDialogShown;
     /** 邮箱验证提示已弹过（同页只弹一次）。 */
     private boolean emailVerifyDialogShown;
+    /** 应用内邮箱验证页的请求码：返回后自动重试解析。 */
+    private static final int REQUEST_CODE_EMAIL_VERIFY = 0x1A5;
     /** 单实例复用，避免重复 show 叠出多个一模一样的弹窗。 */
     private AlertDialog loginRequiredDialog;
 
@@ -706,7 +708,7 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
                     try {
                         Intent verifyIntent = new Intent(this, EmailVerifyActivity.class);
                         verifyIntent.putExtra(EmailVerifyActivity.EXTRA_URL, target);
-                        startActivity(verifyIntent);
+                        startActivityForResultWithAnimation(verifyIntent, REQUEST_CODE_EMAIL_VERIFY);
                     } catch (Exception e) {
                         AppLog.w(TAG, "打开应用内邮箱验证页失败，回退系统浏览器 " + AppLog.cause(e));
                         try {
@@ -926,6 +928,15 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_CODE_EMAIL_VERIFY) {
+            // 从应用内邮箱验证页返回：自动重试解析一次，省掉用户再点「重试」
+            AppLog.i(TAG, "从邮箱验证页返回，自动重试解析");
+            emailVerifyDialogShown = false;
+            if (v9MmanItem != null) {
+                presenter.loadVideoUrl(v9MmanItem);
+            }
+            return;
+        }
         if (resultCode == KeysActivityRequestResultCode.RESULT_FOR_LOOK_AUTHOR_VIDEO) {
             if (authorFragment != null) {
                 authorFragment.loadAuthorVideos();
