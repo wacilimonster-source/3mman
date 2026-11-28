@@ -245,20 +245,16 @@ public class AppApiHelper implements ApiHelper {
     }
 
     @Override
-    public Observable<BaseResult<List<V9MmanItem>>> loadPornyList(int kind, int page) {
+    public Observable<BaseResult<List<V9MmanItem>>> loadPornyList(String slug, int page) {
         String referer = HeaderUtils.getPornyHeader(addressHelper);
         Observable<String> pageObservable;
-        switch (kind) {
-            case Parse91PornyVideo.LIST_HD:
-                pageObservable = pornyServiceApi.listHdVideo(page, referer);
-                break;
-            case Parse91PornyVideo.LIST_TADPOLE:
-                pageObservable = pornyServiceApi.listTadpoleVideo(page, referer);
-                break;
-            case Parse91PornyVideo.LIST_HOME:
-            default:
-                pageObservable = pornyServiceApi.listHome(page, referer);
-                break;
+        if (TextUtils.isEmpty(slug)) {
+            // 首页「最新」：混合来源，48 条/页
+            pageObservable = pornyServiceApi.listHome(page, referer);
+        } else if (Parse91PornyVideo.SLUG_TADPOLE.equals(slug)) {
+            pageObservable = pornyServiceApi.listTadpoleVideo(page, referer);
+        } else {
+            pageObservable = pornyServiceApi.listCategory(slug, page, referer);
         }
         return pageObservable.map(Parse91PornyVideo::parseSearchVideos);
     }

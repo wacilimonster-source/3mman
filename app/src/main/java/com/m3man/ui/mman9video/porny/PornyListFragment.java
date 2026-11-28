@@ -41,24 +41,24 @@ import io.reactivex.schedulers.Schedulers;
 public class PornyListFragment extends Fragment {
 
     private static final String TAG = "PornyListFragment";
-    private static final String ARG_KIND = "arg_kind";
+    private static final String ARG_SLUG = "arg_slug";
 
     private RecyclerView recyclerView;
     private SwipeRefreshLayout swipeRefreshLayout;
     private V91MmanAdapter adapter;
     private View emptyView;
 
-    private int kind = Parse91PornyVideo.LIST_HOME;
+    private String slug = "";
     private int page = 1;
     private boolean loading;
     private boolean hasMore = true;
     private final CompositeDisposable disposables = new CompositeDisposable();
     private DataManager dataManager;
 
-    public static PornyListFragment newInstance(int kind) {
+    public static PornyListFragment newInstance(String slug) {
         PornyListFragment fragment = new PornyListFragment();
         Bundle args = new Bundle();
-        args.putInt(ARG_KIND, kind);
+        args.putString(ARG_SLUG, slug);
         fragment.setArguments(args);
         return fragment;
     }
@@ -67,7 +67,7 @@ public class PornyListFragment extends Fragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (getArguments() != null) {
-            kind = getArguments().getInt(ARG_KIND, Parse91PornyVideo.LIST_HOME);
+            slug = getArguments().getString(ARG_SLUG, "");
         }
         dataManager = MyApplication.getInstance().getDataManager();
     }
@@ -121,7 +121,7 @@ public class PornyListFragment extends Fragment {
             page = 1;
         }
         final int requestPage = page;
-        disposables.add(dataManager.loadPornyList(kind, requestPage)
+        disposables.add(dataManager.loadPornyList(slug, requestPage)
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(result -> {
@@ -146,7 +146,7 @@ public class PornyListFragment extends Fragment {
                         swipeRefreshLayout.setRefreshing(false);
                         loading = false;
                 }, e -> {
-                        AppLog.w(TAG, "91porny 列表加载失败 kind=" + kind + " page=" + requestPage + " " + AppLog.cause(e));
+                        AppLog.w(TAG, "91porny 列表加载失败 slug=" + slug + " page=" + requestPage + " " + AppLog.cause(e));
                         loading = false;
                         swipeRefreshLayout.setRefreshing(false);
                         adapter.loadMoreFail();

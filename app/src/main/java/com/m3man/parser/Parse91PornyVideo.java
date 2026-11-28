@@ -47,6 +47,8 @@ public class Parse91PornyVideo {
     public static final int LIST_HD = 1;
     /** 91porny 列表种类：蝌蚪 /videos（24 条/页） */
     public static final int LIST_TADPOLE = 2;
+    /** 蝌蚪列表的 slug 标识（其余 slug 走 /video/category/<slug>/<page>） */
+    public static final String SLUG_TADPOLE = "videos";
 
     /**
      * R-fix（LESSONS §3-3）：91porny 来源判定全仓库唯一权威实现。

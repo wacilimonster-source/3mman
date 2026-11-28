@@ -82,14 +82,16 @@ public interface PornyServiceApi {
                                 @Header("Referer") String referer);
 
     /**
-     * 91porny「高清原创」列表（24 条/页，实测可深翻到 1.7 万页）。
+     * 91porny 分类列表（实测 14 个分类，如 latest / hd / hot-list / ori / long-list …）。
      *
+     * @param slug 分类 slug，取自 /video 页的分类菜单
      * @param page 页码（从 1 开始）
      */
     @Headers({"Domain-Name: " + Api.PORNY_DOMAIN_NAME})
-    @GET("/video/category/hd/{page}")
-    Observable<String> listHdVideo(@Path("page") int page,
-                                   @Header("Referer") String referer);
+    @GET("/video/category/{slug}/{page}")
+    Observable<String> listCategory(@Path("slug") String slug,
+                                    @Path("page") int page,
+                                    @Header("Referer") String referer);
 
     /**
      * 91porny「蝌蚪」长视频列表（24 条/页）。
