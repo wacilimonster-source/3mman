@@ -73,6 +73,11 @@
             android:label="@string/title_user_login"
             android:screenOrientation="portrait" />
         <activity
+            android:name=".ui.mman9video.user.EmailVerifyActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden|uiMode|keyboard|layoutDirection"
+            android:exported="false"
+            android:label="@string/play_email_verify_title" />
+        <activity
             android:name=".ui.mman9video.user.UserRegisterActivity"
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode|keyboard|layoutDirection"
             android:label="@string/title_user_register"

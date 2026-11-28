@@ -43,6 +43,7 @@ import com.m3man.service.HlsDownloadService;
 import com.m3man.ui.MvpActivity;
 import com.m3man.ui.mman9video.author.AuthorFragment;
 import com.m3man.ui.mman9video.comment.CommentFragment;
+import com.m3man.ui.mman9video.user.EmailVerifyActivity;
 import com.m3man.ui.mman9video.user.UserLoginActivity;
 import com.m3man.ui.mman9video.videolist.VideoListFragment;
 import com.m3man.ui.mman9video.videolist.VideoCardActions;
@@ -700,11 +701,20 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
                 .setTitle(R.string.play_email_verify_title)
                 .setMessage(message)
                 .setPositiveButton(R.string.play_email_verify_action, (dialog, which) -> {
+                    // 2026-11 用户实测：旧实现用系统浏览器打开，浏览器里没有 App 的会话，
+                    // 还要再登录一次才能验证。改成应用内 WebView 并预先注入 cookie。
                     try {
-                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(target)));
+                        Intent verifyIntent = new Intent(this, EmailVerifyActivity.class);
+                        verifyIntent.putExtra(EmailVerifyActivity.EXTRA_URL, target);
+                        startActivity(verifyIntent);
                     } catch (Exception e) {
-                        AppLog.w(TAG, "打开邮箱验证页失败 " + AppLog.cause(e));
-                        showMessage(getString(R.string.play_email_verify_no_browser), TastyToast.ERROR);
+                        AppLog.w(TAG, "打开应用内邮箱验证页失败，回退系统浏览器 " + AppLog.cause(e));
+                        try {
+                            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(target)));
+                        } catch (Exception inner) {
+                            AppLog.w(TAG, "打开邮箱验证页失败 " + AppLog.cause(inner));
+                            showMessage(getString(R.string.play_email_verify_no_browser), TastyToast.ERROR);
+                        }
                     }
                 })
                 .setNegativeButton(R.string.common_cancel, null)
