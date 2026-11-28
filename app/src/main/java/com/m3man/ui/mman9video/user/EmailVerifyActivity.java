@@ -9,10 +9,12 @@ import android.webkit.CookieManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.m3man.R;
 import com.m3man.cookie.SharedPrefsCookiePersistor;
 import com.m3man.utils.AppLog;
 
@@ -35,6 +37,8 @@ public class EmailVerifyActivity extends AppCompatActivity {
     private static final String TAG = "EmailVerifyActivity";
 
     private WebView webView;
+    /** 网址提示只弹一次（页面会多次 onPageFinished）。 */
+    private boolean emailFieldHintShown;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -50,12 +54,38 @@ public class EmailVerifyActivity extends AppCompatActivity {
         settings.setDomStorageEnabled(true);
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
-        webView.setWebViewClient(new WebViewClient());
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String finishedUrl) {
+                super.onPageFinished(view, finishedUrl);
+                prepareEmailField(view);
+            }
+        });
         setContentView(webView, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         injectAppCookies(url);
         webView.loadUrl(url);
+    }
+
+    /**
+     * 站点表单里的邮箱输入框预填的是掩码值（如 {@code 1441*****}），直接点 Submit 会被站点判为
+     * “Please enter your email.”。这里把它清空并聚焦，用户直接输入完整邮箱即可；
+     * 同时给一次提示，避免用户以为点一下就好。
+     */
+    private void prepareEmailField(WebView view) {
+        if (view == null) {
+            return;
+        }
+        view.evaluateJavascript(
+                "(function(){var f=document.querySelector('input[name=email]');"
+                        + "if(f){if(f.value&&f.value.indexOf('*')>=0){f.value='';}f.focus();"
+                        + "return f.value;}return 'none';})()",
+                value -> AppLog.i(TAG, "验证页邮箱输入框处理结果=" + value));
+        if (!emailFieldHintShown) {
+            emailFieldHintShown = true;
+            Toast.makeText(this, R.string.play_email_verify_input_hint, Toast.LENGTH_LONG).show();
+        }
     }
 
     /**

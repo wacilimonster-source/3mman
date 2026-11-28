@@ -428,6 +428,7 @@
     <string name="play_email_verify_title">需要先验证邮箱</string>
     <string name="play_email_verify_required">站点要求该账号先完成邮箱验证才能观看视频（源站提示：你需要邮箱验证才能进行下一步操作）。验证后回到本页重试即可。</string>
     <string name="play_email_verify_action">去验证</string>
+    <string name="play_email_verify_input_hint">请把页面里的邮箱填成完整地址（带星号的是掩码，直接提交无效），提交后去邮箱点验证链接</string>
     <string name="play_email_verify_no_browser">没有可用的浏览器，请手动打开站点完成邮箱验证</string>
     <string name="play_please_login_first">请先登录</string>
 
