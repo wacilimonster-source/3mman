@@ -8,6 +8,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.liulishuo.filedownloader.model.FileDownloadStatus;
 import com.m3man.data.DataManager;
+import com.m3man.utils.AppLog;
 import com.m3man.data.db.entity.V9MmanItem;
 import com.m3man.data.db.entity.VideoResult;
 import com.m3man.data.network.Source441447Client;
@@ -34,6 +35,8 @@ import io.reactivex.schedulers.Schedulers;
  * 不新建服务、不写假数据；同一 viewKey 在途时拒绝重复提交。
  */
 public final class VideoCardActions {
+
+    private static final String TAG = "VideoCardActions";
 
     public interface Callback {
         /**
@@ -96,6 +99,7 @@ public final class VideoCardActions {
             return;
         }
         final String key = item.getViewKey();
+        AppLog.i(TAG, "卡片下载开始 viewKey=" + key + " source=" + item.getSourceName());
         if (!DOWNLOAD_IN_FLIGHT.add(key)) {
             if (callback != null) {
                 callback.onResult("下载任务正在启动，请勿重复点击", false, false);
@@ -108,11 +112,13 @@ public final class VideoCardActions {
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(result -> {
                     DOWNLOAD_IN_FLIGHT.remove(key);
+                    AppLog.i(TAG, "卡片下载结果 ok=" + result.ok + " msg=" + result.message);
                     if (callback != null) {
                         callback.onResult(result.message, result.ok, result.ok);
                     }
                 }, throwable -> {
                     DOWNLOAD_IN_FLIGHT.remove(key);
+                    AppLog.w(TAG, "卡片下载异常 " + AppLog.cause(throwable));
                     if (callback != null) {
                         callback.onResult(TextUtils.isEmpty(throwable.getMessage())
                                 ? "下载失败，请稍后重试" : throwable.getMessage(), false, false);
@@ -174,6 +180,7 @@ public final class VideoCardActions {
             url = videoResult.getVideoUrl();
         }
 
+        AppLog.i(TAG, "卡片下载已解析 url=" + url + " isHls=" + DownloadManager.isHlsUrl(url));
         String requestedPath = target.getDownLoadPath(dataManager.getCustomDownloadVideoDirPath());
         String path = SDCardUtils.ensureDownloadDir(requestedPath, context);
         if (path == null) {

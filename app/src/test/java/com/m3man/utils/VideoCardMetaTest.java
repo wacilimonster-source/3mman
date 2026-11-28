@@ -34,7 +34,7 @@ public class VideoCardMetaTest {
     public void sourceLabel_mapsPornyAndMman9() {
         V9MmanItem porny = new V9MmanItem();
         porny.setSourceName("91porny");
-        assertEquals("分分钟", VideoCardMeta.sourceLabel(porny));
+        assertEquals("91porny", VideoCardMeta.sourceLabel(porny));
 
         V9MmanItem mman9 = new V9MmanItem();
         mman9.setSourceName("mman9");
@@ -43,7 +43,7 @@ public class VideoCardMetaTest {
 
         V9MmanItem bareHex = new V9MmanItem();
         bareHex.setViewKey("0123456789abcdef");
-        assertEquals("分分钟", VideoCardMeta.sourceLabel(bareHex));
+        assertEquals("91porny", VideoCardMeta.sourceLabel(bareHex));
     }
 
     @Test

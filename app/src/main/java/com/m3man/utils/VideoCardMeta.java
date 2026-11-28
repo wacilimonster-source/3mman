@@ -10,7 +10,7 @@ import com.m3man.parser.Parse91PornyVideo;
  * 统一处理时长规范化与来源显示名，避免各适配器各写一套：
  * <ul>
  * <li>时长支持 mm:ss / h:mm:ss；解析失败返回空串，绝不输出 00:00；</li>
- * <li>来源为多源列表必显字段，91porny 显示名统一为「分分钟」；</li>
+ * <li>来源为多源列表必显字段，91porny 显示名统一为「91porny」；</li>
  * <li>作者只能来自 item.authorText（transient），缺失时省略，不用来源名顶替。</li>
  * </ul>
  * 本类刻意不依赖 android.text.TextUtils，保证纯 JVM 单测覆盖真实逻辑。
@@ -57,7 +57,7 @@ public final class VideoCardMeta {
         return String.format(java.util.Locale.US, "%02d:%02d", minutes, secs);
     }
 
-    /** 来源显示名：分分钟（91porny）/ 视频源（9mman）。 */
+    /** 来源显示名：91porny / 视频源（9mman）。 */
     public static String sourceLabel(V9MmanItem item) {
         if (item == null) {
             return "";
@@ -68,7 +68,7 @@ public final class VideoCardMeta {
         // R-fix（LESSONS §3-3）：来源判定统一走 Parse91PornyVideo.isPornySource 唯一实现，
         // 不再本地复制一份「标记 + 裸 hex 兜底」口径
         if (Parse91PornyVideo.isPornySource(item)) {
-            return "分分钟";
+            return "91porny";
         }
         return "视频源";
     }
