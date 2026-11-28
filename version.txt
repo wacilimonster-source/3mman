@@ -1,7 +1,7 @@
 {
-  "versionCode": 185,
-  "versionName": "1.0.152",
-  "updateMessage": "1. 主站账号需要邮箱验证时，App 会自动用视频标题到 91porny 反查同一视频并直接在原生播放器里播放，不再只弹「去验证」提示\n2. 反查未命中才回退到验证提示；命中的结果会写回该条目，收藏/历史/下载继续可用\n3. 实测：首屏「[原创]健身房搭讪认识的小美…」在主站被拦的情况下，由 91porny 源成功起播",
-  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.152/3mman_v1.0.152.apk",
-  "sha256": "28b1d6ce5de78c975299268411359b2ec34013c669c02077f56682d2d92d8237"
+  "versionCode": 186,
+  "versionName": "1.0.153",
+  "updateMessage": "1. 新增第三来源 91porny：首页来源面板可选「91porny」，Tab 与站点 14 个分类一一对应（最新/最近更新/高清/最近加精/当前最热/最近得分/非付费/91原创/10分钟以上/20分钟以上/本月讨论/本月收藏/收藏最多/本月最热/上月最热/蝌蚪）\n2. 该来源免账号直连播放，支持下拉刷新、上拉分页、卡片收藏与下载\n3. 修封面解析（高清/首页 Tab 封面空白）与卡片菜单缺失",
+  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.153/3mman_v1.0.153.apk",
+  "sha256": "1168000211d72bb94b335a4a18fa109d4ced5832b1c7c4093c92307dc6b5b443"
 }
