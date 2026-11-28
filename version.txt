@@ -1,7 +1,7 @@
 {
-  "versionCode": 181,
-  "versionName": "1.0.148",
-  "updateMessage": "1. 邮箱验证页预填的是掩码值（如 1441*****），直接点 Submit 会被站点判为「Please enter your email.」——现在页面加载后自动清空掩码并聚焦输入框，另加一次提示说明要填完整邮箱\n2. 从验证页返回播放页时自动重新解析，不用再手点「重试」\n3. 验证页在应用内以已登录状态打开（注入 App 会话 cookie），不会再出现「网页里没登录」的情况",
-  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.148/3mman_v1.0.148.apk",
-  "sha256": "2c789411a1ae8dfeb9eab207a796a8766a06eec600999a6d08a1393e8c6e4d95"
+  "versionCode": 182,
+  "versionName": "1.0.149",
+  "updateMessage": "1. 验证页改为双向同步：提交完邮箱后，把 WebView 里的会话 cookie 回写 App，原生播放器复用同一会话（之前只做 App→WebView 单向注入，验证后原生请求还是旧会话）\n2. 验证页邮箱框自动清空站点预填的掩码值（1441*****），直接提交会被站点判为无效\n3. 从验证页返回播放页自动重试解析",
+  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.149/3mman_v1.0.149.apk",
+  "sha256": "96bcf7b9abd6d2f027bdc5c5e5678b268e194b76c5b98c8c4135ad26acf9c695"
 }
