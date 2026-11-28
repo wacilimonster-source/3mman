@@ -1,7 +1,7 @@
 {
-  "versionCode": 179,
-  "versionName": "1.0.146",
-  "updateMessage": "1. 下载完整闭环已验证：91porny 视频走 HLS 分片下载转 mp4，29.32 MB 下载完成并出现在「我的下载 · 下载完成」（进度/大小/已完成状态正确）\n2. 修复错误提示语言：接口 4xx/5xx 时不再把 okhttp 的英文短语（如「HTTP 404 Not Found」）直接弹给用户，改为中文提示（400/401/403/404/405/408/500/502/503/504 与兜底）\n3. 顺带确认：播放页作者 Tab、真实起播、收藏落库、历史记录、推荐流连播、设置项开关均在真实站点下正常",
-  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.146/3mman_v1.0.146.apk",
-  "sha256": "8b11e2ff974f9dff743efb4dab3c170966bcb60ffba46e94e0aa07e227ccdca5"
+  "versionCode": 180,
+  "versionName": "1.0.147",
+  "updateMessage": "1. 邮箱验证页改为应用内打开并带上登录态：之前点「去验证」跳到系统浏览器，浏览器里没有 App 的会话，必须再登录一次才能验证（用户实测反馈）；现在应用内 WebView 会先注入 App 的登录 cookie，打开就是已登录状态\n2. 验证失败时回退系统浏览器，不会卡住流程\n3. 主站「登录可见」视频在账号完成邮箱验证后即可正常播放与查看评论（App 侧解析链路已就绪）",
+  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.147/3mman_v1.0.147.apk",
+  "sha256": "670cd6ab8702a06b210637df7712aa5a7bd3723a445c7c92279f017084dba02c"
 }
