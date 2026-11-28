@@ -148,6 +148,54 @@
                 android:visibility="gone"
                 app:tint="@color/brand" />
         </LinearLayout>
+
+<LinearLayout
+            android:id="@+id/row_source_porny"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:layout_marginTop="@dimen/space_2"
+            android:background="@drawable/bg_source_option"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="@dimen/space_4"
+            android:paddingEnd="@dimen/space_4">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/home_source_porny"
+                    android:textColor="@color/text_primary"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/source_picker_porny_desc"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/iv_source_porny_check"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:contentDescription="@string/source_picker_selected"
+                android:src="@drawable/ic_check_24dp"
+                android:visibility="gone"
+                app:tint="@color/brand" />
+        </LinearLayout>
     </LinearLayout>
+
+
 </androidx.core.widget.NestedScrollView>
 

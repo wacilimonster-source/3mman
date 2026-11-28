@@ -41,6 +41,13 @@ public class Parse91PornyVideo {
     private static final String TAG = Parse91PornyVideo.class.getSimpleName();
     public static final String SOURCE = "91porny";
 
+    /** 91porny 列表种类：首页「最新」（48 条/页） */
+    public static final int LIST_HOME = 0;
+    /** 91porny 列表种类：高清原创 /video/category/hd/N（24 条/页） */
+    public static final int LIST_HD = 1;
+    /** 91porny 列表种类：蝌蚪 /videos（24 条/页） */
+    public static final int LIST_TADPOLE = 2;
+
     /**
      * R-fix（LESSONS §3-3）：91porny 来源判定全仓库唯一权威实现。
      * 判定顺序：
@@ -464,7 +471,8 @@ public class Parse91PornyVideo {
         if (TextUtils.isEmpty(href)) {
             return false;
         }
-        return href.contains("/video/view/") || href.contains("/videos/view/") || href.contains("/vod/view/");
+        return href.contains("/video/view/") || href.contains("/video/viewhd/")
+                || href.contains("/videos/view/") || href.contains("/vod/view/");
     }
 
     /**
@@ -487,11 +495,18 @@ public class Parse91PornyVideo {
             if (idx >= 0) {
                 key = "vod/" + href.substring(idx + "/vod/view/".length());
             } else {
-                idx = href.indexOf("/video/view/");
-                if (idx < 0) {
-                    return href;
+                // 高清原创区（/video/viewhd/<hex>）与普通区（/video/view/<hex>）path 不同，
+                // 用 "hd/" 前缀区分，播放时分发到 /video/viewhd/。
+                idx = href.indexOf("/video/viewhd/");
+                if (idx >= 0) {
+                    key = "hd/" + href.substring(idx + "/video/viewhd/".length());
+                } else {
+                    idx = href.indexOf("/video/view/");
+                    if (idx < 0) {
+                        return href;
+                    }
+                    key = href.substring(idx + "/video/view/".length());
                 }
-                key = href.substring(idx + "/video/view/".length());
             }
         }
         return normalizePathKey(key);
@@ -513,6 +528,11 @@ public class Parse91PornyVideo {
             key = key.substring(0, key.length() - 1);
         }
         return key;
+    }
+
+    /** 是否高清原创区条目（播放路由用） */
+    public static boolean isHdViewKey(String viewKey) {
+        return viewKey != null && viewKey.startsWith("hd/");
     }
 
     /** 是否蝌蚪长视频条目（列表角标 / 播放路由用） */

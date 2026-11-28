@@ -43,6 +43,7 @@ import com.m3man.data.db.entity.Category;
 import com.m3man.eventbus.LowMemoryEvent;
 import com.m3man.ui.MvpFragment;
 import com.m3man.ui.download.DownloadActivity;
+import com.m3man.ui.mman9video.porny.PornySourceFragment;
 import com.m3man.ui.mman9video.source441447.Source441447Fragment;
 import com.m3man.utils.AnimationUtils;
 import com.m3man.utils.AppLog;
@@ -91,10 +92,16 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
     private static final String SOURCE_FRAGMENT_TAG = "source_441447";
     private static final String SOURCE_PREFS = "video_source_selection";
     private static final String PREF_SHOW_441447 = "show_441447";
+    /** 来源编号（v2 起用 int 存储，兼容旧的 show_441447 布尔值）。 */
+    private static final String PREF_SOURCE_INDEX = "source_index";
+    private static final int SOURCE_MAIN = 0;
+    private static final int SOURCE_441447 = 1;
+    private static final int SOURCE_PORNY = 2;
+    private static final String SOURCE_PORNY_TAG = "source_porny";
     /** 来源切换控件与根视图：onResume / 初始状态用它们兜底同步来源显隐。 */
     private View sourceSelector;
     private TextView sourceSelectorLabel;
-    private boolean show441447;
+    private int currentSource = SOURCE_MAIN;
     private View sourceRootView;
 
     @Inject
@@ -175,10 +182,15 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
         sourceSelectorLabel = view.findViewById(R.id.tv_source_selector);
         android.content.SharedPreferences preferences = requireContext()
                 .getSharedPreferences(SOURCE_PREFS, Context.MODE_PRIVATE);
-        show441447 = preferences.getBoolean(PREF_SHOW_441447, false);
+        currentSource = preferences.getInt(PREF_SOURCE_INDEX, -1);
+        if (currentSource < 0) {
+            // 迁移旧的「是否显示 4源」布尔值
+            currentSource = preferences.getBoolean(PREF_SHOW_441447, false) ? SOURCE_441447 : SOURCE_MAIN;
+            preferences.edit().putInt(PREF_SOURCE_INDEX, currentSource).apply();
+        }
         updateSourceSelector();
         // 首次进入显式应用一次，保证可见状态与记忆值一致。
-        applySourceVisibility(show441447);
+        applySourceVisibility(currentSource);
         sourceSelector.setOnClickListener(v -> showSourcePicker());
     }
 
@@ -187,7 +199,14 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
         if (sourceSelectorLabel == null || !isAdded()) {
             return;
         }
-        int labelRes = show441447 ? R.string.home_source_441447 : R.string.home_source_main;
+        int labelRes;
+        if (currentSource == SOURCE_PORNY) {
+            labelRes = R.string.home_source_porny;
+        } else if (currentSource == SOURCE_441447) {
+            labelRes = R.string.home_source_441447;
+        } else {
+            labelRes = R.string.home_source_main;
+        }
         sourceSelectorLabel.setText(labelRes);
         if (sourceSelector != null) {
             sourceSelector.setContentDescription(getString(R.string.home_source_selector_desc)
@@ -207,32 +226,47 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
 
         final View mainRow = content.findViewById(R.id.row_source_main);
         final View sourceRow = content.findViewById(R.id.row_source_441447);
+        final View pornyRow = content.findViewById(R.id.row_source_porny);
         final ImageView mainCheck = content.findViewById(R.id.iv_source_main_check);
         final ImageView sourceCheck = content.findViewById(R.id.iv_source_441447_check);
+        final ImageView pornyCheck = content.findViewById(R.id.iv_source_porny_check);
 
         final Runnable render = () -> {
-            mainRow.setSelected(!show441447);
-            sourceRow.setSelected(show441447);
-            mainCheck.setVisibility(show441447 ? View.GONE : View.VISIBLE);
-            sourceCheck.setVisibility(show441447 ? View.VISIBLE : View.GONE);
-            mainRow.setContentDescription(getString(show441447
-                            ? R.string.source_picker_option_desc
-                            : R.string.source_picker_option_selected_desc,
+            boolean isMain = currentSource == SOURCE_MAIN;
+            boolean is441447 = currentSource == SOURCE_441447;
+            boolean isPorny = currentSource == SOURCE_PORNY;
+            mainRow.setSelected(isMain);
+            sourceRow.setSelected(is441447);
+            pornyRow.setSelected(isPorny);
+            mainCheck.setVisibility(isMain ? View.VISIBLE : View.GONE);
+            sourceCheck.setVisibility(is441447 ? View.VISIBLE : View.GONE);
+            pornyCheck.setVisibility(isPorny ? View.VISIBLE : View.GONE);
+            mainRow.setContentDescription(getString(isMain
+                            ? R.string.source_picker_option_selected_desc
+                            : R.string.source_picker_option_desc,
                     getString(R.string.home_source_main), getString(R.string.source_picker_main_desc)));
-            sourceRow.setContentDescription(getString(show441447
+            sourceRow.setContentDescription(getString(is441447
                             ? R.string.source_picker_option_selected_desc
                             : R.string.source_picker_option_desc,
                     getString(R.string.home_source_441447), getString(R.string.source_picker_441447_desc)));
+            pornyRow.setContentDescription(getString(isPorny
+                            ? R.string.source_picker_option_selected_desc
+                            : R.string.source_picker_option_desc,
+                    getString(R.string.home_source_porny), getString(R.string.source_picker_porny_desc)));
         };
         render.run();
 
         mainRow.setOnClickListener(v -> {
             dialog.dismiss();
-            selectSource(false);
+            selectSource(SOURCE_MAIN);
         });
         sourceRow.setOnClickListener(v -> {
             dialog.dismiss();
-            selectSource(true);
+            selectSource(SOURCE_441447);
+        });
+        pornyRow.setOnClickListener(v -> {
+            dialog.dismiss();
+            selectSource(SOURCE_PORNY);
         });
         content.findViewById(R.id.iv_source_picker_close).setOnClickListener(v -> dialog.dismiss());
 
@@ -253,18 +287,18 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
         dialog.show();
     }
 
-    private void selectSource(boolean showSource) {
-        if (show441447 == showSource) {
-            applySourceVisibility(showSource);
+    private void selectSource(int source) {
+        if (currentSource == source) {
+            applySourceVisibility(source);
             return;
         }
-        show441447 = showSource;
+        currentSource = source;
         if (isAdded()) {
             requireContext().getSharedPreferences(SOURCE_PREFS, Context.MODE_PRIVATE)
-                    .edit().putBoolean(PREF_SHOW_441447, showSource).apply();
+                    .edit().putInt(PREF_SOURCE_INDEX, source).apply();
         }
         updateSourceSelector();
-        applySourceVisibility(showSource);
+        applySourceVisibility(source);
     }
 
     /**
@@ -273,11 +307,12 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
      * 两者放在同一个 FrameLayout 容器里且同一时刻只允许一个可见；
      * 切换时先隐藏对方再显示自己，避免任何回调遗漏时两层内容同时绘制造成遮挡。
      */
-    private void applySourceVisibility(boolean showSource) {
+    private void applySourceVisibility(int source) {
         View root = getView() != null ? getView() : sourceRootView;
         if (root == null) {
             return;
         }
+        boolean showSource = source != SOURCE_MAIN;
         if (showSource && popupWindow != null && popupWindow.isShowing()) {
             dismissPopupWindow();
         }
@@ -306,11 +341,23 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
     }
 
     private void ensureSourceFragmentAdded() {
-        if (getChildFragmentManager().findFragmentByTag(SOURCE_FRAGMENT_TAG) == null) {
-            getChildFragmentManager().beginTransaction()
-                    .add(R.id.source_441447_container, new Source441447Fragment(), SOURCE_FRAGMENT_TAG)
-                    .commitNowAllowingStateLoss();
+        FragmentManager fm = getChildFragmentManager();
+        String wantedTag = currentSource == SOURCE_PORNY ? SOURCE_PORNY_TAG : SOURCE_FRAGMENT_TAG;
+        String otherTag = currentSource == SOURCE_PORNY ? SOURCE_FRAGMENT_TAG : SOURCE_PORNY_TAG;
+        // 先移除另一来源的 fragment，避免两个来源同时挂载在同一个容器里叠放
+        Fragment other = fm.findFragmentByTag(otherTag);
+        if (other != null) {
+            fm.beginTransaction().remove(other).commitNowAllowingStateLoss();
         }
+        if (fm.findFragmentByTag(wantedTag) != null) {
+            return;
+        }
+        Fragment target = currentSource == SOURCE_PORNY
+                ? new PornySourceFragment()
+                : new Source441447Fragment();
+        fm.beginTransaction()
+                .add(R.id.source_441447_container, target, wantedTag)
+                .commitNowAllowingStateLoss();
     }
 
     @Override
@@ -320,7 +367,7 @@ public abstract class BaseMainFragment extends MvpFragment<BaseMainView, BaseMai
         // 视图重建、进程恢复或从播放页返回后，按当前记忆的来源兜底同步一次，
         // 防止来源容器与主站内容出现上下叠放。
         if (sourceSelector != null) {
-            applySourceVisibility(show441447);
+            applySourceVisibility(currentSource);
         }
     }
 

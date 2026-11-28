@@ -44,6 +44,12 @@ public interface PornyServiceApi {
                                                @Path(value = "slug", encoded = true) String slug,
                                                @Header("Referer") String referer);
 
+    /** 高清原创区播放页（/video/viewhd/<hex>） */
+    @Headers({"Domain-Name: " + Api.PORNY_DOMAIN_NAME})
+    @GET("/video/viewhd/{key}")
+    Observable<String> getHdVideoPlayPage(@Path("key") String key,
+                                          @Header("Referer") String referer);
+
     /** 精品播放页 */
     @Headers({"Domain-Name: " + Api.PORNY_DOMAIN_NAME})
     @GET("/vod/view/{key}")
@@ -58,17 +64,40 @@ public interface PornyServiceApi {
     Observable<String> getVideoPlayPage(@Path("viewKey") String viewKey,
                                         @Header("Referer") String referer);
 
-    /**
-     * 获取作者视频列表页。
-     *
-     * @param authorId 作者名（如 liguvipa）
-     * @param page     页码（从 1 开始）
-     * @param referer  Referer
-     * @return 作者视频列表页 HTML，结构与搜索页一致（video-elem 条目）
-     */
+    /** 作者视频列表页。 */
     @Headers({"Domain-Name: " + Api.PORNY_DOMAIN_NAME})
     @GET("/author/{authorId}")
     Observable<String> authorVideos(@Path("authorId") String authorId,
                                     @Query("page") int page,
                                     @Header("Referer") String referer);
+
+    /**
+     * 91porny 首页「最新」列表（混合来源，48 条/页）。
+     *
+     * @param page 页码（从 1 开始）
+     */
+    @Headers({"Domain-Name: " + Api.PORNY_DOMAIN_NAME})
+    @GET("/")
+    Observable<String> listHome(@Query("page") int page,
+                                @Header("Referer") String referer);
+
+    /**
+     * 91porny「高清原创」列表（24 条/页，实测可深翻到 1.7 万页）。
+     *
+     * @param page 页码（从 1 开始）
+     */
+    @Headers({"Domain-Name: " + Api.PORNY_DOMAIN_NAME})
+    @GET("/video/category/hd/{page}")
+    Observable<String> listHdVideo(@Path("page") int page,
+                                   @Header("Referer") String referer);
+
+    /**
+     * 91porny「蝌蚪」长视频列表（24 条/页）。
+     *
+     * @param page 页码（从 1 开始）
+     */
+    @Headers({"Domain-Name: " + Api.PORNY_DOMAIN_NAME})
+    @GET("/videos")
+    Observable<String> listTadpoleVideo(@Query("page") int page,
+                                        @Header("Referer") String referer);
 }

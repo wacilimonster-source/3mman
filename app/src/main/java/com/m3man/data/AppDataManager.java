@@ -284,6 +284,11 @@ public class AppDataManager implements DataManager {
     }
 
     @Override
+    public Observable<BaseResult<List<V9MmanItem>>> loadPornyList(int kind, int page) {
+        return mApiHelper.loadPornyList(kind, page);
+    }
+
+    @Override
     public Observable<BaseResult<List<V9MmanItem>>> searchPornyVideos(String keywords, int page) {
         return mApiHelper.searchPornyVideos(keywords, page);
     }

@@ -245,6 +245,25 @@ public class AppApiHelper implements ApiHelper {
     }
 
     @Override
+    public Observable<BaseResult<List<V9MmanItem>>> loadPornyList(int kind, int page) {
+        String referer = HeaderUtils.getPornyHeader(addressHelper);
+        Observable<String> pageObservable;
+        switch (kind) {
+            case Parse91PornyVideo.LIST_HD:
+                pageObservable = pornyServiceApi.listHdVideo(page, referer);
+                break;
+            case Parse91PornyVideo.LIST_TADPOLE:
+                pageObservable = pornyServiceApi.listTadpoleVideo(page, referer);
+                break;
+            case Parse91PornyVideo.LIST_HOME:
+            default:
+                pageObservable = pornyServiceApi.listHome(page, referer);
+                break;
+        }
+        return pageObservable.map(Parse91PornyVideo::parseSearchVideos);
+    }
+
+    @Override
     public Observable<BaseResult<List<V9MmanItem>>> searchPornyVideos(String keywords, int page) {
         return searchPornyVideos(keywords, page, "", "", "");
     }
@@ -265,6 +284,11 @@ public class AppApiHelper implements ApiHelper {
             String id = slash > 0 ? rest.substring(0, slash) : rest;
             String slug = slash > 0 ? rest.substring(slash + 1) : "";
             return pornyServiceApi.getTadpoleVideoPlayPage(id, slug, HeaderUtils.getPornyHeader(addressHelper))
+                    .map(html -> Parse91PornyVideo.parseVideoPlayUrl(html, addressHelper.getPornyAddress()));
+        }
+        if (Parse91PornyVideo.isHdViewKey(viewKey)) {
+            String key = viewKey.substring("hd/".length());
+            return pornyServiceApi.getHdVideoPlayPage(key, HeaderUtils.getPornyHeader(addressHelper))
                     .map(html -> Parse91PornyVideo.parseVideoPlayUrl(html, addressHelper.getPornyAddress()));
         }
         if (Parse91PornyVideo.isPremiumViewKey(viewKey)) {

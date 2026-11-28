@@ -46,6 +46,14 @@ public interface ApiHelper {
 
     Observable<VideoResult> loadPornyVideoUrl(String viewKey);
 
+    /**
+     * 91porny 列表（第三来源首页用）。
+     *
+     * @param kind 列表种类，见 {@link com.m3man.parser.Parse91PornyVideo#LIST_HOME} 等
+     * @param page 页码，从 1 开始
+     */
+    Observable<BaseResult<List<V9MmanItem>>> loadPornyList(int kind, int page);
+
     Observable<BaseResult<List<V9MmanItem>>> loadPornyAuthorVideos(String authorId, int page);
 
     Observable<Boolean> testPornyAddress(String url);
