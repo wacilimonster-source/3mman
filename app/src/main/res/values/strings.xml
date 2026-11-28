@@ -425,6 +425,8 @@
     <string name="play_login_required_title">需要登录才能观看</string>
     <string name="play_login_required">该视频仅登录用户可观看；游客只能看 3 天前发布的视频，登录后会自动重新解析。</string>
     <string name="play_login_action">去登录</string>
+    <string name="play_porny_fallback_searching">主站需要邮箱验证，正在从 91porny 找同一视频…</string>
+    <string name="play_porny_fallback_hit">已从 91porny 找到同一视频，改播备用源</string>
     <string name="play_email_verify_title">需要先验证邮箱</string>
     <string name="play_email_verify_required">站点要求该账号先完成邮箱验证才能观看视频（源站提示：你需要邮箱验证才能进行下一步操作）。验证后回到本页重试即可。</string>
     <string name="play_email_verify_action">去验证</string>

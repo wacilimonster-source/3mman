@@ -33,6 +33,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import com.m3man.adapter.SimpleFragmentPagerAdapter;
 import com.m3man.constants.Keys;
 import com.m3man.constants.KeysActivityRequestResultCode;
+import com.m3man.data.DataManager;
 import com.m3man.data.db.entity.AuthorFavorite;
 import com.m3man.data.db.entity.Category;
 import com.m3man.data.db.entity.V9MmanItem;
@@ -48,6 +49,7 @@ import com.m3man.ui.mman9video.user.UserLoginActivity;
 import com.m3man.ui.mman9video.videolist.VideoListFragment;
 import com.m3man.ui.mman9video.videolist.VideoCardActions;
 import com.m3man.utils.AppLog;
+import com.m3man.utils.PornyFallbackResolver;
 import com.m3man.utils.DialogUtils;
 import com.m3man.utils.LoadHelperUtils;
 import com.m3man.utils.SDCardUtils;
@@ -119,6 +121,8 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     private boolean loginRequiredDialogShown;
     /** 邮箱验证提示已弹过（同页只弹一次）。 */
     private boolean emailVerifyDialogShown;
+    /** 是否已经用 91porny 反查过同一视频（避免反复请求）。 */
+    private boolean pornyFallbackTried;
     /** 应用内邮箱验证页的请求码：返回后自动重试解析。 */
     private static final int REQUEST_CODE_EMAIL_VERIFY = 0x1A5;
     /** 单实例复用，避免重复 show 叠出多个一模一样的弹窗。 */
@@ -687,6 +691,42 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
 
     @Override
     public void needEmailVerifyForPlayback(String message, String verifyUrl) {
+        // 主站账号未通过邮箱验证时，先用 91porny 反查同一视频（标题匹配），命中就直接播，
+        // 这样主站账号出问题时用户仍然能看片；找不到再退回「去验证」提示。
+        if (v9MmanItem != null && !pornyFallbackTried) {
+            pornyFallbackTried = true;
+            AppLog.i(TAG, "主站需要邮箱验证，尝试用 91porny 反查同一视频：" + v9MmanItem.getTitle());
+            showMessage(getString(R.string.play_porny_fallback_searching), TastyToast.INFO);
+            new Thread(() -> {
+                VideoResult pornyResult = null;
+                try {
+                    DataManager dm = MyApplication.getInstance().getDataManager();
+                    pornyResult = PornyFallbackResolver.resolve(dm, v9MmanItem.getTitle());
+                } catch (Exception e) {
+                    AppLog.w(TAG, "91porny 反查失败 " + AppLog.cause(e));
+                }
+                final VideoResult resolved = pornyResult;
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    if (resolved != null && !TextUtils.isEmpty(resolved.getVideoUrl())) {
+                        AppLog.i(TAG, "91porny 命中同一视频，改播备用源：" + resolved.getVideoUrl());
+                        DataManager dm = MyApplication.getInstance().getDataManager();
+                        PornyFallbackResolver.applyPornyResult(dm, v9MmanItem, resolved);
+                        showMessage(getString(R.string.play_porny_fallback_hit), TastyToast.SUCCESS);
+                        presenter.loadVideoUrl(v9MmanItem);
+                    } else {
+                        showEmailVerifyDialog(message, verifyUrl);
+                    }
+                });
+            }, "porny-play-fallback").start();
+            return;
+        }
+        showEmailVerifyDialog(message, verifyUrl);
+    }
+
+    private void showEmailVerifyDialog(String message, String verifyUrl) {
         dismissDialog();
         videoPlayerContainer.setVisibility(View.GONE);
         helper.showError();
