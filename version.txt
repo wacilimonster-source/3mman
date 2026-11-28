@@ -1,7 +1,7 @@
 {
-  "versionCode": 186,
-  "versionName": "1.0.153",
-  "updateMessage": "1. 新增第三来源 91porny：首页来源面板可选「91porny」，Tab 与站点 14 个分类一一对应（最新/最近更新/高清/最近加精/当前最热/最近得分/非付费/91原创/10分钟以上/20分钟以上/本月讨论/本月收藏/收藏最多/本月最热/上月最热/蝌蚪）\n2. 该来源免账号直连播放，支持下拉刷新、上拉分页、卡片收藏与下载\n3. 修封面解析（高清/首页 Tab 封面空白）与卡片菜单缺失",
-  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.153/3mman_v1.0.153.apk",
-  "sha256": "1168000211d72bb94b335a4a18fa109d4ced5832b1c7c4093c92307dc6b5b443"
+  "versionCode": 187,
+  "versionName": "1.0.154",
+  "updateMessage": "1. 91porny 来源下卡片「下载」实测可用：两个条目均已完成（100%），文件保存到 /sdcard/Movies/3mman/\n2. 卡片来源角标统一显示「91porny」（原「分分钟」）\n3. 下载链路补充诊断日志，出问题可在「我的 → 查看日志」自助排查",
+  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.154/3mman_v1.0.154.apk",
+  "sha256": "16fbd110de2cfffffad5d6c6adefc38efb95cc4aed478cfa3501d7a7f5cb99dc"
 }
