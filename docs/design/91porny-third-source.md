@@ -37,13 +37,29 @@
 
 ### 2.2 91porny 来源的首页结构
 
-选中 91porny 后，原来的 5 个分类 Tab **替换**为该来源的 3 个 Tab（其余来源保持原样）：
+选中 91porny 后，原来的 5 个分类 Tab **替换**为该来源的 Tab（其余来源保持原样）。
+Tab 与站点 `/video` 页顶部分类菜单一一对应（实测 14 个分类，`TabLayout` 用 `scrollable`）：
 
-| Tab | 含义 | 接口 | 每页 |
+| # | Tab | 接口 | 每页 |
 |---|---|---|---|
-| 最新 | 混合最新 | `/?page=N` | 48 |
-| 高清 | 高清原创 | `/video/category/hd/N` | 24 |
-| 蝌蚪 | 长视频 | `/videos?page=N` | 24 |
+| 1 | 最新（首页混合） | `/?page=N` | 48 |
+| 2 | 最近更新 | `/video/category/latest/N` | 24 |
+| 3 | 高清 | `/video/category/hd/N` | 24 |
+| 4 | 最近加精 | `/video/category/recent-favorite/N` | 24 |
+| 5 | 当前最热 | `/video/category/hot-list/N` | 24 |
+| 6 | 最近得分 | `/video/category/recent-rating/N` | 24 |
+| 7 | 非付费 | `/video/category/nonpaid/N` | 24 |
+| 8 | 91原创 | `/video/category/ori/N` | 24 |
+| 9 | 10分钟以上 | `/video/category/long-list/N` | 24 |
+| 10 | 20分钟以上 | `/video/category/longer-list/N` | 24 |
+| 11 | 本月讨论 | `/video/category/month-discuss/N` | 24 |
+| 12 | 本月收藏 | `/video/category/top-favorite/N` | 24 |
+| 13 | 收藏最多 | `/video/category/most-favorite/N` | 24 |
+| 14 | 本月最热 | `/video/category/top-list/N` | 24 |
+| 15 | 上月最热 | `/video/category/top-last/N` | 24 |
+| 16 | 蝌蚪（长视频） | `/videos?page=N` | 24 |
+
+- 分类 slug 全部来自 `/video` 页 `<div class="item" data-href="/video/category/<slug>">` 菜单，与本表一致。
 
 - 分页：上拉加载下一页，`page=1` 起步，失败给「加载失败 · 点击重试」。
 - 下拉刷新：重置到第 1 页并清缓存。
