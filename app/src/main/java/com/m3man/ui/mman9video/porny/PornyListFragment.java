@@ -22,6 +22,7 @@ import com.m3man.data.model.BaseResult;
 import com.m3man.parser.Parse91PornyVideo;
 import androidx.fragment.app.Fragment;
 import com.m3man.utils.AppLog;
+import com.m3man.ui.mman9video.videolist.VideoCardActions;
 import com.m3man.widget.VerticalSpaceItemDecoration;
 
 import java.util.ArrayList;
@@ -91,7 +92,33 @@ public class PornyListFragment extends Fragment {
             V9MmanItem item = (V9MmanItem) baseQuickAdapter.getItem(position);
             startPlay(item);
         });
-        adapter.setOnLoadMoreListener(() -> loadPage(false), recyclerView);
+        adapter.setOnCardActionListener(new V91MmanAdapter.OnCardActionListener() {
+            @Override
+            public void onFavoriteAction(V9MmanItem item) {
+                VideoCardActions.toggleFavorite(dataManager, item, (message, success, openDownloads) -> {
+                    if (!isAdded() || getContext() == null) {
+                        return;
+                    }
+                    TastyToast.makeText(getContext(), message, TastyToast.LENGTH_SHORT,
+                            success ? TastyToast.SUCCESS : TastyToast.ERROR).show();
+                    int index = adapter.getData().indexOf(item);
+                    if (success && index >= 0) {
+                        adapter.notifyItemChanged(index);
+                    }
+                });
+            }
+
+            @Override
+            public void onDownloadAction(V9MmanItem item) {
+                VideoCardActions.download(getContext(), dataManager, item, (message, success, openDownloads) -> {
+                    if (!isAdded() || getContext() == null) {
+                        return;
+                    }
+                    TastyToast.makeText(getContext(), message, TastyToast.LENGTH_SHORT,
+                            success ? TastyToast.SUCCESS : TastyToast.INFO).show();
+                });
+            }
+        });        adapter.setOnLoadMoreListener(() -> loadPage(false), recyclerView);
         adapter.setEnableLoadMore(false);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));

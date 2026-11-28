@@ -146,7 +146,17 @@ public class Parse91PornyVideo {
             v.setViewKey(extractViewKey(href));
 
             Element imgDiv = item.selectFirst("div.img");
-            v.setImgUrl(extractBackgroundUrl(imgDiv != null ? imgDiv.attr("style") : ""));
+            v.setImgUrl(normalizeImageUrl(extractBackgroundUrl(imgDiv != null ? imgDiv.attr("style") : "")));
+            // 高清/首页列表封面常写成 <img class="img" src="//cdn…">，div.img 背景为空时用它兜底
+            if (TextUtils.isEmpty(v.getImgUrl())) {
+                Element imgTag = item.selectFirst("img.img");
+                if (imgTag == null) {
+                    imgTag = item.selectFirst("img");
+                }
+                if (imgTag != null) {
+                    v.setImgUrl(normalizeImageUrl(imgTag.attr("src")));
+                }
+            }
 
             Element titleA = item.selectFirst("a.title");
             v.setTitle(titleA != null ? titleA.text() : "");
@@ -409,6 +419,19 @@ public class Parse91PornyVideo {
             // 解析异常时保留原值，由上层记录真实失败原因。
             return trimmed;
         }
+    }
+
+
+    /** 站点列表封面常用协议相对地址（//cdn…），补成 https 再交给图片库。 */
+    private static String normalizeImageUrl(String url) {
+        if (TextUtils.isEmpty(url)) {
+            return url;
+        }
+        String trimmed = url.trim();
+        if (trimmed.startsWith("//")) {
+            return "https:" + trimmed;
+        }
+        return trimmed;
     }
 
     private static boolean isAdItem(Element item) {
