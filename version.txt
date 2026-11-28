@@ -1,7 +1,7 @@
 {
-  "versionCode": 183,
-  "versionName": "1.0.150",
-  "updateMessage": "1. 邮箱验证全自动：点「去验证」后自动取账号邮箱、自动填表提交、自动跳过广告页，并自动打开目标视频页，不用再手打邮箱\n2. 验证页用桌面 UA，与浏览器行为一致；cookie 改为双向同步（App ↔ 网页），验证后的会话也带给原生播放器\n3. 网页播放器里抓到的视频地址会回传原生播放器直连播放；抓不到则留在应用内网页播放",
-  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.150/3mman_v1.0.150.apk",
-  "sha256": "a7a81ca02cc1be9cb883fbfc027a618280ab2594b065b9c34c0a0a0b77044356"
+  "versionCode": 184,
+  "versionName": "1.0.151",
+  "updateMessage": "1. 邮箱验证页验证完成后不再自动关闭：网页里能播时保持播放，不打断\n2. 仍然自动取账号邮箱、自动填表提交、自动跳广告，抓不到播放地址时留在应用内网页播放\n3. 修掉打不开的广告域名导致的误判（广告域名不可达时直接继续流程）",
+  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.151/3mman_v1.0.151.apk",
+  "sha256": "e3ff85303d24e793fb9dbd2525f566b1a5f1f9b825778056a7e37fe691eed147"
 }
