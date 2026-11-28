@@ -708,6 +708,10 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
                     try {
                         Intent verifyIntent = new Intent(this, EmailVerifyActivity.class);
                         verifyIntent.putExtra(EmailVerifyActivity.EXTRA_URL, target);
+                        if (v9MmanItem != null && !TextUtils.isEmpty(v9MmanItem.getViewKey())) {
+                            verifyIntent.putExtra(EmailVerifyActivity.EXTRA_VIDEO_URL,
+                                    "https://www.91porn.com/view_video.php?viewkey=" + v9MmanItem.getViewKey());
+                        }
                         startActivityForResultWithAnimation(verifyIntent, REQUEST_CODE_EMAIL_VERIFY);
                     } catch (Exception e) {
                         AppLog.w(TAG, "打开应用内邮箱验证页失败，回退系统浏览器 " + AppLog.cause(e));
@@ -929,7 +933,15 @@ public abstract class BasePlayVideo extends MvpActivity<PlayVideoView, PlayVideo
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQUEST_CODE_EMAIL_VERIFY) {
-            // 从应用内邮箱验证页返回：自动重试解析一次，省掉用户再点「重试」
+            // 应用内验证页可能已经抓到了可播放的媒体地址（站点验证后网页里就能播），
+            // 直接交给原生播放器，省掉一次注定被拦的解析。
+            String mediaUrl = data == null ? null : data.getStringExtra(EmailVerifyActivity.EXTRA_RESULT_MEDIA_URL);
+            if (!TextUtils.isEmpty(mediaUrl) && v9MmanItem != null) {
+                AppLog.i(TAG, "验证页拿到媒体地址，直接原生播放 " + mediaUrl);
+                playVideo(v9MmanItem.getTitle(), mediaUrl, "", v9MmanItem.getImgUrl());
+                return;
+            }
+            // 没拿到地址就从验证页返回：自动重试解析一次，省掉用户再点「重试」
             AppLog.i(TAG, "从邮箱验证页返回，自动重试解析");
             emailVerifyDialogShown = false;
             if (v9MmanItem != null) {
