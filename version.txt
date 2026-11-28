@@ -1,7 +1,7 @@
 {
-  "versionCode": 182,
-  "versionName": "1.0.149",
-  "updateMessage": "1. 验证页改为双向同步：提交完邮箱后，把 WebView 里的会话 cookie 回写 App，原生播放器复用同一会话（之前只做 App→WebView 单向注入，验证后原生请求还是旧会话）\n2. 验证页邮箱框自动清空站点预填的掩码值（1441*****），直接提交会被站点判为无效\n3. 从验证页返回播放页自动重试解析",
-  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.149/3mman_v1.0.149.apk",
-  "sha256": "96bcf7b9abd6d2f027bdc5c5e5678b268e194b76c5b98c8c4135ad26acf9c695"
+  "versionCode": 183,
+  "versionName": "1.0.150",
+  "updateMessage": "1. 邮箱验证全自动：点「去验证」后自动取账号邮箱、自动填表提交、自动跳过广告页，并自动打开目标视频页，不用再手打邮箱\n2. 验证页用桌面 UA，与浏览器行为一致；cookie 改为双向同步（App ↔ 网页），验证后的会话也带给原生播放器\n3. 网页播放器里抓到的视频地址会回传原生播放器直连播放；抓不到则留在应用内网页播放",
+  "apkDownloadUrl": "https://github.com/wacilimonster-source/3mman/releases/download/v1.0.150/3mman_v1.0.150.apk",
+  "sha256": "a7a81ca02cc1be9cb883fbfc027a618280ab2594b065b9c34c0a0a0b77044356"
 }
