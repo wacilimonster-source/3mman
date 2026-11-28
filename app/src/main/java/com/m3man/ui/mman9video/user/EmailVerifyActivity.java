@@ -112,10 +112,10 @@ public class EmailVerifyActivity extends AppCompatActivity {
                     autoHandler.postDelayed(this, AUTO_STEP_INTERVAL_MS);
                     return;
                 }
-                // 轮询两轮（约 5s）仍没抓到播放页，就把播放交回原生播放器重新解析
-                if (stepsAfterSubmit >= 4) {
-                    AppLog.i(TAG, "验证流程结束，交回原生播放器 url=" + url);
-                    finish();
+                // 抓不到播放页就留在应用内网页播放：站点把播放能力绑在网页会话上，
+                // 用户在网页里验证 + 跳过广告后即可正常观看。
+                if (stepsAfterSubmit >= 3) {
+                    AppLog.i(TAG, "验证流程结束，保留应用内网页播放 url=" + url);
                     return;
                 }
             } else {
